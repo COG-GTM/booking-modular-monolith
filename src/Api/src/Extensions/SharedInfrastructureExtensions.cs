@@ -75,13 +75,28 @@ public static class SharedInfrastructureExtensions
     {
         var appOptions = app.Configuration.GetOptions<AppOptions>(nameof(AppOptions));
 
+        app.Use(async (context, next) =>
+        {
+            context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            context.Response.Headers["X-Frame-Options"] = "DENY";
+            context.Response.Headers["Cross-Origin-Resource-Policy"] = "same-origin";
+            context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+            context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+            context.Response.Headers["Pragma"] = "no-cache";
+            await next();
+        });
+
         app.UseServiceDefaults();
 
         app.UseCustomProblemDetails();
 
         app.UseCorrelationId();
 
-        app.MapGet("/", x => x.Response.WriteAsync(appOptions.Name));
+        app.MapGet("/", x =>
+        {
+            x.Response.ContentType = "text/plain; charset=utf-8";
+            return x.Response.WriteAsync(appOptions.Name);
+        });
 
         if (app.Environment.IsDevelopment())
         {
