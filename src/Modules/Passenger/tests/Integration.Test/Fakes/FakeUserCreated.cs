@@ -1,5 +1,5 @@
 using AutoBogus;
-using BuildingBlocks.Contracts.EventBus.Messages;
+using BuildingBlocks.Contracts.EventBus.Messages.V1;
 
 namespace Integration.Test.Fakes;
 

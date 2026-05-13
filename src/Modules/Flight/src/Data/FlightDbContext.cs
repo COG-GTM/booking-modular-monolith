@@ -12,11 +12,12 @@ using Microsoft.Extensions.Logging;
 
 public sealed class FlightDbContext : AppDbContextBase
 {
-    public FlightDbContext(DbContextOptions<FlightDbContext> options, ICurrentUserProvider? currentUserProvider = null,
-        ILogger<FlightDbContext>? logger = null) : base(
-        options, currentUserProvider, logger)
-    {
-    }
+    public FlightDbContext(
+        DbContextOptions<FlightDbContext> options,
+        ICurrentUserProvider? currentUserProvider = null,
+        ILogger<FlightDbContext>? logger = null
+    )
+        : base(options, currentUserProvider, logger) { }
 
     public DbSet<Flights.Models.Flight> Flights => Set<Flights.Models.Flight>();
     public DbSet<Airport> Airports => Set<Airport>();
@@ -25,6 +26,7 @@ public sealed class FlightDbContext : AppDbContextBase
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        builder.HasDefaultSchema("flight");
         base.OnModelCreating(builder);
         builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         builder.FilterSoftDeletedProperties();
