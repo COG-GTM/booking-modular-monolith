@@ -18,7 +18,6 @@ public static class NoSynchronizationContextScope
             this.synchronizationContext = synchronizationContext;
         }
 
-        public void Dispose() =>
-            SynchronizationContext.SetSynchronizationContext(synchronizationContext);
+        public void Dispose() => SynchronizationContext.SetSynchronizationContext(synchronizationContext);
     }
 }

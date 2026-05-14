@@ -9,10 +9,8 @@ namespace Integration.Test.Seat.Features;
 
 public class ReserveSeatTests : FlightIntegrationTestBase
 {
-    public ReserveSeatTests(
-        TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory) : base(integrationTestFactory)
-    {
-    }
+    public ReserveSeatTests(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory)
+        : base(integrationTestFactory) { }
 
     [Fact]
     public async Task should_return_valid_reserve_seat_from_grpc_service()
@@ -29,11 +27,9 @@ public class ReserveSeatTests : FlightIntegrationTestBase
         var flightGrpcClient = new FlightGrpcService.FlightGrpcServiceClient(Fixture.Channel);
 
         // Act
-        var response = await flightGrpcClient.ReserveSeatAsync(new ReserveSeatRequest()
-        {
-            FlightId = seatCommand.FlightId.ToString(),
-            SeatNumber = seatCommand.SeatNumber
-        });
+        var response = await flightGrpcClient.ReserveSeatAsync(
+            new ReserveSeatRequest() { FlightId = seatCommand.FlightId.ToString(), SeatNumber = seatCommand.SeatNumber }
+        );
 
         // Assert
         response?.Should().NotBeNull();

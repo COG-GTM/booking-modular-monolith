@@ -5,11 +5,8 @@ using Microsoft.Extensions.Logging;
 
 namespace BuildingBlocks.EFCore;
 
-public class SeedManager(
-    ILogger<SeedManager> logger,
-    IWebHostEnvironment env,
-    IServiceProvider serviceProvider
-) : ISeedManager
+public class SeedManager(ILogger<SeedManager> logger, IWebHostEnvironment env, IServiceProvider serviceProvider)
+    : ISeedManager
 {
     public async Task ExecuteSeedAsync()
     {

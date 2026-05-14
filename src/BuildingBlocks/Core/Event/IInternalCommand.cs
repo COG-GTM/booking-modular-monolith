@@ -1,5 +1,3 @@
 namespace BuildingBlocks.Core.Event;
 
-public interface IInternalCommand : IEvent
-{
-}
+public interface IInternalCommand : IEvent { }

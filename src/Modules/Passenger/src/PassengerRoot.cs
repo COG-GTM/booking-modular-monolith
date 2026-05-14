@@ -1,6 +1,3 @@
 namespace Passenger;
 
-public class PassengerRoot
-{
-
-}
+public class PassengerRoot { }

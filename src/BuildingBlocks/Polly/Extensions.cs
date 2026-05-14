@@ -13,11 +13,14 @@ public static class Extensions
     {
         var retryPolicy = Policy
             .Handle<Exception>()
-            .Retry(retryCount, (exception, retryAttempt, context) =>
-                               {
-                                   Logger.LogInformation($"Retry attempt: {retryAttempt}");
-                                   Logger.LogError($"Exception: {exception.Message}");
-                               });
+            .Retry(
+                retryCount,
+                (exception, retryAttempt, context) =>
+                {
+                    Logger.LogInformation($"Retry attempt: {retryAttempt}");
+                    Logger.LogError($"Exception: {exception.Message}");
+                }
+            );
 
         return retryPolicy.Execute(action);
     }

@@ -139,7 +139,11 @@ internal static class ActivityExtensions
     /// <param name="exception">The exception associated with the error, if available.</param>
     /// <param name="description">An optional description of the error.</param>
     /// <returns>The updated Activity with the status, error details, and tags set.</returns>
-    public static Activity SetErrorStatus(this Activity activity, System.Exception? exception, string? description = null)
+    public static Activity SetErrorStatus(
+        this Activity activity,
+        System.Exception? exception,
+        string? description = null
+    )
     {
         ArgumentNullException.ThrowIfNull(activity);
 

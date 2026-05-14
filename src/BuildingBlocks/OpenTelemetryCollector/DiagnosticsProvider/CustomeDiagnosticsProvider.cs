@@ -13,7 +13,9 @@ public class CustomeDiagnosticsProvider(IMeterFactory meterFactory, IOptions<Obs
     private ActivityListener? _listener;
     private Meter? _meter;
 
-    public string InstrumentationName { get; } = options.Value.InstrumentationName ?? throw new ArgumentException("InstrumentationName cannot be null or empty.");
+    public string InstrumentationName { get; } =
+        options.Value.InstrumentationName
+        ?? throw new ArgumentException("InstrumentationName cannot be null or empty.");
 
     // https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-instrumentation-walkthroughs
     public ActivitySource ActivitySource

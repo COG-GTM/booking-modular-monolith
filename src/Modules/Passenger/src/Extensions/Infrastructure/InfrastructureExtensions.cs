@@ -26,7 +26,6 @@ public static class InfrastructureExtensions
         return builder;
     }
 
-
     public static WebApplication UsePassengerModules(this WebApplication app)
     {
         app.UseMigration<PassengerDbContext>();

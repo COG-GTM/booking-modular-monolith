@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="MassTransit" Version="8.5.8" />
+    <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.8" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Core/BuildingBlocks.Core.csproj" />
+    <ProjectReference Include="../Exception/BuildingBlocks.Exception.csproj" />
+    <ProjectReference Include="../Web/BuildingBlocks.Web.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+</Project>

@@ -18,18 +18,15 @@ public static class Extensions
             PageSize = pageRequest.PageSize,
             Page = pageRequest.PageNumber,
             Sorts = pageRequest.SortOrder,
-            Filters = pageRequest.Filters
+            Filters = pageRequest.Filters,
         };
 
         // https://github.com/Biarity/Sieve/issues/34#issuecomment-403817573
         var result = sieveProcessor.Apply(sieveModel, queryable, applyPagination: false);
         var total = result.Count();
-        result = sieveProcessor.Apply(sieveModel, queryable, applyFiltering: false,
-            applySorting: false); // Only applies pagination
+        result = sieveProcessor.Apply(sieveModel, queryable, applyFiltering: false, applySorting: false); // Only applies pagination
 
-        var items = await result
-            .ToAsyncEnumerable()
-            .ToListAsync(cancellationToken: cancellationToken);
+        var items = await result.ToAsyncEnumerable().ToListAsync(cancellationToken: cancellationToken);
 
         return PageList<TEntity>.Create(items.AsReadOnly(), pageRequest.PageNumber, pageRequest.PageSize, total);
     }

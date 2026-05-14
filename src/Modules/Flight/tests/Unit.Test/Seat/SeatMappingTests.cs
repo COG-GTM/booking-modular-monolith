@@ -23,15 +23,19 @@ public class SeatMappingTests
             yield return new object[]
             {
                 // these types will instantiate with reflection in the future
-                typeof(global::Flight.Seats.Models.SeatReadModel), typeof(SeatDto)
+                typeof(global::Flight.Seats.Models.SeatReadModel),
+                typeof(SeatDto),
             };
         }
     }
 
-
     [Theory]
     [MemberData(nameof(Data))]
-    public void should_support_mapping_from_source_to_destination(Type source, Type destination, params object[] parameters)
+    public void should_support_mapping_from_source_to_destination(
+        Type source,
+        Type destination,
+        params object[] parameters
+    )
     {
         var instance = Activator.CreateInstance(source, parameters);
 

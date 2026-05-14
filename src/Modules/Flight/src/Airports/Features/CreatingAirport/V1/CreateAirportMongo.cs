@@ -14,16 +14,15 @@ using Models;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 
-public record CreateAirportMongo(Guid Id, string Name, string Address, string Code, bool IsDeleted = false) : InternalCommand;
+public record CreateAirportMongo(Guid Id, string Name, string Address, string Code, bool IsDeleted = false)
+    : InternalCommand;
 
 internal class CreateAirportMongoHandler : ICommandHandler<CreateAirportMongo>
 {
     private readonly FlightReadDbContext _flightReadDbContext;
     private readonly IMapper _mapper;
 
-    public CreateAirportMongoHandler(
-        FlightReadDbContext flightReadDbContext,
-        IMapper mapper)
+    public CreateAirportMongoHandler(FlightReadDbContext flightReadDbContext, IMapper mapper)
     {
         _flightReadDbContext = flightReadDbContext;
         _mapper = mapper;
@@ -35,9 +34,9 @@ internal class CreateAirportMongoHandler : ICommandHandler<CreateAirportMongo>
 
         var airportReadModel = _mapper.Map<AirportReadModel>(request);
 
-        var aircraft = await _flightReadDbContext.Airport.AsQueryable()
-            .FirstOrDefaultAsync(x => x.AirportId == airportReadModel.AirportId &&
-                                      !x.IsDeleted, cancellationToken);
+        var aircraft = await _flightReadDbContext
+            .Airport.AsQueryable()
+            .FirstOrDefaultAsync(x => x.AirportId == airportReadModel.AirportId && !x.IsDeleted, cancellationToken);
 
         if (aircraft is not null)
         {

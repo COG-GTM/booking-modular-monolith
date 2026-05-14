@@ -17,10 +17,8 @@ using global::Flight.Flights.ValueObjects;
 
 public class DeleteFlightTests : FlightIntegrationTestBase
 {
-    public DeleteFlightTests(
-        TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory) : base(integrationTestFactory)
-    {
-    }
+    public DeleteFlightTests(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory)
+        : base(integrationTestFactory) { }
 
     [Fact]
     public async Task should_delete_flight_from_db()
@@ -31,11 +29,11 @@ public class DeleteFlightTests : FlightIntegrationTestBase
 
         // Act
         await Fixture.SendAsync(command);
-        var deletedFlight = (await Fixture.ExecuteDbContextAsync(db => db.Flights
-                .Where(x => x.Id == FlightId.Of(command.Id))
-                .IgnoreQueryFilters()
-                .ToListAsync())
-            ).FirstOrDefault();
+        var deletedFlight = (
+            await Fixture.ExecuteDbContextAsync(db =>
+                db.Flights.Where(x => x.Id == FlightId.Of(command.Id)).IgnoreQueryFilters().ToListAsync()
+            )
+        ).FirstOrDefault();
 
         // Assert
         deletedFlight?.IsDeleted.Should().BeTrue();

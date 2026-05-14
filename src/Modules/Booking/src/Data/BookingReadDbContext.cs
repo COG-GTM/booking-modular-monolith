@@ -9,7 +9,8 @@ using Booking.Models;
 
 public class BookingReadDbContext : MongoDbContext
 {
-    public BookingReadDbContext(IOptions<MongoOptions> options) : base(options)
+    public BookingReadDbContext(IOptions<MongoOptions> options)
+        : base(options)
     {
         Booking = GetCollection<BookingReadModel>(nameof(Booking).Underscore());
     }

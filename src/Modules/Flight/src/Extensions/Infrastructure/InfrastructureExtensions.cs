@@ -11,7 +11,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Flight.Extensions.Infrastructure;
 
-
 public static class InfrastructureExtensions
 {
     public static WebApplicationBuilder AddFlightModules(this WebApplicationBuilder builder)
@@ -28,7 +27,6 @@ public static class InfrastructureExtensions
 
         return builder;
     }
-
 
     public static WebApplication UseFlightModules(this WebApplication app)
     {

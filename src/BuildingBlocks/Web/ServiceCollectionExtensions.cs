@@ -13,8 +13,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<TService, TImplementation>();
     }
 
-    public static void ReplaceScoped<TService>(this IServiceCollection services,
-        Func<IServiceProvider, TService> implementationFactory)
+    public static void ReplaceScoped<TService>(
+        this IServiceCollection services,
+        Func<IServiceProvider, TService> implementationFactory
+    )
         where TService : class
     {
         services.Unregister<TService>();
@@ -29,8 +31,10 @@ public static class ServiceCollectionExtensions
         services.AddTransient<TService, TImplementation>();
     }
 
-    public static void ReplaceTransient<TService>(this IServiceCollection services,
-        Func<IServiceProvider, TService> implementationFactory)
+    public static void ReplaceTransient<TService>(
+        this IServiceCollection services,
+        Func<IServiceProvider, TService> implementationFactory
+    )
         where TService : class
     {
         services.Unregister<TService>();
@@ -45,8 +49,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<TService, TImplementation>();
     }
 
-    public static void ReplaceSingleton<TService>(this IServiceCollection services,
-        Func<IServiceProvider, TService> implementationFactory)
+    public static void ReplaceSingleton<TService>(
+        this IServiceCollection services,
+        Func<IServiceProvider, TService> implementationFactory
+    )
         where TService : class
     {
         services.Unregister<TService>();

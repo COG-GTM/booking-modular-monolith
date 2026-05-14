@@ -30,7 +30,9 @@ public class GetFlightByIdEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapGet($"{EndpointConfig.BaseApiPath}/flight/{{id}}",
+        builder
+            .MapGet(
+                $"{EndpointConfig.BaseApiPath}/flight/{{id}}",
                 async (Guid id, IMediator mediator, IMapper mapper, CancellationToken cancellationToken) =>
                 {
                     var result = await mediator.Send(new GetFlightById(id), cancellationToken);
@@ -38,7 +40,8 @@ public class GetFlightByIdEndpoint : IMinimalEndpoint
                     var response = result.Adapt<GetFlightByIdResponseDto>();
 
                     return Results.Ok(response);
-                })
+                }
+            )
             .RequireAuthorization(nameof(ApiScope))
             .WithName("GetFlightById")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
@@ -76,9 +79,9 @@ internal class GetFlightByIdHandler : IQueryHandler<GetFlightById, GetFlightById
     {
         Guard.Against.Null(request, nameof(request));
 
-        var flight = await _flightReadDbContext.Flight.AsQueryable().SingleOrDefaultAsync(
-            x => x.FlightId == request.Id &&
-                             !x.IsDeleted, cancellationToken);
+        var flight = await _flightReadDbContext
+            .Flight.AsQueryable()
+            .SingleOrDefaultAsync(x => x.FlightId == request.Id && !x.IsDeleted, cancellationToken);
 
         if (flight is null)
         {

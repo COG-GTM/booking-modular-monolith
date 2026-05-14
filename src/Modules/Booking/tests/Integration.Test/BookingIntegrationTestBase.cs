@@ -8,9 +8,8 @@ namespace Integration.Test;
 [Collection(IntegrationTestCollection.Name)]
 public class BookingIntegrationTestBase : TestReadBase<Program, BookingReadDbContext>
 {
-    public BookingIntegrationTestBase(TestReadFixture<Program, BookingReadDbContext> integrationTestFixture) : base(integrationTestFixture)
-    {
-    }
+    public BookingIntegrationTestBase(TestReadFixture<Program, BookingReadDbContext> integrationTestFixture)
+        : base(integrationTestFixture) { }
 }
 
 [CollectionDefinition(Name)]

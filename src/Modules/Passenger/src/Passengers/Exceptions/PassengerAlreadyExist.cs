@@ -4,7 +4,6 @@ using BuildingBlocks.Exception;
 
 public class PassengerNotExist : BadRequestException
 {
-    public PassengerNotExist(string code = default) : base("Please register before!")
-    {
-    }
+    public PassengerNotExist(string code = default)
+        : base("Please register before!") { }
 }

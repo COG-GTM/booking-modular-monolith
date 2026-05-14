@@ -1,5 +1,3 @@
 namespace BuildingBlocks.Core.Event;
 
-public interface IHaveIntegrationEvent
-{
-}
+public interface IHaveIntegrationEvent { }

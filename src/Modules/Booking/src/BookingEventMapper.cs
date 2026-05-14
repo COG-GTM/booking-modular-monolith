@@ -13,7 +13,7 @@ public sealed class BookingEventMapper : IEventMapper
         return @event switch
         {
             BookingCreatedDomainEvent e => new BookingCreated(e.Id),
-            _ => null
+            _ => null,
         };
     }
 
@@ -21,7 +21,7 @@ public sealed class BookingEventMapper : IEventMapper
     {
         return @event switch
         {
-            _ => null
+            _ => null,
         };
     }
 }

@@ -10,7 +10,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Identity.Extensions.Infrastructure;
 
-
 public static class InfrastructureExtensions
 {
     public static WebApplicationBuilder AddIdentityModules(this WebApplicationBuilder builder)
@@ -32,7 +31,6 @@ public static class InfrastructureExtensions
 
         return builder;
     }
-
 
     public static WebApplication UseIdentityModules(this WebApplication app)
     {

@@ -4,7 +4,6 @@ using BuildingBlocks.Exception;
 
 public class InvalidAgeException : BadRequestException
 {
-    public InvalidAgeException() : base("Age Cannot be null or negative")
-    {
-    }
+    public InvalidAgeException()
+        : base("Age Cannot be null or negative") { }
 }

@@ -9,7 +9,8 @@ using Passengers.Models;
 
 public class PassengerReadDbContext : MongoDbContext
 {
-    public PassengerReadDbContext(IOptions<MongoOptions> options) : base(options)
+    public PassengerReadDbContext(IOptions<MongoOptions> options)
+        : base(options)
     {
         Passenger = GetCollection<PassengerReadModel>(nameof(Passenger).Underscore());
     }

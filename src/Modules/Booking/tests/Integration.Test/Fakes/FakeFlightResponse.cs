@@ -22,8 +22,8 @@ public static class FakeFlightResponse
                 DepartureDate = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Utc).ToTimestamp(),
                 FlightDate = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Utc).ToTimestamp(),
                 FlightNumber = "1500B",
-                DepartureAirportId = new Guid("3c5c0000-97c6-fc34-fc3c-08db322230c8").ToString()
-            }
+                DepartureAirportId = new Guid("3c5c0000-97c6-fc34-fc3c-08db322230c8").ToString(),
+            },
         };
 
         return flightMock;

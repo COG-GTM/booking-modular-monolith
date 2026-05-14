@@ -15,16 +15,15 @@ using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using ValueObjects;
 
-public record CreateAircraftMongo(Guid Id, string Name, string Model, int ManufacturingYear, bool IsDeleted = false) : InternalCommand;
+public record CreateAircraftMongo(Guid Id, string Name, string Model, int ManufacturingYear, bool IsDeleted = false)
+    : InternalCommand;
 
 internal class CreateAircraftMongoHandler : ICommandHandler<CreateAircraftMongo>
 {
     private readonly FlightReadDbContext _flightReadDbContext;
     private readonly IMapper _mapper;
 
-    public CreateAircraftMongoHandler(
-        FlightReadDbContext flightReadDbContext,
-        IMapper mapper)
+    public CreateAircraftMongoHandler(FlightReadDbContext flightReadDbContext, IMapper mapper)
     {
         _flightReadDbContext = flightReadDbContext;
         _mapper = mapper;
@@ -36,9 +35,9 @@ internal class CreateAircraftMongoHandler : ICommandHandler<CreateAircraftMongo>
 
         var aircraftReadModel = _mapper.Map<AircraftReadModel>(request);
 
-        var aircraft = await _flightReadDbContext.Aircraft.AsQueryable()
-            .FirstOrDefaultAsync(x => x.AircraftId == aircraftReadModel.AircraftId &&
-                                      !x.IsDeleted, cancellationToken);
+        var aircraft = await _flightReadDbContext
+            .Aircraft.AsQueryable()
+            .FirstOrDefaultAsync(x => x.AircraftId == aircraftReadModel.AircraftId && !x.IsDeleted, cancellationToken);
 
         if (aircraft is not null)
         {

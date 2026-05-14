@@ -7,7 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.csproj" IsAspireProjectResource="false" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.3.0" />
+    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\HealthCheck\BuildingBlocks.HealthCheck.csproj" IsAspireProjectResource="false" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\OpenTelemetryCollector\BuildingBlocks.OpenTelemetryCollector.csproj" IsAspireProjectResource="false" />
   </ItemGroup>
 
 </Project>

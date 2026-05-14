@@ -3,7 +3,6 @@ namespace Flight.Flights.ValueObjects;
 using System;
 using Flight.Flights.Exceptions;
 
-
 public record DepartureDate
 {
     public DateTime Value { get; }

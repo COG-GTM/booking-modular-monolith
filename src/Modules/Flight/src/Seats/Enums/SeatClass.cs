@@ -5,5 +5,5 @@ public enum SeatClass
     Unknown = 0,
     FirstClass,
     Business,
-    Economy
+    Economy,
 }

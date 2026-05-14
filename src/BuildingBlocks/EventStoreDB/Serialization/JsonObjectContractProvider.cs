@@ -13,24 +13,29 @@ public static class JsonObjectContractProvider
     public static JsonObjectContract UsingNonDefaultConstructor(
         JsonObjectContract contract,
         Type objectType,
-        Func<ConstructorInfo, JsonPropertyCollection, IList<JsonProperty>> createConstructorParameters) =>
-        Constructors.GetOrAdd(objectType.AssemblyQualifiedName!, _ =>
-        {
-            var nonDefaultConstructor = GetNonDefaultConstructor(objectType);
-
-            if (nonDefaultConstructor == null)
-                return contract;
-
-            contract.OverrideCreator = GetObjectConstructor(nonDefaultConstructor);
-            contract.CreatorParameters.Clear();
-            foreach (var constructorParameter in
-                     createConstructorParameters(nonDefaultConstructor, contract.Properties))
+        Func<ConstructorInfo, JsonPropertyCollection, IList<JsonProperty>> createConstructorParameters
+    ) =>
+        Constructors.GetOrAdd(
+            objectType.AssemblyQualifiedName!,
+            _ =>
             {
-                contract.CreatorParameters.Add(constructorParameter);
-            }
+                var nonDefaultConstructor = GetNonDefaultConstructor(objectType);
 
-            return contract;
-        });
+                if (nonDefaultConstructor == null)
+                    return contract;
+
+                contract.OverrideCreator = GetObjectConstructor(nonDefaultConstructor);
+                contract.CreatorParameters.Clear();
+                foreach (
+                    var constructorParameter in createConstructorParameters(nonDefaultConstructor, contract.Properties)
+                )
+                {
+                    contract.CreatorParameters.Add(constructorParameter);
+                }
+
+                return contract;
+            }
+        );
 
     private static ObjectConstructor<object> GetObjectConstructor(MethodBase method)
     {
@@ -51,8 +56,7 @@ public static class JsonObjectContractProvider
         if (objectType.IsPrimitive || objectType.IsEnum)
             return null;
 
-        return GetAttributeConstructor(objectType)
-               ?? GetTheMostSpecificConstructor(objectType);
+        return GetAttributeConstructor(objectType) ?? GetTheMostSpecificConstructor(objectType);
     }
 
     private static ConstructorInfo? GetAttributeConstructor(Type objectType)
@@ -63,13 +67,14 @@ public static class JsonObjectContractProvider
 
         var constructors = objectType
             .GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-            .Where(c => c.GetCustomAttributes().Any(a => a.GetType() == ConstructorAttributeType)).ToList();
+            .Where(c => c.GetCustomAttributes().Any(a => a.GetType() == ConstructorAttributeType))
+            .ToList();
 
         return constructors.Count switch
         {
             1 => constructors[0],
             > 1 => throw new JsonException($"Multiple constructors with a {ConstructorAttributeType.Name}."),
-            _ => null
+            _ => null,
         };
     }
 

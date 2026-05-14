@@ -13,8 +13,7 @@ public class IdentityTestDataSeeder(
     UserManager<User> userManager,
     RoleManager<Role> roleManager,
     IEventDispatcher eventDispatcher
-)
-    : ITestDataSeeder
+) : ITestDataSeeder
 {
     public async Task SeedAllAsync()
     {
@@ -45,7 +44,13 @@ public class IdentityTestDataSeeder(
             {
                 await userManager.AddToRoleAsync(InitialData.Users.First(), IdentityConstant.Role.Admin);
 
-                await eventDispatcher.SendAsync(new UserCreated(InitialData.Users.First().Id, InitialData.Users.First().FirstName + " " + InitialData.Users.First().LastName, InitialData.Users.First().PassPortNumber));
+                await eventDispatcher.SendAsync(
+                    new UserCreated(
+                        InitialData.Users.First().Id,
+                        InitialData.Users.First().FirstName + " " + InitialData.Users.First().LastName,
+                        InitialData.Users.First().PassPortNumber
+                    )
+                );
             }
         }
 
@@ -57,7 +62,13 @@ public class IdentityTestDataSeeder(
             {
                 await userManager.AddToRoleAsync(InitialData.Users.Last(), IdentityConstant.Role.User);
 
-                await eventDispatcher.SendAsync(new UserCreated(InitialData.Users.Last().Id, InitialData.Users.Last().FirstName + " " + InitialData.Users.Last().LastName, InitialData.Users.Last().PassPortNumber));
+                await eventDispatcher.SendAsync(
+                    new UserCreated(
+                        InitialData.Users.Last().Id,
+                        InitialData.Users.Last().FirstName + " " + InitialData.Users.Last().LastName,
+                        InitialData.Users.Last().PassPortNumber
+                    )
+                );
             }
         }
     }

@@ -5,7 +5,6 @@ namespace Passenger.Exceptions;
 
 public class PassengerNotFoundException : AppException
 {
-    public PassengerNotFoundException() : base("Passenger not found!", HttpStatusCode.NotFound)
-    {
-    }
+    public PassengerNotFoundException()
+        : base("Passenger not found!", HttpStatusCode.NotFound) { }
 }

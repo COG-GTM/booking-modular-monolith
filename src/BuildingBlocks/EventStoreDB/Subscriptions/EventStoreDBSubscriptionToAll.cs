@@ -12,8 +12,7 @@ public class EventStoreDBSubscriptionToAllOptions
 {
     public string SubscriptionId { get; set; } = "default";
 
-    public SubscriptionFilterOptions FilterOptions { get; set; } =
-        new(EventTypeFilter.ExcludeSystemEvents());
+    public SubscriptionFilterOptions FilterOptions { get; set; } = new(EventTypeFilter.ExcludeSystemEvents());
 
     public Action<EventStoreClientOperationOptions>? ConfigureOperation { get; set; }
     public UserCredentials? Credentials { get; set; }
@@ -74,8 +73,7 @@ public class EventStoreDBSubscriptionToAll
         logger.LogInformation("Subscription to all '{SubscriptionId}' started", SubscriptionId);
     }
 
-    private async Task HandleEvent(StreamSubscription subscription, ResolvedEvent resolvedEvent,
-        CancellationToken ct)
+    private async Task HandleEvent(StreamSubscription subscription, ResolvedEvent resolvedEvent, CancellationToken ct)
     {
         try
         {
@@ -94,7 +92,9 @@ public class EventStoreDBSubscriptionToAll
                 logger.LogWarning("Couldn't deserialize event with id: {EventId}", resolvedEvent.Event.EventId);
 
                 if (!subscriptionOptions.IgnoreDeserializationErrors)
-                    throw new InvalidOperationException($"Unable to deserialize event {resolvedEvent.Event.EventType} with id: {resolvedEvent.Event.EventId}");
+                    throw new InvalidOperationException(
+                        $"Unable to deserialize event {resolvedEvent.Event.EventType} with id: {resolvedEvent.Event.EventId}"
+                    );
                 return;
             }
 
@@ -107,8 +107,11 @@ public class EventStoreDBSubscriptionToAll
         }
         catch (System.Exception e)
         {
-            logger.LogError("Error consuming message: {ExceptionMessage}{ExceptionStackTrace}", e.Message,
-                e.StackTrace);
+            logger.LogError(
+                "Error consuming message: {ExceptionMessage}{ExceptionStackTrace}",
+                e.Message,
+                e.StackTrace
+            );
             // if you're fine with dropping some events instead of stopping subscription
             // then you can add some logic if error should be ignored
             throw;
@@ -153,9 +156,13 @@ public class EventStoreDBSubscriptionToAll
             }
             catch (System.Exception exception)
             {
-                logger.LogWarning(exception,
+                logger.LogWarning(
+                    exception,
                     "Failed to resubscribe to all '{SubscriptionId}' dropped with '{ExceptionMessage}{ExceptionStackTrace}'",
-                    SubscriptionId, exception.Message, exception.StackTrace);
+                    SubscriptionId,
+                    exception.Message,
+                    exception.StackTrace
+                );
             }
             finally
             {

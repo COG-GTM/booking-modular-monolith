@@ -2,10 +2,7 @@ using BuildingBlocks.Core.Event;
 
 namespace BuildingBlocks.EventStoreDB.Events;
 
-public record EventMetadata(
-    ulong StreamRevision,
-    ulong LogPosition
-);
+public record EventMetadata(ulong StreamRevision, ulong LogPosition);
 
 public class StreamEvent : IEvent
 {
@@ -19,11 +16,11 @@ public class StreamEvent : IEvent
     }
 }
 
-public class StreamEvent<T> : StreamEvent where T : notnull
+public class StreamEvent<T> : StreamEvent
+    where T : notnull
 {
     public new T Data => (T)base.Data;
 
-    public StreamEvent(T data, EventMetadata metadata) : base(data, metadata)
-    {
-    }
+    public StreamEvent(T data, EventMetadata metadata)
+        : base(data, metadata) { }
 }

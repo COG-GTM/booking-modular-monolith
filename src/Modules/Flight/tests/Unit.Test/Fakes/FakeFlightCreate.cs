@@ -10,9 +10,18 @@ public static class FakeFlightCreate
     {
         var command = new FakeCreateFlightCommand().Generate();
 
-        return global::Flight.Flights.Models.Flight.Create(FlightId.Of(command.Id), FlightNumber.Of(command.FlightNumber),
-            AircraftId.Of(command.AircraftId), AirportId.Of(command.DepartureAirportId), DepartureDate.Of(command.DepartureDate),
-            ArriveDate.Of(command.ArriveDate), AirportId.Of(command.ArriveAirportId), DurationMinutes.Of(command.DurationMinutes),
-            FlightDate.Of(command.FlightDate), command.Status, Price.Of(command.Price));
+        return global::Flight.Flights.Models.Flight.Create(
+            FlightId.Of(command.Id),
+            FlightNumber.Of(command.FlightNumber),
+            AircraftId.Of(command.AircraftId),
+            AirportId.Of(command.DepartureAirportId),
+            DepartureDate.Of(command.DepartureDate),
+            ArriveDate.Of(command.ArriveDate),
+            AirportId.Of(command.ArriveAirportId),
+            DurationMinutes.Of(command.DurationMinutes),
+            FlightDate.Of(command.FlightDate),
+            command.Status,
+            Price.Of(command.Price)
+        );
     }
 }

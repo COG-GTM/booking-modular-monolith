@@ -11,11 +11,12 @@ public class AircraftConfiguration : IEntityTypeConfiguration<Aircraft>
 {
     public void Configure(EntityTypeBuilder<Aircraft> builder)
     {
-
         builder.ToTable(nameof(Aircraft));
 
         builder.HasKey(r => r.Id);
-        builder.Property(r => r.Id).ValueGeneratedNever()
+        builder
+            .Property(r => r.Id)
+            .ValueGeneratedNever()
             .HasConversion<Guid>(aircraftId => aircraftId.Value, dbId => AircraftId.Of(dbId));
 
         builder.Property(r => r.Version).IsConcurrencyToken();
@@ -24,10 +25,7 @@ public class AircraftConfiguration : IEntityTypeConfiguration<Aircraft>
             x => x.Name,
             a =>
             {
-                a.Property(p => p.Value)
-                    .HasColumnName(nameof(Aircraft.Name))
-                    .HasMaxLength(50)
-                    .IsRequired();
+                a.Property(p => p.Value).HasColumnName(nameof(Aircraft.Name)).HasMaxLength(50).IsRequired();
             }
         );
 
@@ -35,10 +33,7 @@ public class AircraftConfiguration : IEntityTypeConfiguration<Aircraft>
             x => x.Model,
             a =>
             {
-                a.Property(p => p.Value)
-                    .HasColumnName(nameof(Aircraft.Model))
-                    .HasMaxLength(50)
-                    .IsRequired();
+                a.Property(p => p.Value).HasColumnName(nameof(Aircraft.Model)).HasMaxLength(50).IsRequired();
             }
         );
 
@@ -46,10 +41,7 @@ public class AircraftConfiguration : IEntityTypeConfiguration<Aircraft>
             x => x.ManufacturingYear,
             a =>
             {
-                a.Property(p => p.Value)
-                    .HasColumnName(nameof(Aircraft.ManufacturingYear))
-                    .HasMaxLength(5)
-                    .IsRequired();
+                a.Property(p => p.Value).HasColumnName(nameof(Aircraft.ManufacturingYear)).HasMaxLength(5).IsRequired();
             }
         );
     }

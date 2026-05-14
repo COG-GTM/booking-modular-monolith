@@ -15,10 +15,7 @@ public class ServiceLocator
 
     public static ServiceLocator Current
     {
-        get
-        {
-            return new ServiceLocator(_serviceProvider);
-        }
+        get { return new ServiceLocator(_serviceProvider); }
     }
 
     public static void SetLocatorProvider(IServiceProvider serviceProvider)

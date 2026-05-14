@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Duende.IdentityServer" Version="7.4.6" />
+    <PackageReference Include="Duende.IdentityServer.AspNetIdentity" Version="7.4.6" />
+    <PackageReference Include="Duende.IdentityServer.EntityFramework" Version="7.4.6" />
+    <PackageReference Include="Duende.IdentityServer.EntityFramework.Storage" Version="7.4.6" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Constants/BuildingBlocks.Constants.csproj" />
+    <ProjectReference Include="../Web/BuildingBlocks.Web.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+</Project>

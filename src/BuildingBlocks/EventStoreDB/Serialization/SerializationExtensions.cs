@@ -8,8 +8,7 @@ public static class SerializationExtensions
 {
     public static JsonSerializerSettings WithDefaults(this JsonSerializerSettings settings)
     {
-        settings.WithNonDefaultConstructorContractResolver()
-            .Converters.Add(new StringEnumConverter());
+        settings.WithNonDefaultConstructorContractResolver().Converters.Add(new StringEnumConverter());
 
         return settings;
     }
@@ -28,10 +27,11 @@ public static class SerializationExtensions
     /// <returns>deserialized object</returns>
     public static T FromJson<T>(this string json)
     {
-        return JsonConvert.DeserializeObject<T>(json,
-            new JsonSerializerSettings().WithNonDefaultConstructorContractResolver())!;
+        return JsonConvert.DeserializeObject<T>(
+            json,
+            new JsonSerializerSettings().WithNonDefaultConstructorContractResolver()
+        )!;
     }
-
 
     /// <summary>
     /// Deserialize object from json with JsonNet
@@ -42,8 +42,11 @@ public static class SerializationExtensions
     /// <returns>deserialized object</returns>
     public static object FromJson(this string json, Type type)
     {
-        return JsonConvert.DeserializeObject(json, type,
-            new JsonSerializerSettings().WithNonDefaultConstructorContractResolver())!;
+        return JsonConvert.DeserializeObject(
+            json,
+            type,
+            new JsonSerializerSettings().WithNonDefaultConstructorContractResolver()
+        )!;
     }
 
     /// <summary>

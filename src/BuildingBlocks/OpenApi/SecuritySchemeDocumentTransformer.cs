@@ -24,15 +24,14 @@ public class SecuritySchemeDocumentTransformer : IOpenApiDocumentTransformer
                 BearerFormat = "JWT",
                 In = ParameterLocation.Header,
                 Description =
-                                                       "Enter 'Bearer' [space] and your token in the text input below.\n\nExample: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'",
+                    "Enter 'Bearer' [space] and your token in the text input below.\n\nExample: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'",
             },
             ["ApiKey"] = new OpenApiSecurityScheme
             {
                 Name = "X-API-KEY",
                 Type = SecuritySchemeType.ApiKey,
                 In = ParameterLocation.Header,
-                Description =
-                                                       "Enter your API key in the text input below.\n\nExample: '12345-abcdef'",
+                Description = "Enter your API key in the text input below.\n\nExample: '12345-abcdef'",
             },
         };
 

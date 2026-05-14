@@ -18,9 +18,7 @@ public class ConsumeFilter<T> : IFilter<ConsumeContext<T>>
     public async Task Send(ConsumeContext<T> context, IPipe<ConsumeContext<T>> next)
     {
         var id = await _persistMessageProcessor.AddReceivedMessageAsync(
-            new MessageEnvelope(
-                context.Message,
-                context.Headers.ToDictionary(x => x.Key, x => x.Value))
+            new MessageEnvelope(context.Message, context.Headers.ToDictionary(x => x.Key, x => x.Value))
         );
 
         var message = await _persistMessageProcessor.ExistMessageAsync(id);
@@ -32,7 +30,5 @@ public class ConsumeFilter<T> : IFilter<ConsumeContext<T>>
         }
     }
 
-    public void Probe(ProbeContext context)
-    {
-    }
+    public void Probe(ProbeContext context) { }
 }

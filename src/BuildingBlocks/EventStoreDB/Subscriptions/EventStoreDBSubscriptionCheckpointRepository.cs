@@ -11,8 +11,7 @@ public class EventStoreDBSubscriptionCheckpointRepository : ISubscriptionCheckpo
 {
     private readonly EventStoreClient eventStoreClient;
 
-    public EventStoreDBSubscriptionCheckpointRepository(
-        EventStoreClient eventStoreClient)
+    public EventStoreDBSubscriptionCheckpointRepository(EventStoreClient eventStoreClient)
     {
         this.eventStoreClient = eventStoreClient ?? throw new ArgumentNullException(nameof(eventStoreClient));
     }
@@ -21,8 +20,13 @@ public class EventStoreDBSubscriptionCheckpointRepository : ISubscriptionCheckpo
     {
         var streamName = GetCheckpointStreamName(subscriptionId);
 
-        var result = eventStoreClient.ReadStreamAsync(Direction.Backwards, streamName, StreamPosition.End, 1,
-            cancellationToken: ct);
+        var result = eventStoreClient.ReadStreamAsync(
+            Direction.Backwards,
+            streamName,
+            StreamPosition.End,
+            1,
+            cancellationToken: ct
+        );
 
         if (await result.ReadState == ReadState.StreamNotFound)
         {

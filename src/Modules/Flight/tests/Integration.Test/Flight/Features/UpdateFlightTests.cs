@@ -16,10 +16,8 @@ using global::Flight.Flights.ValueObjects;
 
 public class UpdateFlightTests : FlightIntegrationTestBase
 {
-    public UpdateFlightTests(
-        TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory) : base(integrationTestFactory)
-    {
-    }
+    public UpdateFlightTests(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory)
+        : base(integrationTestFactory) { }
 
     [Fact]
     public async Task should_update_flight_to_db_and_publish_message_to_broker()

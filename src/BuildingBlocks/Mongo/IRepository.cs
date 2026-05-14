@@ -10,18 +10,21 @@ public interface IReadRepository<TEntity, in TId>
 
     Task<TEntity?> FindOneAsync(
         Expression<Func<TEntity, bool>> predicate,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default
+    );
 
     Task<IReadOnlyList<TEntity>> FindAsync(
         Expression<Func<TEntity, bool>> predicate,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default
+    );
 
     Task<IReadOnlyList<TEntity>> GetAllAsync(CancellationToken cancellationToken = default);
 
     public Task<IReadOnlyList<TEntity>> RawQuery(
         string query,
         CancellationToken cancellationToken = default,
-        params object[] queryParams);
+        params object[] queryParams
+    );
 }
 
 public interface IWriteRepository<TEntity, in TId>
@@ -35,15 +38,11 @@ public interface IWriteRepository<TEntity, in TId>
     Task DeleteByIdAsync(TId id, CancellationToken cancellationToken = default);
 }
 
-public interface IRepository<TEntity, in TId> :
-    IReadRepository<TEntity, TId>,
-    IWriteRepository<TEntity, TId>,
-    IDisposable
-    where TEntity : class, IAggregate<TId>
-{
-}
+public interface IRepository<TEntity, in TId>
+    : IReadRepository<TEntity, TId>,
+        IWriteRepository<TEntity, TId>,
+        IDisposable
+    where TEntity : class, IAggregate<TId> { }
 
 public interface IRepository<TEntity> : IRepository<TEntity, long>
-    where TEntity : class, IAggregate<long>
-{
-}
+    where TEntity : class, IAggregate<long> { }

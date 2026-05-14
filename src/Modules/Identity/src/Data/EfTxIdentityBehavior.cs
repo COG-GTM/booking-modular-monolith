@@ -9,8 +9,8 @@ using Microsoft.Extensions.Logging;
 namespace Identity.Data;
 
 public class EfTxIdentityBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
-where TRequest : notnull, IRequest<TResponse>
-where TResponse : notnull
+    where TRequest : notnull, IRequest<TResponse>
+    where TResponse : notnull
 {
     private readonly ILogger<EfTxIdentityBehavior<TRequest, TResponse>> _logger;
     private readonly IdentityContext _identityContext;
@@ -36,23 +36,22 @@ where TResponse : notnull
         CancellationToken cancellationToken
     )
     {
-        _logger.LogInformation(
-            "{Prefix} Handled command {MediatrRequest}",
-            GetType().Name,
-            typeof(TRequest).FullName);
+        _logger.LogInformation("{Prefix} Handled command {MediatrRequest}", GetType().Name, typeof(TRequest).FullName);
 
         _logger.LogDebug(
             "{Prefix} Handled command {MediatrRequest} with content {RequestContent}",
             GetType().Name,
             typeof(TRequest).FullName,
-            JsonSerializer.Serialize(request));
+            JsonSerializer.Serialize(request)
+        );
 
         var response = await next();
 
         _logger.LogInformation(
             "{Prefix} Executed the {MediatrRequest} request",
             GetType().Name,
-            typeof(TRequest).FullName);
+            typeof(TRequest).FullName
+        );
 
         while (true)
         {
@@ -66,31 +65,28 @@ where TResponse : notnull
             _logger.LogInformation(
                 "{Prefix} Open the transaction for {MediatrRequest}",
                 GetType().Name,
-                typeof(TRequest).FullName);
+                typeof(TRequest).FullName
+            );
 
             using var scope = new TransactionScope(
                 TransactionScopeOption.Required,
                 new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted },
-                TransactionScopeAsyncFlowOption.Enabled);
+                TransactionScopeAsyncFlowOption.Enabled
+            );
 
-            await _eventDispatcher.SendAsync(
-                domainEvents.ToArray(),
-                typeof(TRequest),
-                cancellationToken);
+            await _eventDispatcher.SendAsync(domainEvents.ToArray(), typeof(TRequest), cancellationToken);
 
             // Save data to database with some retry policy in distributed transaction
-            await _identityContext.RetryOnFailure(
-                async () =>
-                {
-                    await _identityContext.SaveChangesAsync(cancellationToken);
-                });
+            await _identityContext.RetryOnFailure(async () =>
+            {
+                await _identityContext.SaveChangesAsync(cancellationToken);
+            });
 
             // Save data to database with some retry policy in distributed transaction
-            await _persistMessageDbContext.RetryOnFailure(
-                async () =>
-                {
-                    await _persistMessageDbContext.SaveChangesAsync(cancellationToken);
-                });
+            await _persistMessageDbContext.RetryOnFailure(async () =>
+            {
+                await _persistMessageDbContext.SaveChangesAsync(cancellationToken);
+            });
 
             scope.Complete();
 

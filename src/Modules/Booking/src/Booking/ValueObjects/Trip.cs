@@ -13,8 +13,16 @@ public record Trip
     public string Description { get; }
     public string SeatNumber { get; }
 
-    private Trip(string flightNumber, Guid aircraftId, Guid departureAirportId, Guid arriveAirportId,
-        DateTime flightDate, decimal price, string description, string seatNumber)
+    private Trip(
+        string flightNumber,
+        Guid aircraftId,
+        Guid departureAirportId,
+        Guid arriveAirportId,
+        DateTime flightDate,
+        decimal price,
+        string description,
+        string seatNumber
+    )
     {
         FlightNumber = flightNumber;
         AircraftId = aircraftId;
@@ -26,8 +34,16 @@ public record Trip
         SeatNumber = seatNumber;
     }
 
-    public static Trip Of(string flightNumber, Guid aircraftId, Guid departureAirportId, Guid arriveAirportId,
-        DateTime flightDate, decimal price, string description, string seatNumber)
+    public static Trip Of(
+        string flightNumber,
+        Guid aircraftId,
+        Guid departureAirportId,
+        Guid arriveAirportId,
+        DateTime flightDate,
+        decimal price,
+        string description,
+        string seatNumber
+    )
     {
         if (string.IsNullOrWhiteSpace(flightNumber))
         {
@@ -64,6 +80,15 @@ public record Trip
             throw new SeatNumberException(seatNumber);
         }
 
-        return new Trip(flightNumber, aircraftId, departureAirportId, arriveAirportId, flightDate, price, description, seatNumber);
+        return new Trip(
+            flightNumber,
+            aircraftId,
+            departureAirportId,
+            arriveAirportId,
+            flightDate,
+            price,
+            description,
+            seatNumber
+        );
     }
 }

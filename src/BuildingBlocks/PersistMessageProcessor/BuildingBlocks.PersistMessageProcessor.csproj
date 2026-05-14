@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Ardalis.GuardClauses" Version="5.0.0" />
+    <PackageReference Include="Humanizer.Core" Version="3.0.1" />
+    <PackageReference Include="MassTransit" Version="8.5.8" />
+    <PackageReference Include="MediatR" Version="14.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Core/BuildingBlocks.Core.csproj" />
+    <ProjectReference Include="../EFCore/BuildingBlocks.EFCore.csproj" />
+    <ProjectReference Include="../Utils/BuildingBlocks.Utils.csproj" />
+    <ProjectReference Include="../Web/BuildingBlocks.Web.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+</Project>
