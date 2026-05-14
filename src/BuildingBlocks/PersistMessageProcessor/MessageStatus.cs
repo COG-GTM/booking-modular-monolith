@@ -4,5 +4,5 @@ public enum MessageStatus
 {
     Unknown = 0,
     InProgress = 1,
-    Processed = 2
+    Processed = 2,
 }

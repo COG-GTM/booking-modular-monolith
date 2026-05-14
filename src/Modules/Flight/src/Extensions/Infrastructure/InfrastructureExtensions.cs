@@ -1,6 +1,7 @@
 using BuildingBlocks.EFCore;
 using BuildingBlocks.Mapster;
 using BuildingBlocks.Mongo;
+using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Web;
 using Flight.Data;
 using Flight.Data.Seed;
@@ -10,7 +11,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Flight.Extensions.Infrastructure;
-
 
 public static class InfrastructureExtensions
 {
@@ -24,11 +24,12 @@ public static class InfrastructureExtensions
         builder.Services.AddScoped<IDataSeeder, FlightDataSeeder>();
         builder.AddMongoDbContext<FlightReadDbContext>();
 
+        builder.AddPersistMessageProcessor<FlightPersistMessageDbContext>("persist-message-flight");
+
         builder.Services.AddCustomMediatR();
 
         return builder;
     }
-
 
     public static WebApplication UseFlightModules(this WebApplication app)
     {

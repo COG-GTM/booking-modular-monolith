@@ -27,7 +27,9 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddJwt();
         builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         builder.Services.AddTransient<AuthHeaderHandler>();
-        builder.AddPersistMessageProcessor();
+        builder.Services.AddValidateOptions<PersistMessageOptions>();
+        builder.Services.AddScoped<IPersistMessageProcessor, PersistMessageProcessor>();
+        builder.Services.AddHostedService<PersistMessageBackgroundService>();
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddControllers();

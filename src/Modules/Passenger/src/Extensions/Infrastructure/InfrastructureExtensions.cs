@@ -1,6 +1,7 @@
 using BuildingBlocks.EFCore;
 using BuildingBlocks.Mapster;
 using BuildingBlocks.Mongo;
+using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Web;
 using FluentValidation;
 using Microsoft.AspNetCore.Builder;
@@ -21,11 +22,12 @@ public static class InfrastructureExtensions
         builder.AddCustomDbContext<PassengerDbContext>(nameof(Passenger));
         builder.AddMongoDbContext<PassengerReadDbContext>();
 
+        builder.AddPersistMessageProcessor<PassengerPersistMessageDbContext>("persist-message-passenger");
+
         builder.Services.AddCustomMediatR();
 
         return builder;
     }
-
 
     public static WebApplication UsePassengerModules(this WebApplication app)
     {
