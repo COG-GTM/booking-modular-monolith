@@ -80,6 +80,26 @@ jobs:
           service-name: 'Booking'
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build Flight API Service Host
+        if: success()
+        shell: bash
+        run: dotnet build src/Services/Flight.Api/Flight.Api.csproj -c Release --no-restore
+
+      - name: Build Identity API Service Host
+        if: success()
+        shell: bash
+        run: dotnet build src/Services/Identity.Api/Identity.Api.csproj -c Release --no-restore
+
+      - name: Build Passenger API Service Host
+        if: success()
+        shell: bash
+        run: dotnet build src/Services/Passenger.Api/Passenger.Api.csproj -c Release --no-restore
+
+      - name: Build Booking API Service Host
+        if: success()
+        shell: bash
+        run: dotnet build src/Services/Booking.Api/Booking.Api.csproj -c Release --no-restore
+
       - name: Update Release Drafter
         if: ${{ github.ref == 'refs/heads/main' && success() }}
         id: last_release
