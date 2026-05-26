@@ -1,0 +1,198 @@
+name: booking-microservices
+
+services:
+
+  #######################################################
+  #  Flight Service
+  #######################################################
+  flight-api:
+    build:
+      context: ../../
+      dockerfile: src/Services/Flight.Api/Dockerfile
+    container_name: flight-api
+    restart: unless-stopped
+    ports:
+      - "5010:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - PostgresOptions__ConnectionString__Flight=Server=postgres;Port=5432;Database=flight_modular_monolith;User Id=postgres;Password=postgres;Include Error Detail=true
+      - MongoOptions__ConnectionString=mongodb://mongo:27017
+      - MongoOptions__DatabaseName=flight_read
+      - RabbitMqOptions__HostName=rabbitmq
+      - PersistMessageOptions__ConnectionString=Server=postgres;Port=5432;Database=persist_message_flight;User Id=postgres;Password=postgres;Include Error Detail=true
+      - Jwt__Authority=http://identity-api
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+    networks:
+      - microservices
+
+  #######################################################
+  #  Identity Service
+  #######################################################
+  identity-api:
+    build:
+      context: ../../
+      dockerfile: src/Services/Identity.Api/Dockerfile
+    container_name: identity-api
+    restart: unless-stopped
+    ports:
+      - "5020:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - PostgresOptions__ConnectionString__Identity=Server=postgres;Port=5432;Database=identity_modular_monolith;User Id=postgres;Password=postgres;Include Error Detail=true
+      - RabbitMqOptions__HostName=rabbitmq
+      - PersistMessageOptions__ConnectionString=Server=postgres;Port=5432;Database=persist_message_identity;User Id=postgres;Password=postgres;Include Error Detail=true
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - microservices
+
+  #######################################################
+  #  Passenger Service
+  #######################################################
+  passenger-api:
+    build:
+      context: ../../
+      dockerfile: src/Services/Passenger.Api/Dockerfile
+    container_name: passenger-api
+    restart: unless-stopped
+    ports:
+      - "5030:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - PostgresOptions__ConnectionString__Passenger=Server=postgres;Port=5432;Database=passenger_modular_monolith;User Id=postgres;Password=postgres;Include Error Detail=true
+      - MongoOptions__ConnectionString=mongodb://mongo:27017
+      - MongoOptions__DatabaseName=passenger_read
+      - RabbitMqOptions__HostName=rabbitmq
+      - PersistMessageOptions__ConnectionString=Server=postgres;Port=5432;Database=persist_message_passenger;User Id=postgres;Password=postgres;Include Error Detail=true
+      - Jwt__Authority=http://identity-api
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+    networks:
+      - microservices
+
+  #######################################################
+  #  Booking Service
+  #######################################################
+  booking-api:
+    build:
+      context: ../../
+      dockerfile: src/Services/Booking.Api/Dockerfile
+    container_name: booking-api
+    restart: unless-stopped
+    ports:
+      - "5040:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - MongoOptions__ConnectionString=mongodb://mongo:27017
+      - MongoOptions__DatabaseName=booking_read
+      - EventStoreOptions__ConnectionString=esdb://eventstore:2113?tls=false
+      - RabbitMqOptions__HostName=rabbitmq
+      - Grpc__FlightAddress=http://flight-api:80
+      - Grpc__PassengerAddress=http://passenger-api:80
+      - PersistMessageOptions__ConnectionString=Server=postgres;Port=5432;Database=persist_message_booking;User Id=postgres;Password=postgres;Include Error Detail=true
+      - Jwt__Authority=http://identity-api
+    depends_on:
+      - postgres
+      - mongo
+      - eventstore
+      - rabbitmq
+      - flight-api
+      - passenger-api
+    networks:
+      - microservices
+
+  #######################################################
+  #  API Gateway
+  #######################################################
+  gateway:
+    build:
+      context: ../../
+      dockerfile: src/Services/Gateway.Api/Dockerfile
+    container_name: gateway
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ReverseProxy__Clusters__flight-cluster__Destinations__flight-api__Address=http://flight-api:80
+      - ReverseProxy__Clusters__identity-cluster__Destinations__identity-api__Address=http://identity-api:80
+      - ReverseProxy__Clusters__passenger-cluster__Destinations__passenger-api__Address=http://passenger-api:80
+      - ReverseProxy__Clusters__booking-cluster__Destinations__booking-api__Address=http://booking-api:80
+    depends_on:
+      - flight-api
+      - identity-api
+      - passenger-api
+      - booking-api
+    networks:
+      - microservices
+
+  #######################################################
+  #  Infrastructure (imported from docker-compose.infrastructure.yaml)
+  #######################################################
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_prepared_transactions=10"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - microservices
+
+  eventstore:
+    container_name: eventstore
+    image: eventstore/eventstore:latest
+    restart: unless-stopped
+    environment:
+      - EVENTSTORE_CLUSTER_SIZE=1
+      - EVENTSTORE_RUN_PROJECTIONS=All
+      - EVENTSTORE_START_STANDARD_PROJECTIONS=True
+      - EVENTSTORE_HTTP_PORT=2113
+      - EVENTSTORE_INSECURE=True
+      - EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP=True
+    ports:
+      - "2113:2113"
+    networks:
+      - microservices
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - 27017:27017
+    networks:
+      - microservices
+
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - microservices
+
+networks:
+  microservices:
+    driver: bridge
+
+volumes:
+  postgres-data:

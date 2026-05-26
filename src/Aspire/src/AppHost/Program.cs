@@ -303,6 +303,7 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
+// Monolith API (kept for backward compatibility)
 var api = builder.AddProject<Api>("api")
     .WithReference(persistMessageDb)
     .WaitFor(persistMessageDb)
@@ -320,5 +321,52 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
+
+// 4. Microservice Projects
+var flightApi = builder.AddProject<Flight_Api>("flight-api")
+    .WithReference(flightDb)
+    .WaitFor(flightDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
+
+var identityApi = builder.AddProject<Identity_Api>("identity-api")
+    .WithReference(identityDb)
+    .WaitFor(identityDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
+
+var passengerApi = builder.AddProject<Passenger_Api>("passenger-api")
+    .WithReference(passengerDb)
+    .WaitFor(passengerDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
+
+var bookingApi = builder.AddProject<Booking_Api>("booking-api")
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(flightApi)
+    .WithReference(passengerApi);
+
+var gateway = builder.AddProject<Gateway_Api>("gateway")
+    .WithReference(flightApi)
+    .WithReference(identityApi)
+    .WithReference(passengerApi)
+    .WithReference(bookingApi);
 
 builder.Build().Run();
