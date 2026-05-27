@@ -1,0 +1,63 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ApiGateway/ApiGateway.csproj" />
+    <Project Path="src/BuildingBlocks/BuildingBlocks.csproj" />
+  </Folder>
+  <Folder Name="/src/Api/" />
+  <Folder Name="/src/Api/src/">
+    <Project Path="src/Api/src/Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Aspire/" />
+  <Folder Name="/src/Aspire/src/">
+    <Project Path="src/Aspire/src/AppHost/AppHost.csproj" />
+    <Project Path="src/Aspire/src/ServiceDefaults/ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Booking/" />
+  <Folder Name="/src/Modules/Booking/src/">
+    <Project Path="src/Modules/Booking/src/Booking.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Booking/tests/">
+    <Project Path="src/Modules/Booking/tests/Integration.Test/Integration.Test.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Flight/" />
+  <Folder Name="/src/Modules/Flight/src/">
+    <Project Path="src/Modules/Flight/src/Flight.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Flight/tests/">
+    <Project Path="src/Modules/Flight/tests/EndToEnd.Test/EndToEnd.Test.csproj" />
+    <Project Path="src/Modules/Flight/tests/Integration.Test/Integration.Test.csproj" />
+    <Project Path="src/Modules/Flight/tests/Unit.Test/Unit.Test.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Identity/" />
+  <Folder Name="/src/Modules/Identity/src/">
+    <Project Path="src/Modules/Identity/src/Identity.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Identity/tests/">
+    <Project Path="src/Modules/Identity/tests/Integration.Test/Integration.Test.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Passenger/" />
+  <Folder Name="/src/Modules/Passenger/src/">
+    <Project Path="src/Modules/Passenger/src/Passenger.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Passenger/tests/">
+    <Project Path="src/Modules/Passenger/tests/Integration.Test/Integration.Test.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/Booking/" />
+  <Folder Name="/src/Services/Booking/src/">
+    <Project Path="src/Services/Booking/src/Booking.Api/Booking.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Flight/" />
+  <Folder Name="/src/Services/Flight/src/">
+    <Project Path="src/Services/Flight/src/Flight.Api/Flight.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Identity/" />
+  <Folder Name="/src/Services/Identity/src/">
+    <Project Path="src/Services/Identity/src/Identity.Api/Identity.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Passenger/" />
+  <Folder Name="/src/Services/Passenger/src/">
+    <Project Path="src/Services/Passenger/src/Passenger.Api/Passenger.Api.csproj" />
+  </Folder>
+</Solution>
