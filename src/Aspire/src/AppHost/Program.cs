@@ -38,6 +38,12 @@ var passengerDb = postgres.AddDatabase("passenger");
 var identityDb = postgres.AddDatabase("identity");
 var persistMessageDb = postgres.AddDatabase("persist-message");
 
+// Per-service persist-message databases for microservices
+var flightPersistMessageDb = postgres.AddDatabase("flight-persist-message");
+var passengerPersistMessageDb = postgres.AddDatabase("passenger-persist-message");
+var identityPersistMessageDb = postgres.AddDatabase("identity-persist-message");
+var bookingPersistMessageDb = postgres.AddDatabase("booking-persist-message");
+
 var mongoUsername = builder.AddParameter("mongo-username", "root", secret: true);
 var mongoPassword = builder.AddParameter("mongo-password", "secret", secret: true);
 
@@ -303,6 +309,7 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
+// Monolith API (kept for backward compatibility during transition)
 var api = builder.AddProject<Api>("api")
     .WithReference(persistMessageDb)
     .WaitFor(persistMessageDb)
@@ -320,5 +327,57 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
+
+// Microservices
+var flightApi = builder.AddProject<Flight_Api>("flight-api")
+    .WithReference(flightDb)
+    .WaitFor(flightDb)
+    .WithReference(flightPersistMessageDb)
+    .WaitFor(flightPersistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 3010, name: "flight-http");
+
+var passengerApi = builder.AddProject<Passenger_Api>("passenger-api")
+    .WithReference(passengerDb)
+    .WaitFor(passengerDb)
+    .WithReference(passengerPersistMessageDb)
+    .WaitFor(passengerPersistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 3020, name: "passenger-http");
+
+var identityApi = builder.AddProject<Identity_Api>("identity-api")
+    .WithReference(identityDb)
+    .WaitFor(identityDb)
+    .WithReference(identityPersistMessageDb)
+    .WaitFor(identityPersistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 3030, name: "identity-http");
+
+var bookingApi = builder.AddProject<Booking_Api>("booking-api")
+    .WithReference(bookingPersistMessageDb)
+    .WaitFor(bookingPersistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(flightApi)
+    .WithReference(passengerApi)
+    .WithHttpEndpoint(port: 3040, name: "booking-http");
+
+var gateway = builder.AddProject<Gateway_Api>("gateway")
+    .WithReference(flightApi)
+    .WithReference(passengerApi)
+    .WithReference(identityApi)
+    .WithReference(bookingApi)
+    .WithHttpEndpoint(port: 5000, name: "gateway-http");
 
 builder.Build().Run();
