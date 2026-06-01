@@ -1,3 +1,5 @@
+// [Deprecated] This monolith API host is kept for backward compatibility during the
+// microservices transition. Prefer the individual service hosts under src/Services/.
 using Api.Extensions;
 using Booking.Extensions.Infrastructure;
 using BuildingBlocks.Web;

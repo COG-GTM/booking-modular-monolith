@@ -303,6 +303,7 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
+// [Deprecated] Monolith API - kept for backward compatibility during microservices transition
 var api = builder.AddProject<Api>("api")
     .WithReference(persistMessageDb)
     .WaitFor(persistMessageDb)
@@ -320,5 +321,63 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
+
+// --- Microservices ---
+
+var flightApi = builder.AddProject<Flight_Api>("flight-api")
+    .WithReference(flightDb)
+    .WaitFor(flightDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 5001, name: "http")
+    .WithHttpsEndpoint(port: 5101, name: "https");
+
+var passengerApi = builder.AddProject<Passenger_Api>("passenger-api")
+    .WithReference(passengerDb)
+    .WaitFor(passengerDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 5002, name: "http")
+    .WithHttpsEndpoint(port: 5102, name: "https");
+
+var bookingApi = builder.AddProject<Booking_Api>("booking-api")
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(flightApi)
+    .WithReference(passengerApi)
+    .WithHttpEndpoint(port: 5003, name: "http")
+    .WithHttpsEndpoint(port: 5103, name: "https");
+
+var identityApi = builder.AddProject<Identity_Api>("identity-api")
+    .WithReference(identityDb)
+    .WaitFor(identityDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 5004, name: "http")
+    .WithHttpsEndpoint(port: 5104, name: "https");
+
+var gateway = builder.AddProject<Gateway>("gateway")
+    .WithReference(flightApi)
+    .WithReference(passengerApi)
+    .WithReference(bookingApi)
+    .WithReference(identityApi)
+    .WithHttpEndpoint(port: 5000, name: "http")
+    .WithHttpsEndpoint(port: 5100, name: "https");
 
 builder.Build().Run();
