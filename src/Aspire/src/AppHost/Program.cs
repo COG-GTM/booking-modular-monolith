@@ -303,6 +303,7 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
+// Monolith API (kept for backward compatibility during transition)
 var api = builder.AddProject<Api>("api")
     .WithReference(persistMessageDb)
     .WaitFor(persistMessageDb)
@@ -320,5 +321,62 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
+
+// Microservice API hosts
+var flightApi = builder.AddProject<Flight_Api>("flight-api")
+    .WithReference(flightDb)
+    .WaitFor(flightDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 3011, name: "flight-http")
+    .WithHttpsEndpoint(port: 3010, name: "flight-https");
+
+var identityApi = builder.AddProject<Identity_Api>("identity-api")
+    .WithReference(identityDb)
+    .WaitFor(identityDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 3031, name: "identity-http")
+    .WithHttpsEndpoint(port: 3030, name: "identity-https");
+
+var passengerApi = builder.AddProject<Passenger_Api>("passenger-api")
+    .WithReference(passengerDb)
+    .WaitFor(passengerDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 3021, name: "passenger-http")
+    .WithHttpsEndpoint(port: 3020, name: "passenger-https");
+
+var bookingApi = builder.AddProject<Booking_Api>("booking-api")
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(flightApi)
+    .WithReference(passengerApi)
+    .WithHttpEndpoint(port: 3041, name: "booking-http")
+    .WithHttpsEndpoint(port: 3040, name: "booking-https");
+
+var gateway = builder.AddProject<Projects.Gateway>("gateway")
+    .WithReference(flightApi)
+    .WithReference(identityApi)
+    .WithReference(passengerApi)
+    .WithReference(bookingApi)
+    .WithHttpEndpoint(port: 5001, name: "gateway-http")
+    .WithHttpsEndpoint(port: 5000, name: "gateway-https");
 
 builder.Build().Run();

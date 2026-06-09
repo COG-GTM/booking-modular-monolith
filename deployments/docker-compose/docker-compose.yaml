@@ -330,7 +330,7 @@ services:
       - booking
 
   #######################################################
-  #  booking-modular-monolith
+  #  booking-modular-monolith (monolith - kept for transition)
   #######################################################
   booking_modular_monolith:
     image: booking-modular-monolith
@@ -352,6 +352,134 @@ services:
       - ASPNETCORE_HTTP_PORT=3001
       - ASPNETCORE_Kestrel__Certificates__Default__Password=password
       - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    networks:
+      - booking
+
+  #######################################################
+  #  flight-api (microservice)
+  #######################################################
+  flight-api:
+    image: flight-api
+    build:
+      context: ../../
+      dockerfile: src/Services/Flight.Api/Dockerfile
+    container_name: flight-api
+    ports:
+      - "3011:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=http://+
+      - ConnectionStrings__flight=Server=postgres;Port=5432;Database=flight_modular_monolith;User Id=postgres;Password=postgres;Include Error Detail=true
+      - ConnectionStrings__persist-message=Server=postgres;Port=5432;Database=persist_message;User Id=postgres;Password=postgres;Include Error Detail=true
+      - ConnectionStrings__mongo=mongodb://mongo:27017
+      - ConnectionStrings__rabbitmq=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+    networks:
+      - booking
+
+  #######################################################
+  #  identity-api (microservice)
+  #######################################################
+  identity-api:
+    image: identity-api
+    build:
+      context: ../../
+      dockerfile: src/Services/Identity.Api/Dockerfile
+    container_name: identity-api
+    ports:
+      - "3031:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=http://+
+      - ConnectionStrings__identity=Server=postgres;Port=5432;Database=identity_modular_monolith;User Id=postgres;Password=postgres;Include Error Detail=true
+      - ConnectionStrings__persist-message=Server=postgres;Port=5432;Database=persist_message;User Id=postgres;Password=postgres;Include Error Detail=true
+      - ConnectionStrings__rabbitmq=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - booking
+
+  #######################################################
+  #  passenger-api (microservice)
+  #######################################################
+  passenger-api:
+    image: passenger-api
+    build:
+      context: ../../
+      dockerfile: src/Services/Passenger.Api/Dockerfile
+    container_name: passenger-api
+    ports:
+      - "3021:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=http://+
+      - ConnectionStrings__passenger=Server=postgres;Port=5432;Database=passenger_modular_monolith;User Id=postgres;Password=postgres;Include Error Detail=true
+      - ConnectionStrings__persist-message=Server=postgres;Port=5432;Database=persist_message;User Id=postgres;Password=postgres;Include Error Detail=true
+      - ConnectionStrings__mongo=mongodb://mongo:27017
+      - ConnectionStrings__rabbitmq=amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+    networks:
+      - booking
+
+  #######################################################
+  #  booking-api (microservice)
+  #######################################################
+  booking-api:
+    image: booking-api
+    build:
+      context: ../../
+      dockerfile: src/Services/Booking.Api/Dockerfile
+    container_name: booking-api
+    ports:
+      - "3041:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=http://+
+      - ConnectionStrings__eventstore=esdb://eventstore:2113?tls=false
+      - ConnectionStrings__persist-message=Server=postgres;Port=5432;Database=persist_message;User Id=postgres;Password=postgres;Include Error Detail=true
+      - ConnectionStrings__mongo=mongodb://mongo:27017
+      - ConnectionStrings__rabbitmq=amqp://guest:guest@rabbitmq:5672
+      - Grpc__FlightAddress=http://flight-api:80
+      - Grpc__PassengerAddress=http://passenger-api:80
+    depends_on:
+      - eventstore
+      - mongo
+      - rabbitmq
+      - flight-api
+      - passenger-api
+    networks:
+      - booking
+
+  #######################################################
+  #  gateway (API gateway)
+  #######################################################
+  gateway:
+    image: gateway
+    build:
+      context: ../../
+      dockerfile: src/Services/Gateway/Dockerfile
+    container_name: gateway
+    ports:
+      - "5001:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=http://+
+      - ReverseProxy__Clusters__flight-cluster__Destinations__flight-api__Address=http://flight-api:80
+      - ReverseProxy__Clusters__identity-cluster__Destinations__identity-api__Address=http://identity-api:80
+      - ReverseProxy__Clusters__passenger-cluster__Destinations__passenger-api__Address=http://passenger-api:80
+      - ReverseProxy__Clusters__booking-cluster__Destinations__booking-api__Address=http://booking-api:80
+    depends_on:
+      - flight-api
+      - identity-api
+      - passenger-api
+      - booking-api
     networks:
       - booking
 
