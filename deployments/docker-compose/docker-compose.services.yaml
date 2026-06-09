@@ -1,0 +1,157 @@
+name: booking-microservices
+
+services:
+  #######################################################
+  #  Gateway
+  #######################################################
+  gateway:
+    build:
+      context: ../..
+      dockerfile: src/Gateway/Dockerfile
+    container_name: gateway
+    restart: unless-stopped
+    ports:
+      - "5000:80"
+    depends_on:
+      - flight-api
+      - identity-api
+      - passenger-api
+      - booking-api
+    networks:
+      - infrastructure
+
+  #######################################################
+  #  Flight API
+  #######################################################
+  flight-api:
+    build:
+      context: ../..
+      dockerfile: src/Services/Flight/src/Flight.Api/Dockerfile
+    container_name: flight-api
+    restart: unless-stopped
+    ports:
+      - "5001:80"
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+    networks:
+      - infrastructure
+
+  #######################################################
+  #  Identity API
+  #######################################################
+  identity-api:
+    build:
+      context: ../..
+      dockerfile: src/Services/Identity/src/Identity.Api/Dockerfile
+    container_name: identity-api
+    restart: unless-stopped
+    ports:
+      - "5002:80"
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - infrastructure
+
+  #######################################################
+  #  Passenger API
+  #######################################################
+  passenger-api:
+    build:
+      context: ../..
+      dockerfile: src/Services/Passenger/src/Passenger.Api/Dockerfile
+    container_name: passenger-api
+    restart: unless-stopped
+    ports:
+      - "5003:80"
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+    networks:
+      - infrastructure
+
+  #######################################################
+  #  Booking API
+  #######################################################
+  booking-api:
+    build:
+      context: ../..
+      dockerfile: src/Services/Booking/src/Booking.Api/Dockerfile
+    container_name: booking-api
+    restart: unless-stopped
+    ports:
+      - "5004:80"
+    depends_on:
+      - eventstore
+      - mongo
+      - rabbitmq
+    networks:
+      - infrastructure
+
+  #######################################################
+  #  Infrastructure (inline for standalone use)
+  #######################################################
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - infrastructure
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_prepared_transactions=10"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - infrastructure
+
+  eventstore:
+    container_name: eventstore
+    image: eventstore/eventstore:latest
+    restart: unless-stopped
+    environment:
+      - EVENTSTORE_CLUSTER_SIZE=1
+      - EVENTSTORE_RUN_PROJECTIONS=All
+      - EVENTSTORE_START_STANDARD_PROJECTIONS=True
+      - EVENTSTORE_HTTP_PORT=2113
+      - EVENTSTORE_INSECURE=True
+      - EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP=True
+    ports:
+      - "2113:2113"
+    networks:
+      - infrastructure
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    networks:
+      - infrastructure
+
+volumes:
+  postgres-data:
+
+networks:
+  infrastructure:
+    name: infrastructure

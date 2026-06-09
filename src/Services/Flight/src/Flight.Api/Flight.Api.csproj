@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Flight.Api</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../../Modules/Flight/src/Flight.csproj" />
+    <ProjectReference Include="../../../../Aspire/src/ServiceDefaults/ServiceDefaults.csproj" />
+  </ItemGroup>
+</Project>
