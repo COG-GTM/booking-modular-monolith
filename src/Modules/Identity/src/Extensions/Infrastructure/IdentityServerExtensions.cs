@@ -75,11 +75,12 @@ public static class IdentityServerExtensions
     )
     {
         // The developer signing credential persists an auto-generated RSA key to
-        // "tempkey.jwk" on disk. It is only safe for local development, where the
-        // key never leaves the machine and is gitignored. Using it in any shared
-        // or deployed environment would expose the private signing key and allow
+        // "tempkey.jwk" on disk. It is only safe for ephemeral local contexts
+        // (local development and the automated test suite), where the key never
+        // leaves the machine and is gitignored. Using it in any shared or
+        // deployed environment would expose the private signing key and allow
         // attackers to forge valid JWTs.
-        if (builder.Environment.IsDevelopment())
+        if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("test"))
         {
             identityServerBuilder.AddDeveloperSigningCredential();
             return;
@@ -92,7 +93,7 @@ public static class IdentityServerExtensions
                 "No token signing certificate is configured. Provide one via "
                     + "AuthOptions:SigningCertificatePath (with AuthOptions:SigningCertificatePassword) "
                     + "or AuthOptions:SigningCertificateBase64. "
-                    + "AddDeveloperSigningCredential() must never be used outside the Development environment."
+                    + "AddDeveloperSigningCredential() must only be used in the Development or test environments."
             );
         }
 
