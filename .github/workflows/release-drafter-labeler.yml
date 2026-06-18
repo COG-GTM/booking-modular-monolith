@@ -9,11 +9,15 @@ on:
       - labeled
       - unlabeled
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
  auto-labeler:
    runs-on: ubuntu-latest
    steps:
-     - uses: release-drafter/release-drafter@v5
+     - uses: release-drafter/release-drafter@09c613e259eb8d4e7c81c2cb00618eb5fc4575a7 # v5.25.0
        with:
          config-name: release-drafter.yml
          disable-releaser: true # only run auto-labeler for PRs
