@@ -74,13 +74,17 @@ public static class IdentityServerExtensions
         AuthOptions authOptions
     )
     {
-        // The developer signing credential persists an auto-generated RSA key to
-        // "tempkey.jwk" on disk. It is only safe for ephemeral local contexts
-        // (local development and the automated test suite), where the key never
-        // leaves the machine and is gitignored. Using it in any shared or
-        // deployed environment would expose the private signing key and allow
-        // attackers to forge valid JWTs.
-        if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("test"))
+        // The developer signing credential generates an ephemeral RSA key (persisted
+        // to the gitignored "tempkey.jwk" in the working dir). It is only safe for
+        // ephemeral local contexts — local development, the automated test suite, and
+        // the local docker-compose demo — where the key never leaves the machine.
+        // Using it in any shared or deployed environment would expose the private
+        // signing key and allow attackers to forge valid JWTs.
+        if (
+            builder.Environment.IsDevelopment()
+            || builder.Environment.IsEnvironment("test")
+            || builder.Environment.IsEnvironment("docker")
+        )
         {
             identityServerBuilder.AddDeveloperSigningCredential();
             return;
