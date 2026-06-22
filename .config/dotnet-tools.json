@@ -15,7 +15,7 @@
       ]
     },
     "aspire.cli": {
-      "version": "13.1.1",
+      "version": "13.4.6",
       "commands": [
         "aspire"
       ]
