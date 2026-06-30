@@ -318,7 +318,23 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(eventstore)
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
+    .WithEnvironment("MassTransitOptions__TransportType", "RabbitMq")
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
+
+// Extracted Flight microservice — runs the Flight module as a standalone host,
+// publishing/consuming integration events against the shared RabbitMQ broker.
+var flightService = builder.AddProject<FlightService>("flight-service")
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(flightDb)
+    .WaitFor(flightDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithEnvironment("MassTransitOptions__TransportType", "RabbitMq")
+    .WithHttpEndpoint(port: 4001, name: "flight-http")
+    .WithHttpsEndpoint(port: 4000, name: "flight-https");
 
 builder.Build().Run();

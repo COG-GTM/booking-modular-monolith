@@ -12,6 +12,22 @@ using Exception;
 
 public static class Extensions
 {
+    // Config key used to select the MassTransit transport at runtime.
+    // Falls back to the in-memory transport when not specified.
+    public const string TransportTypeConfigKey = "MassTransitOptions:TransportType";
+
+    public static IServiceCollection AddCustomMassTransit(
+        this IServiceCollection services,
+        IWebHostEnvironment env,
+        IConfiguration configuration,
+        params Assembly[] assembly
+    )
+    {
+        var transportType = configuration.GetValue<TransportType?>(TransportTypeConfigKey) ?? TransportType.InMemory;
+
+        return services.AddCustomMassTransit(env, transportType, assembly);
+    }
+
     public static IServiceCollection AddCustomMassTransit(
         this IServiceCollection services,
         IWebHostEnvironment env,
