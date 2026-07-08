@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="GrpcServer\Protos\flight.proto" GrpcServices="Both" />
+    <Protobuf Include="..\..\..\BuildingBlocks\Contracts\Protos\flight.proto" GrpcServices="Both" Link="GrpcServer\Protos\flight.proto" />
   </ItemGroup>
 
   <ItemGroup>

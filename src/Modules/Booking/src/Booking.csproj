@@ -8,9 +8,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="GrpcClient\Protos\flight.proto" GrpcServices="Both" />
-    <Protobuf Include="GrpcClient\Protos\passenger.proto" GrpcServices="Both" />
-    <Folder Include="GrpcClient\Protos" />
+    <Protobuf Include="..\..\..\BuildingBlocks\Contracts\Protos\Booking\flight.proto" GrpcServices="Both" Link="GrpcClient\Protos\flight.proto" />
+    <Protobuf Include="..\..\..\BuildingBlocks\Contracts\Protos\Booking\passenger.proto" GrpcServices="Both" Link="GrpcClient\Protos\passenger.proto" />
   </ItemGroup>
 
   <ItemGroup>
