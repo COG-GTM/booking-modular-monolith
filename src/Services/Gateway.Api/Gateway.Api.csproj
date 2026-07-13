@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>GatewayApi</RootNamespace>
+    <AssemblyName>Gateway.Api</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Aspire\src\ServiceDefaults\ServiceDefaults.csproj" />
+  </ItemGroup>
+</Project>
