@@ -222,6 +222,8 @@ To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-
 docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
 ```
 
+> Note: For a detailed description of all infrastructure services, ports, volumes, and configuration, see the [Infrastructure Requirements](./deployments/INFRASTRUCTURE.md) documentation.
+
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
 ```bash
