@@ -96,6 +96,8 @@ Defined in `docker-compose.yaml` as `booking_modular_monolith`, built from [`src
 | Environment | `ASPNETCORE_ENVIRONMENT=docker` |
 | HTTPS certificate | `~/.aspnet/https` mounted at `/https` (read-only), `aspnetapp.pfx` with password `password` |
 
+> **Known port conflict:** both Grafana (`3000:3000`) and the application container (`3000:443`) bind host port 3000 in `docker-compose.yaml`, so the full stack cannot start with both services as-is. Remap one of them (e.g. Grafana to `3300:3000`) before bringing up the app container alongside Grafana.
+
 The application's default configuration ([`src/Api/src/appsettings.json`](../src/Api/src/appsettings.json)) expects the following endpoints:
 
 | Dependency | Endpoint |
