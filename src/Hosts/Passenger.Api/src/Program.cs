@@ -1,10 +1,11 @@
+using BuildingBlocks.MassTransit;
 using BuildingBlocks.Web;
 using Microsoft.Extensions.Hosting;
 using Passenger.Extensions.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddSharedInfrastructure();
+builder.AddSharedInfrastructure(TransportType.RabbitMq);
 
 builder.AddPassengerModules();
 

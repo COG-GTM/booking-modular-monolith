@@ -16,7 +16,10 @@ namespace Microsoft.Extensions.Hosting;
 
 public static class SharedInfrastructureExtensions
 {
-    public static WebApplicationBuilder AddSharedInfrastructure(this WebApplicationBuilder builder)
+    public static WebApplicationBuilder AddSharedInfrastructure(
+        this WebApplicationBuilder builder,
+        TransportType transportType = TransportType.InMemory
+    )
     {
         var appOptions = builder.Services.GetOptions<AppOptions>(nameof(AppOptions));
         Console.WriteLine(FiggleFonts.Standard.Render(appOptions.Name));
@@ -37,7 +40,7 @@ public static class SharedInfrastructureExtensions
 
         builder.Services.AddCustomMassTransit(
             builder.Environment,
-            TransportType.InMemory,
+            transportType,
             AppDomain.CurrentDomain.GetAssemblies()
         );
 

@@ -1,10 +1,11 @@
 using Booking.Extensions.Infrastructure;
+using BuildingBlocks.MassTransit;
 using BuildingBlocks.Web;
 using Microsoft.Extensions.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddSharedInfrastructure();
+builder.AddSharedInfrastructure(TransportType.RabbitMq);
 
 builder.AddBookingModules();
 
