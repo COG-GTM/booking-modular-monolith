@@ -321,4 +321,56 @@ var api = builder.AddProject<Api>("api")
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
 
+var flight = builder.AddProject<Flight_Api>("flight")
+    .WithReference(flightDb)
+    .WaitFor(flightDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 5001, name: "flight-http")
+    .WithHttpsEndpoint(port: 5002, name: "flight-https");
+
+var passenger = builder.AddProject<Passenger_Api>("passenger")
+    .WithReference(passengerDb)
+    .WaitFor(passengerDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 5003, name: "passenger-http")
+    .WithHttpsEndpoint(port: 5004, name: "passenger-https");
+
+var identity = builder.AddProject<Identity_Api>("identity")
+    .WithReference(identityDb)
+    .WaitFor(identityDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 5005, name: "identity-http")
+    .WithHttpsEndpoint(port: 5006, name: "identity-https");
+
+var booking = builder.AddProject<Booking_Api>("booking")
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(flight)
+    .WaitFor(flight)
+    .WithReference(passenger)
+    .WaitFor(passenger)
+    .WithEnvironment("Grpc__FlightAddress", flight.GetEndpoint("flight-https"))
+    .WithEnvironment("Grpc__PassengerAddress", passenger.GetEndpoint("passenger-https"))
+    .WithHttpEndpoint(port: 5007, name: "booking-http")
+    .WithHttpsEndpoint(port: 5008, name: "booking-https");
+
 builder.Build().Run();
