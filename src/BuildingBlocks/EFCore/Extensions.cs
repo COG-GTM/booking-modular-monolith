@@ -62,11 +62,36 @@ public static class Extensions
     public static IApplicationBuilder UseMigration<TContext>(this IApplicationBuilder app)
         where TContext : DbContext, IDbContext
     {
-        MigrateAsync<TContext>(app.ApplicationServices).GetAwaiter().GetResult();
-
-        SeedAsync(app.ApplicationServices).GetAwaiter().GetResult();
+        MigrateWithLockAsync<TContext>(app.ApplicationServices).GetAwaiter().GetResult();
 
         return app;
+    }
+
+    private static async Task MigrateWithLockAsync<TContext>(IServiceProvider serviceProvider)
+        where TContext : DbContext, IDbContext
+    {
+        // Serialize migration and seeding across hosts that share the same database
+        // (e.g. the monolith Api and a per-module host) using a Postgres advisory lock.
+        await using var scope = serviceProvider.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<TContext>();
+        var connection = context.Database.GetDbConnection();
+        await connection.OpenAsync();
+
+        await using var lockCommand = connection.CreateCommand();
+        lockCommand.CommandText = "SELECT pg_advisory_lock(727274);";
+        await lockCommand.ExecuteNonQueryAsync();
+
+        try
+        {
+            await MigrateAsync<TContext>(serviceProvider);
+            await SeedAsync(serviceProvider);
+        }
+        finally
+        {
+            lockCommand.CommandText = "SELECT pg_advisory_unlock(727274);";
+            await lockCommand.ExecuteNonQueryAsync();
+            await connection.CloseAsync();
+        }
     }
 
     // ref: https://github.com/pdevito3/MessageBusTestingInMemHarness/blob/main/RecipeManagement/src/RecipeManagement/Databases/RecipesDbContext.cs

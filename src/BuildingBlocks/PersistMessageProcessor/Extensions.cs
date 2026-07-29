@@ -46,8 +46,35 @@ public static class Extensions
                 var persistMessageDbContext =
                     provider.GetRequiredService<PersistMessageDbContext>();
 
-                persistMessageDbContext.Database.EnsureCreated();
-                persistMessageDbContext.CreatePersistMessageTableIfNotExists();
+                // Serialize schema creation across hosts sharing the persist-message
+                // database using a Postgres advisory lock.
+                var connection = persistMessageDbContext.Database.GetDbConnection();
+                try
+                {
+                    connection.Open();
+                }
+                catch (System.Exception)
+                {
+                    // The database itself may not exist yet; let EF create it first.
+                    persistMessageDbContext.Database.EnsureCreated();
+                    connection.Open();
+                }
+
+                using var lockCommand = connection.CreateCommand();
+                lockCommand.CommandText = "SELECT pg_advisory_lock(727275);";
+                lockCommand.ExecuteNonQuery();
+
+                try
+                {
+                    persistMessageDbContext.Database.EnsureCreated();
+                    persistMessageDbContext.CreatePersistMessageTableIfNotExists();
+                }
+                finally
+                {
+                    lockCommand.CommandText = "SELECT pg_advisory_unlock(727275);";
+                    lockCommand.ExecuteNonQuery();
+                    connection.Close();
+                }
 
                 return persistMessageDbContext;
             });
