@@ -321,4 +321,54 @@ var api = builder.AddProject<Api>("api")
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
 
+var flightApi = builder.AddProject<Flight_Api>("flight")
+    .WithReference(flightDb)
+    .WaitFor(flightDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 3101, name: "flight-http")
+    .WithHttpsEndpoint(port: 3100, name: "flight-https");
+
+var passengerApi = builder.AddProject<Passenger_Api>("passenger")
+    .WithReference(passengerDb)
+    .WaitFor(passengerDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 3201, name: "passenger-http")
+    .WithHttpsEndpoint(port: 3200, name: "passenger-https");
+
+var identityApi = builder.AddProject<Identity_Api>("identity")
+    .WithReference(identityDb)
+    .WaitFor(identityDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 3301, name: "identity-http")
+    .WithHttpsEndpoint(port: 3300, name: "identity-https");
+
+var bookingApi = builder.AddProject<Booking_Api>("booking")
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(flightApi)
+    .WaitFor(flightApi)
+    .WithReference(passengerApi)
+    .WaitFor(passengerApi)
+    .WithHttpEndpoint(port: 3401, name: "booking-http")
+    .WithHttpsEndpoint(port: 3400, name: "booking-https");
+
 builder.Build().Run();
