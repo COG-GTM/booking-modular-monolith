@@ -207,7 +207,7 @@ var grafana = builder.AddContainer("grafana", "grafana/grafana")
     .WithEnvironment("GF_FEATURE_TOGGLES_ENABLE", "traceqlEditor")
     .WithBindMount("../../../../deployments/configs/grafana/provisioning", "/etc/grafana/provisioning")
     .WithBindMount("../../../../deployments/configs/grafana/dashboards", "/var/lib/grafana/dashboards")
-    .WithEndpoint(port: 3000, targetPort: 3000, name: "http", isProxied: true, isExternal: true);
+    .WithEndpoint(port: 3005, targetPort: 3000, name: "http", isProxied: true, isExternal: true);
 
 if (builder.ExecutionContext.IsPublishMode)
 {
@@ -331,7 +331,7 @@ var flightApi = builder.AddProject<Flight_Api>("flight-api")
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3101, name: "flight-http")
-    .WithHttpsEndpoint(port: 3100, name: "flight-https");
+    .WithHttpsEndpoint(port: 3110, name: "flight-https");
 
 var passengerApi = builder.AddProject<Passenger_Api>("passenger-api")
     .WithReference(passengerDb)
@@ -343,7 +343,7 @@ var passengerApi = builder.AddProject<Passenger_Api>("passenger-api")
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3201, name: "passenger-http")
-    .WithHttpsEndpoint(port: 3200, name: "passenger-https");
+    .WithHttpsEndpoint(port: 3210, name: "passenger-https");
 
 var identityApi = builder.AddProject<Identity_Api>("identity-api")
     .WithReference(identityDb)
