@@ -16,6 +16,10 @@ jobs:
           WEBHOOK_URL: ${{ secrets.DEVIN_WEBHOOK_URL }}
           WEBHOOK_SECRET: ${{ secrets.DEVIN_WEBHOOK_SECRET }}
         run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "DEVIN_WEBHOOK_URL secret not configured; skipping."
+            exit 0
+          fi
           curl -sS -X POST "$WEBHOOK_URL" \
             -H 'Content-Type: application/json' \
             -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
