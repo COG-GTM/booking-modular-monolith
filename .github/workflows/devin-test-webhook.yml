@@ -1,0 +1,33 @@
+# Requires two repo/org Actions secrets:
+#   DEVIN_WEBHOOK_URL    - the automation's webhook URL
+#   DEVIN_WEBHOOK_SECRET - the webhook secret
+name: Trigger Devin test generation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  notify-devin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Devin automation webhook
+        env:
+          WEBHOOK_URL: ${{ secrets.DEVIN_WEBHOOK_URL }}
+          WEBHOOK_SECRET: ${{ secrets.DEVIN_WEBHOOK_SECRET }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "DEVIN_WEBHOOK_URL secret not configured; skipping."
+            exit 0
+          fi
+          curl -sS -X POST "$WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
+            -d '{
+              "repository": "${{ github.repository }}",
+              "pr_number": ${{ github.event.pull_request.number }},
+              "pr_url": "${{ github.event.pull_request.html_url }}",
+              "head_branch": "${{ github.event.pull_request.head.ref }}",
+              "base_branch": "${{ github.event.pull_request.base.ref }}",
+              "pr_title": ${{ toJSON(github.event.pull_request.title) }}
+            }'
