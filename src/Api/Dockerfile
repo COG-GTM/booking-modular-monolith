@@ -9,6 +9,8 @@ COPY Directory.Build.props .
 
 # Copy project files first (better Docker layer caching)
 COPY src/BuildingBlocks/BuildingBlocks.csproj src/BuildingBlocks/
+COPY src/BuildingBlocks/Contracts/EventBus.Messages/EventBus.Messages.csproj src/BuildingBlocks/Contracts/EventBus.Messages/
+COPY src/BuildingBlocks/Contracts/Grpc.Contracts/Grpc.Contracts.csproj src/BuildingBlocks/Contracts/Grpc.Contracts/
 COPY src/Modules/Booking/src/Booking.csproj src/Modules/Booking/src/
 COPY src/Modules/Flight/src/Flight.csproj src/Modules/Flight/src/
 COPY src/Modules/Identity/src/Identity.csproj src/Modules/Identity/src/
