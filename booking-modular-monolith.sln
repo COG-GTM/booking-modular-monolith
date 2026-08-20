@@ -75,6 +75,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventBus.Messages", "src\Bu
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Grpc.Contracts", "src\BuildingBlocks\Contracts\Grpc.Contracts\Grpc.Contracts.csproj", "{E3114993-E4A9-4092-BD53-A191AF613EBA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Contracts.Unit.Test", "src\BuildingBlocks\Contracts\tests\Contracts.Unit.Test\Contracts.Unit.Test.csproj", "{457756DB-E84E-4BFB-A732-F8322B39AC10}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -277,6 +279,18 @@ Global
 		{E3114993-E4A9-4092-BD53-A191AF613EBA}.Release|x64.Build.0 = Release|Any CPU
 		{E3114993-E4A9-4092-BD53-A191AF613EBA}.Release|x86.ActiveCfg = Release|Any CPU
 		{E3114993-E4A9-4092-BD53-A191AF613EBA}.Release|x86.Build.0 = Release|Any CPU
+		{457756DB-E84E-4BFB-A732-F8322B39AC10}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{457756DB-E84E-4BFB-A732-F8322B39AC10}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{457756DB-E84E-4BFB-A732-F8322B39AC10}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{457756DB-E84E-4BFB-A732-F8322B39AC10}.Debug|x64.Build.0 = Debug|Any CPU
+		{457756DB-E84E-4BFB-A732-F8322B39AC10}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{457756DB-E84E-4BFB-A732-F8322B39AC10}.Debug|x86.Build.0 = Debug|Any CPU
+		{457756DB-E84E-4BFB-A732-F8322B39AC10}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{457756DB-E84E-4BFB-A732-F8322B39AC10}.Release|Any CPU.Build.0 = Release|Any CPU
+		{457756DB-E84E-4BFB-A732-F8322B39AC10}.Release|x64.ActiveCfg = Release|Any CPU
+		{457756DB-E84E-4BFB-A732-F8322B39AC10}.Release|x64.Build.0 = Release|Any CPU
+		{457756DB-E84E-4BFB-A732-F8322B39AC10}.Release|x86.ActiveCfg = Release|Any CPU
+		{457756DB-E84E-4BFB-A732-F8322B39AC10}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -317,5 +331,6 @@ Global
 		{D4B04DEF-1C88-56BE-388D-3457958121CA} = {BAD69475-3245-487E-9EC9-AEE8DEE05F2D}
 		{0B643342-425E-4875-8595-D250DAE73BA8} = {D4B04DEF-1C88-56BE-388D-3457958121CA}
 		{E3114993-E4A9-4092-BD53-A191AF613EBA} = {D4B04DEF-1C88-56BE-388D-3457958121CA}
+		{457756DB-E84E-4BFB-A732-F8322B39AC10} = {D4B04DEF-1C88-56BE-388D-3457958121CA}
 	EndGlobalSection
 EndGlobal

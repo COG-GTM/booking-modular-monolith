@@ -116,5 +116,6 @@
   <ItemGroup>
     <Compile Remove="Contracts\EventBus.Messages\**" />
     <Compile Remove="Contracts\Grpc.Contracts\**" />
+    <Compile Remove="Contracts\tests\**" />
   </ItemGroup>
 </Project>
