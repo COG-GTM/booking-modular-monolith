@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace BuildingBlocks.MassTransit;
 
@@ -69,7 +70,7 @@ public static class Extensions
                         }
                         else
                         {
-                            var rabbitMqOptions = services.GetOptions<RabbitMqOptions>(nameof(RabbitMqOptions));
+                            var rabbitMqOptions = context.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
 
                             ArgumentNullException.ThrowIfNull(rabbitMqOptions);
 
