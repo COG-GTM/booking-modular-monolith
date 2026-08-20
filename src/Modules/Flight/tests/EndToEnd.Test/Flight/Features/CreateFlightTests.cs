@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using Api;
+using FlightService;
 using BuildingBlocks.TestBase;
 using EndToEnd.Test.Fakes;
 using EndToEnd.Test.Routes;

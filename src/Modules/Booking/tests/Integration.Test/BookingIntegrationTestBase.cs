@@ -1,4 +1,4 @@
-using Api;
+using BookingService;
 using Booking.Data;
 using BuildingBlocks.TestBase;
 using Xunit;

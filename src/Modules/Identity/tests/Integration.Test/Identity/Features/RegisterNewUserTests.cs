@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using Api;
+using IdentityService;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.TestBase;
 using FluentAssertions;

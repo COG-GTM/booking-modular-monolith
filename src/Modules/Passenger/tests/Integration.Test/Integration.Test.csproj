@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\Api\src\Api.csproj" />
+    <ProjectReference Include="..\..\..\..\Services\Passenger\PassengerService.csproj" />
   </ItemGroup>
 
 </Project>

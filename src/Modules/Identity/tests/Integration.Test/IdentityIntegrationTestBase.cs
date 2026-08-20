@@ -1,4 +1,4 @@
-using Api;
+using IdentityService;
 using BuildingBlocks.TestBase;
 using Identity.Data;
 using Xunit;

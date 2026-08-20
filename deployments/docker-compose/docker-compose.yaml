@@ -330,28 +330,147 @@ services:
       - booking
 
   #######################################################
-  #  booking-modular-monolith
+  #  identity-service
   #######################################################
-  booking_modular_monolith:
-    image: booking-modular-monolith
+  identity-service:
+    image: booking-identity-service
     build:
       args:
-        Version: "1"
+        SERVICE_DIR: Identity
+        SERVICE_NAME: IdentityService
       context: ../../
-      dockerfile: src/Api/Dockerfile
-    container_name: booking_modular_monolith
+      dockerfile: src/Services/Dockerfile
+    container_name: identity-service
     ports:
-      - 3001:80
-      - 3000:443
-    volumes:
-      - ~/.aspnet/https:/https:ro
+      - 7003:80
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
-      - ASPNETCORE_URLS=https://+;http://+
-      - ASPNETCORE_HTTPS_PORT=3000
-      - ASPNETCORE_HTTP_PORT=3001
-      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
-      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      - PostgresOptions__ConnectionString__Identity=Server=postgres;Port=5432;Database=identity_modular_monolith;User Id=postgres;Password=postgres;Include Error Detail=true
+      - PersistMessageOptions__ConnectionString=Server=postgres;Port=5432;Database=persist_message_identity;User Id=postgres;Password=postgres;Include Error Detail=true
+      - RabbitMqOptions__HostName=rabbitmq
+      - Jwt__Authority=http://identity-service:80
+      - AuthOptions__IssuerUri=http://identity-service:80
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - booking
+
+  #######################################################
+  #  flight-service
+  #######################################################
+  flight-service:
+    image: booking-flight-service
+    build:
+      args:
+        SERVICE_DIR: Flight
+        SERVICE_NAME: FlightService
+      context: ../../
+      dockerfile: src/Services/Dockerfile
+    container_name: flight-service
+    ports:
+      - 7001:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - PostgresOptions__ConnectionString__Flight=Server=postgres;Port=5432;Database=flight_modular_monolith;User Id=postgres;Password=postgres;Include Error Detail=true
+      - PersistMessageOptions__ConnectionString=Server=postgres;Port=5432;Database=persist_message_flight;User Id=postgres;Password=postgres;Include Error Detail=true
+      - RabbitMqOptions__HostName=rabbitmq
+      - MongoOptions__ConnectionString=mongodb://mongo:27017
+      - Jwt__Authority=http://identity-service:80
+    depends_on:
+      - postgres
+      - rabbitmq
+      - mongo
+      - identity-service
+    networks:
+      - booking
+
+  #######################################################
+  #  passenger-service
+  #######################################################
+  passenger-service:
+    image: booking-passenger-service
+    build:
+      args:
+        SERVICE_DIR: Passenger
+        SERVICE_NAME: PassengerService
+      context: ../../
+      dockerfile: src/Services/Dockerfile
+    container_name: passenger-service
+    ports:
+      - 7002:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - PostgresOptions__ConnectionString__Passenger=Server=postgres;Port=5432;Database=passenger_modular_monolith;User Id=postgres;Password=postgres;Include Error Detail=true
+      - PersistMessageOptions__ConnectionString=Server=postgres;Port=5432;Database=persist_message_passenger;User Id=postgres;Password=postgres;Include Error Detail=true
+      - RabbitMqOptions__HostName=rabbitmq
+      - MongoOptions__ConnectionString=mongodb://mongo:27017
+      - Jwt__Authority=http://identity-service:80
+    depends_on:
+      - postgres
+      - rabbitmq
+      - mongo
+      - identity-service
+    networks:
+      - booking
+
+  #######################################################
+  #  booking-service
+  #######################################################
+  booking-service:
+    image: booking-booking-service
+    build:
+      args:
+        SERVICE_DIR: Booking
+        SERVICE_NAME: BookingService
+      context: ../../
+      dockerfile: src/Services/Dockerfile
+    container_name: booking-service
+    ports:
+      - 7004:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - EventStoreOptions__ConnectionString=esdb://eventstore:2113?tls=false
+      - PersistMessageOptions__ConnectionString=Server=postgres;Port=5432;Database=persist_message_booking;User Id=postgres;Password=postgres;Include Error Detail=true
+      - RabbitMqOptions__HostName=rabbitmq
+      - MongoOptions__ConnectionString=mongodb://mongo:27017
+      - Jwt__Authority=http://identity-service:80
+    depends_on:
+      - postgres
+      - rabbitmq
+      - mongo
+      - eventstore
+      - identity-service
+      - flight-service
+      - passenger-service
+    networks:
+      - booking
+
+  #######################################################
+  #  gateway
+  #######################################################
+  gateway:
+    image: booking-gateway
+    build:
+      args:
+        SERVICE_DIR: Gateway
+        SERVICE_NAME: GatewayService
+      context: ../../
+      dockerfile: src/Services/Dockerfile
+    container_name: gateway
+    ports:
+      - 3001:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ReverseProxy__Clusters__flight-cluster__Destinations__flight-destination__Address=http://flight-service:80
+      - ReverseProxy__Clusters__passenger-cluster__Destinations__passenger-destination__Address=http://passenger-service:80
+      - ReverseProxy__Clusters__identity-cluster__Destinations__identity-destination__Address=http://identity-service:80
+      - ReverseProxy__Clusters__booking-cluster__Destinations__booking-destination__Address=http://booking-service:80
+    depends_on:
+      - identity-service
+      - flight-service
+      - passenger-service
+      - booking-service
     networks:
       - booking
 
