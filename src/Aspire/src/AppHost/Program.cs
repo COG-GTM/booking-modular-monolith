@@ -321,4 +321,60 @@ var api = builder.AddProject<Api>("api")
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
 
+// 4. Microservice Hosts
+var identityApi = builder.AddProject<Identity_Api>("identity-api")
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(identityDb)
+    .WaitFor(identityDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithEnvironment("MessagingOptions__TransportType", "RabbitMq")
+    .WithHttpEndpoint(port: 5102, name: "identity-http")
+    .WithHttpsEndpoint(port: 5002, name: "identity-https");
+
+var flightApi = builder.AddProject<Flight_Api>("flight-api")
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(flightDb)
+    .WaitFor(flightDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithEnvironment("MessagingOptions__TransportType", "RabbitMq")
+    .WithEnvironment("Jwt__Authority", identityApi.GetEndpoint("identity-https"))
+    .WithHttpEndpoint(port: 5101, name: "flight-http")
+    .WithHttpsEndpoint(port: 5001, name: "flight-https");
+
+var passengerApi = builder.AddProject<Passenger_Api>("passenger-api")
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(passengerDb)
+    .WaitFor(passengerDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithEnvironment("MessagingOptions__TransportType", "RabbitMq")
+    .WithEnvironment("Jwt__Authority", identityApi.GetEndpoint("identity-https"))
+    .WithHttpEndpoint(port: 5103, name: "passenger-http")
+    .WithHttpsEndpoint(port: 5003, name: "passenger-https");
+
+var bookingApi = builder.AddProject<Booking_Api>("booking-api")
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithEnvironment("MessagingOptions__TransportType", "RabbitMq")
+    .WithEnvironment("Jwt__Authority", identityApi.GetEndpoint("identity-https"))
+    .WithEnvironment("Grpc__FlightAddress", flightApi.GetEndpoint("flight-https"))
+    .WithEnvironment("Grpc__PassengerAddress", passengerApi.GetEndpoint("passenger-https"))
+    .WithHttpEndpoint(port: 5104, name: "booking-http")
+    .WithHttpsEndpoint(port: 5004, name: "booking-https");
+
 builder.Build().Run();
