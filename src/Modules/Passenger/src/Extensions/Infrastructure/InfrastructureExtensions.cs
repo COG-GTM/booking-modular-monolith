@@ -1,3 +1,4 @@
+using BuildingBlocks.Core;
 using BuildingBlocks.EFCore;
 using BuildingBlocks.Mapster;
 using BuildingBlocks.Mongo;
@@ -14,7 +15,7 @@ public static class InfrastructureExtensions
 {
     public static WebApplicationBuilder AddPassengerModules(this WebApplicationBuilder builder)
     {
-        builder.Services.AddScoped<PassengerEventMapper>();
+        builder.Services.AddModuleEventMapper<PassengerEventMapper>();
         builder.AddMinimalEndpoints(assemblies: typeof(PassengerRoot).Assembly);
         builder.Services.AddValidatorsFromAssembly(typeof(PassengerRoot).Assembly);
         builder.Services.AddCustomMapster(typeof(PassengerRoot).Assembly);
