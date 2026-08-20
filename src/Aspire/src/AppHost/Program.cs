@@ -354,4 +354,18 @@ var bookingService = builder.AddProject<BookingService>("booking-service")
     .WithEnvironment("Grpc__PassengerAddress", passengerService.GetEndpoint("https"))
     .WithEnvironment("Jwt__Authority", identityService.GetEndpoint("https"));
 
+builder.AddProject<GatewayService>("gateway")
+    .WithReference(flightService)
+    .WaitFor(flightService)
+    .WithReference(passengerService)
+    .WaitFor(passengerService)
+    .WithReference(identityService)
+    .WaitFor(identityService)
+    .WithReference(bookingService)
+    .WaitFor(bookingService)
+    .WithEnvironment("ReverseProxy__Clusters__flight-cluster__Destinations__flight-destination__Address", flightService.GetEndpoint("https"))
+    .WithEnvironment("ReverseProxy__Clusters__passenger-cluster__Destinations__passenger-destination__Address", passengerService.GetEndpoint("https"))
+    .WithEnvironment("ReverseProxy__Clusters__identity-cluster__Destinations__identity-destination__Address", identityService.GetEndpoint("https"))
+    .WithEnvironment("ReverseProxy__Clusters__booking-cluster__Destinations__booking-destination__Address", bookingService.GetEndpoint("https"));
+
 builder.Build().Run();
