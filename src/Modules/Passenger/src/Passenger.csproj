@@ -13,11 +13,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="GrpcServer\Protos\passenger.proto" GrpcServices="Both" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Contracts\EventBus.Messages\EventBus.Messages.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Contracts\Grpc.Contracts\Grpc.Contracts.csproj" />
   </ItemGroup>
   
 </Project>
