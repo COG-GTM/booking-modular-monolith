@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using Api;
+using PassengerService;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
 using Integration.Test.Fakes;

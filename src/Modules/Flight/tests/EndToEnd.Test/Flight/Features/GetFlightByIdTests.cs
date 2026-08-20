@@ -1,5 +1,5 @@
 using System.Net;
-using Api;
+using FlightService;
 using BuildingBlocks.TestBase;
 using EndToEnd.Test.Fakes;
 using EndToEnd.Test.Routes;

@@ -1,4 +1,4 @@
-using Api;
+using FlightService;
 using BuildingBlocks.TestBase;
 using Flight.Data;
 using Xunit;

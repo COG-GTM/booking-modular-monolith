@@ -1,4 +1,4 @@
-using Api;
+using PassengerService;
 using BuildingBlocks.TestBase;
 using Passenger.Data;
 using Xunit;

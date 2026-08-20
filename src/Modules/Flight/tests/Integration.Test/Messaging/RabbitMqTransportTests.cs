@@ -1,4 +1,4 @@
-using Api;
+using FlightService;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.TestBase;
