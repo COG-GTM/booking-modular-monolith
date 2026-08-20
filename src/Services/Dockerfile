@@ -51,4 +51,6 @@ ENV ASPNETCORE_ENVIRONMENT=docker
 
 EXPOSE 80
 
-ENTRYPOINT dotnet ${SERVICE_DLL}
+# bash (not sh/dash) so env vars with non-identifier names (e.g. YARP cluster
+# keys containing hyphens) survive into the dotnet process environment
+ENTRYPOINT ["/bin/bash", "-c", "exec dotnet /app/${SERVICE_DLL}"]
