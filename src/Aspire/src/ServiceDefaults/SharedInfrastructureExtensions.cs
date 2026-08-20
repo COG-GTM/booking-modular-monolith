@@ -7,9 +7,12 @@ using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Figgle.Fonts;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Api.Extensions;
+namespace Microsoft.Extensions.Hosting;
 
 public static class SharedInfrastructureExtensions
 {
