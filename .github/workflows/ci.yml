@@ -20,6 +20,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Build and Test Shared Contracts
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-contracts-step
+        with:
+          project-path: 'src/BuildingBlocks/Contracts/Grpc.Contracts/'
+          tests-path: 'src/BuildingBlocks/Contracts/tests/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'Contracts'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and Test Flight Microservice
         uses: ./.github/actions/build-test
         if: success()
