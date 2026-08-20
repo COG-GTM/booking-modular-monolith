@@ -2,7 +2,7 @@ using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Microsoft.Extensions.Logging;
 
-namespace BuildingBlocks.Exception;
+namespace BuildingBlocks.Web;
 
 public class GrpcExceptionInterceptor : Interceptor
 {

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Humanizer.Core" Version="3.0.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\BuildingBlocks.Core.csproj" />
+    <ProjectReference Include="..\EFCore\BuildingBlocks.EFCore.csproj" />
+    <ProjectReference Include="..\Web\BuildingBlocks.Web.csproj" />
+  </ItemGroup>
+</Project>

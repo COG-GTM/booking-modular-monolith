@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BuildingBlocks.Exception;
+namespace BuildingBlocks.ProblemDetails;
 
 using ProblemDetails = Microsoft.AspNetCore.Mvc.ProblemDetails;
 

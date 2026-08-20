@@ -1,8 +1,8 @@
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Flight.Data;
 using Flight.Flights.Exceptions;
 using FluentValidation;
@@ -45,7 +45,7 @@ public class DeleteFlightEndpoint : IMinimalEndpoint
 
                     return Results.NoContent();
                 })
-            .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(IdentityConstant.AuthorizationPolicy.ApiScope)
             .WithName("DeleteFlight")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces(StatusCodes.Status204NoContent)

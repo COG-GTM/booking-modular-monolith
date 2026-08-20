@@ -16,7 +16,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\..\..\Api\src\Api.csproj" />
+		<ProjectReference Include="..\..\..\..\BuildingBlocks\TestBase\BuildingBlocks.TestBase.csproj" />
+    <ProjectReference Include="..\..\..\..\Api\src\Api.csproj" />
 	</ItemGroup>
 
 </Project>
