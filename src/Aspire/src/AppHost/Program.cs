@@ -303,22 +303,69 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
-var api = builder.AddProject<Api>("api")
-    .WithReference(persistMessageDb)
-    .WaitFor(persistMessageDb)
-    .WithReference(flightDb)
-    .WaitFor(flightDb)
-    .WithReference(passengerDb)
-    .WaitFor(passengerDb)
+var identityService = builder.AddProject<IdentityService>("identity-service")
     .WithReference(identityDb)
     .WaitFor(identityDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
+
+identityService
+    .WithEnvironment("AuthOptions__IssuerUri", identityService.GetEndpoint("https"))
+    .WithEnvironment("Jwt__Authority", identityService.GetEndpoint("https"));
+
+var flightService = builder.AddProject<FlightService>("flight-service")
+    .WithReference(flightDb)
+    .WaitFor(flightDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
     .WithReference(mongo)
     .WaitFor(mongo)
-    .WithReference(eventstore)
-    .WaitFor(eventstore)
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
-    .WithHttpEndpoint(port: 3001, name: "api-http")
-    .WithHttpsEndpoint(port: 3000, name: "api-https");
+    .WithEnvironment("Jwt__Authority", identityService.GetEndpoint("https"));
+
+var passengerService = builder.AddProject<PassengerService>("passenger-service")
+    .WithReference(passengerDb)
+    .WaitFor(passengerDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithEnvironment("Jwt__Authority", identityService.GetEndpoint("https"));
+
+var bookingService = builder.AddProject<BookingService>("booking-service")
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(flightService)
+    .WaitFor(flightService)
+    .WithReference(passengerService)
+    .WaitFor(passengerService)
+    .WithEnvironment("Grpc__FlightAddress", flightService.GetEndpoint("https"))
+    .WithEnvironment("Grpc__PassengerAddress", passengerService.GetEndpoint("https"))
+    .WithEnvironment("Jwt__Authority", identityService.GetEndpoint("https"));
+
+builder.AddProject<GatewayService>("gateway")
+    .WithReference(flightService)
+    .WaitFor(flightService)
+    .WithReference(passengerService)
+    .WaitFor(passengerService)
+    .WithReference(identityService)
+    .WaitFor(identityService)
+    .WithReference(bookingService)
+    .WaitFor(bookingService)
+    .WithEnvironment("ReverseProxy__Clusters__flight-cluster__Destinations__flight-destination__Address", flightService.GetEndpoint("https"))
+    .WithEnvironment("ReverseProxy__Clusters__passenger-cluster__Destinations__passenger-destination__Address", passengerService.GetEndpoint("https"))
+    .WithEnvironment("ReverseProxy__Clusters__identity-cluster__Destinations__identity-destination__Address", identityService.GetEndpoint("https"))
+    .WithEnvironment("ReverseProxy__Clusters__booking-cluster__Destinations__booking-destination__Address", bookingService.GetEndpoint("https"));
 
 builder.Build().Run();

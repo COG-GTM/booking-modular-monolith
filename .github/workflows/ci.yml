@@ -92,6 +92,42 @@ jobs:
           service-name: 'Booking'
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build and Test Gateway
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-gateway-step
+        with:
+          project-path: 'src/Services/Gateway/'
+          tests-path: 'src/Services/Gateway.Tests/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'Gateway'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Test Service Hosts
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-service-hosts-step
+        with:
+          project-path: 'src/Aspire/src/AppHost/'
+          tests-path: 'src/Services/tests/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'ServiceHosts'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Test Aspire AppHost
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-aspire-step
+        with:
+          project-path: 'src/Aspire/src/AppHost/'
+          tests-path: 'src/Aspire/tests/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'Aspire'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update Release Drafter
         if: ${{ github.ref == 'refs/heads/main' && success() }}
         id: last_release
