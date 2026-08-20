@@ -1,4 +1,3 @@
-using Booking;
 using BuildingBlocks.Core;
 using BuildingBlocks.Exception;
 using BuildingBlocks.Jwt;
@@ -8,10 +7,7 @@ using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Figgle.Fonts;
-using Flight;
-using Identity;
 using Microsoft.AspNetCore.Mvc;
-using Passenger;
 
 namespace Api.Extensions;
 
@@ -55,18 +51,7 @@ public static class SharedInfrastructureExtensions
         });
         builder.Services.AddProblemDetails();
 
-        builder.Services.AddScoped<IEventMapper>(sp =>
-        {
-            var mappers = new IEventMapper[]
-            {
-                sp.GetRequiredService<FlightEventMapper>(),
-                sp.GetRequiredService<IdentityEventMapper>(),
-                sp.GetRequiredService<PassengerEventMapper>(),
-                sp.GetRequiredService<BookingEventMapper>(),
-            };
-
-            return new CompositeEventMapper(mappers);
-        });
+        builder.Services.AddCompositeEventMapper();
 
         return builder;
     }
