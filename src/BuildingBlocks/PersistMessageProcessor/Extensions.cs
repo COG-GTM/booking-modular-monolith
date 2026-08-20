@@ -1,3 +1,4 @@
+using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
 using Humanizer;
 using Microsoft.AspNetCore.Builder;
@@ -53,6 +54,7 @@ public static class Extensions
             });
 
         builder.Services.AddScoped<IPersistMessageProcessor, PersistMessageProcessor>();
+        builder.Services.AddScoped<IIntegrationEventPublisher, PersistMessageIntegrationEventPublisher>();
 
         builder.Services.AddHostedService<PersistMessageBackgroundService>();
 
