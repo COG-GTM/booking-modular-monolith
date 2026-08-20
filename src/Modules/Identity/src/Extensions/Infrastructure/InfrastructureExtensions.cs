@@ -2,6 +2,7 @@ using BuildingBlocks.EFCore;
 using BuildingBlocks.Mapster;
 using BuildingBlocks.Web;
 using FluentValidation;
+using Identity.Configurations;
 using Identity.Data;
 using Identity.Data.Seed;
 using Microsoft.AspNetCore.Builder;
@@ -20,6 +21,7 @@ public static class InfrastructureExtensions
         builder.Services.AddValidatorsFromAssembly(typeof(IdentityRoot).Assembly);
         builder.Services.AddCustomMapster(typeof(IdentityRoot).Assembly);
         builder.AddCustomDbContext<IdentityContext>(nameof(Identity));
+        builder.Services.AddValidateOptions<IdentitySeedOptions>();
         builder.Services.AddScoped<IDataSeeder, IdentityDataSeeder>();
         builder.AddCustomIdentityServer();
 

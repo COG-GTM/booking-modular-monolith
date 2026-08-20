@@ -16,7 +16,7 @@ grant_type=password
 &client_id=client
 &client_secret=secret
 &username=samh
-&password=Admin@123456
+&password={{seed_admin_password}}
 &scope=booking-modular-monolith role
 ###
 
