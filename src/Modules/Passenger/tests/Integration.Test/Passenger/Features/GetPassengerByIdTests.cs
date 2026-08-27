@@ -1,9 +1,9 @@
 using System.Threading.Tasks;
 using Api;
 using BuildingBlocks.TestBase;
+using Contracts.Grpc.Passenger;
 using FluentAssertions;
 using Integration.Test.Fakes;
-using Passenger;
 using Passenger.Data;
 using Xunit;
 

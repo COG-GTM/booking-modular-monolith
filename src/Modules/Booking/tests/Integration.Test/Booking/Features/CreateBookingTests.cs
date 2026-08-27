@@ -1,10 +1,10 @@
 using System.Threading.Tasks;
 using Api;
 using Booking.Data;
-using BookingFlight;
-using BookingPassenger;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.TestBase;
+using Contracts.Grpc.Flight;
+using Contracts.Grpc.Passenger;
 using FluentAssertions;
 using Grpc.Core;
 using Grpc.Core.Testing;
@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
 using Xunit;
-using GetByIdRequest = BookingFlight.GetByIdRequest;
+using GetByIdRequest = Contracts.Grpc.Flight.GetByIdRequest;
 
 namespace Integration.Test.Booking.Features
 {
@@ -52,7 +52,7 @@ namespace Integration.Test.Booking.Features
             {
                 var mockPassenger = Substitute.For<PassengerGrpcService.PassengerGrpcServiceClient>();
 
-                mockPassenger.GetByIdAsync(Arg.Any<BookingPassenger.GetByIdRequest>())
+                mockPassenger.GetByIdAsync(Arg.Any<Contracts.Grpc.Passenger.GetByIdRequest>())
                     .Returns(TestCalls.AsyncUnaryCall(Task.FromResult(FakePassengerResponse.Generate()),
                         Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { }));
 
