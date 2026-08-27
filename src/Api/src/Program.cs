@@ -4,10 +4,13 @@ using BuildingBlocks.Web;
 using Flight.Extensions.Infrastructure;
 using Identity.Extensions.Infrastructure;
 using Passenger.Extensions.Infrastructure;
+using Shared.ServiceHost;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddSharedInfrastructure();
+
+builder.Services.AddApiEventMappers();
 
 builder.AddFlightModules();
 builder.AddIdentityModules();
@@ -25,7 +28,7 @@ app.UseIdentityModules();
 app.UsePassengerModules();
 app.UseBookingModules();
 
-app.UserSharedInfrastructure();
+app.UseSharedInfrastructure();
 app.MapMinimalEndpoints();
 
 app.Run();
