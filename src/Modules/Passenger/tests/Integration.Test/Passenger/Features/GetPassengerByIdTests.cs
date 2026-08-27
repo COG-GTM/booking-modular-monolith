@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using Api;
 using BuildingBlocks.TestBase;
 using Contracts.Grpc.Passenger;
 using FluentAssertions;
@@ -14,7 +13,7 @@ using global::Passenger.Passengers.Features.GettingPassengerById.V1;
 public class GetPassengerByIdTests : PassengerIntegrationTestBase
 {
     public GetPassengerByIdTests(
-        TestFixture<Program, PassengerDbContext, PassengerReadDbContext> integrationTestFactory) : base(integrationTestFactory)
+        PassengerServiceTestFixture integrationTestFactory) : base(integrationTestFactory)
     {
     }
 
