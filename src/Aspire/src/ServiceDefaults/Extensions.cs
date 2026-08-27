@@ -14,18 +14,18 @@ public static class Extensions
         builder.Services.AddServiceDiscovery();
 
         builder.Services.ConfigureHttpClientDefaults(http =>
-                                                     {
-                                                         http.AddStandardResilienceHandler(options =>
-                                                             {
-                                                                 var timeSpan = TimeSpan.FromMinutes(1);
-                                                                 options.CircuitBreaker.SamplingDuration = timeSpan * 2;
-                                                                 options.TotalRequestTimeout.Timeout = timeSpan * 3;
-                                                                 options.Retry.MaxRetryAttempts = 3;
-                                                             });
+        {
+            http.AddStandardResilienceHandler(options =>
+            {
+                var timeSpan = TimeSpan.FromMinutes(1);
+                options.CircuitBreaker.SamplingDuration = timeSpan * 2;
+                options.TotalRequestTimeout.Timeout = timeSpan * 3;
+                options.Retry.MaxRetryAttempts = 3;
+            });
 
-                                                         // Turn on service discovery by default
-                                                         http.AddServiceDiscovery();
-                                                     });
+            // Turn on service discovery by default
+            http.AddServiceDiscovery();
+        });
 
         return builder;
     }

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Booking.Api</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Aspire\src\ServiceDefaults\ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Hosting\Shared.Hosting.csproj" />
+    <ProjectReference Include="..\..\..\Modules\Booking\src\Booking.csproj" />
+  </ItemGroup>
+</Project>
