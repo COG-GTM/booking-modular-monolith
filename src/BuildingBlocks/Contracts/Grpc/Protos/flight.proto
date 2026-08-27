@@ -1,6 +1,8 @@
 syntax = "proto3";
 
-package bookingFlight;
+package flight;
+option csharp_namespace = "Contracts.Grpc.Flight";
+
 import "google/protobuf/timestamp.proto";
 
 service FlightGrpcService {
