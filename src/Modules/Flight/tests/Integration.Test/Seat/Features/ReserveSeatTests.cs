@@ -10,7 +10,7 @@ namespace Integration.Test.Seat.Features;
 public class ReserveSeatTests : FlightIntegrationTestBase
 {
     public ReserveSeatTests(
-        TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory) : base(integrationTestFactory)
+        FlightServiceTestFixture integrationTestFactory) : base(integrationTestFactory)
     {
     }
 

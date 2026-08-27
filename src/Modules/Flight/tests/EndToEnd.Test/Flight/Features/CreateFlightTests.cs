@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using Api;
 using BuildingBlocks.TestBase;
 using EndToEnd.Test.Fakes;
 using EndToEnd.Test.Routes;
@@ -12,7 +11,7 @@ namespace EndToEnd.Test.Flight.Features;
 
 public class CreateFlightTests : FlightEndToEndTestBase
 {
-    public CreateFlightTests(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFixture) : base(integrationTestFixture)
+    public CreateFlightTests(FlightServiceTestFixture integrationTestFixture) : base(integrationTestFixture)
     {
     }
 
