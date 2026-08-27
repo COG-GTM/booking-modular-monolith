@@ -36,7 +36,10 @@ if (builder.ExecutionContext.IsPublishMode)
 var flightDb = postgres.AddDatabase("flight");
 var passengerDb = postgres.AddDatabase("passenger");
 var identityDb = postgres.AddDatabase("identity");
-var persistMessageDb = postgres.AddDatabase("persist-message");
+var flightOutboxDb = postgres.AddDatabase("persist-message-flight", "persist_message_flight");
+var passengerOutboxDb = postgres.AddDatabase("persist-message-passenger", "persist_message_passenger");
+var identityOutboxDb = postgres.AddDatabase("persist-message-identity", "persist_message_identity");
+var bookingOutboxDb = postgres.AddDatabase("persist-message-booking", "persist_message_booking");
 
 var mongoUsername = builder.AddParameter("mongo-username", "root", secret: true);
 var mongoPassword = builder.AddParameter("mongo-password", "secret", secret: true);
@@ -303,22 +306,59 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
-var api = builder.AddProject<Api>("api")
-    .WithReference(persistMessageDb)
-    .WaitFor(persistMessageDb)
-    .WithReference(flightDb)
-    .WaitFor(flightDb)
-    .WithReference(passengerDb)
-    .WaitFor(passengerDb)
+// 4. Application Services
+var identityService = builder.AddProject<IdentityService>("identity-service")
     .WithReference(identityDb)
     .WaitFor(identityDb)
+    .WithReference(identityOutboxDb, connectionName: "persist-message")
+    .WaitFor(identityOutboxDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
+
+var identityHttp = identityService.GetEndpoint("http");
+
+// The JWT bearer handler fetches OIDC metadata outside IHttpClientFactory, so
+// Jwt__Authority needs a concrete resolved URL rather than the service-discovery
+// form, and AuthOptions__IssuerUri must match it exactly for issuer validation.
+identityService
+    .WithEnvironment("Jwt__Authority", identityHttp)
+    .WithEnvironment("AuthOptions__IssuerUri", identityHttp);
+
+var flightService = builder.AddProject<FlightService>("flight-service")
+    .WithReference(flightDb)
+    .WaitFor(flightDb)
+    .WithReference(flightOutboxDb, connectionName: "persist-message")
+    .WaitFor(flightOutboxDb)
     .WithReference(mongo)
     .WaitFor(mongo)
-    .WithReference(eventstore)
-    .WaitFor(eventstore)
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
-    .WithHttpEndpoint(port: 3001, name: "api-http")
-    .WithHttpsEndpoint(port: 3000, name: "api-https");
+    .WithEnvironment("Jwt__Authority", identityHttp);
+
+var passengerService = builder.AddProject<PassengerService>("passenger-service")
+    .WithReference(passengerDb)
+    .WaitFor(passengerDb)
+    .WithReference(passengerOutboxDb, connectionName: "persist-message")
+    .WaitFor(passengerOutboxDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithEnvironment("Jwt__Authority", identityHttp);
+
+var bookingService = builder.AddProject<BookingService>("booking-service")
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(bookingOutboxDb, connectionName: "persist-message")
+    .WaitFor(bookingOutboxDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(flightService.GetEndpoint("grpc"))
+    .WithReference(passengerService.GetEndpoint("grpc"))
+    .WithEnvironment("Grpc__FlightAddress", "http://_grpc.flight-service")
+    .WithEnvironment("Grpc__PassengerAddress", "http://_grpc.passenger-service")
+    .WithEnvironment("Jwt__Authority", identityHttp);
 
 builder.Build().Run();
