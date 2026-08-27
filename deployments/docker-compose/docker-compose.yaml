@@ -25,7 +25,8 @@ services:
   #  postgres
   #######################################################
   postgres:
-    image: postgres:latest
+    # pinned: `postgres:latest` moved to PG18, which refuses an existing PG16 data directory
+    image: postgres:16
     container_name: postgres
     restart: unless-stopped
     ports:
@@ -330,28 +331,115 @@ services:
       - booking
 
   #######################################################
-  #  booking-modular-monolith
+  #  identity-service
   #######################################################
-  booking_modular_monolith:
-    image: booking-modular-monolith
+  identity-service:
+    image: booking-identity-service
     build:
-      args:
-        Version: "1"
       context: ../../
-      dockerfile: src/Api/Dockerfile
-    container_name: booking_modular_monolith
+      dockerfile: src/Services/Identity/Dockerfile
+    container_name: identity-service
+    restart: unless-stopped
     ports:
-      - 3001:80
-      - 3000:443
-    volumes:
-      - ~/.aspnet/https:/https:ro
+      - 5103:5103
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
-      - ASPNETCORE_URLS=https://+;http://+
-      - ASPNETCORE_HTTPS_PORT=3000
-      - ASPNETCORE_HTTP_PORT=3001
-      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
-      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - booking
+
+  #######################################################
+  #  flight-service
+  #######################################################
+  flight-service:
+    image: booking-flight-service
+    build:
+      context: ../../
+      dockerfile: src/Services/Flight/Dockerfile
+    container_name: flight-service
+    restart: unless-stopped
+    ports:
+      - 5101:5101
+      - 5111:5111
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+      - identity-service
+    networks:
+      - booking
+
+  #######################################################
+  #  passenger-service
+  #######################################################
+  passenger-service:
+    image: booking-passenger-service
+    build:
+      context: ../../
+      dockerfile: src/Services/Passenger/Dockerfile
+    container_name: passenger-service
+    restart: unless-stopped
+    ports:
+      - 5102:5102
+      - 5112:5112
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+      - identity-service
+    networks:
+      - booking
+
+  #######################################################
+  #  booking-service
+  #######################################################
+  booking-service:
+    image: booking-booking-service
+    build:
+      context: ../../
+      dockerfile: src/Services/Booking/Dockerfile
+    container_name: booking-service
+    restart: unless-stopped
+    ports:
+      - 5104:5104
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - postgres
+      - mongo
+      - eventstore
+      - rabbitmq
+      - identity-service
+      - flight-service
+      - passenger-service
+    networks:
+      - booking
+
+  #######################################################
+  #  gateway
+  #######################################################
+  gateway:
+    image: booking-gateway
+    build:
+      context: ../../
+      dockerfile: src/Services/Gateway/Dockerfile
+    container_name: gateway
+    restart: unless-stopped
+    ports:
+      - 5000:5000
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - identity-service
+      - flight-service
+      - passenger-service
+      - booking-service
     networks:
       - booking
 
