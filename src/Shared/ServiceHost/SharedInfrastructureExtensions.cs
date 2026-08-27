@@ -1,4 +1,4 @@
-using Booking;
+using System.Reflection;
 using BuildingBlocks.Core;
 using BuildingBlocks.Exception;
 using BuildingBlocks.Jwt;
@@ -8,16 +8,20 @@ using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Figgle.Fonts;
-using Flight;
-using Identity;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Passenger;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
-namespace Api.Extensions;
+namespace Shared.ServiceHost;
 
 public static class SharedInfrastructureExtensions
 {
-    public static WebApplicationBuilder AddSharedInfrastructure(this WebApplicationBuilder builder)
+    public static WebApplicationBuilder AddSharedInfrastructure(
+        this WebApplicationBuilder builder,
+        params Assembly[] messagingAssemblies
+    )
     {
         var appOptions = builder.Services.GetOptions<AppOptions>(nameof(AppOptions));
         Console.WriteLine(FiggleFonts.Standard.Render(appOptions.Name));
@@ -39,10 +43,14 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddCustomMassTransit(
             builder.Environment,
             TransportType.RabbitMq,
-            AppDomain.CurrentDomain.GetAssemblies()
+            messagingAssemblies.Length == 0
+                ? AppDomain.CurrentDomain.GetAssemblies()
+                : messagingAssemblies
         );
 
-        builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);
+        builder.Services.Configure<ApiBehaviorOptions>(options =>
+            options.SuppressModelStateInvalidFilter = true
+        );
 
         builder.Services.AddGrpc(options =>
         {
@@ -55,23 +63,17 @@ public static class SharedInfrastructureExtensions
         });
         builder.Services.AddProblemDetails();
 
-        builder.Services.AddScoped<IEventMapper>(sp =>
-        {
-            var mappers = new IEventMapper[]
-            {
-                sp.GetRequiredService<FlightEventMapper>(),
-                sp.GetRequiredService<IdentityEventMapper>(),
-                sp.GetRequiredService<PassengerEventMapper>(),
-                sp.GetRequiredService<BookingEventMapper>(),
-            };
-
-            return new CompositeEventMapper(mappers);
-        });
-
         return builder;
     }
 
-    public static WebApplication UserSharedInfrastructure(this WebApplication app)
+    public static IServiceCollection AddEventMapper<TMapper>(this IServiceCollection services)
+        where TMapper : class, IEventMapper
+    {
+        services.AddScoped<IEventMapper>(sp => sp.GetRequiredService<TMapper>());
+        return services;
+    }
+
+    public static WebApplication UseSharedInfrastructure(this WebApplication app)
     {
         var appOptions = app.Configuration.GetOptions<AppOptions>(nameof(AppOptions));
 
