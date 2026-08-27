@@ -361,4 +361,26 @@ var bookingService = builder.AddProject<BookingService>("booking-service")
     .WithEnvironment("Grpc__PassengerAddress", "http://_grpc.passenger-service")
     .WithEnvironment("Jwt__Authority", identityHttp);
 
+var gateway = builder.AddProject<GatewayService>("gateway")
+    .WithReference(flightService)
+    .WaitFor(flightService)
+    .WithReference(passengerService)
+    .WaitFor(passengerService)
+    .WithReference(identityService)
+    .WaitFor(identityService)
+    .WithReference(bookingService)
+    .WaitFor(bookingService)
+    .WithEnvironment(
+        "ReverseProxy__Clusters__flight-cluster__Destinations__flight-service__Address",
+        flightService.GetEndpoint("http"))
+    .WithEnvironment(
+        "ReverseProxy__Clusters__passenger-cluster__Destinations__passenger-service__Address",
+        passengerService.GetEndpoint("http"))
+    .WithEnvironment(
+        "ReverseProxy__Clusters__identity-cluster__Destinations__identity-service__Address",
+        identityService.GetEndpoint("http"))
+    .WithEnvironment(
+        "ReverseProxy__Clusters__booking-cluster__Destinations__booking-service__Address",
+        bookingService.GetEndpoint("http"));
+
 builder.Build().Run();

@@ -54,7 +54,7 @@ public class AppHostResourceGraphTests : IClassFixture<AppHostFixture>
     {
         var projectNames = Resources.OfType<ProjectResource>().Select(r => r.Name).ToList();
 
-        projectNames.Should().BeEquivalentTo(ServiceNames);
+        projectNames.Should().BeEquivalentTo([.. ServiceNames, "gateway"]);
         Resources.Should().NotContain(r => r.Name == "api");
     }
 
