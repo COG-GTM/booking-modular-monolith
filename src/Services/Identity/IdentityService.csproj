@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>IdentityService</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\ServiceHost\ServiceHost.csproj" />
+    <ProjectReference Include="..\..\Modules\Identity\src\Identity.csproj" />
+  </ItemGroup>
+</Project>
