@@ -27,7 +27,8 @@ services:
   #  postgres
   #######################################################
   postgres:
-    image: postgres:latest
+    # pinned: `postgres:latest` moved to PG18, which refuses an existing PG16 data directory
+    image: postgres:16
     container_name: postgres
     restart: unless-stopped
     ports:
@@ -359,3 +360,4 @@ networks:
     
 volumes:
   postgres-data:
+  elastic-data:

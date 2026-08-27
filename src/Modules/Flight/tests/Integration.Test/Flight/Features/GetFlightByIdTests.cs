@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using Api;
 using BuildingBlocks.TestBase;
 using Contracts.Grpc.Flight;
 using Flight.Data;
@@ -14,7 +13,7 @@ using global::Flight.Flights.Features.GettingFlightById.V1;
 public class GetFlightByIdTests : FlightIntegrationTestBase
 {
     public GetFlightByIdTests(
-        TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory) : base(integrationTestFactory)
+        FlightServiceTestFixture integrationTestFactory) : base(integrationTestFactory)
     {
     }
 

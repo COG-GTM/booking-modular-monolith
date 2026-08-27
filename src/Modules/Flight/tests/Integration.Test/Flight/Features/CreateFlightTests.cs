@@ -1,4 +1,3 @@
-using Api;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.TestBase;
 using Flight.Data;
@@ -11,7 +10,7 @@ namespace Integration.Test.Flight.Features;
 public class CreateFlightTests : FlightIntegrationTestBase
 {
     public CreateFlightTests(
-        TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory) : base(integrationTestFactory)
+        FlightServiceTestFixture integrationTestFactory) : base(integrationTestFactory)
     {
     }
 

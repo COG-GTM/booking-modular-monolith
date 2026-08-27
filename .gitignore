@@ -440,3 +440,6 @@ fabric.properties
 
 # EventStore
 **/eventstore
+
+# Duende developer signing keys (generated at runtime)
+src/Services/Identity/keys/

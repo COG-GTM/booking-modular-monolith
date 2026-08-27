@@ -11,7 +11,7 @@ namespace Integration.Test.Seat.Features;
 public class GetAvailableSeatsTests : FlightIntegrationTestBase
 {
     public GetAvailableSeatsTests(
-        TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory) : base(integrationTestFactory)
+        FlightServiceTestFixture integrationTestFactory) : base(integrationTestFactory)
     {
     }
 

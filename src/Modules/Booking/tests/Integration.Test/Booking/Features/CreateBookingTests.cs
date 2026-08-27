@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using Api;
 using Booking.Data;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.TestBase;
@@ -19,7 +18,7 @@ namespace Integration.Test.Booking.Features
 {
     public class CreateBookingTests : BookingIntegrationTestBase
     {
-        public CreateBookingTests(TestReadFixture<Program, BookingReadDbContext> integrationTestFixture) : base(
+        public CreateBookingTests(BookingServiceTestFixture integrationTestFixture) : base(
             integrationTestFixture)
         {
         }
