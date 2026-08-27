@@ -355,6 +355,96 @@ services:
     networks:
       - booking
 
+  #######################################################
+  #  microservices (one host per bounded context)
+  #######################################################
+  identity-api:
+    image: booking-identity-api
+    build:
+      context: ../../
+      dockerfile: src/Services/Identity/Dockerfile
+    container_name: identity-api
+    ports:
+      - 5101:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - booking
+
+  flight-api:
+    image: booking-flight-api
+    build:
+      context: ../../
+      dockerfile: src/Services/Flight/Dockerfile
+    container_name: flight-api
+    ports:
+      - 5201:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+    networks:
+      - booking
+
+  passenger-api:
+    image: booking-passenger-api
+    build:
+      context: ../../
+      dockerfile: src/Services/Passenger/Dockerfile
+    container_name: passenger-api
+    ports:
+      - 5301:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+    networks:
+      - booking
+
+  booking-api:
+    image: booking-booking-api
+    build:
+      context: ../../
+      dockerfile: src/Services/Booking/Dockerfile
+    container_name: booking-api
+    ports:
+      - 5401:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - mongo
+      - eventstore
+      - rabbitmq
+      - flight-api
+      - passenger-api
+    networks:
+      - booking
+
+  gateway:
+    image: booking-gateway
+    build:
+      context: ../../
+      dockerfile: src/Gateway/Dockerfile
+    container_name: gateway
+    ports:
+      - 5001:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - identity-api
+      - flight-api
+      - passenger-api
+      - booking-api
+    networks:
+      - booking
+
 networks:
   booking:
     name: booking
