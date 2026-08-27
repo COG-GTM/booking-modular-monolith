@@ -1,5 +1,4 @@
 using System.Net;
-using Api;
 using BuildingBlocks.TestBase;
 using EndToEnd.Test.Fakes;
 using EndToEnd.Test.Routes;
@@ -11,7 +10,7 @@ namespace EndToEnd.Test.Flight.Features;
 
 public class GetFlightByIdTests : FlightEndToEndTestBase
 {
-    public GetFlightByIdTests(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFixture) : base(integrationTestFixture)
+    public GetFlightByIdTests(FlightServiceTestFixture integrationTestFixture) : base(integrationTestFixture)
     {
     }
 

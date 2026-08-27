@@ -1,6 +1,5 @@
 using System.Linq;
 using System.Threading.Tasks;
-using Api;
 using BuildingBlocks.TestBase;
 using Flight.Data;
 using FluentAssertions;
@@ -15,7 +14,7 @@ using global::Flight.Flights.Features.GettingAvailableFlights.V1;
 public class GetAvailableFlightsTests : FlightIntegrationTestBase
 {
     public GetAvailableFlightsTests(
-        TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory) : base(integrationTestFactory)
+        FlightServiceTestFixture integrationTestFactory) : base(integrationTestFactory)
     {
     }
 
