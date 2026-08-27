@@ -419,6 +419,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
     depends_on:
+      - postgres
       - mongo
       - eventstore
       - rabbitmq
