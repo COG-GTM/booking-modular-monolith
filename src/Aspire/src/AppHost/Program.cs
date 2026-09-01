@@ -10,7 +10,7 @@ var pgUsername = builder.AddParameter("pg-username", "postgres", secret: true);
 var pgPassword = builder.AddParameter("pg-password", "postgres", secret: true);
 
 var postgres = builder.AddPostgres("postgres", pgUsername, pgPassword)
-    .WithImage("postgres:latest")
+    .WithImage("postgres:16")
     .WithEndpoint(
         "tcp",
         e =>
@@ -33,9 +33,9 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 
-var flightDb = postgres.AddDatabase("flight");
-var passengerDb = postgres.AddDatabase("passenger");
-var identityDb = postgres.AddDatabase("identity");
+var flightDb = postgres.AddDatabase("flight-db");
+var passengerDb = postgres.AddDatabase("passenger-db");
+var identityDb = postgres.AddDatabase("identity-db");
 var persistMessageDb = postgres.AddDatabase("persist-message");
 
 var mongoUsername = builder.AddParameter("mongo-username", "root", secret: true);
@@ -207,7 +207,7 @@ var grafana = builder.AddContainer("grafana", "grafana/grafana")
     .WithEnvironment("GF_FEATURE_TOGGLES_ENABLE", "traceqlEditor")
     .WithBindMount("../../../../deployments/configs/grafana/provisioning", "/etc/grafana/provisioning")
     .WithBindMount("../../../../deployments/configs/grafana/dashboards", "/var/lib/grafana/dashboards")
-    .WithEndpoint(port: 3000, targetPort: 3000, name: "http", isProxied: true, isExternal: true);
+    .WithEndpoint(port: 3005, targetPort: 3000, name: "http", isProxied: true, isExternal: true);
 
 if (builder.ExecutionContext.IsPublishMode)
 {
@@ -320,5 +320,55 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
+
+var flightApi = builder.AddProject<Flight_Api>("flight-api")
+    .WithReference(flightDb)
+    .WaitFor(flightDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 3101, name: "flight-http")
+    .WithHttpsEndpoint(port: 3110, name: "flight-https");
+
+var passengerApi = builder.AddProject<Passenger_Api>("passenger-api")
+    .WithReference(passengerDb)
+    .WaitFor(passengerDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 3201, name: "passenger-http")
+    .WithHttpsEndpoint(port: 3210, name: "passenger-https");
+
+var identityApi = builder.AddProject<Identity_Api>("identity-api")
+    .WithReference(identityDb)
+    .WaitFor(identityDb)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 3301, name: "identity-http")
+    .WithHttpsEndpoint(port: 3300, name: "identity-https");
+
+var bookingApi = builder.AddProject<Booking_Api>("booking-api")
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(flightApi)
+    .WaitFor(flightApi)
+    .WithReference(passengerApi)
+    .WaitFor(passengerApi)
+    .WithHttpEndpoint(port: 3401, name: "booking-http")
+    .WithHttpsEndpoint(port: 3400, name: "booking-https");
 
 builder.Build().Run();
