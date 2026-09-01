@@ -14,7 +14,11 @@ public class ObservabilityPipelineBehavior<TRequest, TResponse>(
     where TRequest : IRequest<TResponse>
     where TResponse : notnull
 {
-    public async Task<TResponse> Handle(TRequest message, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
+    public async Task<TResponse> Handle(
+        TRequest message,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken
+    )
     {
         var isCommand = message is IQuery<TResponse>;
         var isQuery = message is ICommand<TResponse>;
@@ -34,14 +38,14 @@ public class ObservabilityPipelineBehavior<TRequest, TResponse>(
             if (isCommand)
             {
                 var commandResult = await commandActivity.Execute<TRequest, TResponse>(
-                                        async (activity, ct) =>
-                                        {
-                                            var response = await next();
+                    async (activity, ct) =>
+                    {
+                        var response = await next();
 
-                                            return response;
-                                        },
-                                        cancellationToken
-                                    );
+                        return response;
+                    },
+                    cancellationToken
+                );
 
                 commandMetrics.FinishExecuting<TRequest>();
 
@@ -51,14 +55,14 @@ public class ObservabilityPipelineBehavior<TRequest, TResponse>(
             if (isQuery)
             {
                 var queryResult = await queryActivity.Execute<TRequest, TResponse>(
-                                      async (activity, ct) =>
-                                      {
-                                          var response = await next();
+                    async (activity, ct) =>
+                    {
+                        var response = await next();
 
-                                          return response;
-                                      },
-                                      cancellationToken
-                                  );
+                        return response;
+                    },
+                    cancellationToken
+                );
 
                 queryMetrics.FinishExecuting<TRequest>();
 

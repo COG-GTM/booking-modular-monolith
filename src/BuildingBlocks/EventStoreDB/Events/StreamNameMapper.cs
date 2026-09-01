@@ -15,6 +15,7 @@ public class StreamNameMapper
     {
         Instance.TypeNameMap.AddOrUpdate(streamType, mappedStreamName, (_, _) => mappedStreamName);
     }
+
     public static string ToStreamId<TStream>(object aggregateId, object? tenantId = null) =>
         ToStreamId(typeof(TStream), aggregateId);
 
@@ -24,5 +25,4 @@ public class StreamNameMapper
 
         return $"{tenantPrefix}{streamType.Name}-{aggregateId}";
     }
-
 }

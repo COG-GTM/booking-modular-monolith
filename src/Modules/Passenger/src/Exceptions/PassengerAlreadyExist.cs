@@ -5,7 +5,6 @@ namespace Passenger.Exceptions;
 
 public class PassengerNotExist : AppException
 {
-    public PassengerNotExist() : base("Please register before!", HttpStatusCode.NotFound)
-    {
-    }
+    public PassengerNotExist()
+        : base("Please register before!", HttpStatusCode.NotFound) { }
 }

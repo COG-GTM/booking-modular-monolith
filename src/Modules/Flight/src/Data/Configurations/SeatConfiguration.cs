@@ -14,7 +14,9 @@ public class SeatConfiguration : IEntityTypeConfiguration<Seat>
         builder.ToTable(nameof(Seat));
 
         builder.HasKey(r => r.Id);
-        builder.Property(r => r.Id).ValueGeneratedNever()
+        builder
+            .Property(r => r.Id)
+            .ValueGeneratedNever()
             .HasConversion<Guid>(seatId => seatId.Value, dbId => SeatId.Of(dbId));
 
         builder.Property(r => r.Version).IsConcurrencyToken();
@@ -23,28 +25,26 @@ public class SeatConfiguration : IEntityTypeConfiguration<Seat>
             x => x.SeatNumber,
             a =>
             {
-                a.Property(p => p.Value)
-                    .HasColumnName(nameof(Seat.SeatNumber))
-                    .HasMaxLength(50)
-                    .IsRequired();
+                a.Property(p => p.Value).HasColumnName(nameof(Seat.SeatNumber)).HasMaxLength(50).IsRequired();
             }
         );
 
-        builder
-            .HasOne<Flights.Models.Flight>()
-            .WithMany()
-            .HasForeignKey(p => p.FlightId);
+        builder.HasOne<Flights.Models.Flight>().WithMany().HasForeignKey(p => p.FlightId);
 
-        builder.Property(x => x.Class)
+        builder
+            .Property(x => x.Class)
             .HasDefaultValue(Seats.Enums.SeatClass.Unknown)
             .HasConversion(
                 x => x.ToString(),
-                x => (Flight.Seats.Enums.SeatClass)Enum.Parse(typeof(Flight.Seats.Enums.SeatClass), x));
+                x => (Flight.Seats.Enums.SeatClass)Enum.Parse(typeof(Flight.Seats.Enums.SeatClass), x)
+            );
 
-        builder.Property(x => x.Type)
+        builder
+            .Property(x => x.Type)
             .HasDefaultValue(Seats.Enums.SeatType.Unknown)
             .HasConversion(
                 x => x.ToString(),
-                x => (Flight.Seats.Enums.SeatType)Enum.Parse(typeof(Flight.Seats.Enums.SeatType), x));
+                x => (Flight.Seats.Enums.SeatType)Enum.Parse(typeof(Flight.Seats.Enums.SeatType), x)
+            );
     }
 }

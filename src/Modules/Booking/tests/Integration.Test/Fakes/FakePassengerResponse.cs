@@ -13,8 +13,8 @@ public static class FakePassengerResponse
             {
                 Id = NewId.NextGuid().ToString(),
                 Name = "Test",
-                PassportNumber = "121618"
-            }
+                PassportNumber = "121618",
+            },
         };
 
         return result;

@@ -21,7 +21,7 @@ public static class InitialData
                 UserName = "samh",
                 PassPortNumber = "12345678",
                 Email = "sam@test.com",
-                SecurityStamp = Guid.NewGuid().ToString()
+                SecurityStamp = Guid.NewGuid().ToString(),
             },
             new User
             {
@@ -31,8 +31,8 @@ public static class InitialData
                 UserName = "samh2",
                 PassPortNumber = "87654321",
                 Email = "sam2@test.com",
-                SecurityStamp = Guid.NewGuid().ToString()
-            }
+                SecurityStamp = Guid.NewGuid().ToString(),
+            },
         };
     }
 }

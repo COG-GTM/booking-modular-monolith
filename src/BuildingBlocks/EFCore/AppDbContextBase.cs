@@ -15,17 +15,18 @@ public abstract class AppDbContextBase : DbContext, IDbContext
     private readonly ILogger<AppDbContextBase>? _logger;
     private IDbContextTransaction _currentTransaction;
 
-    protected AppDbContextBase(DbContextOptions options, ICurrentUserProvider? currentUserProvider = null, ILogger<AppDbContextBase>? logger = null) :
-        base(options)
+    protected AppDbContextBase(
+        DbContextOptions options,
+        ICurrentUserProvider? currentUserProvider = null,
+        ILogger<AppDbContextBase>? logger = null
+    )
+        : base(options)
     {
         _currentUserProvider = currentUserProvider;
         _logger = logger;
     }
 
-
-    protected override void OnModelCreating(ModelBuilder builder)
-    {
-    }
+    protected override void OnModelCreating(ModelBuilder builder) { }
 
     public IExecutionStrategy CreateExecutionStrategy() => Database.CreateExecutionStrategy();
 
@@ -69,15 +70,16 @@ public abstract class AppDbContextBase : DbContext, IDbContext
         }
     }
 
-
     //ref: https://learn.microsoft.com/en-us/ef/core/miscellaneous/connection-resiliency#execution-strategies-and-transactions
     public Task ExecuteTransactionalAsync(CancellationToken cancellationToken = default)
     {
         var strategy = CreateExecutionStrategy();
         return strategy.ExecuteAsync(async () =>
         {
-            await using var transaction =
-                await Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+            await using var transaction = await Database.BeginTransactionAsync(
+                IsolationLevel.ReadCommitted,
+                cancellationToken
+            );
             try
             {
                 await SaveChangesAsync(cancellationToken);
@@ -107,7 +109,9 @@ public abstract class AppDbContextBase : DbContext, IDbContext
 
                 if (databaseValues == null)
                 {
-                    _logger.LogError("The record no longer exists in the database, The record has been deleted by another user.");
+                    _logger.LogError(
+                        "The record no longer exists in the database, The record has been deleted by another user."
+                    );
                     throw;
                 }
 
@@ -127,9 +131,7 @@ public abstract class AppDbContextBase : DbContext, IDbContext
             .Select(x => x.Entity)
             .ToList();
 
-        var domainEvents = domainEntities
-            .SelectMany(x => x.DomainEvents)
-            .ToImmutableList();
+        var domainEvents = domainEntities.SelectMany(x => x.DomainEvents).ToImmutableList();
 
         domainEntities.ForEach(entity => entity.ClearDomainEvents());
 

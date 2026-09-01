@@ -4,7 +4,6 @@ namespace Flight.Seats.Exceptions;
 
 public class SeatNumberIncorrectException : AppException
 {
-    public SeatNumberIncorrectException() : base("Seat number is incorrect!")
-    {
-    }
+    public SeatNumberIncorrectException()
+        : base("Seat number is incorrect!") { }
 }

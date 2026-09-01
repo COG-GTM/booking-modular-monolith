@@ -9,7 +9,8 @@ public class GrpcExceptionInterceptor : Interceptor
     public override async Task<TResponse> UnaryServerHandler<TRequest, TResponse>(
         TRequest request,
         ServerCallContext context,
-        UnaryServerMethod<TRequest, TResponse> continuation)
+        UnaryServerMethod<TRequest, TResponse> continuation
+    )
     {
         try
         {

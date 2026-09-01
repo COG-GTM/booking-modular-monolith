@@ -11,14 +11,20 @@ public record Aircraft : Aggregate<AircraftId>
     public Model Model { get; private set; } = default!;
     public ManufacturingYear ManufacturingYear { get; private set; } = default!;
 
-    public static Aircraft Create(AircraftId id, Name name, Model model, ManufacturingYear manufacturingYear, bool isDeleted = false)
+    public static Aircraft Create(
+        AircraftId id,
+        Name name,
+        Model model,
+        ManufacturingYear manufacturingYear,
+        bool isDeleted = false
+    )
     {
         var aircraft = new Aircraft
         {
             Id = id,
             Name = name,
             Model = model,
-            ManufacturingYear = manufacturingYear
+            ManufacturingYear = manufacturingYear,
         };
 
         var @event = new AircraftCreatedDomainEvent(
@@ -26,7 +32,8 @@ public record Aircraft : Aggregate<AircraftId>
             aircraft.Name,
             aircraft.Model,
             aircraft.ManufacturingYear,
-            isDeleted);
+            isDeleted
+        );
 
         aircraft.AddDomainEvent(@event);
 

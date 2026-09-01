@@ -9,7 +9,5 @@ namespace BuildingBlocks.EventStoreDB.Events
         IDomainEvent[] ClearDomainEvents();
     }
 
-    public interface IAggregateEventSourcing<T> : IAggregateEventSourcing, IEntity<T>
-    {
-    }
+    public interface IAggregateEventSourcing<T> : IAggregateEventSourcing, IEntity<T> { }
 }

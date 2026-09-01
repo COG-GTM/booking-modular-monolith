@@ -22,10 +22,20 @@ public record Flight : Aggregate<FlightId>
     public DepartureDate DepartureDate { get; private set; } = default!;
     public FlightDate FlightDate { get; private set; } = default!;
 
-    public static Flight Create(FlightId id, FlightNumber flightNumber, AircraftId aircraftId,
-        AirportId departureAirportId, DepartureDate departureDate, ArriveDate arriveDate,
-        AirportId arriveAirportId, DurationMinutes durationMinutes, FlightDate flightDate, Enums.FlightStatus status,
-        Price price, bool isDeleted = false)
+    public static Flight Create(
+        FlightId id,
+        FlightNumber flightNumber,
+        AircraftId aircraftId,
+        AirportId departureAirportId,
+        DepartureDate departureDate,
+        ArriveDate arriveDate,
+        AirportId arriveAirportId,
+        DurationMinutes durationMinutes,
+        FlightDate flightDate,
+        Enums.FlightStatus status,
+        Price price,
+        bool isDeleted = false
+    )
     {
         var flight = new Flight
         {
@@ -43,21 +53,40 @@ public record Flight : Aggregate<FlightId>
             IsDeleted = isDeleted,
         };
 
-        var @event = new FlightCreatedDomainEvent(flight.Id, flight.FlightNumber, flight.AircraftId,
-            flight.DepartureDate, flight.DepartureAirportId,
-            flight.ArriveDate, flight.ArriveAirportId, flight.DurationMinutes, flight.FlightDate, flight.Status,
-            flight.Price, flight.IsDeleted);
+        var @event = new FlightCreatedDomainEvent(
+            flight.Id,
+            flight.FlightNumber,
+            flight.AircraftId,
+            flight.DepartureDate,
+            flight.DepartureAirportId,
+            flight.ArriveDate,
+            flight.ArriveAirportId,
+            flight.DurationMinutes,
+            flight.FlightDate,
+            flight.Status,
+            flight.Price,
+            flight.IsDeleted
+        );
 
         flight.AddDomainEvent(@event);
 
         return flight;
     }
 
-
-    public void Update(FlightId id, FlightNumber flightNumber, AircraftId aircraftId,
-        AirportId departureAirportId, DepartureDate departureDate, ArriveDate arriveDate,
-        AirportId arriveAirportId, DurationMinutes durationMinutes, FlightDate flightDate, Enums.FlightStatus status,
-        Price price, bool isDeleted = false)
+    public void Update(
+        FlightId id,
+        FlightNumber flightNumber,
+        AircraftId aircraftId,
+        AirportId departureAirportId,
+        DepartureDate departureDate,
+        ArriveDate arriveDate,
+        AirportId arriveAirportId,
+        DurationMinutes durationMinutes,
+        FlightDate flightDate,
+        Enums.FlightStatus status,
+        Price price,
+        bool isDeleted = false
+    )
     {
         this.FlightNumber = flightNumber;
         this.AircraftId = aircraftId;
@@ -71,16 +100,38 @@ public record Flight : Aggregate<FlightId>
         this.Price = price;
         this.IsDeleted = isDeleted;
 
-        var @event = new FlightUpdatedDomainEvent(id, flightNumber, aircraftId, departureDate, departureAirportId,
-            arriveDate, arriveAirportId, durationMinutes, flightDate, status, price, isDeleted);
+        var @event = new FlightUpdatedDomainEvent(
+            id,
+            flightNumber,
+            aircraftId,
+            departureDate,
+            departureAirportId,
+            arriveDate,
+            arriveAirportId,
+            durationMinutes,
+            flightDate,
+            status,
+            price,
+            isDeleted
+        );
 
         AddDomainEvent(@event);
     }
 
-    public void Delete(FlightId id, FlightNumber flightNumber, AircraftId aircraftId,
-        AirportId departureAirportId, DepartureDate departureDate, ArriveDate arriveDate,
-        AirportId arriveAirportId, DurationMinutes durationMinutes, FlightDate flightDate, Enums.FlightStatus status,
-        Price price, bool isDeleted = true)
+    public void Delete(
+        FlightId id,
+        FlightNumber flightNumber,
+        AircraftId aircraftId,
+        AirportId departureAirportId,
+        DepartureDate departureDate,
+        ArriveDate arriveDate,
+        AirportId arriveAirportId,
+        DurationMinutes durationMinutes,
+        FlightDate flightDate,
+        Enums.FlightStatus status,
+        Price price,
+        bool isDeleted = true
+    )
     {
         FlightNumber = flightNumber;
         AircraftId = aircraftId;
@@ -94,8 +145,20 @@ public record Flight : Aggregate<FlightId>
         Price = price;
         IsDeleted = isDeleted;
 
-        var @event = new FlightDeletedDomainEvent(id, flightNumber, aircraftId, departureDate, departureAirportId,
-            arriveDate, arriveAirportId, durationMinutes, flightDate, status, price, isDeleted);
+        var @event = new FlightDeletedDomainEvent(
+            id,
+            flightNumber,
+            aircraftId,
+            departureDate,
+            departureAirportId,
+            arriveDate,
+            arriveAirportId,
+            durationMinutes,
+            flightDate,
+            status,
+            price,
+            isDeleted
+        );
 
         AddDomainEvent(@event);
     }

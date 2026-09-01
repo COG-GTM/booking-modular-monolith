@@ -14,18 +14,27 @@ using Models;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 
-public record CreateFlightMongo(Guid Id, string FlightNumber, Guid AircraftId, DateTime DepartureDate,
-    Guid DepartureAirportId, DateTime ArriveDate, Guid ArriveAirportId, decimal DurationMinutes, DateTime FlightDate,
-    Enums.FlightStatus Status, decimal Price, bool IsDeleted = false) : InternalCommand;
+public record CreateFlightMongo(
+    Guid Id,
+    string FlightNumber,
+    Guid AircraftId,
+    DateTime DepartureDate,
+    Guid DepartureAirportId,
+    DateTime ArriveDate,
+    Guid ArriveAirportId,
+    decimal DurationMinutes,
+    DateTime FlightDate,
+    Enums.FlightStatus Status,
+    decimal Price,
+    bool IsDeleted = false
+) : InternalCommand;
 
 internal class CreateFlightMongoHandler : ICommandHandler<CreateFlightMongo>
 {
     private readonly FlightReadDbContext _flightReadDbContext;
     private readonly IMapper _mapper;
 
-    public CreateFlightMongoHandler(
-        FlightReadDbContext flightReadDbContext,
-        IMapper mapper)
+    public CreateFlightMongoHandler(FlightReadDbContext flightReadDbContext, IMapper mapper)
     {
         _flightReadDbContext = flightReadDbContext;
         _mapper = mapper;
@@ -37,7 +46,8 @@ internal class CreateFlightMongoHandler : ICommandHandler<CreateFlightMongo>
 
         var flightReadModel = _mapper.Map<FlightReadModel>(request);
 
-        var flight = await _flightReadDbContext.Flight.AsQueryable()
+        var flight = await _flightReadDbContext
+            .Flight.AsQueryable()
             .FirstOrDefaultAsync(x => x.FlightId == flightReadModel.FlightId && !x.IsDeleted, cancellationToken);
 
         if (flight is not null)

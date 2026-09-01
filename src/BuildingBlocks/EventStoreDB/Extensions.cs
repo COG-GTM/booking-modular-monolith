@@ -19,8 +19,6 @@ public static class Extensions
 
         var assembliesToScan = assemblies.Length > 0 ? assemblies : new[] { Assembly.GetEntryAssembly()! };
 
-        return services
-            .AddEventStoreDB(configuration)
-            .AddProjections(assembliesToScan);
+        return services.AddEventStoreDB(configuration).AddProjections(assembliesToScan);
     }
 }

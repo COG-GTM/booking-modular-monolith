@@ -20,24 +20,34 @@ public class EventTypeMapper
 
     public static string ToName<TEventType>() => ToName(typeof(TEventType));
 
-    public static string ToName(Type eventType) => Instance.typeNameMap.GetOrAdd(eventType, _ =>
-    {
-        var eventTypeName = eventType.FullName!.Replace(".", "_", StringComparison.CurrentCulture);
+    public static string ToName(Type eventType) =>
+        Instance.typeNameMap.GetOrAdd(
+            eventType,
+            _ =>
+            {
+                var eventTypeName = eventType.FullName!.Replace(".", "_", StringComparison.CurrentCulture);
 
-        Instance.typeMap.AddOrUpdate(eventTypeName, eventType, (_, _) => eventType);
+                Instance.typeMap.AddOrUpdate(eventTypeName, eventType, (_, _) => eventType);
 
-        return eventTypeName;
-    });
+                return eventTypeName;
+            }
+        );
 
-    public static Type? ToType(string eventTypeName) => Instance.typeMap.GetOrAdd(eventTypeName, _ =>
-    {
-        var type = TypeProvider.GetFirstMatchingTypeFromCurrentDomainAssembly(eventTypeName.Replace("_", ".", StringComparison.CurrentCulture));
+    public static Type? ToType(string eventTypeName) =>
+        Instance.typeMap.GetOrAdd(
+            eventTypeName,
+            _ =>
+            {
+                var type = TypeProvider.GetFirstMatchingTypeFromCurrentDomainAssembly(
+                    eventTypeName.Replace("_", ".", StringComparison.CurrentCulture)
+                );
 
-        if (type == null)
-            return null;
+                if (type == null)
+                    return null;
 
-        Instance.typeNameMap.AddOrUpdate(type, eventTypeName, (_, _) => eventTypeName);
+                Instance.typeNameMap.AddOrUpdate(type, eventTypeName, (_, _) => eventTypeName);
 
-        return type;
-    });
+                return type;
+            }
+        );
 }

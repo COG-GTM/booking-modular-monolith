@@ -10,8 +10,8 @@ public static class EventStoreDBSerializer
     private static readonly JsonSerializerSettings SerializerSettings =
         new JsonSerializerSettings().WithNonDefaultConstructorContractResolver();
 
-    public static T? Deserialize<T>(this ResolvedEvent resolvedEvent) where T : class =>
-        Deserialize(resolvedEvent) as T;
+    public static T? Deserialize<T>(this ResolvedEvent resolvedEvent)
+        where T : class => Deserialize(resolvedEvent) as T;
 
     public static object? Deserialize(this ResolvedEvent resolvedEvent)
     {

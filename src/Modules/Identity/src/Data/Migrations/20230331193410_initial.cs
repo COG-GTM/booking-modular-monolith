@@ -19,13 +19,19 @@ namespace Identity.Data.Migrations
                     id = table.Column<Guid>(type: "uuid", nullable: false),
                     version = table.Column<long>(type: "bigint", nullable: false),
                     name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    normalizedname = table.Column<string>(name: "normalized_name", type: "character varying(256)", maxLength: 256, nullable: true),
-                    concurrencystamp = table.Column<string>(name: "concurrency_stamp", type: "text", nullable: true)
+                    normalizedname = table.Column<string>(
+                        name: "normalized_name",
+                        type: "character varying(256)",
+                        maxLength: 256,
+                        nullable: true
+                    ),
+                    concurrencystamp = table.Column<string>(name: "concurrency_stamp", type: "text", nullable: true),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_asp_net_roles", x => x.id);
-                });
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "asp_net_users",
@@ -36,36 +42,68 @@ namespace Identity.Data.Migrations
                     lastname = table.Column<string>(name: "last_name", type: "text", nullable: true),
                     passportnumber = table.Column<string>(name: "pass_port_number", type: "text", nullable: true),
                     version = table.Column<long>(type: "bigint", nullable: false),
-                    username = table.Column<string>(name: "user_name", type: "character varying(256)", maxLength: 256, nullable: true),
-                    normalizedusername = table.Column<string>(name: "normalized_user_name", type: "character varying(256)", maxLength: 256, nullable: true),
+                    username = table.Column<string>(
+                        name: "user_name",
+                        type: "character varying(256)",
+                        maxLength: 256,
+                        nullable: true
+                    ),
+                    normalizedusername = table.Column<string>(
+                        name: "normalized_user_name",
+                        type: "character varying(256)",
+                        maxLength: 256,
+                        nullable: true
+                    ),
                     email = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    normalizedemail = table.Column<string>(name: "normalized_email", type: "character varying(256)", maxLength: 256, nullable: true),
+                    normalizedemail = table.Column<string>(
+                        name: "normalized_email",
+                        type: "character varying(256)",
+                        maxLength: 256,
+                        nullable: true
+                    ),
                     emailconfirmed = table.Column<bool>(name: "email_confirmed", type: "boolean", nullable: false),
                     passwordhash = table.Column<string>(name: "password_hash", type: "text", nullable: true),
                     securitystamp = table.Column<string>(name: "security_stamp", type: "text", nullable: true),
                     concurrencystamp = table.Column<string>(name: "concurrency_stamp", type: "text", nullable: true),
                     phonenumber = table.Column<string>(name: "phone_number", type: "text", nullable: true),
-                    phonenumberconfirmed = table.Column<bool>(name: "phone_number_confirmed", type: "boolean", nullable: false),
+                    phonenumberconfirmed = table.Column<bool>(
+                        name: "phone_number_confirmed",
+                        type: "boolean",
+                        nullable: false
+                    ),
                     twofactorenabled = table.Column<bool>(name: "two_factor_enabled", type: "boolean", nullable: false),
-                    lockoutend = table.Column<DateTimeOffset>(name: "lockout_end", type: "timestamp with time zone", nullable: true),
+                    lockoutend = table.Column<DateTimeOffset>(
+                        name: "lockout_end",
+                        type: "timestamp with time zone",
+                        nullable: true
+                    ),
                     lockoutenabled = table.Column<bool>(name: "lockout_enabled", type: "boolean", nullable: false),
-                    accessfailedcount = table.Column<int>(name: "access_failed_count", type: "integer", nullable: false)
+                    accessfailedcount = table.Column<int>(
+                        name: "access_failed_count",
+                        type: "integer",
+                        nullable: false
+                    ),
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_asp_net_users", x => x.id);
-                });
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "asp_net_role_claims",
                 columns: table => new
                 {
-                    id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
                     version = table.Column<long>(type: "bigint", nullable: false),
                     roleid = table.Column<Guid>(name: "role_id", type: "uuid", nullable: false),
                     claimtype = table.Column<string>(name: "claim_type", type: "text", nullable: true),
-                    claimvalue = table.Column<string>(name: "claim_value", type: "text", nullable: true)
+                    claimvalue = table.Column<string>(name: "claim_value", type: "text", nullable: true),
                 },
                 constraints: table =>
                 {
@@ -75,19 +113,25 @@ namespace Identity.Data.Migrations
                         column: x => x.roleid,
                         principalTable: "asp_net_roles",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "asp_net_user_claims",
                 columns: table => new
                 {
-                    id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    id = table
+                        .Column<int>(type: "integer", nullable: false)
+                        .Annotation(
+                            "Npgsql:ValueGenerationStrategy",
+                            NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                        ),
                     version = table.Column<long>(type: "bigint", nullable: false),
                     userid = table.Column<Guid>(name: "user_id", type: "uuid", nullable: false),
                     claimtype = table.Column<string>(name: "claim_type", type: "text", nullable: true),
-                    claimvalue = table.Column<string>(name: "claim_value", type: "text", nullable: true)
+                    claimvalue = table.Column<string>(name: "claim_value", type: "text", nullable: true),
                 },
                 constraints: table =>
                 {
@@ -97,8 +141,10 @@ namespace Identity.Data.Migrations
                         column: x => x.userid,
                         principalTable: "asp_net_users",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "asp_net_user_logins",
@@ -107,8 +153,12 @@ namespace Identity.Data.Migrations
                     loginprovider = table.Column<string>(name: "login_provider", type: "text", nullable: false),
                     providerkey = table.Column<string>(name: "provider_key", type: "text", nullable: false),
                     version = table.Column<long>(type: "bigint", nullable: false),
-                    providerdisplayname = table.Column<string>(name: "provider_display_name", type: "text", nullable: true),
-                    userid = table.Column<Guid>(name: "user_id", type: "uuid", nullable: false)
+                    providerdisplayname = table.Column<string>(
+                        name: "provider_display_name",
+                        type: "text",
+                        nullable: true
+                    ),
+                    userid = table.Column<Guid>(name: "user_id", type: "uuid", nullable: false),
                 },
                 constraints: table =>
                 {
@@ -118,8 +168,10 @@ namespace Identity.Data.Migrations
                         column: x => x.userid,
                         principalTable: "asp_net_users",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "asp_net_user_roles",
@@ -127,7 +179,7 @@ namespace Identity.Data.Migrations
                 {
                     userid = table.Column<Guid>(name: "user_id", type: "uuid", nullable: false),
                     roleid = table.Column<Guid>(name: "role_id", type: "uuid", nullable: false),
-                    version = table.Column<long>(type: "bigint", nullable: false)
+                    version = table.Column<long>(type: "bigint", nullable: false),
                 },
                 constraints: table =>
                 {
@@ -137,14 +189,17 @@ namespace Identity.Data.Migrations
                         column: x => x.roleid,
                         principalTable: "asp_net_roles",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Cascade
+                    );
                     table.ForeignKey(
                         name: "fk_asp_net_user_roles_asp_net_users_user_id",
                         column: x => x.userid,
                         principalTable: "asp_net_users",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
 
             migrationBuilder.CreateTable(
                 name: "asp_net_user_tokens",
@@ -154,80 +209,86 @@ namespace Identity.Data.Migrations
                     loginprovider = table.Column<string>(name: "login_provider", type: "text", nullable: false),
                     name = table.Column<string>(type: "text", nullable: false),
                     version = table.Column<long>(type: "bigint", nullable: false),
-                    value = table.Column<string>(type: "text", nullable: true)
+                    value = table.Column<string>(type: "text", nullable: true),
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_asp_net_user_tokens", x => new { x.userid, x.loginprovider, x.name });
+                    table.PrimaryKey(
+                        "pk_asp_net_user_tokens",
+                        x => new
+                        {
+                            x.userid,
+                            x.loginprovider,
+                            x.name,
+                        }
+                    );
                     table.ForeignKey(
                         name: "fk_asp_net_user_tokens_asp_net_users_user_id",
                         column: x => x.userid,
                         principalTable: "asp_net_users",
                         principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+                        onDelete: ReferentialAction.Cascade
+                    );
+                }
+            );
 
             migrationBuilder.CreateIndex(
                 name: "ix_asp_net_role_claims_role_id",
                 table: "asp_net_role_claims",
-                column: "role_id");
+                column: "role_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "RoleNameIndex",
                 table: "asp_net_roles",
                 column: "normalized_name",
-                unique: true);
+                unique: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "ix_asp_net_user_claims_user_id",
                 table: "asp_net_user_claims",
-                column: "user_id");
+                column: "user_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "ix_asp_net_user_logins_user_id",
                 table: "asp_net_user_logins",
-                column: "user_id");
+                column: "user_id"
+            );
 
             migrationBuilder.CreateIndex(
                 name: "ix_asp_net_user_roles_role_id",
                 table: "asp_net_user_roles",
-                column: "role_id");
+                column: "role_id"
+            );
 
-            migrationBuilder.CreateIndex(
-                name: "EmailIndex",
-                table: "asp_net_users",
-                column: "normalized_email");
+            migrationBuilder.CreateIndex(name: "EmailIndex", table: "asp_net_users", column: "normalized_email");
 
             migrationBuilder.CreateIndex(
                 name: "UserNameIndex",
                 table: "asp_net_users",
                 column: "normalized_user_name",
-                unique: true);
+                unique: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "asp_net_role_claims");
+            migrationBuilder.DropTable(name: "asp_net_role_claims");
 
-            migrationBuilder.DropTable(
-                name: "asp_net_user_claims");
+            migrationBuilder.DropTable(name: "asp_net_user_claims");
 
-            migrationBuilder.DropTable(
-                name: "asp_net_user_logins");
+            migrationBuilder.DropTable(name: "asp_net_user_logins");
 
-            migrationBuilder.DropTable(
-                name: "asp_net_user_roles");
+            migrationBuilder.DropTable(name: "asp_net_user_roles");
 
-            migrationBuilder.DropTable(
-                name: "asp_net_user_tokens");
+            migrationBuilder.DropTable(name: "asp_net_user_tokens");
 
-            migrationBuilder.DropTable(
-                name: "asp_net_roles");
+            migrationBuilder.DropTable(name: "asp_net_roles");
 
-            migrationBuilder.DropTable(
-                name: "asp_net_users");
+            migrationBuilder.DropTable(name: "asp_net_users");
         }
     }
 }

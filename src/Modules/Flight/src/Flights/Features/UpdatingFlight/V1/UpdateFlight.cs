@@ -23,39 +23,77 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using ValueObjects;
 
-public record UpdateFlight(Guid Id, string FlightNumber, Guid AircraftId, Guid DepartureAirportId,
-    DateTime DepartureDate, DateTime ArriveDate, Guid ArriveAirportId, decimal DurationMinutes, DateTime FlightDate,
-    Enums.FlightStatus Status, bool IsDeleted, decimal Price) : ICommand<UpdateFlightResult>, IInternalCommand,
-    IInvalidateCacheRequest
+public record UpdateFlight(
+    Guid Id,
+    string FlightNumber,
+    Guid AircraftId,
+    Guid DepartureAirportId,
+    DateTime DepartureDate,
+    DateTime ArriveDate,
+    Guid ArriveAirportId,
+    decimal DurationMinutes,
+    DateTime FlightDate,
+    Enums.FlightStatus Status,
+    bool IsDeleted,
+    decimal Price
+) : ICommand<UpdateFlightResult>, IInternalCommand, IInvalidateCacheRequest
 {
     public string CacheKey => "GetAvailableFlights";
 }
 
 public record UpdateFlightResult(Guid Id);
 
-public record FlightUpdatedDomainEvent(Guid Id, string FlightNumber, Guid AircraftId, DateTime DepartureDate,
-    Guid DepartureAirportId, DateTime ArriveDate, Guid ArriveAirportId, decimal DurationMinutes,
-    DateTime FlightDate, Enums.FlightStatus Status, decimal Price, bool IsDeleted) : IDomainEvent;
+public record FlightUpdatedDomainEvent(
+    Guid Id,
+    string FlightNumber,
+    Guid AircraftId,
+    DateTime DepartureDate,
+    Guid DepartureAirportId,
+    DateTime ArriveDate,
+    Guid ArriveAirportId,
+    decimal DurationMinutes,
+    DateTime FlightDate,
+    Enums.FlightStatus Status,
+    decimal Price,
+    bool IsDeleted
+) : IDomainEvent;
 
-public record UpdateFlightRequestDto(Guid Id, string FlightNumber, Guid AircraftId, Guid DepartureAirportId,
-    DateTime DepartureDate, DateTime ArriveDate,
-    Guid ArriveAirportId, decimal DurationMinutes, DateTime FlightDate, Enums.FlightStatus Status, decimal Price,
-    bool IsDeleted);
+public record UpdateFlightRequestDto(
+    Guid Id,
+    string FlightNumber,
+    Guid AircraftId,
+    Guid DepartureAirportId,
+    DateTime DepartureDate,
+    DateTime ArriveDate,
+    Guid ArriveAirportId,
+    decimal DurationMinutes,
+    DateTime FlightDate,
+    Enums.FlightStatus Status,
+    decimal Price,
+    bool IsDeleted
+);
 
 public class UpdateFlightEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapPut($"{EndpointConfig.BaseApiPath}/flight", async (UpdateFlightRequestDto request,
-                IMediator mediator,
-                IMapper mapper, CancellationToken cancellationToken) =>
-            {
-                var command = mapper.Map<UpdateFlight>(request);
+        builder
+            .MapPut(
+                $"{EndpointConfig.BaseApiPath}/flight",
+                async (
+                    UpdateFlightRequestDto request,
+                    IMediator mediator,
+                    IMapper mapper,
+                    CancellationToken cancellationToken
+                ) =>
+                {
+                    var command = mapper.Map<UpdateFlight>(request);
 
-                await mediator.Send(command, cancellationToken);
+                    await mediator.Send(command, cancellationToken);
 
-                return Results.NoContent();
-            })
+                    return Results.NoContent();
+                }
+            )
             .RequireAuthorization(nameof(ApiScope))
             .WithName("UpdateFlight")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
@@ -76,11 +114,13 @@ public class UpdateFlightValidator : AbstractValidator<CreateFlight>
     {
         RuleFor(x => x.Price).GreaterThan(0).WithMessage("Price must be greater than 0");
 
-        RuleFor(x => x.Status).Must(p => (p.GetType().IsEnum &&
-                                          p == Enums.FlightStatus.Flying) ||
-                                         p == Enums.FlightStatus.Canceled ||
-                                         p == Enums.FlightStatus.Delay ||
-                                         p == Enums.FlightStatus.Completed)
+        RuleFor(x => x.Status)
+            .Must(p =>
+                (p.GetType().IsEnum && p == Enums.FlightStatus.Flying)
+                || p == Enums.FlightStatus.Canceled
+                || p == Enums.FlightStatus.Delay
+                || p == Enums.FlightStatus.Completed
+            )
             .WithMessage("Status must be Flying, Delay, Canceled or Completed");
 
         RuleFor(x => x.AircraftId).NotEmpty().WithMessage("AircraftId must be not empty");
@@ -104,19 +144,27 @@ internal class UpdateFlightHandler : ICommandHandler<UpdateFlight, UpdateFlightR
     {
         Guard.Against.Null(request, nameof(request));
 
-        var flight = await _flightDbContext.Flights.SingleOrDefaultAsync(x => x.Id == request.Id,
-            cancellationToken);
+        var flight = await _flightDbContext.Flights.SingleOrDefaultAsync(x => x.Id == request.Id, cancellationToken);
 
         if (flight is null)
         {
             throw new FlightNotFountException();
         }
 
-
-        flight.Update(FlightId.Of(request.Id), FlightNumber.Of(request.FlightNumber), AircraftId.Of(request.AircraftId), AirportId.Of(request.DepartureAirportId),
+        flight.Update(
+            FlightId.Of(request.Id),
+            FlightNumber.Of(request.FlightNumber),
+            AircraftId.Of(request.AircraftId),
+            AirportId.Of(request.DepartureAirportId),
             DepartureDate.Of(request.DepartureDate),
-            ArriveDate.Of(request.ArriveDate), AirportId.Of(request.ArriveAirportId), DurationMinutes.Of(request.DurationMinutes), FlightDate.Of(request.FlightDate), request.Status,
-            Price.Of(request.Price), request.IsDeleted);
+            ArriveDate.Of(request.ArriveDate),
+            AirportId.Of(request.ArriveAirportId),
+            DurationMinutes.Of(request.DurationMinutes),
+            FlightDate.Of(request.FlightDate),
+            request.Status,
+            Price.Of(request.Price),
+            request.IsDeleted
+        );
 
         var updateFlight = _flightDbContext.Flights.Update(flight).Entity;
 

@@ -7,7 +7,8 @@ public static class ApiVersioningExtensions
 {
     public static void AddCustomVersioning(
         this IServiceCollection services,
-        Action<ApiVersioningOptions>? configurator = null)
+        Action<ApiVersioningOptions>? configurator = null
+    )
     {
         // https://www.meziantou.net/versioning-an-asp-net-core-api.htm
         // https://dotnetthoughts.net/aspnetcore-api-versioning-with-net-6-minimal-apis/
@@ -16,7 +17,8 @@ public static class ApiVersioningExtensions
         // https://www.nuget.org/packages/Asp.Versioning.Http
 
         // Support versioning in minimal apis with (Asp.Versioning.Http) dll
-        services.AddApiVersioning(options =>
+        services
+            .AddApiVersioning(options =>
             {
                 // Add the headers "api-supported-versions" and "api-deprecated-versions"
                 // This is better for discoverability
@@ -32,22 +34,21 @@ public static class ApiVersioningExtensions
                 // Defines how an API version is read from the current HTTP request
                 options.ApiVersionReader = ApiVersionReader.Combine(
                     new HeaderApiVersionReader("api-version"),
-                    new UrlSegmentApiVersionReader());
+                    new UrlSegmentApiVersionReader()
+                );
 
                 configurator?.Invoke(options);
             })
-            .AddApiExplorer(
-                options =>
-                {
-                    // add the versioned api explorer, which also adds IApiVersionDescriptionProvider service
-                    // note: the specified format code will format the version as "'v'major[.minor][-status]"
-                    options.GroupNameFormat = "'v'VVV";
+            .AddApiExplorer(options =>
+            {
+                // add the versioned api explorer, which also adds IApiVersionDescriptionProvider service
+                // note: the specified format code will format the version as "'v'major[.minor][-status]"
+                options.GroupNameFormat = "'v'VVV";
 
-                    // note: this option is only necessary when versioning by url segment. the SubstitutionFormat
-                    // can also be used to control the format of the API version in route templates
-                    options.SubstituteApiVersionInUrl = true;
-                })
-
+                // note: this option is only necessary when versioning by url segment. the SubstitutionFormat
+                // can also be used to control the format of the API version in route templates
+                options.SubstituteApiVersionInUrl = true;
+            })
             // Support versioning in mvc with with (Asp.Versioning.Mvc.ApiExplorer) dll
             .AddMvc(); // https://www.nuget.org/packages/Asp.Versioning.Mvc.ApiExplorer
     }

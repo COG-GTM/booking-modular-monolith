@@ -4,11 +4,15 @@ using Microsoft.Extensions.Configuration;
 
 namespace BuildingBlocks.EFCore
 {
-    public abstract class DesignTimeDbContextFactoryBase<TContext> : IDesignTimeDbContextFactory<TContext> where TContext : DbContext
+    public abstract class DesignTimeDbContextFactoryBase<TContext> : IDesignTimeDbContextFactory<TContext>
+        where TContext : DbContext
     {
         public TContext CreateDbContext(string[] args)
         {
-            return Create(Directory.GetCurrentDirectory(), Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"));
+            return Create(
+                Directory.GetCurrentDirectory(),
+                Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+            );
         }
 
         protected abstract TContext CreateNewInstance(DbContextOptions<TContext> options);
@@ -34,8 +38,7 @@ namespace BuildingBlocks.EFCore
 
             if (string.IsNullOrWhiteSpace(connstr))
             {
-                throw new InvalidOperationException(
-                    "Could not find a connection string named 'Default'.");
+                throw new InvalidOperationException("Could not find a connection string named 'Default'.");
             }
             return Create(connstr);
         }
@@ -43,9 +46,7 @@ namespace BuildingBlocks.EFCore
         private TContext Create(string connectionString)
         {
             if (string.IsNullOrEmpty(connectionString))
-                throw new ArgumentException(
-             $"{nameof(connectionString)} is null or empty.",
-             nameof(connectionString));
+                throw new ArgumentException($"{nameof(connectionString)} is null or empty.", nameof(connectionString));
 
             var optionsBuilder = new DbContextOptionsBuilder<TContext>();
 

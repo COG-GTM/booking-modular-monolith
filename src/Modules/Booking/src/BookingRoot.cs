@@ -1,6 +1,3 @@
 namespace Booking;
 
-public class BookingRoot
-{
-
-}
+public class BookingRoot { }

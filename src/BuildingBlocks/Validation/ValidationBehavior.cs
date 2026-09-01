@@ -15,8 +15,11 @@ public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<
         _serviceProvider = serviceProvider;
     }
 
-    public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next,
-        CancellationToken cancellationToken)
+    public async Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken
+    )
     {
         _validator = _serviceProvider.GetService<IValidator<TRequest>>();
         if (_validator is null)

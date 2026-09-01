@@ -1,6 +1,3 @@
 namespace Flight;
 
-public class FlightRoot
-{
-
-}
+public class FlightRoot { }

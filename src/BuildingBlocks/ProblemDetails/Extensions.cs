@@ -22,15 +22,17 @@ public static class Extensions
 
                 if (context.RequestServices.GetService<IProblemDetailsService>() is { } problemDetailsService)
                 {
-                    await problemDetailsService.WriteAsync(new ProblemDetailsContext
-                    {
-                        HttpContext = context,
-                        ProblemDetails =
+                    await problemDetailsService.WriteAsync(
+                        new ProblemDetailsContext
                         {
-                            Detail = ReasonPhrases.GetReasonPhrase(context.Response.StatusCode),
-                            Status = context.Response.StatusCode
+                            HttpContext = context,
+                            ProblemDetails =
+                            {
+                                Detail = ReasonPhrases.GetReasonPhrase(context.Response.StatusCode),
+                                Status = context.Response.StatusCode,
+                            },
                         }
-                    });
+                    );
                 }
             });
         });
@@ -50,54 +52,46 @@ public static class Extensions
                     {
                         (string Detail, string Title, int StatusCode) details = exceptionType switch
                         {
-                            ConflictException =>
-                            (
+                            ConflictException => (
                                 exceptionType.Message,
                                 exceptionType.GetType().Name,
                                 context.Response.StatusCode = StatusCodes.Status409Conflict
                             ),
-                            ValidationException validationException =>
-                            (
+                            ValidationException validationException => (
                                 exceptionType.Message,
                                 exceptionType.GetType().Name,
                                 context.Response.StatusCode = (int)validationException.StatusCode
                             ),
-                            BadRequestException =>
-                            (
+                            BadRequestException => (
                                 exceptionType.Message,
                                 exceptionType.GetType().Name,
                                 context.Response.StatusCode = StatusCodes.Status400BadRequest
                             ),
-                            NotFoundException =>
-                            (
+                            NotFoundException => (
                                 exceptionType.Message,
                                 exceptionType.GetType().Name,
                                 context.Response.StatusCode = StatusCodes.Status404NotFound
                             ),
-                            AppException =>
-                            (
+                            AppException => (
                                 exceptionType.Message,
                                 exceptionType.GetType().Name,
                                 context.Response.StatusCode = StatusCodes.Status400BadRequest
                             ),
-                            DbUpdateConcurrencyException =>
-                            (
+                            DbUpdateConcurrencyException => (
                                 exceptionType.Message,
                                 exceptionType.GetType().Name,
                                 context.Response.StatusCode = StatusCodes.Status409Conflict
                             ),
-                            RpcException =>
-                            (
+                            RpcException => (
                                 exceptionType.Message,
                                 exceptionType.GetType().Name,
                                 context.Response.StatusCode = StatusCodes.Status400BadRequest
                             ),
-                            _ =>
-                            (
+                            _ => (
                                 exceptionType.Message,
                                 exceptionType.GetType().Name,
                                 context.Response.StatusCode = StatusCodes.Status500InternalServerError
-                            )
+                            ),
                         };
 
                         var problem = new ProblemDetailsContext
@@ -107,13 +101,16 @@ public static class Extensions
                             {
                                 Title = details.Title,
                                 Detail = details.Detail,
-                                Status = details.StatusCode
-                            }
+                                Status = details.StatusCode,
+                            },
                         };
 
                         if (app.Environment.IsDevelopment())
                         {
-                            problem.ProblemDetails.Extensions.Add("exception", exceptionHandlerFeature?.Error.ToString());
+                            problem.ProblemDetails.Extensions.Add(
+                                "exception",
+                                exceptionHandlerFeature?.Error.ToString()
+                            );
                         }
 
                         await problemDetailsService.WriteAsync(problem);

@@ -11,6 +11,8 @@ public class SlugifyParameterTransformer : IOutboundParameterTransformer
         // Slugify value
         return value == null
             ? null
-            : Regex.Replace(value.ToString() ?? string.Empty, "([a-z])([A-Z])", "$1-$2").ToLower(CultureInfo.CurrentCulture);
+            : Regex
+                .Replace(value.ToString() ?? string.Empty, "([a-z])([A-Z])", "$1-$2")
+                .ToLower(CultureInfo.CurrentCulture);
     }
 }

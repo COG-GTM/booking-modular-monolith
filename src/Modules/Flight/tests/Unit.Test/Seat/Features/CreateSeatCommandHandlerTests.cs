@@ -14,7 +14,6 @@ public class CreateSeatCommandHandlerTests
     private readonly UnitTestFixture _fixture;
     private readonly CreateSeatCommandHandler _handler;
 
-
     public CreateSeatCommandHandlerTests(UnitTestFixture fixture)
     {
         _fixture = fixture;
@@ -49,7 +48,10 @@ public class CreateSeatCommandHandlerTests
         CreateSeat command = null;
 
         // Act
-        var act = async () => { await Act(command, CancellationToken.None); };
+        var act = async () =>
+        {
+            await Act(command, CancellationToken.None);
+        };
 
         // Assert
         await act.Should().ThrowAsync<ArgumentNullException>();

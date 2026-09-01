@@ -8,9 +8,8 @@ namespace Integration.Test;
 [Collection(IntegrationTestCollection.Name)]
 public class FlightIntegrationTestBase : TestBase<Program, FlightDbContext, FlightReadDbContext>
 {
-    public FlightIntegrationTestBase(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFixture) : base(integrationTestFixture)
-    {
-    }
+    public FlightIntegrationTestBase(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFixture)
+        : base(integrationTestFixture) { }
 }
 
 [CollectionDefinition(Name)]

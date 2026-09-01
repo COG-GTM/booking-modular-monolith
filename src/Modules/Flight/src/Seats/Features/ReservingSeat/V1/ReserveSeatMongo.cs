@@ -12,17 +12,21 @@ using MapsterMapper;
 using MediatR;
 using MongoDB.Driver;
 
-public record ReserveSeatMongo(Guid Id, string SeatNumber, Enums.SeatType Type,
-    Enums.SeatClass Class, Guid FlightId, bool IsDeleted = false) : InternalCommand;
+public record ReserveSeatMongo(
+    Guid Id,
+    string SeatNumber,
+    Enums.SeatType Type,
+    Enums.SeatClass Class,
+    Guid FlightId,
+    bool IsDeleted = false
+) : InternalCommand;
 
 internal class ReserveSeatMongoHandler : ICommandHandler<ReserveSeatMongo>
 {
     private readonly FlightReadDbContext _flightReadDbContext;
     private readonly IMapper _mapper;
 
-    public ReserveSeatMongoHandler(
-        FlightReadDbContext flightReadDbContext,
-        IMapper mapper)
+    public ReserveSeatMongoHandler(FlightReadDbContext flightReadDbContext, IMapper mapper)
     {
         _flightReadDbContext = flightReadDbContext;
         _mapper = mapper;
@@ -36,9 +40,9 @@ internal class ReserveSeatMongoHandler : ICommandHandler<ReserveSeatMongo>
 
         await _flightReadDbContext.Seat.UpdateOneAsync(
             x => x.SeatId == seatReadModel.SeatId,
-            Builders<SeatReadModel>.Update
-                .Set(x => x.IsDeleted, seatReadModel.IsDeleted),
-            cancellationToken: cancellationToken);
+            Builders<SeatReadModel>.Update.Set(x => x.IsDeleted, seatReadModel.IsDeleted),
+            cancellationToken: cancellationToken
+        );
 
         return Unit.Value;
     }

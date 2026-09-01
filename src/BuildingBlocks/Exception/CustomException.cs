@@ -7,7 +7,9 @@ public class CustomException : System.Exception
     public CustomException(
         string message,
         HttpStatusCode statusCode = HttpStatusCode.InternalServerError,
-        int? code = null) : base(message)
+        int? code = null
+    )
+        : base(message)
     {
         StatusCode = statusCode;
         Code = code;
@@ -17,15 +19,16 @@ public class CustomException : System.Exception
         string message,
         System.Exception innerException,
         HttpStatusCode statusCode = HttpStatusCode.InternalServerError,
-        int? code = null) : base(message, innerException)
+        int? code = null
+    )
+        : base(message, innerException)
     {
         StatusCode = statusCode;
         Code = code;
     }
 
-    public CustomException(
-        HttpStatusCode statusCode = HttpStatusCode.InternalServerError,
-        int? code = null) : base()
+    public CustomException(HttpStatusCode statusCode = HttpStatusCode.InternalServerError, int? code = null)
+        : base()
     {
         StatusCode = statusCode;
         Code = code;

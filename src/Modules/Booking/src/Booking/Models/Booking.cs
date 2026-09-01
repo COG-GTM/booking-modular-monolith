@@ -10,15 +10,27 @@ public record Booking : AggregateEventSourcing<Guid>
     public Trip Trip { get; private set; }
     public PassengerInfo PassengerInfo { get; private set; }
 
-    public static Booking Create(Guid id, PassengerInfo passengerInfo, Trip trip, bool isDeleted = false, long? userId = null)
+    public static Booking Create(
+        Guid id,
+        PassengerInfo passengerInfo,
+        Trip trip,
+        bool isDeleted = false,
+        long? userId = null
+    )
     {
-        var booking = new Booking { Id = id, Trip = trip, PassengerInfo = passengerInfo, IsDeleted = isDeleted };
+        var booking = new Booking
+        {
+            Id = id,
+            Trip = trip,
+            PassengerInfo = passengerInfo,
+            IsDeleted = isDeleted,
+        };
 
         var @event = new BookingCreatedDomainEvent(booking.Id, booking.PassengerInfo, booking.Trip)
         {
             IsDeleted = booking.IsDeleted,
             CreatedAt = DateTime.Now,
-            CreatedBy = userId
+            CreatedBy = userId,
         };
 
         booking.AddDomainEvent(@event);
@@ -32,10 +44,10 @@ public record Booking : AggregateEventSourcing<Guid>
         switch (@event)
         {
             case BookingCreatedDomainEvent bookingCreated:
-                {
-                    Apply(bookingCreated);
-                    return;
-                }
+            {
+                Apply(bookingCreated);
+                return;
+            }
         }
     }
 

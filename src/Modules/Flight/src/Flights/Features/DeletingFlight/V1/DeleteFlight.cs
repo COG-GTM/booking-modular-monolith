@@ -37,14 +37,16 @@ public class DeleteFlightEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapDelete(
+        builder
+            .MapDelete(
                 $"{EndpointConfig.BaseApiPath}/flight/{{id}}",
                 async (Guid id, IMediator mediator, CancellationToken cancellationToken) =>
                 {
                     await mediator.Send(new DeleteFlight(id), cancellationToken);
 
                     return Results.NoContent();
-                })
+                }
+            )
             .RequireAuthorization(nameof(ApiScope))
             .WithName("DeleteFlight")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
@@ -76,10 +78,7 @@ internal class DeleteFlightHandler : ICommandHandler<DeleteFlight, DeleteFlightR
         _flightDbContext = flightDbContext;
     }
 
-    public async Task<DeleteFlightResult> Handle(
-        DeleteFlight request,
-        CancellationToken cancellationToken
-    )
+    public async Task<DeleteFlightResult> Handle(DeleteFlight request, CancellationToken cancellationToken)
     {
         Guard.Against.Null(request, nameof(request));
 
@@ -101,7 +100,8 @@ internal class DeleteFlightHandler : ICommandHandler<DeleteFlight, DeleteFlightR
             flight.DurationMinutes,
             flight.FlightDate,
             flight.Status,
-            flight.Price);
+            flight.Price
+        );
 
         var deleteFlight = _flightDbContext.Flights.Update(flight).Entity;
 

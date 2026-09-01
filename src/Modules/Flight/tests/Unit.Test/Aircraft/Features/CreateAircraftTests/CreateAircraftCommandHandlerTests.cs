@@ -14,7 +14,7 @@ public class CreateAircraftCommandHandlerTests
     private readonly CreateAircraftHandler _handler;
 
     public Task<CreateAircraftResult> Act(CreateAircraft command, CancellationToken cancellationToken) =>
-    _handler.Handle(command, cancellationToken);
+        _handler.Handle(command, cancellationToken);
 
     public CreateAircraftCommandHandlerTests(UnitTestFixture fixture)
     {
@@ -45,7 +45,10 @@ public class CreateAircraftCommandHandlerTests
         CreateAircraft command = null;
 
         // Act
-        Func<Task> act = async () => { await Act(command, CancellationToken.None); };
+        Func<Task> act = async () =>
+        {
+            await Act(command, CancellationToken.None);
+        };
 
         // Assert
         await act.Should().ThrowAsync<ArgumentNullException>();

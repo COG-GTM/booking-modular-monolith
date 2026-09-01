@@ -23,19 +23,17 @@ public static class Extensions
 
         if (env.IsEnvironment("test"))
         {
-            services.AddMassTransitTestHarness(
-                configure =>
-                {
-                    SetupMasstransitConfigurations(services, configure, transportType, assembly);
-                });
+            services.AddMassTransitTestHarness(configure =>
+            {
+                SetupMasstransitConfigurations(services, configure, transportType, assembly);
+            });
         }
         else
         {
-            services.AddMassTransit(
-                configure =>
-                {
-                    SetupMasstransitConfigurations(services, configure, transportType, assembly);
-                });
+            services.AddMassTransit(configure =>
+            {
+                SetupMasstransitConfigurations(services, configure, transportType, assembly);
+            });
         }
 
         return services;
@@ -81,13 +79,15 @@ public static class Extensions
                                 {
                                     h.Username(rabbitMqOptions.UserName);
                                     h.Password(rabbitMqOptions.Password);
-                                });
+                                }
+                            );
                         }
 
                         configurator.ConfigureEndpoints(context);
 
                         configurator.UseMessageRetry(AddRetryConfiguration);
-                    });
+                    }
+                );
 
                 break;
             case TransportType.InMemory:
@@ -96,25 +96,19 @@ public static class Extensions
                     {
                         configurator.ConfigureEndpoints(context);
                         configurator.UseMessageRetry(AddRetryConfiguration);
-                    });
+                    }
+                );
 
                 break;
             default:
-                throw new ArgumentOutOfRangeException(
-                    nameof(transportType),
-                    transportType,
-                    message: null);
+                throw new ArgumentOutOfRangeException(nameof(transportType), transportType, message: null);
         }
     }
 
     private static void AddRetryConfiguration(IRetryConfigurator retryConfigurator)
     {
-        retryConfigurator.Exponential(
-                3,
-                TimeSpan.FromMilliseconds(200),
-                TimeSpan.FromMinutes(120),
-                TimeSpan.FromMilliseconds(200))
-            .Ignore<
-                ValidationException>(); // don't retry if we have invalid data and message goes to _error queue masstransit
+        retryConfigurator
+            .Exponential(3, TimeSpan.FromMilliseconds(200), TimeSpan.FromMinutes(120), TimeSpan.FromMilliseconds(200))
+            .Ignore<ValidationException>(); // don't retry if we have invalid data and message goes to _error queue masstransit
     }
 }

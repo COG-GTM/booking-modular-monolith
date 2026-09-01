@@ -7,7 +7,8 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 public interface IDbContext
 {
-    DbSet<TEntity> Set<TEntity>() where TEntity : class;
+    DbSet<TEntity> Set<TEntity>()
+        where TEntity : class;
     IReadOnlyList<IDomainEvent> GetDomainEvents();
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);

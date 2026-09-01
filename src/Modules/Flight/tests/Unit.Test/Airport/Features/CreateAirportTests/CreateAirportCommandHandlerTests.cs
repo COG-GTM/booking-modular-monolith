@@ -14,7 +14,6 @@ public class CreateAirportCommandHandlerTests
     private readonly UnitTestFixture _fixture;
     private readonly CreateAirportHandler _handler;
 
-
     public CreateAirportCommandHandlerTests(UnitTestFixture fixture)
     {
         _fixture = fixture;
@@ -47,7 +46,10 @@ public class CreateAirportCommandHandlerTests
         CreateAirport command = null;
 
         // Act
-        var act = async () => { await Act(command, CancellationToken.None); };
+        var act = async () =>
+        {
+            await Act(command, CancellationToken.None);
+        };
 
         // Assert
         await act.Should().ThrowAsync<ArgumentNullException>();

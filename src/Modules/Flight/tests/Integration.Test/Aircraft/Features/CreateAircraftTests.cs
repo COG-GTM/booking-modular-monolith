@@ -11,10 +11,8 @@ namespace Integration.Test.Aircraft.Features;
 
 public class CreateAircraftTests : FlightIntegrationTestBase
 {
-    public CreateAircraftTests(
-        TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory) : base(integrationTestFactory)
-    {
-    }
+    public CreateAircraftTests(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory)
+        : base(integrationTestFactory) { }
 
     [Fact]
     public async Task should_create_new_aircraft_to_db_and_publish_message_to_broker()

@@ -14,19 +14,27 @@ using Models;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 
-public record UpdateFlightMongo(Guid Id, string FlightNumber, Guid AircraftId, DateTime DepartureDate,
-    Guid DepartureAirportId, DateTime ArriveDate, Guid ArriveAirportId, decimal DurationMinutes, DateTime FlightDate,
-    Enums.FlightStatus Status, decimal Price, bool IsDeleted = false) : InternalCommand;
-
+public record UpdateFlightMongo(
+    Guid Id,
+    string FlightNumber,
+    Guid AircraftId,
+    DateTime DepartureDate,
+    Guid DepartureAirportId,
+    DateTime ArriveDate,
+    Guid ArriveAirportId,
+    decimal DurationMinutes,
+    DateTime FlightDate,
+    Enums.FlightStatus Status,
+    decimal Price,
+    bool IsDeleted = false
+) : InternalCommand;
 
 internal class UpdateFlightMongoCommandHandler : ICommandHandler<UpdateFlightMongo>
 {
     private readonly FlightReadDbContext _flightReadDbContext;
     private readonly IMapper _mapper;
 
-    public UpdateFlightMongoCommandHandler(
-        FlightReadDbContext flightReadDbContext,
-        IMapper mapper)
+    public UpdateFlightMongoCommandHandler(FlightReadDbContext flightReadDbContext, IMapper mapper)
     {
         _flightReadDbContext = flightReadDbContext;
         _mapper = mapper;
@@ -38,7 +46,8 @@ internal class UpdateFlightMongoCommandHandler : ICommandHandler<UpdateFlightMon
 
         var flightReadModel = _mapper.Map<FlightReadModel>(request);
 
-        var flight = await _flightReadDbContext.Flight.AsQueryable()
+        var flight = await _flightReadDbContext
+            .Flight.AsQueryable()
             .FirstOrDefaultAsync(x => x.FlightId == flightReadModel.FlightId && !x.IsDeleted, cancellationToken);
 
         if (flight is null)
@@ -48,8 +57,8 @@ internal class UpdateFlightMongoCommandHandler : ICommandHandler<UpdateFlightMon
 
         await _flightReadDbContext.Flight.UpdateOneAsync(
             x => x.FlightId == flightReadModel.FlightId,
-            Builders<FlightReadModel>.Update
-                .Set(x => x.Price, flightReadModel.Price)
+            Builders<FlightReadModel>
+                .Update.Set(x => x.Price, flightReadModel.Price)
                 .Set(x => x.ArriveDate, flightReadModel.ArriveDate)
                 .Set(x => x.AircraftId, flightReadModel.AircraftId)
                 .Set(x => x.DurationMinutes, flightReadModel.DurationMinutes)
@@ -60,7 +69,8 @@ internal class UpdateFlightMongoCommandHandler : ICommandHandler<UpdateFlightMon
                 .Set(x => x.Status, flightReadModel.Status)
                 .Set(x => x.ArriveAirportId, flightReadModel.ArriveAirportId)
                 .Set(x => x.DepartureAirportId, flightReadModel.DepartureAirportId),
-            cancellationToken: cancellationToken);
+            cancellationToken: cancellationToken
+        );
 
         return Unit.Value;
     }

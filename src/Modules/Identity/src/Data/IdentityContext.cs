@@ -18,13 +18,15 @@ using System;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 
-public sealed class IdentityContext : IdentityDbContext<User, Role, Guid,
-    UserClaim, UserRole, UserLogin, RoleClaim, UserToken>, IDbContext
+public sealed class IdentityContext
+    : IdentityDbContext<User, Role, Guid, UserClaim, UserRole, UserLogin, RoleClaim, UserToken>,
+        IDbContext
 {
     private readonly ILogger<IdentityContext>? _logger;
     private IDbContextTransaction _currentTransaction;
 
-    public IdentityContext(DbContextOptions<IdentityContext> options, ILogger<IdentityContext>? logger = null) : base(options)
+    public IdentityContext(DbContextOptions<IdentityContext> options, ILogger<IdentityContext>? logger = null)
+        : base(options)
     {
         _logger = logger;
     }
@@ -85,8 +87,10 @@ public sealed class IdentityContext : IdentityDbContext<User, Role, Guid,
         var strategy = CreateExecutionStrategy();
         return strategy.ExecuteAsync(async () =>
         {
-            await using var transaction =
-                await Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+            await using var transaction = await Database.BeginTransactionAsync(
+                IsolationLevel.ReadCommitted,
+                cancellationToken
+            );
             try
             {
                 await SaveChangesAsync(cancellationToken);
@@ -116,7 +120,9 @@ public sealed class IdentityContext : IdentityDbContext<User, Role, Guid,
 
                 if (databaseValues == null)
                 {
-                    _logger.LogError("The record no longer exists in the database, The record has been deleted by another user.");
+                    _logger.LogError(
+                        "The record no longer exists in the database, The record has been deleted by another user."
+                    );
                     throw;
                 }
 
@@ -136,9 +142,7 @@ public sealed class IdentityContext : IdentityDbContext<User, Role, Guid,
             .Select(x => x.Entity)
             .ToList();
 
-        var domainEvents = domainEntities
-            .SelectMany(x => x.DomainEvents)
-            .ToImmutableList();
+        var domainEvents = domainEntities.SelectMany(x => x.DomainEvents).ToImmutableList();
 
         domainEntities.ForEach(entity => entity.ClearDomainEvents());
 

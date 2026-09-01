@@ -9,8 +9,7 @@ public class PersistMessageBackgroundService(
     ILogger<PersistMessageBackgroundService> logger,
     IServiceProvider serviceProvider,
     IOptions<PersistMessageOptions> options
-)
-    : BackgroundService
+) : BackgroundService
 {
     private PersistMessageOptions _options = options.Value;
 
@@ -39,8 +38,8 @@ public class PersistMessageBackgroundService(
             }
 
             var delay = _options.Interval is { }
-                            ? TimeSpan.FromSeconds((int)_options.Interval)
-                            : TimeSpan.FromSeconds(30);
+                ? TimeSpan.FromSeconds((int)_options.Interval)
+                : TimeSpan.FromSeconds(30);
 
             await Task.Delay(delay, stoppingToken);
         }

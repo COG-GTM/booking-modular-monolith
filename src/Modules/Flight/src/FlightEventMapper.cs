@@ -27,7 +27,7 @@ public sealed class FlightEventMapper : IEventMapper
             AircraftCreatedDomainEvent e => new AircraftCreated(e.Id),
             SeatCreatedDomainEvent e => new SeatCreated(e.Id),
             SeatReservedDomainEvent e => new SeatReserved(e.Id),
-            _ => null
+            _ => null,
         };
     }
 
@@ -35,17 +35,73 @@ public sealed class FlightEventMapper : IEventMapper
     {
         return @event switch
         {
-            FlightCreatedDomainEvent e => new CreateFlightMongo(e.Id, e.FlightNumber, e.AircraftId, e.DepartureDate, e.DepartureAirportId,
-                e.ArriveDate, e.ArriveAirportId, e.DurationMinutes, e.FlightDate, e.Status, e.Price, e.IsDeleted),
-            FlightUpdatedDomainEvent e => new UpdateFlightMongo(e.Id, e.FlightNumber, e.AircraftId, e.DepartureDate, e.DepartureAirportId,
-                e.ArriveDate, e.ArriveAirportId, e.DurationMinutes, e.FlightDate, e.Status, e.Price, e.IsDeleted),
-            FlightDeletedDomainEvent e => new DeleteFlightMongo(e.Id, e.FlightNumber, e.AircraftId, e.DepartureDate, e.DepartureAirportId,
-                e.ArriveDate, e.ArriveAirportId, e.DurationMinutes, e.FlightDate, e.Status, e.Price, e.IsDeleted),
-            AircraftCreatedDomainEvent e => new CreateAircraftMongo(e.Id, e.Name, e.Model, e.ManufacturingYear, e.IsDeleted),
+            FlightCreatedDomainEvent e => new CreateFlightMongo(
+                e.Id,
+                e.FlightNumber,
+                e.AircraftId,
+                e.DepartureDate,
+                e.DepartureAirportId,
+                e.ArriveDate,
+                e.ArriveAirportId,
+                e.DurationMinutes,
+                e.FlightDate,
+                e.Status,
+                e.Price,
+                e.IsDeleted
+            ),
+            FlightUpdatedDomainEvent e => new UpdateFlightMongo(
+                e.Id,
+                e.FlightNumber,
+                e.AircraftId,
+                e.DepartureDate,
+                e.DepartureAirportId,
+                e.ArriveDate,
+                e.ArriveAirportId,
+                e.DurationMinutes,
+                e.FlightDate,
+                e.Status,
+                e.Price,
+                e.IsDeleted
+            ),
+            FlightDeletedDomainEvent e => new DeleteFlightMongo(
+                e.Id,
+                e.FlightNumber,
+                e.AircraftId,
+                e.DepartureDate,
+                e.DepartureAirportId,
+                e.ArriveDate,
+                e.ArriveAirportId,
+                e.DurationMinutes,
+                e.FlightDate,
+                e.Status,
+                e.Price,
+                e.IsDeleted
+            ),
+            AircraftCreatedDomainEvent e => new CreateAircraftMongo(
+                e.Id,
+                e.Name,
+                e.Model,
+                e.ManufacturingYear,
+                e.IsDeleted
+            ),
             AirportCreatedDomainEvent e => new CreateAirportMongo(e.Id, e.Name, e.Address, e.Code, e.IsDeleted),
-            SeatCreatedDomainEvent e => new CreateSeatMongo(e.Id, e.SeatNumber, e.Type, e.Class, e.FlightId, e.IsDeleted),
-            SeatReservedDomainEvent e => new ReserveSeatMongo(e.Id, e.SeatNumber, e.Type, e.Class, e.FlightId, e.IsDeleted),
-            _ => null
+            SeatCreatedDomainEvent e => new CreateSeatMongo(
+                e.Id,
+                e.SeatNumber,
+                e.Type,
+                e.Class,
+                e.FlightId,
+                e.IsDeleted
+            ),
+            SeatReservedDomainEvent e => new ReserveSeatMongo(
+                e.Id,
+                e.SeatNumber,
+                e.Type,
+                e.Class,
+                e.FlightId,
+                e.IsDeleted
+            ),
+            _ => null,
         };
     }
 }

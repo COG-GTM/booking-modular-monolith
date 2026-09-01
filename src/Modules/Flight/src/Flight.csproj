@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.3" />
     <PackageReference Include="Grpc.Net.Client" Version="2.76.0" />
     <PackageReference Include="Grpc.Tools" Version="2.78.0">
       <PrivateAssets>all</PrivateAssets>
@@ -22,7 +23,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Caching\BuildingBlocks.Caching.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Jwt\BuildingBlocks.Jwt.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Core\BuildingBlocks.Core.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\EFCore\BuildingBlocks.EFCore.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Exception\BuildingBlocks.Exception.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Logging\BuildingBlocks.Logging.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Mapster\BuildingBlocks.Mapster.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Mongo\BuildingBlocks.Mongo.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\PersistMessageProcessor\BuildingBlocks.PersistMessageProcessor.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Polly\BuildingBlocks.Polly.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Validation\BuildingBlocks.Validation.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Web\BuildingBlocks.Web.csproj" />
   </ItemGroup>
     
 </Project>

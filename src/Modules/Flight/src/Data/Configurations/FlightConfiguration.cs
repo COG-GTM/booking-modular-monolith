@@ -16,67 +16,48 @@ public class FlightConfiguration : IEntityTypeConfiguration<Flights.Models.Fligh
         builder.ToTable(nameof(Flight));
 
         builder.HasKey(r => r.Id);
-        builder.Property(r => r.Id).ValueGeneratedNever()
+        builder
+            .Property(r => r.Id)
+            .ValueGeneratedNever()
             .HasConversion<Guid>(flight => flight.Value, dbId => FlightId.Of(dbId));
 
         builder.Property(r => r.Version).IsConcurrencyToken();
-
 
         builder.OwnsOne(
             x => x.FlightNumber,
             a =>
             {
-                a.Property(p => p.Value)
-                    .HasColumnName(nameof(Flight.FlightNumber))
-                    .HasMaxLength(50)
-                    .IsRequired();
+                a.Property(p => p.Value).HasColumnName(nameof(Flight.FlightNumber)).HasMaxLength(50).IsRequired();
             }
         );
 
-        builder
-            .HasOne<Aircraft>()
-            .WithMany()
-            .HasForeignKey(p => p.AircraftId)
-            .IsRequired();
+        builder.HasOne<Aircraft>().WithMany().HasForeignKey(p => p.AircraftId).IsRequired();
 
-        builder
-            .HasOne<Airport>()
-            .WithMany()
-            .HasForeignKey(d => d.DepartureAirportId)
-            .IsRequired();
+        builder.HasOne<Airport>().WithMany().HasForeignKey(d => d.DepartureAirportId).IsRequired();
 
-        builder
-            .HasOne<Airport>()
-            .WithMany()
-            .HasForeignKey(d => d.ArriveAirportId)
-            .IsRequired();
-
+        builder.HasOne<Airport>().WithMany().HasForeignKey(d => d.ArriveAirportId).IsRequired();
 
         builder.OwnsOne(
             x => x.DurationMinutes,
             a =>
             {
-                a.Property(p => p.Value)
-                    .HasColumnName(nameof(Flight.DurationMinutes))
-                    .HasMaxLength(50)
-                    .IsRequired();
+                a.Property(p => p.Value).HasColumnName(nameof(Flight.DurationMinutes)).HasMaxLength(50).IsRequired();
             }
         );
 
-        builder.Property(x => x.Status)
+        builder
+            .Property(x => x.Status)
             .HasDefaultValue(Flights.Enums.FlightStatus.Unknown)
             .HasConversion(
                 x => x.ToString(),
-                x => (Flights.Enums.FlightStatus)Enum.Parse(typeof(Flights.Enums.FlightStatus), x));
+                x => (Flights.Enums.FlightStatus)Enum.Parse(typeof(Flights.Enums.FlightStatus), x)
+            );
 
         builder.OwnsOne(
             x => x.Price,
             a =>
             {
-                a.Property(p => p.Value)
-                    .HasColumnName(nameof(Flight.Price))
-                    .HasMaxLength(10)
-                    .IsRequired();
+                a.Property(p => p.Value).HasColumnName(nameof(Flight.Price)).HasMaxLength(10).IsRequired();
             }
         );
 
@@ -84,9 +65,7 @@ public class FlightConfiguration : IEntityTypeConfiguration<Flights.Models.Fligh
             x => x.ArriveDate,
             a =>
             {
-                a.Property(p => p.Value)
-                    .HasColumnName(nameof(Flight.ArriveDate))
-                    .IsRequired();
+                a.Property(p => p.Value).HasColumnName(nameof(Flight.ArriveDate)).IsRequired();
             }
         );
 
@@ -94,9 +73,7 @@ public class FlightConfiguration : IEntityTypeConfiguration<Flights.Models.Fligh
             x => x.DepartureDate,
             a =>
             {
-                a.Property(p => p.Value)
-                    .HasColumnName(nameof(Flight.DepartureDate))
-                    .IsRequired();
+                a.Property(p => p.Value).HasColumnName(nameof(Flight.DepartureDate)).IsRequired();
             }
         );
 
@@ -104,9 +81,7 @@ public class FlightConfiguration : IEntityTypeConfiguration<Flights.Models.Fligh
             x => x.FlightDate,
             a =>
             {
-                a.Property(p => p.Value)
-                    .HasColumnName(nameof(Flight.FlightDate))
-                    .IsRequired();
+                a.Property(p => p.Value).HasColumnName(nameof(Flight.FlightDate)).IsRequired();
             }
         );
     }

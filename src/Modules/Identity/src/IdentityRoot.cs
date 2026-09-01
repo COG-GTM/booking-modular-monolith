@@ -1,5 +1,3 @@
 namespace Identity;
 
-public class IdentityRoot
-{
-}
+public class IdentityRoot { }

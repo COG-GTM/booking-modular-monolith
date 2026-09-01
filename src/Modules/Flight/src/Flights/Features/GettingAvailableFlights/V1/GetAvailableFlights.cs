@@ -37,7 +37,9 @@ public class GetAvailableFlightsEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapGet($"{EndpointConfig.BaseApiPath}/flight/get-available-flights",
+        builder
+            .MapGet(
+                $"{EndpointConfig.BaseApiPath}/flight/get-available-flights",
                 async (IMediator mediator, CancellationToken cancellationToken) =>
                 {
                     var result = await mediator.Send(new GetAvailableFlights(), cancellationToken);
@@ -45,7 +47,8 @@ public class GetAvailableFlightsEndpoint : IMinimalEndpoint
                     var response = result.Adapt<GetAvailableFlightsResponseDto>();
 
                     return Results.Ok(response);
-                })
+                }
+            )
             .RequireAuthorization(nameof(ApiScope))
             .WithName("GetAvailableFlights")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
@@ -71,13 +74,16 @@ internal class GetAvailableFlightsHandler : IQueryHandler<GetAvailableFlights, G
         _flightReadDbContext = flightReadDbContext;
     }
 
-    public async Task<GetAvailableFlightsResult> Handle(GetAvailableFlights request,
-        CancellationToken cancellationToken)
+    public async Task<GetAvailableFlightsResult> Handle(
+        GetAvailableFlights request,
+        CancellationToken cancellationToken
+    )
     {
         Guard.Against.Null(request, nameof(request));
 
-        var flight = (await _flightReadDbContext.Flight.AsQueryable().ToListAsync(cancellationToken))
-            .Where(x => !x.IsDeleted);
+        var flight = (await _flightReadDbContext.Flight.AsQueryable().ToListAsync(cancellationToken)).Where(x =>
+            !x.IsDeleted
+        );
 
         if (!flight.Any())
         {

@@ -10,11 +10,8 @@ using MongoDB.Driver.Linq;
 
 namespace Flight.Data.Seed;
 
-public class FlightDataSeeder(
-    FlightDbContext flightDbContext,
-    FlightReadDbContext flightReadDbContext,
-    IMapper mapper
-) : IDataSeeder
+public class FlightDataSeeder(FlightDbContext flightDbContext, FlightReadDbContext flightReadDbContext, IMapper mapper)
+    : IDataSeeder
 {
     public async Task SeedAllAsync()
     {
@@ -38,7 +35,9 @@ public class FlightDataSeeder(
 
             if (!await MongoQueryable.AnyAsync(flightReadDbContext.Airport.AsQueryable()))
             {
-                await flightReadDbContext.Airport.InsertManyAsync(mapper.Map<List<AirportReadModel>>(InitialData.Airports));
+                await flightReadDbContext.Airport.InsertManyAsync(
+                    mapper.Map<List<AirportReadModel>>(InitialData.Airports)
+                );
             }
         }
     }
@@ -52,11 +51,12 @@ public class FlightDataSeeder(
 
             if (!await MongoQueryable.AnyAsync(flightReadDbContext.Aircraft.AsQueryable()))
             {
-                await flightReadDbContext.Aircraft.InsertManyAsync(mapper.Map<List<AircraftReadModel>>(InitialData.Aircrafts));
+                await flightReadDbContext.Aircraft.InsertManyAsync(
+                    mapper.Map<List<AircraftReadModel>>(InitialData.Aircrafts)
+                );
             }
         }
     }
-
 
     private async Task SeedSeatAsync()
     {
@@ -81,7 +81,9 @@ public class FlightDataSeeder(
 
             if (!await MongoQueryable.AnyAsync(flightReadDbContext.Flight.AsQueryable()))
             {
-                await flightReadDbContext.Flight.InsertManyAsync(mapper.Map<List<FlightReadModel>>(InitialData.Flights));
+                await flightReadDbContext.Flight.InsertManyAsync(
+                    mapper.Map<List<FlightReadModel>>(InitialData.Flights)
+                );
             }
         }
     }

@@ -75,10 +75,10 @@ public class IdentityDataSeeder : IDataSeeder
                     await _eventDispatcher.SendAsync(
                         new UserCreated(
                             InitialData.Users.First().Id,
-                            InitialData.Users.First().FirstName +
-                            " " +
-                            InitialData.Users.First().LastName,
-                            InitialData.Users.First().PassPortNumber));
+                            InitialData.Users.First().FirstName + " " + InitialData.Users.First().LastName,
+                            InitialData.Users.First().PassPortNumber
+                        )
+                    );
                 }
             }
 
@@ -93,10 +93,10 @@ public class IdentityDataSeeder : IDataSeeder
                     await _eventDispatcher.SendAsync(
                         new UserCreated(
                             InitialData.Users.Last().Id,
-                            InitialData.Users.Last().FirstName +
-                            " " +
-                            InitialData.Users.Last().LastName,
-                            InitialData.Users.Last().PassPortNumber));
+                            InitialData.Users.Last().FirstName + " " + InitialData.Users.Last().LastName,
+                            InitialData.Users.Last().PassPortNumber
+                        )
+                    );
                 }
             }
         }

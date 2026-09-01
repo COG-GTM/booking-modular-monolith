@@ -12,8 +12,7 @@ public class UserValidator : IResourceOwnerPasswordValidator
     private readonly SignInManager<User> _signInManager;
     private readonly UserManager<User> _userManager;
 
-    public UserValidator(SignInManager<User> signInManager,
-        UserManager<User> userManager)
+    public UserValidator(SignInManager<User> signInManager, UserManager<User> userManager)
     {
         _signInManager = signInManager;
         _userManager = userManager;
@@ -27,7 +26,8 @@ public class UserValidator : IResourceOwnerPasswordValidator
             user,
             context.Password,
             isPersistent: true,
-            lockoutOnFailure: true);
+            lockoutOnFailure: true
+        );
 
         if (signIn.Succeeded)
         {
@@ -40,7 +40,7 @@ public class UserValidator : IResourceOwnerPasswordValidator
                 claims: new Claim[]
                 {
                     new Claim(ClaimTypes.NameIdentifier, userId),
-                    new Claim(ClaimTypes.Name, user.UserName)
+                    new Claim(ClaimTypes.Name, user.UserName),
                 }
             );
 
@@ -48,7 +48,6 @@ public class UserValidator : IResourceOwnerPasswordValidator
         }
 
         // context set to Failure
-        context.Result = new GrantValidationResult(
-            TokenRequestErrors.UnauthorizedClient, "Invalid Credentials");
+        context.Result = new GrantValidationResult(TokenRequestErrors.UnauthorizedClient, "Invalid Credentials");
     }
 }

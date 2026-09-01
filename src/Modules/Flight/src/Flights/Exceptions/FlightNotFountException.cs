@@ -5,7 +5,6 @@ namespace Flight.Flights.Exceptions;
 
 public class FlightNotFountException : AppException
 {
-    public FlightNotFountException() : base("Flight not found!", HttpStatusCode.NotFound)
-    {
-    }
+    public FlightNotFountException()
+        : base("Flight not found!", HttpStatusCode.NotFound) { }
 }

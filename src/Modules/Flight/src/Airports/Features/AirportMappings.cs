@@ -9,15 +9,18 @@ public class AirportMappings : IRegister
 {
     public void Register(TypeAdapterConfig config)
     {
-        config.NewConfig<CreateAirportMongo, AirportReadModel>()
+        config
+            .NewConfig<CreateAirportMongo, AirportReadModel>()
             .Map(d => d.Id, s => NewId.NextGuid())
             .Map(d => d.AirportId, s => s.Id);
 
-        config.NewConfig<Airport, AirportReadModel>()
+        config
+            .NewConfig<Airport, AirportReadModel>()
             .Map(d => d.Id, s => NewId.NextGuid())
             .Map(d => d.AirportId, s => s.Id.Value);
 
-        config.NewConfig<CreateAirportRequestDto, CreateAirport>()
+        config
+            .NewConfig<CreateAirportRequestDto, CreateAirport>()
             .ConstructUsing(x => new CreateAirport(x.Name, x.Address, x.Code));
     }
 }

@@ -18,15 +18,10 @@ public record Airport : Aggregate<AirportId>
             Id = id,
             Name = name,
             Address = address,
-            Code = code
+            Code = code,
         };
 
-        var @event = new AirportCreatedDomainEvent(
-            airport.Id,
-            airport.Name,
-            airport.Address,
-            airport.Code,
-            isDeleted);
+        var @event = new AirportCreatedDomainEvent(airport.Id, airport.Name, airport.Address, airport.Code, isDeleted);
 
         airport.AddDomainEvent(@event);
 

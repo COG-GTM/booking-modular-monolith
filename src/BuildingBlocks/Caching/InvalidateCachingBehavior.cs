@@ -11,14 +11,20 @@ namespace BuildingBlocks.Caching
         private readonly ILogger<InvalidateCachingBehavior<TRequest, TResponse>> _logger;
         private readonly IEasyCachingProvider _cachingProvider;
 
-        public InvalidateCachingBehavior(IEasyCachingProviderFactory cachingFactory,
-            ILogger<InvalidateCachingBehavior<TRequest, TResponse>> logger)
+        public InvalidateCachingBehavior(
+            IEasyCachingProviderFactory cachingFactory,
+            ILogger<InvalidateCachingBehavior<TRequest, TResponse>> logger
+        )
         {
             _logger = logger;
             _cachingProvider = cachingFactory.GetCachingProvider("mem");
         }
 
-        public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
+        public async Task<TResponse> Handle(
+            TRequest request,
+            RequestHandlerDelegate<TResponse> next,
+            CancellationToken cancellationToken
+        )
         {
             if (request is not IInvalidateCacheRequest invalidateCacheRequest)
             {

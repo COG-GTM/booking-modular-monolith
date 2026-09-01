@@ -15,9 +15,14 @@ public record Seat : Aggregate<SeatId>
     public Enums.SeatClass Class { get; private set; }
     public FlightId FlightId { get; private set; } = default!;
 
-    public static Seat Create(SeatId id, SeatNumber seatNumber, Enums.SeatType type, Enums.SeatClass @class,
+    public static Seat Create(
+        SeatId id,
+        SeatNumber seatNumber,
+        Enums.SeatType type,
+        Enums.SeatClass @class,
         FlightId flightId,
-        bool isDeleted = false)
+        bool isDeleted = false
+    )
     {
         var seat = new Seat()
         {
@@ -26,7 +31,7 @@ public record Seat : Aggregate<SeatId>
             Type = type,
             SeatNumber = seatNumber,
             FlightId = flightId,
-            IsDeleted = isDeleted
+            IsDeleted = isDeleted,
         };
 
         var @event = new SeatCreatedDomainEvent(
@@ -35,7 +40,8 @@ public record Seat : Aggregate<SeatId>
             seat.Type,
             seat.Class,
             seat.FlightId,
-            isDeleted);
+            isDeleted
+        );
 
         seat.AddDomainEvent(@event);
 
@@ -53,7 +59,8 @@ public record Seat : Aggregate<SeatId>
             this.Type,
             this.Class,
             this.FlightId,
-            this.IsDeleted);
+            this.IsDeleted
+        );
 
         this.AddDomainEvent(@event);
     }

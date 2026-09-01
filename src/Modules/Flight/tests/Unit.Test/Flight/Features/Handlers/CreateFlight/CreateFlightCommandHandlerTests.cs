@@ -48,7 +48,10 @@ public class CreateFlightCommandHandlerTests
         CreateFlight command = null;
 
         // Act
-        Func<Task> act = async () => { await Act(command, CancellationToken.None); };
+        Func<Task> act = async () =>
+        {
+            await Act(command, CancellationToken.None);
+        };
 
         // Assert
         await act.Should().ThrowAsync<ArgumentNullException>();

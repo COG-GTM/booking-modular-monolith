@@ -9,7 +9,10 @@ namespace Flight.Data
         {
             var builder = new DbContextOptionsBuilder<FlightDbContext>();
 
-            builder.UseNpgsql("Server=localhost;Port=5432;Database=flight;User Id=postgres;Password=postgres;Include Error Detail=true")
+            builder
+                .UseNpgsql(
+                    "Server=localhost;Port=5432;Database=flight;User Id=postgres;Password=postgres;Include Error Detail=true"
+                )
                 .UseSnakeCaseNamingConvention();
             return new FlightDbContext(builder.Options);
         }

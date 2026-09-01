@@ -17,7 +17,6 @@ public class CurrentUserProvider : ICurrentUserProvider
         _httpContextAccessor = httpContextAccessor;
     }
 
-
     public long? GetCurrentUserId()
     {
         var nameIdentifier = _httpContextAccessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);

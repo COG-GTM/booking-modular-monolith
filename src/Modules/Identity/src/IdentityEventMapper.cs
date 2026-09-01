@@ -9,7 +9,7 @@ public sealed class IdentityEventMapper : IEventMapper
     {
         return @event switch
         {
-            _ => null
+            _ => null,
         };
     }
 
@@ -17,7 +17,7 @@ public sealed class IdentityEventMapper : IEventMapper
     {
         return @event switch
         {
-            _ => null
+            _ => null,
         };
     }
 }

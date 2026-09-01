@@ -5,7 +5,6 @@ namespace Booking.Booking.Exceptions;
 
 public class FlightNotFoundException : AppException
 {
-    public FlightNotFoundException() : base("Flight doesn't exist!", HttpStatusCode.NotFound)
-    {
-    }
+    public FlightNotFoundException()
+        : base("Flight doesn't exist!", HttpStatusCode.NotFound) { }
 }

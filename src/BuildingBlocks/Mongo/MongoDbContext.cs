@@ -45,8 +45,10 @@ public class MongoDbContext : IMongoDbContext
                 new IgnoreExtraElementsConvention(true),
                 new EnumRepresentationConvention(BsonType.String),
                 new IgnoreIfDefaultConvention(false),
-                new ImmutablePocoConvention()
-            }, _ => true);
+                new ImmutablePocoConvention(),
+            },
+            _ => true
+        );
     }
 
     public IMongoCollection<T> GetCollection<T>(string? name = null)
@@ -132,7 +134,8 @@ public class MongoDbContext : IMongoDbContext
 
     public async Task<T> ExecuteTransactionalAsync<T>(
         Func<Task<T>> action,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         await BeginTransactionAsync(cancellationToken);
         try

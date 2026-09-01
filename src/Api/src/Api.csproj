@@ -3,7 +3,18 @@
     <RootNamespace>Api</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Figgle" Version="0.6.5" />
+    <PackageReference Include="Figgle.Fonts" Version="0.6.5" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\Aspire\src\ServiceDefaults\ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Core\BuildingBlocks.Core.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Exception\BuildingBlocks.Exception.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Jwt\BuildingBlocks.Jwt.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\MassTransit\BuildingBlocks.MassTransit.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\OpenApi\BuildingBlocks.OpenApi.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\ProblemDetails\BuildingBlocks.ProblemDetails.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Web\BuildingBlocks.Web.csproj" />
     <ProjectReference Include="..\..\Modules\Booking\src\Booking.csproj" />
     <ProjectReference Include="..\..\Modules\Flight\src\Flight.csproj" />
     <ProjectReference Include="..\..\Modules\Identity\src\Identity.csproj" />

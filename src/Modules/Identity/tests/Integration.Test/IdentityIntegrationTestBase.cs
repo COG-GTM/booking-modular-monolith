@@ -9,9 +9,7 @@ namespace Integration.Test;
 public class IdentityIntegrationTestBase : TestWriteBase<Program, IdentityContext>
 {
     public IdentityIntegrationTestBase(TestWriteFixture<Program, IdentityContext> integrationTestFactory)
-        : base(integrationTestFactory)
-    {
-    }
+        : base(integrationTestFactory) { }
 }
 
 [CollectionDefinition(Name)]

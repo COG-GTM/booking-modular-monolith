@@ -28,7 +28,10 @@ public class FlightGrpcServices : FlightGrpcService.FlightGrpcServiceBase
         return result.Adapt<GetFlightByIdResult>();
     }
 
-    public override async Task<GetAvailableSeatsResult> GetAvailableSeats(GetAvailableSeatsRequest request, ServerCallContext context)
+    public override async Task<GetAvailableSeatsResult> GetAvailableSeats(
+        GetAvailableSeatsRequest request,
+        ServerCallContext context
+    )
     {
         var result = new GetAvailableSeatsResult();
 

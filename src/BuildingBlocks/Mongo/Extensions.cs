@@ -9,25 +9,31 @@ namespace BuildingBlocks.Mongo
     public static class Extensions
     {
         public static IServiceCollection AddMongoDbContext<TContext>(
-            this WebApplicationBuilder builder, Action<MongoOptions>? configurator = null)
-        where TContext : MongoDbContext
+            this WebApplicationBuilder builder,
+            Action<MongoOptions>? configurator = null
+        )
+            where TContext : MongoDbContext
         {
             return builder.Services.AddMongoDbContext<TContext, TContext>(builder.Configuration, configurator);
         }
 
         public static IServiceCollection AddMongoDbContext<TContextService, TContextImplementation>(
-            this IServiceCollection services, IConfiguration configuration, Action<MongoOptions>? configurator = null)
-        where TContextService : IMongoDbContext
-        where TContextImplementation : MongoDbContext, TContextService
+            this IServiceCollection services,
+            IConfiguration configuration,
+            Action<MongoOptions>? configurator = null
+        )
+            where TContextService : IMongoDbContext
+            where TContextImplementation : MongoDbContext, TContextService
         {
             // Configure MongoOptions with Aspire-aware defaults
-            services.AddOptions<MongoOptions>()
+            services
+                .AddOptions<MongoOptions>()
                 .Bind(configuration.GetSection(nameof(MongoOptions)))
                 .PostConfigure(options =>
-                               {
-                                   var aspireConnectionString = configuration.GetConnectionString("mongo");
-                                   options.ConnectionString = aspireConnectionString ?? options.ConnectionString;
-                               });
+                {
+                    var aspireConnectionString = configuration.GetConnectionString("mongo");
+                    options.ConnectionString = aspireConnectionString ?? options.ConnectionString;
+                });
 
             if (configurator is { })
             {
