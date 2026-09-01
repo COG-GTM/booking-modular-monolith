@@ -72,6 +72,8 @@
     <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.3" />
     <PackageReference Include="AspNetCore.HealthChecks.UI" Version="9.0.0" />
+    <PackageReference Include="KubernetesClient" Version="17.0.14" />
+    <PackageReference Include="IdentityModel" Version="7.0.0" />
     <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
     <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="9.0.0" />
     <PackageReference Include="AspNetCore.HealthChecks.EventStore" Version="9.0.0" />
