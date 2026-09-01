@@ -303,6 +303,7 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
+// Monolith entry point (kept for backward compatibility)
 var api = builder.AddProject<Api>("api")
     .WithReference(persistMessageDb)
     .WaitFor(persistMessageDb)
@@ -320,5 +321,55 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
+
+// Microservices entry points
+var flightApi = builder.AddProject<Flight_Api>("flight-api")
+    .WithReference(flightDb)
+    .WaitFor(flightDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithHttpEndpoint(port: 5001, name: "flight-http");
+
+var identityApi = builder.AddProject<Identity_Api>("identity-api")
+    .WithReference(identityDb)
+    .WaitFor(identityDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithHttpEndpoint(port: 5002, name: "identity-http");
+
+var passengerApi = builder.AddProject<Passenger_Api>("passenger-api")
+    .WithReference(passengerDb)
+    .WaitFor(passengerDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithHttpEndpoint(port: 5003, name: "passenger-http");
+
+var bookingApi = builder.AddProject<Booking_Api>("booking-api")
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(flightApi)
+    .WithReference(passengerApi)
+    .WithHttpEndpoint(port: 5004, name: "booking-http");
+
+var gateway = builder.AddProject<Projects.Gateway>("gateway")
+    .WithReference(flightApi)
+    .WithReference(identityApi)
+    .WithReference(passengerApi)
+    .WithReference(bookingApi)
+    .WithHttpEndpoint(port: 5000, name: "gateway-http");
 
 builder.Build().Run();

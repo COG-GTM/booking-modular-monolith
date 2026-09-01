@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Identity.Api</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../../Modules/Identity/src/Identity.csproj" />
+    <ProjectReference Include="../../../../Aspire/src/ServiceDefaults/ServiceDefaults.csproj" />
+  </ItemGroup>
+</Project>
