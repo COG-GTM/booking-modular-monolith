@@ -24,6 +24,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Api\src\Api.csproj" />
+    <ProjectReference Include="..\..\..\Services\Flight.Api\Flight.Api.csproj" />
+    <ProjectReference Include="..\..\..\Services\Passenger.Api\Passenger.Api.csproj" />
+    <ProjectReference Include="..\..\..\Services\Booking.Api\Booking.Api.csproj" />
+    <ProjectReference Include="..\..\..\Services\Identity.Api\Identity.Api.csproj" />
+    <ProjectReference Include="..\..\..\Services\Gateway\Gateway.csproj" />
   </ItemGroup>
 
 </Project>
