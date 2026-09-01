@@ -321,4 +321,45 @@ var api = builder.AddProject<Api>("api")
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
 
+// 5. Individual Microservice API Hosts
+var flightApi = builder.AddProject<Flight_Api>("flight-api")
+    .WithReference(flightDb)
+    .WaitFor(flightDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb);
+
+var identityApi = builder.AddProject<Identity_Api>("identity-api")
+    .WithReference(identityDb)
+    .WaitFor(identityDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb);
+
+var passengerApi = builder.AddProject<Passenger_Api>("passenger-api")
+    .WithReference(passengerDb)
+    .WaitFor(passengerDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb);
+
+var bookingApi = builder.AddProject<Booking_Api>("booking-api")
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(flightApi)
+    .WithReference(passengerApi);
+
 builder.Build().Run();
