@@ -1,4 +1,3 @@
-using Api.Extensions;
 using Booking.Extensions.Infrastructure;
 using BuildingBlocks.Web;
 using Flight.Extensions.Infrastructure;

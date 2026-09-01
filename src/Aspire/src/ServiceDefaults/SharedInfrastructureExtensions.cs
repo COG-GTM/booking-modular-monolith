@@ -1,4 +1,3 @@
-using Booking;
 using BuildingBlocks.Core;
 using BuildingBlocks.Exception;
 using BuildingBlocks.Jwt;
@@ -8,16 +7,19 @@ using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Figgle.Fonts;
-using Flight;
-using Identity;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Passenger;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Api.Extensions;
+namespace Microsoft.Extensions.Hosting;
 
 public static class SharedInfrastructureExtensions
 {
-    public static WebApplicationBuilder AddSharedInfrastructure(this WebApplicationBuilder builder)
+    public static WebApplicationBuilder AddSharedInfrastructure(
+        this WebApplicationBuilder builder,
+        TransportType transportType = TransportType.InMemory
+    )
     {
         var appOptions = builder.Services.GetOptions<AppOptions>(nameof(AppOptions));
         Console.WriteLine(FiggleFonts.Standard.Render(appOptions.Name));
@@ -38,7 +40,7 @@ public static class SharedInfrastructureExtensions
 
         builder.Services.AddCustomMassTransit(
             builder.Environment,
-            TransportType.InMemory,
+            transportType,
             AppDomain.CurrentDomain.GetAssemblies()
         );
 
@@ -55,15 +57,19 @@ public static class SharedInfrastructureExtensions
         });
         builder.Services.AddProblemDetails();
 
+        var services = builder.Services;
         builder.Services.AddScoped<IEventMapper>(sp =>
         {
-            var mappers = new IEventMapper[]
-            {
-                sp.GetRequiredService<FlightEventMapper>(),
-                sp.GetRequiredService<IdentityEventMapper>(),
-                sp.GetRequiredService<PassengerEventMapper>(),
-                sp.GetRequiredService<BookingEventMapper>(),
-            };
+            var mapperTypes = services
+                .Where(descriptor =>
+                    descriptor.ServiceType != typeof(IEventMapper)
+                    && typeof(IEventMapper).IsAssignableFrom(descriptor.ServiceType)
+                )
+                .Select(descriptor => descriptor.ServiceType)
+                .Distinct()
+                .ToList();
+
+            var mappers = mapperTypes.Select(mapperType => (IEventMapper)sp.GetRequiredService(mapperType)).ToArray();
 
             return new CompositeEventMapper(mappers);
         });
