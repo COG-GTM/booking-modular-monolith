@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="GrpcServer\Protos\passenger.proto" GrpcServices="Both" />
+    <Protobuf Include="..\..\..\BuildingBlocks\Contracts\Protos\passenger.proto" GrpcServices="Both" Link="GrpcServer\Protos\passenger.proto" />
   </ItemGroup>
 
   <ItemGroup>

@@ -355,6 +355,120 @@ services:
     networks:
       - booking
 
+  #######################################################
+  #  identity-service
+  #######################################################
+  identity-service:
+    image: booking-identity-service
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Identity/Identity.Api/Dockerfile
+    container_name: identity-service
+    ports:
+      - 5001:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - PostgresOptions__ConnectionString__Identity=Server=postgres;Port=5432;Database=identity_modular_monolith;User Id=postgres;Password=postgres;Include Error Detail=true
+      - PersistMessageOptions__ConnectionString=Server=postgres;Port=5432;Database=persist_message;User Id=postgres;Password=postgres;Include Error Detail=true
+      - RabbitMqOptions__HostName=rabbitmq
+      - Jwt__Authority=http://identity-service
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - booking
+
+  #######################################################
+  #  flight-service
+  #######################################################
+  flight-service:
+    image: booking-flight-service
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Flight/Flight.Api/Dockerfile
+    container_name: flight-service
+    ports:
+      - 5002:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - PostgresOptions__ConnectionString__Flight=Server=postgres;Port=5432;Database=flight_modular_monolith;User Id=postgres;Password=postgres;Include Error Detail=true
+      - PersistMessageOptions__ConnectionString=Server=postgres;Port=5432;Database=persist_message;User Id=postgres;Password=postgres;Include Error Detail=true
+      - MongoOptions__ConnectionString=mongodb://mongo:27017
+      - RabbitMqOptions__HostName=rabbitmq
+      - Jwt__Authority=http://identity-service
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+      - identity-service
+    networks:
+      - booking
+
+  #######################################################
+  #  passenger-service
+  #######################################################
+  passenger-service:
+    image: booking-passenger-service
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Passenger/Passenger.Api/Dockerfile
+    container_name: passenger-service
+    ports:
+      - 5003:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - PostgresOptions__ConnectionString__Passenger=Server=postgres;Port=5432;Database=passenger_modular_monolith;User Id=postgres;Password=postgres;Include Error Detail=true
+      - PersistMessageOptions__ConnectionString=Server=postgres;Port=5432;Database=persist_message;User Id=postgres;Password=postgres;Include Error Detail=true
+      - MongoOptions__ConnectionString=mongodb://mongo:27017
+      - RabbitMqOptions__HostName=rabbitmq
+      - Jwt__Authority=http://identity-service
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+      - identity-service
+    networks:
+      - booking
+
+  #######################################################
+  #  booking-service
+  #######################################################
+  booking-service:
+    image: booking-booking-service
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Booking/Booking.Api/Dockerfile
+    container_name: booking-service
+    ports:
+      - 5004:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - PersistMessageOptions__ConnectionString=Server=postgres;Port=5432;Database=persist_message;User Id=postgres;Password=postgres;Include Error Detail=true
+      - MongoOptions__ConnectionString=mongodb://mongo:27017
+      - EventStoreOptions__ConnectionString=esdb://eventstore:2113?tls=false
+      - RabbitMqOptions__HostName=rabbitmq
+      - Grpc__FlightAddress=http://flight-service
+      - Grpc__PassengerAddress=http://passenger-service
+      - Jwt__Authority=http://identity-service
+    depends_on:
+      - postgres
+      - mongo
+      - eventstore
+      - rabbitmq
+      - identity-service
+      - flight-service
+      - passenger-service
+    networks:
+      - booking
+
 networks:
   booking:
     name: booking
