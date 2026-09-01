@@ -216,6 +216,19 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
         return result;
     }
 
+    public async Task<bool> WaitForConsuming<TMessage>(CancellationToken cancellationToken = default)
+        where TMessage : class, IEvent
+    {
+        var result = await WaitUntilConditionMet(async () =>
+        {
+            var consumed = await TestHarness.Consumed.Any<TMessage>(cancellationToken);
+
+            return consumed;
+        });
+
+        return result;
+    }
+
     // Ref: https://tech.energyhelpline.com/in-memory-testing-with-masstransit/
     private async Task<bool> WaitUntilConditionMet(Func<Task<bool>> conditionToMet, int? timeoutSecond = null)
     {
