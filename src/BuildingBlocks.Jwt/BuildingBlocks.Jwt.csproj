@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>BuildingBlocks</RootNamespace>
+    <Description>Authentication/JWT for the booking microservices.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BuildingBlocks.Core\BuildingBlocks.Core.csproj" />
+    <ProjectReference Include="..\BuildingBlocks.Web\BuildingBlocks.Web.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.3" />
+    <PackageReference Include="Duende.IdentityServer" Version="7.4.6" />
+    <PackageReference Include="Duende.IdentityServer.AspNetIdentity" Version="7.4.6" />
+    <PackageReference Include="Duende.IdentityServer.EntityFramework" Version="7.4.6" />
+    <PackageReference Include="Duende.IdentityServer.EntityFramework.Storage" Version="7.4.6" />
+  </ItemGroup>
+
+</Project>
