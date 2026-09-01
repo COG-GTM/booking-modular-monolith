@@ -12,6 +12,31 @@ using Exception;
 
 public static class Extensions
 {
+    // Configuration key used to select the transport (e.g. "MessageBroker:Transport" = "RabbitMq" | "InMemory").
+    private const string TransportConfigurationKey = "MessageBroker:Transport";
+
+    public static IServiceCollection AddCustomMassTransit(
+        this IServiceCollection services,
+        IWebHostEnvironment env,
+        IConfiguration configuration,
+        params Assembly[] assembly
+    )
+    {
+        var transportType = ResolveTransportType(configuration);
+
+        return services.AddCustomMassTransit(env, transportType, assembly);
+    }
+
+    private static TransportType ResolveTransportType(IConfiguration configuration)
+    {
+        var configuredTransport = configuration[TransportConfigurationKey];
+
+        // Fall back to the in-memory transport when nothing (or an unknown value) is configured.
+        return Enum.TryParse<TransportType>(configuredTransport, ignoreCase: true, out var transportType)
+            ? transportType
+            : TransportType.InMemory;
+    }
+
     public static IServiceCollection AddCustomMassTransit(
         this IServiceCollection services,
         IWebHostEnvironment env,

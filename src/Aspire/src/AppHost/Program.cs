@@ -318,7 +318,25 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(eventstore)
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
+    .WithEnvironment("MessageBroker__Transport", "RabbitMq")
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
+
+// Standalone Flight microservice extracted from the monolith. Shares the RabbitMQ broker
+// with the Api host so Flight integration events cross process boundaries.
+var flightService = builder.AddProject<FlightService>("flight-service")
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
+    .WithReference(flightDb)
+    .WaitFor(flightDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithEnvironment("MessageBroker__Transport", "RabbitMq")
+    .WithHttpEndpoint(port: 4001, name: "flight-http")
+    .WithHttpsEndpoint(port: 4000, name: "flight-https");
 
 builder.Build().Run();
