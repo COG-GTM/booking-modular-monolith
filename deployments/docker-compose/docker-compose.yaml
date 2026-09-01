@@ -330,7 +330,7 @@ services:
       - booking
 
   #######################################################
-  #  booking-modular-monolith
+  #  booking-modular-monolith (deprecated - kept for transition)
   #######################################################
   booking_modular_monolith:
     image: booking-modular-monolith
@@ -352,6 +352,129 @@ services:
       - ASPNETCORE_HTTP_PORT=3001
       - ASPNETCORE_Kestrel__Certificates__Default__Password=password
       - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    networks:
+      - booking
+
+  #######################################################
+  #  flight-api
+  #######################################################
+  flight-api:
+    image: flight-api
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Flight.Api/Dockerfile
+    container_name: flight-api
+    ports:
+      - "5010:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=http://+
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+    networks:
+      - booking
+
+  #######################################################
+  #  passenger-api
+  #######################################################
+  passenger-api:
+    image: passenger-api
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Passenger.Api/Dockerfile
+    container_name: passenger-api
+    ports:
+      - "5020:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=http://+
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+    networks:
+      - booking
+
+  #######################################################
+  #  booking-api
+  #######################################################
+  booking-api:
+    image: booking-api
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Booking.Api/Dockerfile
+    container_name: booking-api
+    ports:
+      - "5030:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=http://+
+      - Grpc__FlightAddress=http://flight-api:80
+      - Grpc__PassengerAddress=http://passenger-api:80
+    depends_on:
+      - mongo
+      - eventstore
+      - rabbitmq
+      - flight-api
+      - passenger-api
+    networks:
+      - booking
+
+  #######################################################
+  #  identity-api
+  #######################################################
+  identity-api:
+    image: identity-api
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Identity.Api/Dockerfile
+    container_name: identity-api
+    ports:
+      - "5005:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=http://+
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - booking
+
+  #######################################################
+  #  gateway
+  #######################################################
+  gateway:
+    image: gateway
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Gateway/Dockerfile
+    container_name: gateway
+    ports:
+      - "5050:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=http://+
+      - ReverseProxy__Clusters__flight-cluster__Destinations__flight-api__Address=http://flight-api:80
+      - ReverseProxy__Clusters__booking-cluster__Destinations__booking-api__Address=http://booking-api:80
+      - ReverseProxy__Clusters__passenger-cluster__Destinations__passenger-api__Address=http://passenger-api:80
+      - ReverseProxy__Clusters__identity-cluster__Destinations__identity-api__Address=http://identity-api:80
+    depends_on:
+      - flight-api
+      - passenger-api
+      - booking-api
+      - identity-api
     networks:
       - booking
 
