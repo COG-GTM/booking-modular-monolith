@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>BuildingBlocks.Contracts</RootNamespace>
+    <Description>Shared integration event contracts for inter-service communication</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BuildingBlocks.csproj" />
+  </ItemGroup>
+</Project>
