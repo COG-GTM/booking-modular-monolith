@@ -1,5 +1,6 @@
 using BuildingBlocks.EFCore;
 using BuildingBlocks.Mapster;
+using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Web;
 using FluentValidation;
 using Identity.Data;
@@ -9,7 +10,6 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Identity.Extensions.Infrastructure;
-
 
 public static class InfrastructureExtensions
 {
@@ -23,6 +23,8 @@ public static class InfrastructureExtensions
         builder.Services.AddScoped<IDataSeeder, IdentityDataSeeder>();
         builder.AddCustomIdentityServer();
 
+        builder.AddPersistMessageProcessor<IdentityPersistMessageDbContext>("persist-message-identity");
+
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -32,7 +34,6 @@ public static class InfrastructureExtensions
 
         return builder;
     }
-
 
     public static WebApplication UseIdentityModules(this WebApplication app)
     {

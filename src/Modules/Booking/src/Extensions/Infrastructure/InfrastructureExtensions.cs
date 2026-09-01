@@ -2,6 +2,7 @@ using Booking.Data;
 using BuildingBlocks.EventStoreDB;
 using BuildingBlocks.Mapster;
 using BuildingBlocks.Mongo;
+using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Web;
 using FluentValidation;
 using Microsoft.AspNetCore.Builder;
@@ -20,16 +21,18 @@ public static class InfrastructureExtensions
         builder.AddMongoDbContext<BookingReadDbContext>();
 
         // ref: https://github.com/oskardudycz/EventSourcing.NetCore/tree/main/Sample/EventStoreDB/ECommerce
-        builder.Services.AddEventStore(builder.Configuration, typeof(BookingRoot).Assembly)
+        builder
+            .Services.AddEventStore(builder.Configuration, typeof(BookingRoot).Assembly)
             .AddEventStoreDBSubscriptionToAll();
 
         builder.Services.AddGrpcClients();
+
+        builder.AddPersistMessageProcessor<BookingPersistMessageDbContext>("persist-message-booking");
 
         builder.Services.AddCustomMediatR();
 
         return builder;
     }
-
 
     public static WebApplication UseBookingModules(this WebApplication app)
     {
