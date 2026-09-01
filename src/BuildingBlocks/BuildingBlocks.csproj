@@ -51,6 +51,7 @@
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.1.2" />
     <PackageReference Include="MassTransit" Version="8.5.8" />
     <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.8" />
+    <PackageReference Include="IdentityModel" Version="7.0.0" />
     <PackageReference Include="Duende.IdentityServer" Version="7.4.6" />
     <PackageReference Include="Duende.IdentityServer.AspNetIdentity" Version="7.4.6" />
     <PackageReference Include="Duende.IdentityServer.EntityFramework" Version="7.4.6" />
@@ -71,6 +72,7 @@
     <PackageReference Include="Xunit.Extensions.Logging" Version="1.1.0" />
     <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.3" />
+    <PackageReference Include="KubernetesClient" Version="17.0.14" />
     <PackageReference Include="AspNetCore.HealthChecks.UI" Version="9.0.0" />
     <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
     <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="9.0.0" />
