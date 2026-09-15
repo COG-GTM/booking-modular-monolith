@@ -45,7 +45,7 @@
 
 - :sparkle: Using `Vertical Slice Architecture` for `architecture` level.
 - :sparkle: Using `Domain Driven Design (DDD)` to implement all `business logic`.
-- :sparkle: Using `InMemory Broker` on top of `Masstransit` for `Event Driven Architecture`.
+- :sparkle: Using `RabbitMQ Broker` on top of `Masstransit` for `Event Driven Architecture`.
 - :sparkle: Using `gRPC` for `internal communication`.
 - :sparkle: Using `CQRS` implementation with `MediatR` library.
 - :sparkle: Using `Postgres` for `write side` database.
