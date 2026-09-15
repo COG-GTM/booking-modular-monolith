@@ -38,7 +38,7 @@ public static class SharedInfrastructureExtensions
 
         builder.Services.AddCustomMassTransit(
             builder.Environment,
-            TransportType.InMemory,
+            TransportType.RabbitMq,
             AppDomain.CurrentDomain.GetAssemblies()
         );
 
