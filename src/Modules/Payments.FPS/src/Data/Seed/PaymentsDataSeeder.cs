@@ -11,17 +11,18 @@ public class PaymentsDataSeeder(PaymentsDbContext db, PaymentsReadDbContext read
 {
     public async Task SeedAllAsync()
     {
-        if (
-            !(await db.Database.GetPendingMigrationsAsync()).Any()
-            && !await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(db.OutboundPayments)
-        )
+        if ((await db.Database.GetPendingMigrationsAsync()).Any())
+            return;
+
+        if (!await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(db.OutboundPayments))
         {
             await db.OutboundPayments.AddRangeAsync(InitialData.OutboundPayments);
             await db.SaveChangesAsync();
-            if (!await readDb.OutboundPayment.EstimatedDocumentCountAsync().ContinueWith(x => x.Result > 0))
-                await readDb.OutboundPayment.InsertManyAsync(
-                    mapper.Map<List<OutboundPaymentReadModel>>(InitialData.OutboundPayments)
-                );
         }
+
+        if (await readDb.OutboundPayment.EstimatedDocumentCountAsync() == 0)
+            await readDb.OutboundPayment.InsertManyAsync(
+                mapper.Map<List<OutboundPaymentReadModel>>(InitialData.OutboundPayments)
+            );
     }
 }

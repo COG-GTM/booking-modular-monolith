@@ -31,10 +31,12 @@ public class ReceiveSchemeSettlementHandler(
     {
         Guard.Against.Null(context.Message, nameof(SchemeSettlementReceived));
         var messageId = context.Message.EventId;
-        var received = await persistMessageProcessor.GetByFilterAsync(x =>
-            x.Id == messageId && x.DeliveryType == MessageDeliveryType.Inbox
-        );
-        if (received.Count > 0)
+        var received = (
+            await persistMessageProcessor.GetByFilterAsync(x =>
+                x.Id == messageId && x.DeliveryType == MessageDeliveryType.Inbox
+            )
+        ).SingleOrDefault();
+        if (received?.MessageStatus == MessageStatus.Processed)
         {
             logger.LogInformation(
                 "Scheme settlement {MessageId} already received in {Application}, skipping",
@@ -43,9 +45,10 @@ public class ReceiveSchemeSettlementHandler(
             );
             return;
         }
-        await persistMessageProcessor.AddReceivedMessageAsync(
-            new MessageEnvelope(context.Message, context.Headers.ToDictionary(x => x.Key, x => x.Value))
-        );
+        if (received is null)
+            await persistMessageProcessor.AddReceivedMessageAsync(
+                new MessageEnvelope(context.Message, context.Headers.ToDictionary(x => x.Key, x => x.Value))
+            );
         var payment = await db.OutboundPayments.SingleOrDefaultAsync(x =>
             x.Id == OutboundPaymentId.Of(context.Message.PaymentId)
         );

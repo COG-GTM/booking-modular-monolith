@@ -119,4 +119,86 @@ public class ReceiveSchemeSettlementTests : PaymentsIntegrationTestBase
         rejected!.Status.Should().Be(PaymentStatus.Rejected);
         rejected.RejectionReason.Should().Be("AC01");
     }
+
+    [Fact]
+    public async Task should_apply_settlement_on_redelivery_after_failed_attempt()
+    {
+        var paymentId = NewId.NextGuid();
+        var message = new SchemeSettlementReceived(paymentId, true, null) { EventId = NewId.NextGuid() };
+
+        await Fixture.Publish(message);
+        var harness = Fixture.ServiceProvider.GetTestHarness();
+        var consumed = harness.Consumed.SelectAsync<SchemeSettlementReceived>();
+        var deadline = DateTime.UtcNow.AddSeconds(60);
+        while (
+            DateTime.UtcNow < deadline && !await consumed.AnyAsync(x => x.Context.Message.EventId == message.EventId)
+        )
+            await Task.Delay(100);
+
+        var inboxDeadline = DateTime.UtcNow.AddSeconds(30);
+        PersistMessage? inboxRow = null;
+        while (DateTime.UtcNow < inboxDeadline && inboxRow is null)
+        {
+            using var scope = Fixture.ServiceProvider.CreateScope();
+            var persist = scope.ServiceProvider.GetRequiredService<IPersistMessageDbContext>();
+            inboxRow = await persist.PersistMessage.SingleOrDefaultAsync(x =>
+                x.Id == message.EventId && x.DeliveryType == MessageDeliveryType.Inbox
+            );
+            if (inboxRow is null)
+                await Task.Delay(100);
+        }
+        inboxRow.Should().NotBeNull();
+        inboxRow!.MessageStatus.Should().NotBe(MessageStatus.Processed);
+
+        var payment = Payments.FPS.OutboundPayments.Models.OutboundPayment.Create(
+            OutboundPaymentId.Of(paymentId),
+            Amount.Of(100m),
+            UkAccount.Of("040004", "12345678"),
+            UkAccount.Of("202020", "87654321"),
+            "REDELIVERY"
+        );
+        payment.Submit();
+        await Fixture.InsertAsync(payment);
+        await Fixture.InsertMongoDbContextAsync(
+            "outbound_payment",
+            new OutboundPaymentReadModel
+            {
+                Id = NewId.NextGuid(),
+                OutboundPaymentId = paymentId,
+                Amount = 100m,
+                Currency = "GBP",
+                DebtorSortCode = "040004",
+                DebtorAccountNumber = "12345678",
+                CreditorSortCode = "202020",
+                CreditorAccountNumber = "87654321",
+                Reference = "REDELIVERY",
+                Status = PaymentStatus.Submitted,
+                IsDeleted = false,
+            }
+        );
+
+        await Fixture.Publish(message);
+        var settledDeadline = DateTime.UtcNow.AddSeconds(60);
+        while (DateTime.UtcNow < settledDeadline)
+        {
+            var current = await Fixture.ExecuteDbContextAsync(db =>
+                db.OutboundPayments.FindAsync(OutboundPaymentId.Of(paymentId))
+            );
+            if (current?.Status == PaymentStatus.Settled)
+                break;
+            await Task.Delay(100);
+        }
+
+        var settled = await Fixture.ExecuteDbContextAsync(db =>
+            db.OutboundPayments.FindAsync(OutboundPaymentId.Of(paymentId))
+        );
+        settled!.Status.Should().Be(PaymentStatus.Settled);
+        using var finalScope = Fixture.ServiceProvider.CreateScope();
+        var finalPersist = finalScope.ServiceProvider.GetRequiredService<IPersistMessageDbContext>();
+        var inboxRows = await finalPersist
+            .PersistMessage.Where(x => x.Id == message.EventId && x.DeliveryType == MessageDeliveryType.Inbox)
+            .ToListAsync();
+        inboxRows.Should().ContainSingle();
+        inboxRows[0].MessageStatus.Should().Be(MessageStatus.Processed);
+    }
 }
