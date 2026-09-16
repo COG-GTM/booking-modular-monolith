@@ -29,7 +29,7 @@ namespace BuildingBlocks.Mongo
                 .Where(p => IsReadOnlyProperty(classMap, p))
                 .ToList();
 
-            foreach (var constructor in classMap.ClassType.GetConstructors())
+            foreach (var constructor in classMap.ClassType.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
             {
                 // If we found a matching constructor then we map it and all the readonly properties
                 var matchProperties = GetMatchingProperties(constructor, readOnlyProperties);

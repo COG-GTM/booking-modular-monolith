@@ -2,6 +2,7 @@ using BuildingBlocks.TestBase;
 using FluentAssertions;
 using Integration.Test.Fakes;
 using Passenger.Data;
+using Passenger.Passengers.Exceptions;
 using Passenger.Passengers.ValueObjects;
 using Xunit;
 
@@ -37,5 +38,18 @@ public class CompleteRegisterPassengerTests : PassengerIntegrationTestBase
         response?.PassengerDto?.PassportNumber.Should().Be(command.PassportNumber);
         response?.PassengerDto?.PassengerType.ToString().Should().Be(command.PassengerType.ToString());
         response?.PassengerDto?.Age.Should().Be(command.Age);
+    }
+
+    [Fact]
+    public async Task should_throw_when_passenger_does_not_exist()
+    {
+        // Arrange
+        var command = new FakeCompleteRegisterPassengerCommand("000000000", Guid.NewGuid()).Generate();
+
+        // Act
+        Func<Task> act = async () => await Fixture.SendAsync(command);
+
+        // Assert
+        await act.Should().ThrowAsync<PassengerNotExist>();
     }
 }

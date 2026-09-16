@@ -5,6 +5,7 @@ using FluentAssertions;
 using Integration.Test.Fakes;
 using Passenger;
 using Passenger.Data;
+using Passenger.Passengers.Exceptions;
 using Xunit;
 
 namespace Integration.Test.Passenger.Features;
@@ -52,5 +53,18 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         // Assert
         response?.Should().NotBeNull();
         response?.PassengerDto?.Id.Should().Be(command.Id.ToString());
+    }
+
+    [Fact]
+    public async Task should_throw_not_found_when_passenger_does_not_exist()
+    {
+        // Arrange
+        var query = new GetPassengerById(Guid.NewGuid());
+
+        // Act
+        Func<Task> act = async () => await Fixture.SendAsync(query);
+
+        // Assert
+        await act.Should().ThrowAsync<PassengerNotFoundException>();
     }
 }

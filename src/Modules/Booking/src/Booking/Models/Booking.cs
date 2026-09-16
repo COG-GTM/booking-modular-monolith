@@ -14,8 +14,9 @@ public record Booking : AggregateEventSourcing<Guid>
     {
         var booking = new Booking { Id = id, Trip = trip, PassengerInfo = passengerInfo, IsDeleted = isDeleted };
 
-        var @event = new BookingCreatedDomainEvent(booking.Id, booking.PassengerInfo, booking.Trip)
+        var @event = new BookingCreatedDomainEvent(booking.PassengerInfo, booking.Trip)
         {
+            Id = booking.Id,
             IsDeleted = booking.IsDeleted,
             CreatedAt = DateTime.Now,
             CreatedBy = userId

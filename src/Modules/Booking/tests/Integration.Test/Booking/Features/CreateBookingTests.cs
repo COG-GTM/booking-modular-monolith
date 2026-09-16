@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using Api;
+using Booking.Booking.Exceptions;
 using Booking.Data;
 using BookingFlight;
 using BookingPassenger;
@@ -43,6 +44,20 @@ namespace Integration.Test.Booking.Features
             response?.Id.Should().BeGreaterThanOrEqualTo(0);
 
             (await Fixture.WaitForPublishing<BookingCreated>()).Should().Be(true);
+        }
+
+        [Fact]
+        public async Task should_throw_when_booking_with_same_id_already_exists()
+        {
+            // Arrange
+            var command = new FakeCreateBookingCommand().Generate();
+            await Fixture.SendAsync(command);
+
+            // Act
+            Func<Task> act = async () => await Fixture.SendAsync(command);
+
+            // Assert
+            await act.Should().ThrowAsync<BookingAlreadyExistException>();
         }
 
 
