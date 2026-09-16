@@ -271,6 +271,7 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
             {
                 new("PostgresOptions:ConnectionString", PostgresTestcontainer.GetConnectionString()),
                 new("PostgresOptions:ConnectionString:Flight", PostgresTestcontainer.GetConnectionString()),
+                new("PostgresOptions:ConnectionString:Payments", PostgresTestcontainer.GetConnectionString()),
                 new("PostgresOptions:ConnectionString:Identity", PostgresTestcontainer.GetConnectionString()),
                 new("PostgresOptions:ConnectionString:Passenger", PostgresTestcontainer.GetConnectionString()),
                 new("PersistMessageOptions:ConnectionString", PostgresPersistTestContainer.GetConnectionString()),

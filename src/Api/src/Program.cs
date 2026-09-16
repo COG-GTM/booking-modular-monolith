@@ -4,6 +4,7 @@ using BuildingBlocks.Web;
 using Flight.Extensions.Infrastructure;
 using Identity.Extensions.Infrastructure;
 using Passenger.Extensions.Infrastructure;
+using Payments.FPS.Extensions.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,7 @@ builder.AddFlightModules();
 builder.AddIdentityModules();
 builder.AddPassengerModules();
 builder.AddBookingModules();
+builder.AddPaymentsFpsModules();
 
 var app = builder.Build();
 
@@ -24,6 +26,7 @@ app.UseFlightModules();
 app.UseIdentityModules();
 app.UsePassengerModules();
 app.UseBookingModules();
+app.UsePaymentsFpsModules();
 
 app.UserSharedInfrastructure();
 app.MapMinimalEndpoints();

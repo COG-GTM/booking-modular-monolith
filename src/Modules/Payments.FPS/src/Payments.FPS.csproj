@@ -1,0 +1,8 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><RootNamespace>Payments.FPS</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3"><PrivateAssets>all</PrivateAssets><IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets></PackageReference>
+  </ItemGroup>
+  <ItemGroup><Folder Include="Data\Migrations" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.csproj" /></ItemGroup>
+</Project>

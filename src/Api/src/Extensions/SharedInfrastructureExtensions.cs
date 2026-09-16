@@ -12,6 +12,7 @@ using Flight;
 using Identity;
 using Microsoft.AspNetCore.Mvc;
 using Passenger;
+using Payments.FPS;
 
 namespace Api.Extensions;
 
@@ -63,6 +64,7 @@ public static class SharedInfrastructureExtensions
                 sp.GetRequiredService<IdentityEventMapper>(),
                 sp.GetRequiredService<PassengerEventMapper>(),
                 sp.GetRequiredService<BookingEventMapper>(),
+                sp.GetRequiredService<PaymentsFpsEventMapper>(),
             };
 
             return new CompositeEventMapper(mappers);
