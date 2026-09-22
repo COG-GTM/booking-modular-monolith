@@ -303,11 +303,22 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
-var api = builder.AddProject<Api>("api")
+var flightApi = builder.AddProject<Flight_Api>("flight-api")
     .WithReference(persistMessageDb)
     .WaitFor(persistMessageDb)
     .WithReference(flightDb)
     .WaitFor(flightDb)
+    .WithReference(mongo)
+    .WaitFor(mongo)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithHttpEndpoint(port: 5001, name: "flight-http")
+    .WithHttpsEndpoint(port: 5000, name: "flight-https")
+    .WithHttpsEndpoint(port: 5002, name: "grpc");
+
+var api = builder.AddProject<Api>("api")
+    .WithReference(persistMessageDb)
+    .WaitFor(persistMessageDb)
     .WithReference(passengerDb)
     .WaitFor(passengerDb)
     .WithReference(identityDb)
@@ -318,6 +329,8 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(eventstore)
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
+    .WithReference(flightApi)
+    .WaitFor(flightApi)
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
 
