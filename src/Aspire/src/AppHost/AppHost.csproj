@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Api\src\Api.csproj" />
+    <ProjectReference Include="..\..\..\Services\Flight\src\Flight.Api\Flight.Api.csproj" />
   </ItemGroup>
 
 </Project>

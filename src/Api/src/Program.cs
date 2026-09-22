@@ -1,7 +1,6 @@
 using Api.Extensions;
 using Booking.Extensions.Infrastructure;
 using BuildingBlocks.Web;
-using Flight.Extensions.Infrastructure;
 using Identity.Extensions.Infrastructure;
 using Passenger.Extensions.Infrastructure;
 
@@ -9,7 +8,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddSharedInfrastructure();
 
-builder.AddFlightModules();
 builder.AddIdentityModules();
 builder.AddPassengerModules();
 builder.AddBookingModules();
@@ -20,7 +18,6 @@ var app = builder.Build();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseFlightModules();
 app.UseIdentityModules();
 app.UsePassengerModules();
 app.UseBookingModules();
