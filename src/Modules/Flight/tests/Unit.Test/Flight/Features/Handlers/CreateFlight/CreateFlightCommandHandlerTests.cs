@@ -4,6 +4,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using global::Flight.Flights.Exceptions;
 using global::Flight.Flights.Features.CreatingFlight.V1;
 using global::Flight.Flights.ValueObjects;
 using Unit.Test.Common;
@@ -39,6 +40,23 @@ public class CreateFlightCommandHandlerTests
 
         entity?.Should().NotBeNull();
         response?.Id.Should().Be(entity.Id);
+    }
+
+    [Fact]
+    public async Task handler_with_duplicate_flight_id_should_throw_flight_already_exist_exception()
+    {
+        // Arrange
+        var existingFlight = FakeFlightCreate.Generate();
+        await _fixture.DbContext.Flights.AddAsync(existingFlight);
+        await _fixture.DbContext.SaveChangesAsync();
+
+        var command = new FakeCreateFlightCommand().Generate() with { Id = existingFlight.Id };
+
+        // Act
+        Func<Task> act = async () => { await Act(command, CancellationToken.None); };
+
+        // Assert
+        await act.Should().ThrowAsync<FlightAlreadyExistException>();
     }
 
     [Fact]
