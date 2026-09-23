@@ -148,6 +148,11 @@ public class QueryHandlerMetrics
             { TelemetryTags.Tracing.Application.Queries.QueryHandlerType, handlerType?.FullName },
         };
 
+        if (_activeQueriesCounter.Enabled)
+        {
+            _activeQueriesCounter.Add(-1, tags);
+        }
+
         if (_failedQueriesNumber.Enabled)
         {
             _failedQueriesNumber.Add(1, tags);

@@ -172,6 +172,13 @@ public sealed class ObservabilityPipelineBehaviorTests : IDisposable
         InstrumentsOf(CommandMeterName).Should().Contain(TelemetryTags.Metrics.Application.Commands.FaildCount);
         InstrumentsOf(CommandMeterName).Should().NotContain(TelemetryTags.Metrics.Application.Commands.SuccessCount);
         InstrumentsOf(QueryMeterName).Should().BeEmpty();
+        _measurements
+            .Where(m =>
+                m.Meter == CommandMeterName && m.Instrument == TelemetryTags.Metrics.Application.Commands.ActiveCount
+            )
+            .Select(m => m.Value)
+            .Should()
+            .Equal(1, -1);
     }
 
     [Fact]
@@ -189,6 +196,11 @@ public sealed class ObservabilityPipelineBehaviorTests : IDisposable
         InstrumentsOf(QueryMeterName).Should().Contain(name => name.EndsWith("failed.count"));
         InstrumentsOf(QueryMeterName).Should().NotContain(name => name.EndsWith("success.count"));
         InstrumentsOf(CommandMeterName).Should().BeEmpty();
+        _measurements
+            .Where(m => m.Meter == QueryMeterName && m.Instrument.EndsWith("active.count"))
+            .Select(m => m.Value)
+            .Should()
+            .Equal(1, -1);
     }
 
     [Fact]
