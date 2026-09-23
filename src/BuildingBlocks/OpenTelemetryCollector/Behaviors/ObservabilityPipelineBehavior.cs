@@ -16,8 +16,8 @@ public class ObservabilityPipelineBehavior<TRequest, TResponse>(
 {
     public async Task<TResponse> Handle(TRequest message, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
-        var isCommand = message is IQuery<TResponse>;
-        var isQuery = message is ICommand<TResponse>;
+        var isCommand = message is ICommand<TResponse>;
+        var isQuery = message is IQuery<TResponse>;
 
         if (isCommand)
         {
