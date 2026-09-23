@@ -1,6 +1,8 @@
+using System;
 using System.Threading.Tasks;
 using Api;
 using BuildingBlocks.Contracts.EventBus.Messages;
+using BuildingBlocks.Exception;
 using BuildingBlocks.TestBase;
 using Flight.Data;
 using FluentAssertions;
@@ -36,5 +38,35 @@ public class UpdateFlightTests : FlightIntegrationTestBase
         response?.Id.Should().Be(flightEntity.Id);
 
         (await Fixture.WaitForPublishing<FlightUpdated>()).Should().Be(true);
+    }
+
+    [Fact]
+    public async Task should_throw_validation_exception_when_update_flight_command_is_invalid()
+    {
+        // Arrange
+        var flightEntity = await Fixture.FindAsync<Flight, FlightId>(InitialData.Flights.First().Id);
+        var command = new FakeUpdateFlightCommand(flightEntity).Generate() with { Price = -1 };
+
+        // Act
+        Func<Task> act = () => Fixture.SendAsync(command);
+
+        // Assert
+        await act.Should().ThrowAsync<ValidationException>()
+            .WithMessage("Price must be greater than 0");
+    }
+
+    [Fact]
+    public async Task should_throw_validation_exception_when_update_flight_aircraft_id_is_empty()
+    {
+        // Arrange
+        var flightEntity = await Fixture.FindAsync<Flight, FlightId>(InitialData.Flights.First().Id);
+        var command = new FakeUpdateFlightCommand(flightEntity).Generate() with { AircraftId = Guid.Empty };
+
+        // Act
+        Func<Task> act = () => Fixture.SendAsync(command);
+
+        // Assert
+        await act.Should().ThrowAsync<ValidationException>()
+            .WithMessage("AircraftId must be not empty");
     }
 }
