@@ -1,10 +1,12 @@
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Unit.Test.Common;
 using Unit.Test.Fakes;
 using Xunit;
 
 namespace Unit.Test.Airport.Features.CreateAirportTests;
 
+using global::Flight.Airports.Exceptions;
 using global::Flight.Airports.Features.CreatingAirport.V1;
 using global::Flight.Airports.ValueObjects;
 
@@ -38,6 +40,21 @@ public class CreateAirportCommandHandlerTests
 
         entity?.Should().NotBeNull();
         response?.Id.Should().Be(entity.Id);
+    }
+
+    [Fact]
+    public async Task handler_with_existing_airport_code_should_throw_airport_already_exist_exception()
+    {
+        // Arrange
+        var existingAirport = await _fixture.DbContext.Airports.FirstAsync();
+        var command = new FakeCreateAirportCommand().Generate() with { Code = existingAirport.Code.Value };
+
+        // Act
+        var act = async () => { await Act(command, CancellationToken.None); };
+
+        // Assert
+        await act.Should().ThrowAsync<AirportAlreadyExistException>();
+        _fixture.DbContext.Airports.Local.Should().NotContain(x => x.Id == AirportId.Of(command.Id));
     }
 
     [Fact]
