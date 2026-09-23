@@ -216,6 +216,39 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
         return result;
     }
 
+    public async Task<bool> WaitForPublishing<TMessage>(
+        Func<IPublishedMessage<TMessage>, bool> filter,
+        CancellationToken cancellationToken = default
+    )
+        where TMessage : class, IEvent
+    {
+        var result = await WaitUntilConditionMet(async () =>
+        {
+            var published = await TestHarness.Published.Any<TMessage>(x => filter(x), cancellationToken);
+
+            return published;
+        });
+
+        return result;
+    }
+
+    public async Task<bool> WaitForConsuming<TMessage>(
+        Func<IReceivedMessage<TMessage>, bool> filter,
+        int count = 1,
+        CancellationToken cancellationToken = default
+    )
+        where TMessage : class
+    {
+        var result = await WaitUntilConditionMet(() =>
+        {
+            var consumed = TestHarness.Consumed.Select<TMessage>(x => filter(x), cancellationToken).Count();
+
+            return Task.FromResult(consumed >= count);
+        });
+
+        return result;
+    }
+
     // Ref: https://tech.energyhelpline.com/in-memory-testing-with-masstransit/
     private async Task<bool> WaitUntilConditionMet(Func<Task<bool>> conditionToMet, int? timeoutSecond = null)
     {
