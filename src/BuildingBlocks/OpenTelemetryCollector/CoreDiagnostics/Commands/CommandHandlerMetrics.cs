@@ -149,6 +149,11 @@ public class CommandHandlerMetrics
             { TelemetryTags.Tracing.Application.Commands.CommandHandlerType, handlerType?.FullName },
         };
 
+        if (_activeCommandsCounter.Enabled)
+        {
+            _activeCommandsCounter.Add(-1, tags);
+        }
+
         if (_failedCommandsNumber.Enabled)
         {
             _failedCommandsNumber.Add(1, tags);
