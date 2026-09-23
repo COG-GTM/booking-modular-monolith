@@ -10,4 +10,9 @@ public static class ApiRoutes
         public const string GetFlightById = $"{BaseApiPath}/flight/{Id}";
         public const string CreateFlight = $"{BaseApiPath}/flight";
     }
+
+    public static class Aircraft
+    {
+        public const string CreateAircraft = $"{BaseApiPath}/flight/aircraft";
+    }
 }
