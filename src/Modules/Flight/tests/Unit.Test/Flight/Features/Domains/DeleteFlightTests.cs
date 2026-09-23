@@ -6,17 +6,31 @@ using FluentAssertions;
 using global::Flight.Aircrafts.ValueObjects;
 using global::Flight.Airports.ValueObjects;
 using global::Flight.Flights.Enums;
-using global::Flight.Flights.Features.UpdatingFlight.V1;
+using global::Flight.Flights.Features.DeletingFlight.V1;
 using global::Flight.Flights.ValueObjects;
 using Unit.Test.Common;
 using Unit.Test.Fakes;
 using Xunit;
 
 [Collection(nameof(UnitTestFixture))]
-public class UpdateFlightTests
+public class DeleteFlightTests
 {
     [Fact]
-    public void can_update_valid_flight()
+    public void can_delete_valid_flight()
+    {
+        // Arrange
+        var fakeFlight = FakeFlightCreate.Generate();
+        fakeFlight.IsDeleted.Should().BeFalse();
+
+        // Act
+        FakeFlightDelete.Generate(fakeFlight);
+
+        // Assert
+        fakeFlight.IsDeleted.Should().BeTrue();
+    }
+
+    [Fact]
+    public void delete_preserves_existing_fields_when_passed_current_state()
     {
         // Arrange
         var fakeFlight = FakeFlightCreate.Generate();
@@ -30,13 +44,12 @@ public class UpdateFlightTests
         var originalDurationMinutes = fakeFlight.DurationMinutes;
         var originalFlightDate = fakeFlight.FlightDate;
         var originalStatus = fakeFlight.Status;
-        var originalIsDeleted = fakeFlight.IsDeleted;
+        var originalPrice = fakeFlight.Price;
 
         // Act
-        FakeFlightUpdate.Generate(fakeFlight);
+        FakeFlightDelete.Generate(fakeFlight);
 
         // Assert
-        fakeFlight.Price.Value.Should().Be(1000);
         fakeFlight.Id.Should().Be(originalId);
         fakeFlight.FlightNumber.Should().Be(originalFlightNumber);
         fakeFlight.AircraftId.Should().Be(originalAircraftId);
@@ -47,27 +60,28 @@ public class UpdateFlightTests
         fakeFlight.DurationMinutes.Should().BeSameAs(originalDurationMinutes);
         fakeFlight.FlightDate.Should().Be(originalFlightDate);
         fakeFlight.Status.Should().Be(originalStatus);
-        fakeFlight.IsDeleted.Should().Be(originalIsDeleted);
+        fakeFlight.Price.Should().BeSameAs(originalPrice);
+        fakeFlight.IsDeleted.Should().BeTrue();
     }
 
     [Fact]
-    public void update_sets_every_field_on_aggregate()
+    public void delete_sets_every_field_on_aggregate()
     {
         // Arrange
         var fakeFlight = FakeFlightCreate.Generate();
-        var newFlightNumber = FlightNumber.Of(fakeFlight.FlightNumber.Value + "-updated");
+        var newFlightNumber = FlightNumber.Of(fakeFlight.FlightNumber.Value + "-deleted");
         var newAircraftId = AircraftId.Of(Guid.NewGuid());
         var newDepartureAirportId = AirportId.Of(Guid.NewGuid());
         var newArriveAirportId = AirportId.Of(Guid.NewGuid());
-        var newDepartureDate = DepartureDate.Of(new DateTime(2030, 1, 10, 8, 0, 0, DateTimeKind.Utc));
-        var newArriveDate = ArriveDate.Of(new DateTime(2030, 1, 10, 12, 30, 0, DateTimeKind.Utc));
-        var newDurationMinutes = DurationMinutes.Of(270);
-        var newFlightDate = FlightDate.Of(new DateTime(2030, 1, 10, 0, 0, 0, DateTimeKind.Utc));
-        var newStatus = fakeFlight.Status == FlightStatus.Delay ? FlightStatus.Canceled : FlightStatus.Delay;
-        var newPrice = Price.Of(fakeFlight.Price.Value + 250);
+        var newDepartureDate = DepartureDate.Of(new DateTime(2032, 3, 15, 7, 0, 0, DateTimeKind.Utc));
+        var newArriveDate = ArriveDate.Of(new DateTime(2032, 3, 15, 10, 20, 0, DateTimeKind.Utc));
+        var newDurationMinutes = DurationMinutes.Of(200);
+        var newFlightDate = FlightDate.Of(new DateTime(2032, 3, 15, 0, 0, 0, DateTimeKind.Utc));
+        var newStatus = fakeFlight.Status == FlightStatus.Canceled ? FlightStatus.Completed : FlightStatus.Canceled;
+        var newPrice = Price.Of(fakeFlight.Price.Value + 99);
 
         // Act
-        fakeFlight.Update(
+        fakeFlight.Delete(
             fakeFlight.Id,
             newFlightNumber,
             newAircraftId,
@@ -78,8 +92,7 @@ public class UpdateFlightTests
             newDurationMinutes,
             newFlightDate,
             newStatus,
-            newPrice,
-            isDeleted: false
+            newPrice
         );
 
         // Assert
@@ -91,22 +104,21 @@ public class UpdateFlightTests
         fakeFlight.DepartureDate.Should().Be(newDepartureDate);
         fakeFlight.ArriveDate.Should().Be(newArriveDate);
         fakeFlight.DepartureDate.Value.Should().NotBe(fakeFlight.ArriveDate.Value);
-        fakeFlight.DurationMinutes.Value.Should().Be(270);
+        fakeFlight.DurationMinutes.Value.Should().Be(200);
         fakeFlight.FlightDate.Should().Be(newFlightDate);
         fakeFlight.Status.Should().Be(newStatus);
         fakeFlight.Price.Value.Should().Be(newPrice.Value);
-        fakeFlight.IsDeleted.Should().BeFalse();
+        fakeFlight.IsDeleted.Should().BeTrue();
     }
 
     [Fact]
-    public void update_with_is_deleted_true_marks_flight_deleted()
+    public void delete_with_explicit_is_deleted_false_does_not_mark_deleted()
     {
         // Arrange
         var fakeFlight = FakeFlightCreate.Generate();
-        fakeFlight.IsDeleted.Should().BeFalse();
 
         // Act
-        fakeFlight.Update(
+        fakeFlight.Delete(
             fakeFlight.Id,
             fakeFlight.FlightNumber,
             fakeFlight.AircraftId,
@@ -118,46 +130,46 @@ public class UpdateFlightTests
             fakeFlight.FlightDate,
             fakeFlight.Status,
             fakeFlight.Price,
-            isDeleted: true
+            isDeleted: false
         );
 
         // Assert
-        fakeFlight.IsDeleted.Should().BeTrue();
+        fakeFlight.IsDeleted.Should().BeFalse();
     }
 
     [Fact]
-    public void queue_domain_event_on_update()
+    public void queue_domain_event_on_delete()
     {
         // Arrange
         var fakeFlight = FakeFlightCreate.Generate();
         fakeFlight.ClearDomainEvents();
 
         // Act
-        FakeFlightUpdate.Generate(fakeFlight);
+        FakeFlightDelete.Generate(fakeFlight);
 
         // Assert
         fakeFlight.DomainEvents.Count.Should().Be(1);
-        fakeFlight.DomainEvents.FirstOrDefault().Should().BeOfType(typeof(FlightUpdatedDomainEvent));
+        fakeFlight.DomainEvents.FirstOrDefault().Should().BeOfType(typeof(FlightDeletedDomainEvent));
     }
 
     [Fact]
-    public void domain_event_on_update_carries_updated_state()
+    public void domain_event_on_delete_carries_deleted_state()
     {
         // Arrange
         var fakeFlight = FakeFlightCreate.Generate();
         fakeFlight.ClearDomainEvents();
-        var newFlightNumber = FlightNumber.Of("UPD-777");
+        var newFlightNumber = FlightNumber.Of("DEL-999");
         var newAircraftId = AircraftId.Of(Guid.NewGuid());
         var newDepartureAirportId = AirportId.Of(Guid.NewGuid());
         var newArriveAirportId = AirportId.Of(Guid.NewGuid());
-        var newDepartureDate = DepartureDate.Of(new DateTime(2031, 5, 1, 6, 15, 0, DateTimeKind.Utc));
-        var newArriveDate = ArriveDate.Of(new DateTime(2031, 5, 1, 9, 45, 0, DateTimeKind.Utc));
-        var newDurationMinutes = DurationMinutes.Of(210);
-        var newFlightDate = FlightDate.Of(new DateTime(2031, 5, 1, 0, 0, 0, DateTimeKind.Utc));
-        var newPrice = Price.Of(1234.56m);
+        var newDepartureDate = DepartureDate.Of(new DateTime(2033, 7, 20, 5, 30, 0, DateTimeKind.Utc));
+        var newArriveDate = ArriveDate.Of(new DateTime(2033, 7, 20, 8, 0, 0, DateTimeKind.Utc));
+        var newDurationMinutes = DurationMinutes.Of(150);
+        var newFlightDate = FlightDate.Of(new DateTime(2033, 7, 20, 0, 0, 0, DateTimeKind.Utc));
+        var newPrice = Price.Of(555.55m);
 
         // Act
-        fakeFlight.Update(
+        fakeFlight.Delete(
             fakeFlight.Id,
             newFlightNumber,
             newAircraftId,
@@ -167,9 +179,8 @@ public class UpdateFlightTests
             newArriveAirportId,
             newDurationMinutes,
             newFlightDate,
-            FlightStatus.Completed,
-            newPrice,
-            isDeleted: false
+            FlightStatus.Canceled,
+            newPrice
         );
 
         // Assert
@@ -177,20 +188,20 @@ public class UpdateFlightTests
             .DomainEvents.Should()
             .ContainSingle()
             .Which.Should()
-            .BeOfType<FlightUpdatedDomainEvent>()
+            .BeOfType<FlightDeletedDomainEvent>()
             .Subject;
 
         @event.Id.Should().Be(fakeFlight.Id.Value);
-        @event.FlightNumber.Should().Be("UPD-777");
+        @event.FlightNumber.Should().Be("DEL-999");
         @event.AircraftId.Should().Be(newAircraftId.Value);
         @event.DepartureAirportId.Should().Be(newDepartureAirportId.Value);
         @event.ArriveAirportId.Should().Be(newArriveAirportId.Value);
         @event.DepartureDate.Should().Be(newDepartureDate.Value);
         @event.ArriveDate.Should().Be(newArriveDate.Value);
-        @event.DurationMinutes.Should().Be(210);
+        @event.DurationMinutes.Should().Be(150);
         @event.FlightDate.Should().Be(newFlightDate.Value);
-        @event.Status.Should().Be(FlightStatus.Completed);
-        @event.Price.Should().Be(1234.56m);
-        @event.IsDeleted.Should().BeFalse();
+        @event.Status.Should().Be(FlightStatus.Canceled);
+        @event.Price.Should().Be(555.55m);
+        @event.IsDeleted.Should().BeTrue();
     }
 }
