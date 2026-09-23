@@ -28,7 +28,18 @@ public record CreateBooking(Guid PassengerId, Guid FlightId, string Description)
 
 public record CreateBookingResult(ulong Id);
 
-public record BookingCreatedDomainEvent(Guid Id, PassengerInfo PassengerInfo, Trip Trip) : Entity<Guid>, IDomainEvent;
+public record BookingCreatedDomainEvent : Entity<Guid>, IDomainEvent
+{
+    public BookingCreatedDomainEvent(Guid id, PassengerInfo passengerInfo, Trip trip)
+    {
+        Id = id;
+        PassengerInfo = passengerInfo;
+        Trip = trip;
+    }
+
+    public PassengerInfo PassengerInfo { get; init; }
+    public Trip Trip { get; init; }
+}
 
 public record CreateBookingRequestDto(Guid PassengerId, Guid FlightId, string Description);
 
