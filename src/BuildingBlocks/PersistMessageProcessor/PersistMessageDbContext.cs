@@ -6,12 +6,15 @@ using IsolationLevel = System.Data.IsolationLevel;
 
 namespace BuildingBlocks.PersistMessageProcessor;
 
-public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
+// Outbox/inbox store owned by a single module; TModule is the module's root marker type (e.g. FlightRoot)
+// so every module gets its own DbContext, connection string and persist_message table.
+public class PersistMessageDbContext<TModule> : DbContext, IPersistMessageDbContext<TModule>
+    where TModule : class
 {
-    private readonly ILogger<PersistMessageDbContext>? _logger;
+    private readonly ILogger<PersistMessageDbContext<TModule>>? _logger;
 
-    public PersistMessageDbContext(DbContextOptions<PersistMessageDbContext> options,
-        ILogger<PersistMessageDbContext>? logger = null)
+    public PersistMessageDbContext(DbContextOptions<PersistMessageDbContext<TModule>> options,
+        ILogger<PersistMessageDbContext<TModule>>? logger = null)
         : base(options)
     {
         _logger = logger;
