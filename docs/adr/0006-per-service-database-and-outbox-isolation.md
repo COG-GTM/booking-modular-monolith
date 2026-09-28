@@ -106,7 +106,7 @@ resolves the store through the consumer's module assembly).
 - **Data classification:** Identity DB holds user PII/credentials (unchanged); Passenger DB holds passenger PII (unchanged); outbox rows contain serialized integration events (may contain names/passport numbers) and now live only in the owning module's database instead of one shared table.
 - **Encryption at rest:** local docker volumes, none (unchanged); production: TBD — owner to confirm.
 - **Encryption in transit:** local dev plain TCP (unchanged); production connection strings should set `SSL Mode=Require` — TBD.
-- **AuthN / AuthZ:** one Postgres role per module, each owning exactly its database; `CONNECT` on every module DB revoked from `PUBLIC` (`deployments/docker-compose/init/postgres/01-service-databases.sql`). Application auth unchanged.
+- **AuthN / AuthZ:** one Postgres role per module, each owning exactly its database; `CONNECT` on every module DB revoked from `PUBLIC` (`deployments/docker-compose/init/postgres/01-service-databases.sql`). Application auth unchanged. Aspire local orchestration (`postgres.AddDatabase`) provisions the logical databases only and connects with the server credential; role-level isolation is enforced by the compose init script locally and by per-role credentials in deployed environments.
 - **Secrets:** dev credentials live in `appsettings.json` / Aspire parameters as before; production credentials must come from the deployment secret store per role.
 - **Audit logging:** unchanged (Serilog / OpenTelemetry).
 - **Data residency / regions:** unchanged.
