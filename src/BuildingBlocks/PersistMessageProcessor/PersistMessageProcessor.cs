@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Text.Json;
 using Ardalis.GuardClauses;
@@ -142,6 +143,8 @@ public class PersistMessageProcessor : IPersistMessageProcessor
         if (data is not IEvent)
             return false;
 
+        using var activity = StartOutboxActivity(messageEnvelope);
+
         await _publishEndpoint.Publish(data, context =>
         {
             foreach (var header in messageEnvelope.Headers)
@@ -154,6 +157,25 @@ public class PersistMessageProcessor : IPersistMessageProcessor
             message.DeliveryType);
 
         return true;
+    }
+
+    // The outbox publisher runs on a background loop with no ambient trace; re-parent it onto the W3C trace context
+    // captured when the message was persisted so the consumer's span links back to the originating request.
+    private static Activity? StartOutboxActivity(MessageEnvelope messageEnvelope)
+    {
+        if (!messageEnvelope.Headers.TryGetValue(TraceContextHeaders.TraceParent, out var traceParent) ||
+            string.IsNullOrEmpty(traceParent?.ToString()))
+            return null;
+
+        messageEnvelope.Headers.TryGetValue(TraceContextHeaders.TraceState, out var traceState);
+
+        if (!ActivityContext.TryParse(traceParent.ToString(), traceState?.ToString(), out var parentContext))
+            return null;
+
+        return PersistMessageActivitySource.Instance.StartActivity(
+            "persist-message.outbox.publish",
+            ActivityKind.Producer,
+            parentContext);
     }
 
     private async Task<bool> ProcessInternalAsync(PersistMessage message, CancellationToken cancellationToken)

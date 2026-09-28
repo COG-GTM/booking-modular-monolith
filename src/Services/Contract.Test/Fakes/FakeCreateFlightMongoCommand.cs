@@ -1,0 +1,22 @@
+namespace Contract.Test.Fakes;
+
+using System.Linq;
+using AutoBogus;
+using Flight.Data.Seed;
+using Flight.Flights.Enums;
+using Flight.Flights.Features.CreatingFlight.V1;
+using MassTransit;
+
+public sealed class FakeCreateFlightMongoCommand : AutoFaker<CreateFlightMongo>
+{
+    public FakeCreateFlightMongoCommand()
+    {
+        RuleFor(r => r.Id, _ => NewId.NextGuid());
+        RuleFor(r => r.FlightNumber, _ => "12FF");
+        RuleFor(r => r.DepartureAirportId, _ => InitialData.Airports.First().Id);
+        RuleFor(r => r.ArriveAirportId, _ => InitialData.Airports.Last().Id);
+        RuleFor(r => r.Status, _ => FlightStatus.Flying);
+        RuleFor(r => r.AircraftId, _ => InitialData.Aircrafts.First().Id);
+        RuleFor(r => r.IsDeleted, _ => false);
+    }
+}

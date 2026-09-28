@@ -25,8 +25,8 @@ jobs:
         if: success()
         id: build-test-flight-step
         with:
-          project-path: 'src/Modules/Flight/src/'
-          tests-path: 'src/Modules/Flight/tests/'
+          project-path: 'src/Services/Flight.Api/src/'
+          tests-path: 'src/Services/Flight.Api/tests/'
           # wildcard search for files with the ".cobertura.xml" extension in all subdirectories of the current directory
           # https://www.jamescroft.co.uk/combining-multiple-code-coverage-results-in-azure-devops/
           # https://stackoverflow.com/questions/53255065/dotnet-unit-test-with-coverlet-how-to-get-coverage-for-entire-solution-and-not
@@ -40,8 +40,8 @@ jobs:
         if: success()
         id: build-test-identity-step
         with:
-          project-path: 'src/Modules/Identity/src/'
-          tests-path: 'src/Modules/Identity/tests/'
+          project-path: 'src/Services/Identity.Api/src/'
+          tests-path: 'src/Services/Identity.Api/tests/'
           # wildcard search for files with the ".cobertura.xml" extension in all subdirectories of the current directory
           # https://www.jamescroft.co.uk/combining-multiple-code-coverage-results-in-azure-devops/
           # https://stackoverflow.com/questions/53255065/dotnet-unit-test-with-coverlet-how-to-get-coverage-for-entire-solution-and-not
@@ -55,8 +55,8 @@ jobs:
         if: success()
         id: build-test-passenger-step
         with:
-          project-path: 'src/Modules/Passenger/src/'
-          tests-path: 'src/Modules/Passenger/tests/'
+          project-path: 'src/Services/Passenger.Api/src/'
+          tests-path: 'src/Services/Passenger.Api/tests/'
           # wildcard search for files with the ".cobertura.xml" extension in all subdirectories of the current directory
           # https://www.jamescroft.co.uk/combining-multiple-code-coverage-results-in-azure-devops/
           # https://stackoverflow.com/questions/53255065/dotnet-unit-test-with-coverlet-how-to-get-coverage-for-entire-solution-and-not
@@ -70,14 +70,26 @@ jobs:
         if: success()
         id: build-test-booking-step
         with:
-          project-path: 'src/Modules/Booking/src/'
-          tests-path: 'src/Modules/Booking/tests/'
+          project-path: 'src/Services/Booking.Api/src/'
+          tests-path: 'src/Services/Booking.Api/tests/'
           # wildcard search for files with the ".cobertura.xml" extension in all subdirectories of the current directory
           # https://www.jamescroft.co.uk/combining-multiple-code-coverage-results-in-azure-devops/
           # https://stackoverflow.com/questions/53255065/dotnet-unit-test-with-coverlet-how-to-get-coverage-for-entire-solution-and-not
           reports-path: ${{ github.workspace }}/**/*.cobertura.xml
           reports-output-path: ${{ github.workspace }}/output/test-results
           service-name: 'Booking'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Test Service Contracts
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-contracts-step
+        with:
+          project-path: 'src/Services/Contract.Test/'
+          tests-path: 'src/Services/Contract.Test/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'Contracts'
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update Release Drafter

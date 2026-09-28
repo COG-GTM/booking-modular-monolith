@@ -1,11 +1,10 @@
-﻿{
+{
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "Modular.Monolith.Api": {
+    "Gateway": {
       "commandName": "Project",
       "dotnetRunMessages": true,
-      "launchUrl": "swagger",
-      "launchBrowser": true,
+      "launchBrowser": false,
       "applicationUrl": "https://localhost:3000;http://localhost:3001",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"

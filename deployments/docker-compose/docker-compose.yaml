@@ -330,28 +330,113 @@ services:
       - booking
 
   #######################################################
-  #  booking-modular-monolith
+  #  booking services (gateway + microservices)
   #######################################################
-  booking_modular_monolith:
-    image: booking-modular-monolith
+  gateway:
+    image: booking-gateway
     build:
       args:
         Version: "1"
       context: ../../
       dockerfile: src/Api/Dockerfile
-    container_name: booking_modular_monolith
+    container_name: gateway
+    restart: on-failure
     ports:
       - 3001:80
-      - 3000:443
-    volumes:
-      - ~/.aspnet/https:/https:ro
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
-      - ASPNETCORE_URLS=https://+;http://+
-      - ASPNETCORE_HTTPS_PORT=3000
-      - ASPNETCORE_HTTP_PORT=3001
-      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
-      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    depends_on:
+      - identity-api
+      - flight-api
+      - passenger-api
+      - booking-api
+    networks:
+      - booking
+
+  identity-api:
+    image: booking-identity-api
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Identity.Api/Dockerfile
+    container_name: identity-api
+    restart: on-failure
+    ports:
+      - 4001:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - booking
+
+  flight-api:
+    image: booking-flight-api
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Flight.Api/Dockerfile
+    container_name: flight-api
+    restart: on-failure
+    ports:
+      - 4011:80
+      - 4012:81
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - postgres
+      - rabbitmq
+      - mongo
+      - identity-api
+    networks:
+      - booking
+
+  passenger-api:
+    image: booking-passenger-api
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Passenger.Api/Dockerfile
+    container_name: passenger-api
+    restart: on-failure
+    ports:
+      - 4021:80
+      - 4022:81
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - postgres
+      - rabbitmq
+      - mongo
+      - identity-api
+    networks:
+      - booking
+
+  booking-api:
+    image: booking-booking-api
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Booking.Api/Dockerfile
+    container_name: booking-api
+    restart: on-failure
+    ports:
+      - 4031:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - postgres
+      - rabbitmq
+      - mongo
+      - eventstore
+      - identity-api
+      - flight-api
+      - passenger-api
     networks:
       - booking
 
