@@ -138,6 +138,28 @@ public class GatewayIngressTests : IClassFixture<DownstreamStub>, IAsyncLifetime
     }
 
     [Theory]
+    [InlineData("/api/v1/flight/get-available-flights", true)]
+    [InlineData("/api/v1/booking", true)]
+    [InlineData("/connect/token", false)]
+    [InlineData("/swagger/index.html", false)]
+    public async Task public_gateway_host_is_forwarded_verbatim_to_the_downstream(string path, bool withToken)
+    {
+        var client = _factory.CreateClient();
+        client.BaseAddress = new Uri("http://gateway.example.test:5000");
+        if (withToken)
+            client.SetFakeBearerToken(
+                new Dictionary<string, object> { { ClaimTypes.Name, "test" }, { "scope", Audience } }
+            );
+
+        var response = await client.GetAsync(path);
+        var echo = await response.Content.ReadFromJsonAsync<DownstreamStub.Echo>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("gateway.example.test:5000", echo!.Host);
+        Assert.NotEqual(new Uri(_downstream.Address).Authority, echo.Host);
+    }
+
+    [Theory]
     [InlineData("/health")]
     [InlineData("/alive")]
     public async Task health_probes_are_answered_by_the_gateway_itself(string path)
