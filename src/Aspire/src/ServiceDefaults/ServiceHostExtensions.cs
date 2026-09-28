@@ -1,3 +1,4 @@
+using System.Net;
 using System.Reflection;
 using BuildingBlocks.Core;
 using BuildingBlocks.Exception;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.Extensions.Hosting;
@@ -50,13 +52,22 @@ public static class ServiceHostExtensions
 
         builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);
 
-        // Hosts sit behind the YARP gateway; honour its X-Forwarded-* so generated URLs (Location, discovery) use the public origin.
+        // Hosts sit behind the YARP gateway; honour its X-Forwarded-* so generated URLs (Location, discovery) use the
+        // public origin. Only loopback proxies are trusted unless ForwardedHeaders:KnownProxies / TrustAnyProxy says otherwise.
+        var forwardedHeaders = builder.Configuration.GetSection("ForwardedHeaders");
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
             options.ForwardedHeaders |=
                 ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
-            options.KnownNetworks.Clear();
-            options.KnownProxies.Clear();
+
+            if (forwardedHeaders.GetValue<bool>("TrustAnyProxy"))
+            {
+                options.KnownNetworks.Clear();
+                options.KnownProxies.Clear();
+            }
+
+            foreach (var proxy in forwardedHeaders.GetSection("KnownProxies").Get<string[]>() ?? [])
+                options.KnownProxies.Add(IPAddress.Parse(proxy));
         });
 
         builder.Services.AddGrpc(options =>

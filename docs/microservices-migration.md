@@ -122,6 +122,11 @@ everything running in one process and now need an explicit event or gRPC contrac
    URL, `Jwt:MetadataAddress` = internal) is a follow-up. Aspire is unaffected because it pins a single https
    endpoint for both.
 
+Service hosts apply `X-Forwarded-For/Proto/Host` from the gateway so generated URLs point at the public origin. By default
+only loopback proxies are trusted (local + Aspire); the Docker appsettings set `ForwardedHeaders:TrustAnyProxy=true` because
+the gateway is the only ingress on the private compose network. Real deployments should list the ingress IPs in
+`ForwardedHeaders:KnownProxies` instead.
+
 ## Running
 
 ```bash
