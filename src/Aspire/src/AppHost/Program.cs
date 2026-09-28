@@ -321,4 +321,20 @@ var api = builder.AddProject<Api>("api")
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
 
+// Single ingress: every route is forwarded to the monolith until a module is extracted,
+// at which point only the matching cluster destination below needs to be repointed.
+var gateway = builder.AddProject<Gateway>("gateway")
+    .WithReference(api)
+    .WaitFor(api)
+    .WithEnvironment("Jwt__Authority", api.GetEndpoint("api-https"))
+    .WithHttpEndpoint(port: 5000, name: "gateway-http")
+    .WithHttpsEndpoint(port: 5001, name: "gateway-https");
+
+foreach (var cluster in new[] { "flight", "passenger", "booking", "identity", "monolith" })
+{
+    gateway.WithEnvironment(
+        $"ReverseProxy__Clusters__{cluster}__Destinations__monolith__Address",
+        api.GetEndpoint("api-http"));
+}
+
 builder.Build().Run();
