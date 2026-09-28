@@ -6,7 +6,7 @@ tests are unchanged, only the host around them is new.
 
 | Service | Project | Local (https/http) | Docker | Owns |
 |---|---|---|---|---|
-| Gateway (YARP) | `src/Api` | 3000 / 3001 | `gateway` 3001 | Routing only, no business code |
+| Gateway (YARP) | `src/Api` | 3000 / 3001 | `gateway` 3001 (http) / 3002 (https) | Routing only, no business code |
 | Identity | `src/Services/Identity.Api` | 4000 / 4001 | `identity-api` (80, internal only) | Duende IdentityServer, `identity` Postgres db, publishes `UserCreated` |
 | Flight | `src/Services/Flight.Api` | 4010 / 4011 (gRPC 81 in Docker) | `flight-api` (80 REST, 81 gRPC; internal only) | `flight` Postgres + `flight_read` Mongo, `FlightGrpcService` |
 | Passenger | `src/Services/Passenger.Api` | 4020 / 4021 (gRPC 81 in Docker) | `passenger-api` (80 REST, 81 gRPC; internal only) | `passenger` Postgres + `passenger_read` Mongo, `PassengerGrpcService`, consumes `UserCreated` |
