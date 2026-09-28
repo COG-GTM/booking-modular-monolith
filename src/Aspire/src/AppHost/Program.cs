@@ -335,11 +335,17 @@ var gateway = builder.AddProject<Gateway>("gateway")
     .WithHttpEndpoint(port: 5000, name: "gateway-http")
     .WithHttpsEndpoint(port: 5001, name: "gateway-https");
 
+// Cluster destinations default to the monolith; an extracted module is repointed with
+// Gateway:Clusters:<cluster> in the AppHost configuration (appsettings / env / user-secrets).
 foreach (var cluster in new[] { "flight", "passenger", "booking", "identity", "monolith" })
 {
-    gateway.WithEnvironment(
-        $"ReverseProxy__Clusters__{cluster}__Destinations__monolith__Address",
-        api.GetEndpoint("api-http"));
+    var key = $"ReverseProxy__Clusters__{cluster}__Destinations__monolith__Address";
+    var overrideAddress = builder.Configuration[$"Gateway:Clusters:{cluster}"];
+
+    if (string.IsNullOrWhiteSpace(overrideAddress))
+        gateway.WithEnvironment(key, api.GetEndpoint("api-http"));
+    else
+        gateway.WithEnvironment(key, overrideAddress);
 }
 
 builder.Build().Run();
