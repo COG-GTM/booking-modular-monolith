@@ -119,6 +119,7 @@ public class GatewayIngressTests : IClassFixture<DownstreamStub>, IAsyncLifetime
         Assert.StartsWith("FakeBearer ", echo.Authorization, StringComparison.Ordinal);
         Assert.Equal("abc-123", echo.CorrelationId);
         Assert.False(string.IsNullOrEmpty(echo.TraceParent));
+        Assert.Equal("localhost", echo.Host);
     }
 
     [Theory]
@@ -197,7 +198,8 @@ public sealed class DownstreamStub : IAsyncLifetime
                         context.Request.Path,
                         context.Request.Headers.Authorization.ToString(),
                         context.Request.Headers["correlationId"].ToString(),
-                        context.Request.Headers["traceparent"].ToString()
+                        context.Request.Headers["traceparent"].ToString(),
+                        context.Request.Host.Value ?? string.Empty
                     )
                 )
         );
@@ -208,5 +210,5 @@ public sealed class DownstreamStub : IAsyncLifetime
 
     public async Task DisposeAsync() => await _app.DisposeAsync();
 
-    public sealed record Echo(string Path, string Authorization, string CorrelationId, string TraceParent);
+    public sealed record Echo(string Path, string Authorization, string CorrelationId, string TraceParent, string Host);
 }

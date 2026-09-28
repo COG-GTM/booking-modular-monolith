@@ -28,7 +28,11 @@ public static class GatewayInfrastructureExtensions
         builder
             .Services.AddReverseProxy()
             .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
-            .AddTransforms(context => context.AddRequestTransform(PropagateCorrelationId));
+            .AddTransforms(context =>
+            {
+                context.AddOriginalHost();
+                context.AddRequestTransform(PropagateCorrelationId);
+            });
 
         return builder;
     }
