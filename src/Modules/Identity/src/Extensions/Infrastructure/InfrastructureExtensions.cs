@@ -1,5 +1,6 @@
 using BuildingBlocks.EFCore;
 using BuildingBlocks.Mapster;
+using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Web;
 using FluentValidation;
 using Identity.Data;
@@ -20,6 +21,7 @@ public static class InfrastructureExtensions
         builder.Services.AddValidatorsFromAssembly(typeof(IdentityRoot).Assembly);
         builder.Services.AddCustomMapster(typeof(IdentityRoot).Assembly);
         builder.AddCustomDbContext<IdentityContext>(nameof(Identity));
+        builder.AddPersistMessageProcessor<IdentityRoot>(nameof(Identity));
         builder.Services.AddScoped<IDataSeeder, IdentityDataSeeder>();
         builder.AddCustomIdentityServer();
 

@@ -9,14 +9,15 @@ using MessageEnvelope = BuildingBlocks.Core.Event.MessageEnvelope;
 
 namespace BuildingBlocks.Core;
 
-public sealed class EventDispatcher(
+public sealed class EventDispatcher<TModule>(
     IServiceScopeFactory serviceScopeFactory,
     IEventMapper eventMapper,
-    ILogger<EventDispatcher> logger,
-    IPersistMessageProcessor persistMessageProcessor,
+    ILogger<EventDispatcher<TModule>> logger,
+    IPersistMessageProcessor<TModule> persistMessageProcessor,
     IHttpContextAccessor httpContextAccessor
 )
-    : IEventDispatcher
+    : IEventDispatcher<TModule>
+    where TModule : class
 {
     public async Task SendAsync<T>(IReadOnlyList<T> events, Type type = null,
                                    CancellationToken cancellationToken = default)
