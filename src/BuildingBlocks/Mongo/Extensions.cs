@@ -73,7 +73,10 @@ namespace BuildingBlocks.Mongo
 
                     return ActivatorUtilities.CreateInstance<TContextImplementation>(sp, Options.Create(options));
                 });
-            services.AddScoped(typeof(TContextService), sp => sp.GetRequiredService<TContextImplementation>());
+            if (typeof(TContextService) != typeof(TContextImplementation))
+            {
+                services.AddScoped(typeof(TContextService), sp => sp.GetRequiredService<TContextImplementation>());
+            }
 
             services.AddTransient(typeof(IMongoUnitOfWork<>), typeof(MongoUnitOfWork<>));
 

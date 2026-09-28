@@ -78,22 +78,23 @@ public class PersistMessageDbContext<TModule> : DbContext, IPersistMessageDbCont
         }
     }
 
-    public void CreatePersistMessageTableIfNotExists()
-    {
-        string createTableSql = @"
+    // Column types must match the EF model (enums are stored as integers).
+    public const string CreateTableSql = @"
             create table if not exists persist_message (
             id uuid not null,
             data_type text,
             data text,
             created timestamp with time zone not null,
             retry_count integer not null,
-            message_status text not null default 'InProgress'::text,
-            delivery_type text not null default 'Outbox'::text,
+            message_status integer not null default 1,
+            delivery_type integer not null default 1,
             version bigint not null,
             constraint pk_persist_message primary key (id)
             )";
 
-        Database.ExecuteSqlRaw(createTableSql);
+    public void CreatePersistMessageTableIfNotExists()
+    {
+        Database.ExecuteSqlRaw(CreateTableSql);
     }
 
     private void OnBeforeSaving()
