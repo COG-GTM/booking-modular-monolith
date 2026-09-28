@@ -25,6 +25,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Gateway route table under test; the gateway host itself is not referenced so these stay container-free. -->
+    <Content Include="..\..\Api\src\appsettings.json" Link="Gateway\appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\Api\src\appsettings.Development.json" Link="Gateway\appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\Api\src\appsettings.docker.json" Link="Gateway\appsettings.docker.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Flight.Api\src\Flight.Api.csproj" />
     <ProjectReference Include="..\Passenger.Api\src\Passenger.Api.csproj" />
   </ItemGroup>
