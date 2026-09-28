@@ -1,4 +1,3 @@
-using System.Net;
 using System.Reflection;
 using BuildingBlocks.Core;
 using BuildingBlocks.Exception;
@@ -67,7 +66,7 @@ public static class ServiceHostExtensions
             }
 
             foreach (var proxy in forwardedHeaders.GetSection("KnownProxies").Get<string[]>() ?? [])
-                options.KnownProxies.Add(IPAddress.Parse(proxy));
+                options.KnownProxies.Add(System.Net.IPAddress.Parse(proxy));
         });
 
         builder.Services.AddGrpc(options =>
