@@ -21,6 +21,11 @@ namespace BuildingBlocks.Jwt
                 options.Audience = jwtOptions.Audience;
                 options.RequireHttpsMetadata = false;
 
+                // Lets a host reach the issuer's discovery document over a different address
+                // (e.g. an internal container hostname) while still validating `iss` against Authority.
+                if (!string.IsNullOrEmpty(jwtOptions.MetadataAddress))
+                    options.MetadataAddress = jwtOptions.MetadataAddress;
+
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
