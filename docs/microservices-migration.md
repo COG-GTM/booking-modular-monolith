@@ -7,10 +7,10 @@ tests are unchanged, only the host around them is new.
 | Service | Project | Local (https/http) | Docker | Owns |
 |---|---|---|---|---|
 | Gateway (YARP) | `src/Api` | 3000 / 3001 | `gateway` 3001 | Routing only, no business code |
-| Identity | `src/Services/Identity.Api` | 4000 / 4001 | `identity-api` 4001 | Duende IdentityServer, `identity` Postgres db, publishes `UserCreated` |
-| Flight | `src/Services/Flight.Api` | 4010 / 4011 (gRPC 81 in Docker) | `flight-api` 4011/4012 | `flight` Postgres + `flight_read` Mongo, `FlightGrpcService` |
-| Passenger | `src/Services/Passenger.Api` | 4020 / 4021 (gRPC 81 in Docker) | `passenger-api` 4021/4022 | `passenger` Postgres + `passenger_read` Mongo, `PassengerGrpcService`, consumes `UserCreated` |
-| Booking | `src/Services/Booking.Api` | 4030 / 4031 | `booking-api` 4031 | EventStoreDB stream + `booking_read` Mongo, gRPC client of Flight and Passenger |
+| Identity | `src/Services/Identity.Api` | 4000 / 4001 | `identity-api` (80, internal only) | Duende IdentityServer, `identity` Postgres db, publishes `UserCreated` |
+| Flight | `src/Services/Flight.Api` | 4010 / 4011 (gRPC 81 in Docker) | `flight-api` (80 REST, 81 gRPC; internal only) | `flight` Postgres + `flight_read` Mongo, `FlightGrpcService` |
+| Passenger | `src/Services/Passenger.Api` | 4020 / 4021 (gRPC 81 in Docker) | `passenger-api` (80 REST, 81 gRPC; internal only) | `passenger` Postgres + `passenger_read` Mongo, `PassengerGrpcService`, consumes `UserCreated` |
+| Booking | `src/Services/Booking.Api` | 4030 / 4031 | `booking-api` (80, internal only) | EventStoreDB stream + `booking_read` Mongo, gRPC client of Flight and Passenger |
 
 Every service also has its own `<service>_persist_message` Postgres database for the outbox/inbox store.
 
@@ -129,3 +129,7 @@ dotnet run --project src/Api/src
 ```
 
 Full stack in containers: `docker compose -f deployments/docker-compose/docker-compose.yaml up --build`.
+Only the gateway (`3001`) is published to the host; service REST/gRPC ports stay on the compose network. A fresh
+`postgres-data` volume is seeded by `deployments/docker-compose/postgres/init-databases.sql` (per-service write and
+outbox databases), and the broker runs with a non-guest user (`booking`/`booking`) because RabbitMQ refuses remote
+`guest` logins.

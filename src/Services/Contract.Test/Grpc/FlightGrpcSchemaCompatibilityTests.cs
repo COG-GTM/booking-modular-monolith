@@ -18,8 +18,8 @@ public class FlightGrpcSchemaCompatibilityTests
     [Fact]
     public void consumer_and_provider_expose_the_same_service_name()
     {
-        Consumer.Name.Should().Be(Provider.Name);
-        Provider.Name.Should().Be("FlightGrpcService");
+        Consumer.FullName.Should().Be(Provider.FullName);
+        Provider.FullName.Should().Be("flight.FlightGrpcService");
     }
 
     [Fact]

@@ -41,6 +41,7 @@ services:
       - "max_prepared_transactions=10"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
     networks:
       - booking
 
@@ -149,6 +150,9 @@ services:
     image: rabbitmq:management
     container_name: rabbitmq
     restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=booking
+      - RABBITMQ_DEFAULT_PASS=booking
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -362,8 +366,8 @@ services:
       dockerfile: src/Services/Identity.Api/Dockerfile
     container_name: identity-api
     restart: on-failure
-    ports:
-      - 4001:80
+    expose:
+      - "80"
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
     depends_on:
@@ -381,9 +385,9 @@ services:
       dockerfile: src/Services/Flight.Api/Dockerfile
     container_name: flight-api
     restart: on-failure
-    ports:
-      - 4011:80
-      - 4012:81
+    expose:
+      - "80"
+      - "81"
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
     depends_on:
@@ -403,9 +407,9 @@ services:
       dockerfile: src/Services/Passenger.Api/Dockerfile
     container_name: passenger-api
     restart: on-failure
-    ports:
-      - 4021:80
-      - 4022:81
+    expose:
+      - "80"
+      - "81"
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
     depends_on:
@@ -425,8 +429,8 @@ services:
       dockerfile: src/Services/Booking.Api/Dockerfile
     container_name: booking-api
     restart: on-failure
-    ports:
-      - 4031:80
+    expose:
+      - "80"
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
     depends_on:
