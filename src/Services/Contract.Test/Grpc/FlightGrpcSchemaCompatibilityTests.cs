@@ -7,8 +7,8 @@ using Xunit;
 namespace Contract.Test.Grpc;
 
 /// <summary>
-/// Booking ships its own copy of flight.proto (package <c>bookingFlight</c>). These tests pin the consumer copy to the
-/// provider contract owned by Flight (package <c>flight</c>) so the two cannot drift apart silently.
+/// Booking ships its own copy of flight.proto (same <c>flight</c> package, C# namespace <c>BookingFlight</c>). These
+/// tests pin the consumer copy to the provider contract owned by Flight so the two cannot drift apart silently.
 /// </summary>
 public class FlightGrpcSchemaCompatibilityTests
 {
