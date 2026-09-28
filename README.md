@@ -122,7 +122,7 @@ The modules are now hosted as four independently deployable services behind a YA
 
 | Path | Role |
 |---|---|
-| `src/Api` | YARP gateway (`https://localhost:3000`) routing `/api/v1/{flight,passenger,booking,identity}/**` |
+| `src/Api` | YARP gateway (`https://localhost:3000` when run locally; `http://localhost:3001` / `https://localhost:3002` in Docker Compose) routing `/api/v1/{flight,passenger,booking,identity}/**` |
 | `src/Services/Identity.Api` | Duende IdentityServer + user registration (`:4000`) |
 | `src/Services/Flight.Api` | Flight REST + `FlightGrpcService` (`:4010`) |
 | `src/Services/Passenger.Api` | Passenger REST + `PassengerGrpcService`, consumes `UserCreated` (`:4020`) |
