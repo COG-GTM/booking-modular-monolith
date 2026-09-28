@@ -36,11 +36,19 @@ public class FlightGrpcBoundaryTests : FlightGrpcContractTestBase
     [Fact]
     public async Task booking_client_can_get_available_seats_and_reserve_one()
     {
-        var flight = new FakeCreateFlightMongoCommand().Generate();
+        // GetAvailableSeats reads the Mongo projection; ReserveSeat mutates the Postgres write model, so seed both.
+        var flight = new FakeCreateFlightCommand().Generate();
         await Fixture.SendAsync(flight);
 
-        var seat = new FakeCreateSeatMongoCommand(flight.Id).Generate();
+        var seat = new FakeCreateSeatCommand(flight.Id).Generate();
         await Fixture.SendAsync(seat);
+
+        var seatProjection = new FakeCreateSeatMongoCommand(flight.Id).Generate() with
+        {
+            Id = seat.Id,
+            SeatNumber = seat.SeatNumber,
+        };
+        await Fixture.SendAsync(seatProjection);
 
         var seats = await Client.GetAvailableSeatsAsync(
             new GetAvailableSeatsRequest { FlightId = flight.Id.ToString() }
@@ -52,7 +60,7 @@ public class FlightGrpcBoundaryTests : FlightGrpcContractTestBase
             new ReserveSeatRequest { FlightId = flight.Id.ToString(), SeatNumber = seat.SeatNumber }
         );
 
-        reserved.Should().NotBeNull();
+        reserved.Id.Should().Be(seat.Id.ToString());
     }
 
     [Fact]
