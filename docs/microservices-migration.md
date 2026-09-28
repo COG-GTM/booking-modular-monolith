@@ -66,7 +66,7 @@ contract tests below pin Booking's copy to Flight's.
 - Per-service integration tests live in `src/Services/<Service>.Api/tests/*` and target `<Service>.Api.Program` through
   `BuildingBlocks/TestBase` (Testcontainers for Postgres, Mongo, RabbitMQ, EventStoreDB).
 - `src/Services/Contract.Test`:
-  - `Grpc/FlightGrpcSchemaCompatibilityTests` — descriptor-level comparison of Booking's `bookingFlight` proto copy
+  - `Grpc/FlightGrpcSchemaCompatibilityTests` — descriptor-level comparison of Booking's proto copy (`flight` package, C# namespace `BookingFlight`)
     against Flight's `flight` proto (methods, field numbers/types/names, enums).
   - `Grpc/FlightGrpcBoundaryTests` — drives the real Flight host through Booking's generated client stub.
   - `Messaging/IntegrationEventSchemaTests` — freezes the MassTransit URN and property set of every
