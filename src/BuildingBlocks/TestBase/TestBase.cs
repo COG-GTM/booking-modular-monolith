@@ -587,15 +587,16 @@ public class TestFixtureCore<TEntryPoint> : IAsyncLifetime
 
     private async Task ResetPostgresAsync()
     {
-        foreach (var (respawner, connection) in _postgresStores)
-        {
-            await respawner.ResetAsync(connection);
-        }
-
+        // stop the module pollers first so none of them writes while the stores are being reset
         await Fixture.ServiceProvider.StopTestHostedServices(
             Fixture.PersistMessageBackgroundServiceTypes,
             Fixture.CancellationTokenSource.Token
         );
+
+        foreach (var (respawner, connection) in _postgresStores)
+        {
+            await respawner.ResetAsync(connection);
+        }
     }
 
     private static readonly string[] SystemMongoDatabases = ["admin", "config", "local"];

@@ -84,6 +84,29 @@ public class PerModuleMongoTests
     }
 
     [Fact]
+    public void shared_mongo_server_connection_string_should_keep_module_read_database()
+    {
+        var provider = Register(
+            new Dictionary<string, string?>
+            {
+                ["MongoOptions:ConnectionString"] = "mongodb://localhost:27017",
+                ["MongoOptions:Flight:DatabaseName"] = "flight_read",
+                ["MongoOptions:Other:DatabaseName"] = "other_read",
+                ["ConnectionStrings:mongo"] = "mongodb://root:secret@mongo:27017/shared?authSource=admin",
+            },
+            builder => builder.AddMongoDbContext<FlightReadDbContext>(nameof(Flight)),
+            builder => builder.AddMongoDbContext<OtherReadDbContext>("Other")
+        );
+
+        var flightOptions = OptionsFor(provider, nameof(Flight));
+        var otherOptions = OptionsFor(provider, "Other");
+
+        flightOptions.ConnectionString.Should().Be("mongodb://root:secret@mongo:27017/shared?authSource=admin");
+        flightOptions.DatabaseName.Should().Be("flight_read");
+        otherOptions.DatabaseName.Should().Be("other_read");
+    }
+
+    [Fact]
     public void module_without_read_database_name_should_fail_validation()
     {
         var provider = Register(

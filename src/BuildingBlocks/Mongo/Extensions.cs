@@ -37,15 +37,25 @@ namespace BuildingBlocks.Mongo
                 .Bind(configuration.GetSection($"{nameof(MongoOptions)}:{connectionName}"))
                 .PostConfigure(options =>
                                {
-                                   var aspireConnectionString = configuration.GetConnectionString(aspireConnectionName)
-                                                                ?? configuration.GetConnectionString("mongo");
+                                   // a module-specific Aspire database resource supplies server and database name;
+                                   // the shared Aspire server resource only ever supplies the server
+                                   var moduleConnectionString = configuration.GetConnectionString(aspireConnectionName);
 
-                                   if (aspireConnectionString is null)
+                                   if (moduleConnectionString is not null)
+                                   {
+                                       options.ConnectionString = moduleConnectionString;
+                                       options.DatabaseName =
+                                           MongoUrl.Create(moduleConnectionString).DatabaseName ?? options.DatabaseName;
+
                                        return;
+                                   }
 
-                                   options.ConnectionString = aspireConnectionString;
-                                   options.DatabaseName =
-                                       MongoUrl.Create(aspireConnectionString).DatabaseName ?? options.DatabaseName;
+                                   var serverConnectionString = configuration.GetConnectionString("mongo");
+
+                                   if (serverConnectionString is not null)
+                                   {
+                                       options.ConnectionString = serverConnectionString;
+                                   }
                                })
                 .Validate(
                     options => !string.IsNullOrEmpty(options.ConnectionString),
@@ -64,8 +74,6 @@ namespace BuildingBlocks.Mongo
                     return ActivatorUtilities.CreateInstance<TContextImplementation>(sp, Options.Create(options));
                 });
             services.AddScoped(typeof(TContextService), sp => sp.GetRequiredService<TContextImplementation>());
-
-            services.AddScoped<IMongoDbContext>(sp => sp.GetRequiredService<TContextService>());
 
             services.AddTransient(typeof(IMongoRepository<,>), typeof(MongoRepository<,>));
             services.AddTransient(typeof(IMongoUnitOfWork<>), typeof(MongoUnitOfWork<>));
