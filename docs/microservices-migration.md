@@ -115,6 +115,13 @@ everything running in one process and now need an explicit event or gRPC contrac
    there is no longer a single startup that migrates everything, so bring services up in the order Aspire/Compose
    declares (`WaitFor`/`depends_on`).
 
+9. **Token issuer vs. internal authority in Docker Compose.** Identity's `AuthOptions:IssuerUri` and the resource
+   servers' `Jwt:Authority` are both `http://identity-api`, which only resolves inside the compose network, so
+   discovery documents fetched through the gateway advertise an unreachable issuer. `BuildingBlocks.Jwt.AddJwt`
+   uses one `Jwt:Authority` for metadata *and* `ValidIssuers`; splitting them (`Jwt:Issuer` = external gateway
+   URL, `Jwt:MetadataAddress` = internal) is a follow-up. Aspire is unaffected because it pins a single https
+   endpoint for both.
+
 ## Running
 
 ```bash
