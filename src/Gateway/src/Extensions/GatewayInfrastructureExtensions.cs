@@ -4,6 +4,7 @@ using BuildingBlocks.Web;
 using Gateway.Configurations;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Yarp.ReverseProxy.Transforms;
 
@@ -19,6 +20,7 @@ public static class GatewayInfrastructureExtensions
         builder.AddServiceDefaults();
 
         builder.Services.AddJwt();
+        builder.Services.AddCustomForwardedHeaders();
         builder.Services.AddCustomCors();
         builder.Services.AddCustomRateLimiter();
         builder.Services.AddCustomRequestLogging();
@@ -33,6 +35,7 @@ public static class GatewayInfrastructureExtensions
 
     public static WebApplication UseGatewayInfrastructure(this WebApplication app)
     {
+        app.UseForwardedHeaders();
         app.UseServiceDefaults();
         app.UseCorrelationId();
         app.UseHttpLogging();
@@ -58,6 +61,26 @@ public static class GatewayInfrastructureExtensions
         app.MapHealthChecks("/alive", new HealthCheckOptions { Predicate = r => r.Tags.Contains("live") });
 
         return app;
+    }
+
+    // Behind a load balancer the peer address is the balancer's; only proxies listed here are
+    // trusted to supply X-Forwarded-For, which the rate limiter then partitions on.
+    private static IServiceCollection AddCustomForwardedHeaders(this IServiceCollection services)
+    {
+        var trustedProxies = services.GetOptions<TrustedProxyOptions>(nameof(TrustedProxyOptions));
+
+        services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+            foreach (var proxy in trustedProxies.KnownProxies)
+                options.KnownProxies.Add(System.Net.IPAddress.Parse(proxy));
+
+            foreach (var network in trustedProxies.KnownNetworks)
+                options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
+        });
+
+        return services;
     }
 
     private static IServiceCollection AddCustomCors(this IServiceCollection services)

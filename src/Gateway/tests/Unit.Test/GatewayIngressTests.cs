@@ -72,10 +72,14 @@ public class GatewayIngressTests : IClassFixture<DownstreamStub>, IAsyncLifetime
         return Task.CompletedTask;
     }
 
-    [Fact]
-    public async Task module_route_without_token_is_rejected_at_the_gateway()
+    [Theory]
+    [InlineData("/api/v1/flight/get-available-flights")]
+    [InlineData("/api/v1/flight")]
+    [InlineData("/api/v2/not-a-module/anything")]
+    [InlineData("/api")]
+    public async Task api_paths_without_token_are_rejected_at_the_gateway(string path)
     {
-        var response = await _factory.CreateClient().GetAsync("/api/v1/flight/get-available-flights");
+        var response = await _factory.CreateClient().GetAsync(path);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

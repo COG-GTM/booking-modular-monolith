@@ -323,10 +323,15 @@ var api = builder.AddProject<Api>("api")
 
 // Single ingress: every route is forwarded to the monolith until a module is extracted,
 // at which point only the matching cluster destination below needs to be repointed.
+// IdentityServer's issuer and every JWT validator must agree on the same public address,
+// so all of them are derived from the API's HTTPS endpoint instead of hard-coded appsettings.
+var issuer = api.GetEndpoint("api-https");
+api.WithEnvironment("AuthOptions__IssuerUri", issuer).WithEnvironment("Jwt__Authority", issuer);
+
 var gateway = builder.AddProject<Gateway>("gateway")
     .WithReference(api)
     .WaitFor(api)
-    .WithEnvironment("Jwt__Authority", api.GetEndpoint("api-https"))
+    .WithEnvironment("Jwt__Authority", issuer)
     .WithHttpEndpoint(port: 5000, name: "gateway-http")
     .WithHttpsEndpoint(port: 5001, name: "gateway-https");
 

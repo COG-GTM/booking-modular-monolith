@@ -237,14 +237,14 @@ dotnet run
 
 > ### API Gateway (single ingress)
 
-[`src/Gateway`](./src/Gateway) is a YARP reverse proxy that is the only endpoint clients should call. It validates JWTs (same `Jwt` section as the API), applies CORS (`CorsOptions:AllowedOrigins`), a per-client fixed-window rate limit (`RateLimitOptions`), HTTP request logging, and forwards `Authorization`, `correlationId` and `traceparent` headers downstream.
+[`src/Gateway`](./src/Gateway) is a YARP reverse proxy that is the only endpoint clients should call. It validates JWTs (same `Jwt` section as the API), applies CORS (`CorsOptions:AllowedOrigins`), a per-client fixed-window rate limit (`RateLimitOptions`; list your load balancer in `TrustedProxyOptions` so `X-Forwarded-For` is used as the client address), HTTP request logging, and forwards `Authorization`, `correlationId` and `traceparent` headers downstream.
 
 | Where | Gateway | Monolith API |
 | --- | --- | --- |
 | `dotnet run` / Aspire | `http://localhost:5000`, `https://localhost:5001` | `http://localhost:3001`, `https://localhost:3000` |
 | Docker Compose | `http://localhost:5000` | `http://localhost:3001`, `https://localhost:3000` |
 
-Routing is fully config-driven (`ReverseProxy` section of [`appsettings.json`](./src/Gateway/src/appsettings.json)). Each module has its own cluster (`flight`, `passenger`, `booking`, `identity`) whose single destination is the monolith, plus a `monolith` fallback cluster for everything else (`/connect`, `/.well-known`, Swagger, health). To move a module to an extracted service, repoint **only** that cluster's destination — no code change:
+Routing is fully config-driven (`ReverseProxy` section of [`appsettings.json`](./src/Gateway/src/appsettings.json)). Each module has its own cluster (`flight`, `passenger`, `booking`, `identity`) whose single destination is the monolith, plus a `monolith` fallback cluster for everything else (`/connect`, `/.well-known`, Swagger, health). Any other `/api/*` path still requires a valid token (`api-fallback` route). To move a module to an extracted service, repoint **only** that cluster's destination — no code change:
 
 ```bash
 # e.g. Flight is now served by its own service

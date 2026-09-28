@@ -44,6 +44,18 @@ public class GatewayRouteConfigTests : IClassFixture<WebApplicationFactory<Progr
     }
 
     [Fact]
+    public void unmatched_api_paths_still_require_authentication()
+    {
+        var apiFallback = Assert.Single(_config.Routes, r => r.RouteId == "api-fallback");
+        var fallback = Assert.Single(_config.Routes, r => r.RouteId == "monolith-fallback");
+
+        Assert.Equal("monolith", apiFallback.ClusterId);
+        Assert.Equal("/api/{**catch-all}", apiFallback.Match.Path);
+        Assert.Equal("ApiScope", apiFallback.AuthorizationPolicy);
+        Assert.True(apiFallback.Order < fallback.Order);
+    }
+
+    [Fact]
     public void fallback_route_forwards_everything_else_to_the_monolith_with_lowest_priority()
     {
         var fallback = Assert.Single(_config.Routes, r => r.RouteId == "monolith-fallback");
