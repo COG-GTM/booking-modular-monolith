@@ -138,5 +138,6 @@ dotnet run --project src/Api/src
 Full stack in containers: `docker compose -f deployments/docker-compose/docker-compose.yaml up --build`.
 Only the gateway (`3001`) is published to the host; service REST/gRPC ports stay on the compose network. A fresh
 `postgres-data` volume is seeded by `deployments/docker-compose/postgres/init-databases.sql` (per-service write and
-outbox databases), and the broker runs with a non-guest user (`booking`/`booking`) because RabbitMQ refuses remote
+outbox databases); the init script only runs on an empty data directory, so an existing monolith volume needs either
+`docker compose down -v` or a one-off `docker exec -i postgres psql -U postgres < deployments/docker-compose/postgres/init-databases.sql`, and the broker runs with a non-guest user (`booking`/`booking`) because RabbitMQ refuses remote
 `guest` logins.

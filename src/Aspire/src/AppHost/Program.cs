@@ -105,8 +105,8 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 // 2. Messaging Services
-var rabbitmqUsername = builder.AddParameter("rabbitmq-username", "guest", secret: true);
-var rabbitmqPassword = builder.AddParameter("rabbitmq-password", "guest", secret: true);
+var rabbitmqUsername = builder.AddParameter("rabbitmq-username", "booking", secret: true);
+var rabbitmqPassword = builder.AddParameter("rabbitmq-password", "booking", secret: true);
 
 var rabbitmq = builder
     .AddRabbitMQ("rabbitmq", rabbitmqUsername, rabbitmqPassword)

@@ -347,8 +347,16 @@ services:
     restart: on-failure
     ports:
       - 3001:80
+      - 3000:443
+    volumes:
+      - ~/.aspnet/https:/https:ro
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=https://+;http://+
+      - ASPNETCORE_HTTPS_PORT=3000
+      - ASPNETCORE_HTTP_PORT=3001
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
     depends_on:
       - identity-api
       - flight-api
