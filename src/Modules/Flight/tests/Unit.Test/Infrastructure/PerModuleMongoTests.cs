@@ -62,6 +62,12 @@ public class PerModuleMongoTests
 
         // no module-agnostic read context is registered any more
         provider.GetService<IMongoDbContext>().Should().BeNull();
+        provider
+            .GetService<
+                IMongoRepository<global::Flight.Flights.Models.Flight, global::Flight.Flights.ValueObjects.FlightId>
+            >()
+            .Should()
+            .BeNull();
     }
 
     [Fact]

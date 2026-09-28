@@ -75,7 +75,6 @@ namespace BuildingBlocks.Mongo
                 });
             services.AddScoped(typeof(TContextService), sp => sp.GetRequiredService<TContextImplementation>());
 
-            services.AddTransient(typeof(IMongoRepository<,>), typeof(MongoRepository<,>));
             services.AddTransient(typeof(IMongoUnitOfWork<>), typeof(MongoUnitOfWork<>));
 
             return services;
