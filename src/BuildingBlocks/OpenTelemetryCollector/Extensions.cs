@@ -3,6 +3,7 @@ using System.Reflection;
 using BuildingBlocks.OpenTelemetryCollector.CoreDiagnostics.Commands;
 using BuildingBlocks.OpenTelemetryCollector.CoreDiagnostics.Query;
 using BuildingBlocks.OpenTelemetryCollector.DiagnosticsProvider;
+using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Web;
 using Grafana.OpenTelemetry;
 using MassTransit.Logging;
@@ -164,6 +165,7 @@ public static class Extensions
                     })
                     .AddEntityFrameworkCoreInstrumentation()
                     .AddSource(DiagnosticHeaders.DefaultListenerName)
+                    .AddSource(PersistMessageActivitySource.Name)
                     .AddNpgsql()
                     // `AddSource` for adding custom activity sources
                     .AddSource(observabilityOptions.InstrumentationName)

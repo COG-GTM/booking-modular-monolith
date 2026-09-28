@@ -116,6 +116,22 @@
 - Not as scalable or fault-tolerant as microservices.
 
 
+## Service Layout (microservices split)
+
+The modules are now hosted as four independently deployable services behind a YARP gateway, sharing `src/BuildingBlocks`:
+
+| Path | Role |
+|---|---|
+| `src/Api` | YARP gateway (`https://localhost:3000` when run locally; `http://localhost:3001` / `https://localhost:3002` in Docker Compose) routing `/api/v1/{flight,passenger,booking,identity}/**` |
+| `src/Services/Identity.Api` | Duende IdentityServer + user registration (`:4000`) |
+| `src/Services/Flight.Api` | Flight REST + `FlightGrpcService` (`:4010`) |
+| `src/Services/Passenger.Api` | Passenger REST + `PassengerGrpcService`, consumes `UserCreated` (`:4020`) |
+| `src/Services/Booking.Api` | Booking REST, EventStoreDB, gRPC client of Flight/Passenger (`:4030`) |
+| `src/Services/Contract.Test` | Booking→Flight gRPC contract tests and integration-event schema tests |
+| `src/Aspire/src/AppHost` | Orchestrates gateway, services, RabbitMQ, Postgres, Mongo, EventStoreDB |
+
+Messaging between services goes through RabbitMQ (MassTransit + per-service outbox/inbox); Flight, Passenger and Booking are JWT resource servers validating tokens issued by Identity. See [docs/microservices-migration.md](docs/microservices-migration.md) for ports, configuration and the list of cross-module assumptions that still need to be converted to events or gRPC.
+
 ## The Domain And Bounded Context - Module Boundary
 
 - `Identity Module`: The Identity Module is a bounded context for the authentication and authorization of users using [Identity Server](https://github.com/DuendeSoftware/IdentityServer). This service is responsible for creating new users and their corresponding roles and permissions using [.Net Core Identity](https://docs.microsoft.com/en-us/aspnet/core/security/authentication/identity) and Jwt authentication and authorization.

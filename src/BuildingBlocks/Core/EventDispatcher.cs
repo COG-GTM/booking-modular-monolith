@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Claims;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.PersistMessageProcessor;
@@ -149,6 +150,12 @@ public sealed class EventDispatcher(
         headers.Add("CorrelationId", httpContextAccessor?.HttpContext?.GetCorrelationId());
         headers.Add("UserId", httpContextAccessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier));
         headers.Add("UserName", httpContextAccessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.Name));
+
+        if (Activity.Current is { } activity)
+        {
+            headers.Add(TraceContextHeaders.TraceParent, activity.Id);
+            headers.Add(TraceContextHeaders.TraceState, activity.TraceStateString);
+        }
 
         return headers;
     }

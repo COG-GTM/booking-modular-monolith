@@ -41,6 +41,7 @@ services:
       - "max_prepared_transactions=10"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
     networks:
       - booking
 
@@ -149,6 +150,9 @@ services:
     image: rabbitmq:management
     container_name: rabbitmq
     restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=booking
+      - RABBITMQ_DEFAULT_PASS=booking
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -330,28 +334,121 @@ services:
       - booking
 
   #######################################################
-  #  booking-modular-monolith
+  #  booking services (gateway + microservices)
   #######################################################
-  booking_modular_monolith:
-    image: booking-modular-monolith
+  gateway:
+    image: booking-gateway
     build:
       args:
         Version: "1"
       context: ../../
       dockerfile: src/Api/Dockerfile
-    container_name: booking_modular_monolith
+    container_name: gateway
+    restart: on-failure
     ports:
       - 3001:80
-      - 3000:443
+      - 3002:443
     volumes:
       - ~/.aspnet/https:/https:ro
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
       - ASPNETCORE_URLS=https://+;http://+
-      - ASPNETCORE_HTTPS_PORT=3000
+      - ASPNETCORE_HTTPS_PORT=3002
       - ASPNETCORE_HTTP_PORT=3001
       - ASPNETCORE_Kestrel__Certificates__Default__Password=password
       - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    depends_on:
+      - identity-api
+      - flight-api
+      - passenger-api
+      - booking-api
+    networks:
+      - booking
+
+  identity-api:
+    image: booking-identity-api
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Identity.Api/Dockerfile
+    container_name: identity-api
+    restart: on-failure
+    expose:
+      - "80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - booking
+
+  flight-api:
+    image: booking-flight-api
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Flight.Api/Dockerfile
+    container_name: flight-api
+    restart: on-failure
+    expose:
+      - "80"
+      - "81"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - postgres
+      - rabbitmq
+      - mongo
+      - identity-api
+    networks:
+      - booking
+
+  passenger-api:
+    image: booking-passenger-api
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Passenger.Api/Dockerfile
+    container_name: passenger-api
+    restart: on-failure
+    expose:
+      - "80"
+      - "81"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - postgres
+      - rabbitmq
+      - mongo
+      - identity-api
+    networks:
+      - booking
+
+  booking-api:
+    image: booking-booking-api
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Booking.Api/Dockerfile
+    container_name: booking-api
+    restart: on-failure
+    expose:
+      - "80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+    depends_on:
+      - postgres
+      - rabbitmq
+      - mongo
+      - eventstore
+      - identity-api
+      - flight-api
+      - passenger-api
     networks:
       - booking
 

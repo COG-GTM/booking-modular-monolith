@@ -1,32 +1,24 @@
-using Api.Extensions;
-using Booking.Extensions.Infrastructure;
 using BuildingBlocks.Web;
-using Flight.Extensions.Infrastructure;
-using Identity.Extensions.Infrastructure;
-using Passenger.Extensions.Infrastructure;
+using Figgle.Fonts;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddSharedInfrastructure();
+var appOptions = builder.Services.GetOptions<AppOptions>(nameof(AppOptions));
+Console.WriteLine(FiggleFonts.Standard.Render(appOptions.Name));
 
-builder.AddFlightModules();
-builder.AddIdentityModules();
-builder.AddPassengerModules();
-builder.AddBookingModules();
+builder.AddServiceDefaults();
+
+builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
 var app = builder.Build();
 
-// ref: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/routing?view=aspnetcore-7.0#routing-basics
-app.UseAuthentication();
-app.UseAuthorization();
+app.UseServiceDefaults();
 
-app.UseFlightModules();
-app.UseIdentityModules();
-app.UsePassengerModules();
-app.UseBookingModules();
+app.UseCorrelationId();
 
-app.UserSharedInfrastructure();
-app.MapMinimalEndpoints();
+app.MapGet("/", x => x.Response.WriteAsync(appOptions.Name));
+
+app.MapReverseProxy();
 
 app.Run();
 

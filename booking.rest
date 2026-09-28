@@ -1,5 +1,6 @@
 
 @booking-modular-monolith-api=https://localhost:3000  
+# Docker Compose gateway: http://localhost:3001 (https on 3002; 3000 is Grafana there)
 
 @contentType = application/json
 @flightid = "3c5c0000-97c6-fc34-2eb9-08db322230c9"
@@ -17,7 +18,7 @@ grant_type=password
 &client_secret=secret
 &username=samh
 &password=Admin@123456
-&scope=booking-modular-monolith role
+&scope=flight-api passenger-api booking-api identity-api role
 ###
 
 
