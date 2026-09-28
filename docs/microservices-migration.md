@@ -122,6 +122,11 @@ everything running in one process and now need an explicit event or gRPC contrac
    URL, `Jwt:MetadataAddress` = internal) is a follow-up. Aspire is unaffected because it pins a single https
    endpoint for both.
 
+10. **Identity signs tokens with `AddDeveloperSigningCredential`** (pre-existing). The key lives in the container
+    filesystem, so a recreated or scaled-out Identity container changes the signing key and every other service
+    rejects tokens issued before the restart. Compose runs a single Identity instance; a real deployment needs
+    `AddSigningCredential` with a shared certificate/key store.
+
 Service hosts apply `X-Forwarded-For/Proto/Host` from the gateway so generated URLs point at the public origin. By default
 only loopback proxies are trusted (local + Aspire); the Docker appsettings set `ForwardedHeaders:TrustAnyProxy=true` because
 the gateway is the only ingress on the private compose network. Real deployments should list the ingress IPs in
@@ -143,6 +148,13 @@ dotnet run --project src/Api/src
 Full stack in containers: `docker compose -f deployments/docker-compose/docker-compose.yaml up --build`.
 Only the gateway (`3001`) is published to the host; service REST/gRPC ports stay on the compose network. A fresh
 `postgres-data` volume is seeded by `deployments/docker-compose/postgres/init-databases.sql` (per-service write and
-outbox databases); the init script only runs on an empty data directory, so an existing monolith volume needs either
-`docker compose down -v` or a one-off `docker exec -i postgres psql -U postgres < deployments/docker-compose/postgres/init-databases.sql`, and the broker runs with a non-guest user (`booking`/`booking`) because RabbitMQ refuses remote
+outbox databases); the init script only runs on an empty data directory, so an existing monolith volume must be
+prepared with a one-off `docker exec -i postgres psql -U postgres < deployments/docker-compose/postgres/init-databases.sql`
+(this keeps the monolith databases intact for rollback; `docker compose down -v` is only acceptable when the volume holds
+throwaway dev data). The broker runs with a non-guest user (`booking`/`booking`) because RabbitMQ refuses remote
 `guest` logins.
+
+`depends_on` only orders container start-up; services retry their infrastructure connections (`restart: on-failure`,
+Polly/MassTransit reconnects) rather than being health-gated, because `/health` and `/alive` are only mapped in the
+Development environment (`BuildingBlocks.HealthCheck.UseCustomHealthCheck`). Exposing them in every environment and
+switching Compose to `condition: service_healthy` is a follow-up.

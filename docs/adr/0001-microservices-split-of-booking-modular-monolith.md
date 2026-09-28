@@ -138,10 +138,12 @@ C4Container
 - **On-call rotation:** TBD — owner to confirm before ARB.
 - **Runbook:** `docs/microservices-migration.md` (ports, config, start order) — to be promoted to a runbook.
 - **Dashboards / alarms:** Aspire dashboard (`:18888`), Grafana/Prometheus/Jaeger containers from AppHost; per-service
-  `/health` endpoints. Alarms TBD.
+  `/health` endpoints (mapped only in the Development environment today; exposing them in Docker/production so
+  orchestrators can health-gate start-up is a follow-up). Alarms TBD.
 - **Rollback plan:** Revert the PR — the monolith `src/Api` host and module projects are restored. The split uses new
   database names (`<svc>_service`, `<svc>_persist_message`, `<svc>_read`), so the monolith databases are left untouched
-  and rollback needs no data migration; anything written to the new databases while the split was live is abandoned.
+  and rollback needs no data migration; anything written to the new databases while the split was live is abandoned. Existing Compose volumes must be prepared
+  with the one-off `init-databases.sql` run (not `down -v`) so the monolith databases survive for rollback.
 - **Data cut-over:** No production data exists for this repo today. For a real environment the cut-over step is:
   stop writes, `pg_dump`/`pg_restore` each monolith write database into its `<svc>_service` counterpart (schemas are
   identical), let each service rebuild its `<svc>_read` Mongo projection from the write side / EventStore stream, and
