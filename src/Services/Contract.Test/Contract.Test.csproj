@@ -22,16 +22,18 @@
   <ItemGroup>
     <!-- Booking's consumer-side copy of the Flight contract, compiled here as a client stub and exercised against the real Flight host. -->
     <Protobuf Include="..\Booking.Api\src\GrpcClient\Protos\flight.proto" GrpcServices="Client" ProtoRoot="..\Booking.Api\src\GrpcClient\Protos" Link="Protos\booking-flight.proto" />
+    <Protobuf Include="..\Booking.Api\src\GrpcClient\Protos\passenger.proto" GrpcServices="Client" ProtoRoot="..\Booking.Api\src\GrpcClient\Protos" Link="Protos\booking-passenger.proto" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Gateway route table under test; the gateway host itself is not referenced so these stay container-free. -->
+    <!-- Gateway route table under test by GatewayRouteConfigurationTests without booting the host. -->
     <Content Include="..\..\Api\src\appsettings.json" Link="Gateway\appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\Api\src\appsettings.Development.json" Link="Gateway\appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\Api\src\appsettings.docker.json" Link="Gateway\appsettings.docker.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Api\src\Api.csproj" />
     <ProjectReference Include="..\Flight.Api\src\Flight.Api.csproj" />
     <ProjectReference Include="..\Passenger.Api\src\Passenger.Api.csproj" />
   </ItemGroup>
