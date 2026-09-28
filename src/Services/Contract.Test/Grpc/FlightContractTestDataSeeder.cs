@@ -23,23 +23,23 @@ public class FlightContractTestDataSeeder(
 {
     public async Task SeedAllAsync()
     {
-        if (!await flightDbContext.Airports.AnyAsync())
+        if (!await EntityFrameworkQueryableExtensions.AnyAsync(flightDbContext.Airports))
         {
             await flightDbContext.Airports.AddRangeAsync(InitialData.Airports);
             await flightDbContext.SaveChangesAsync();
 
-            if (!await flightReadDbContext.Airport.AsQueryable().AnyAsync())
+            if (!await MongoQueryable.AnyAsync(flightReadDbContext.Airport.AsQueryable()))
                 await flightReadDbContext.Airport.InsertManyAsync(
                     mapper.Map<List<AirportReadModel>>(InitialData.Airports)
                 );
         }
 
-        if (!await flightDbContext.Aircraft.AnyAsync())
+        if (!await EntityFrameworkQueryableExtensions.AnyAsync(flightDbContext.Aircraft))
         {
             await flightDbContext.Aircraft.AddRangeAsync(InitialData.Aircrafts);
             await flightDbContext.SaveChangesAsync();
 
-            if (!await flightReadDbContext.Aircraft.AsQueryable().AnyAsync())
+            if (!await MongoQueryable.AnyAsync(flightReadDbContext.Aircraft.AsQueryable()))
                 await flightReadDbContext.Aircraft.InsertManyAsync(
                     mapper.Map<List<AircraftReadModel>>(InitialData.Aircrafts)
                 );
