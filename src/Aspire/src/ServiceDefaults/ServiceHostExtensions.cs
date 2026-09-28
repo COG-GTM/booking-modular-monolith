@@ -10,6 +10,7 @@ using BuildingBlocks.Web;
 using Figgle.Fonts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -49,6 +50,15 @@ public static class ServiceHostExtensions
 
         builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);
 
+        // Hosts sit behind the YARP gateway; honour its X-Forwarded-* so generated URLs (Location, discovery) use the public origin.
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders |=
+                ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+            options.KnownNetworks.Clear();
+            options.KnownProxies.Clear();
+        });
+
         builder.Services.AddGrpc(options =>
         {
             options.Interceptors.Add<GrpcExceptionInterceptor>();
@@ -66,6 +76,8 @@ public static class ServiceHostExtensions
     public static WebApplication UseServiceHost(this WebApplication app)
     {
         var appOptions = app.Configuration.GetOptions<AppOptions>(nameof(AppOptions));
+
+        app.UseForwardedHeaders();
 
         app.UseServiceDefaults();
 

@@ -11,7 +11,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Identity.Extensions.Infrastructure;
 
-
 public static class InfrastructureExtensions
 {
     public static WebApplicationBuilder AddIdentityModules(this WebApplicationBuilder builder)
@@ -26,14 +25,13 @@ public static class InfrastructureExtensions
 
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
-            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.ForwardedHeaders |= ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
         });
 
         builder.Services.AddCustomMediatR();
 
         return builder;
     }
-
 
     public static WebApplication UseIdentityModules(this WebApplication app)
     {

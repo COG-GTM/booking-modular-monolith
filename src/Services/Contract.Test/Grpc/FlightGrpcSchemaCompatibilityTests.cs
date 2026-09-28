@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
 using Google.Protobuf.Reflection;
@@ -35,55 +34,15 @@ public class FlightGrpcSchemaCompatibilityTests
     [InlineData("ReserveSeat")]
     public void request_and_response_messages_are_wire_compatible(string methodName)
     {
-        var consumerMethod = Consumer.FindMethodByName(methodName);
-        var providerMethod = Provider.FindMethodByName(methodName);
-
-        consumerMethod.IsClientStreaming.Should().Be(providerMethod.IsClientStreaming);
-        consumerMethod.IsServerStreaming.Should().Be(providerMethod.IsServerStreaming);
-
-        AssertWireCompatible(consumerMethod.InputType, providerMethod.InputType, []);
-        AssertWireCompatible(consumerMethod.OutputType, providerMethod.OutputType, []);
+        GrpcSchemaCompatibility.AssertMethodCompatible(
+            Consumer.FindMethodByName(methodName),
+            Provider.FindMethodByName(methodName)
+        );
     }
 
-    // Protobuf identifies fields by number and type on the wire; names only matter for JSON transcoding, but a
-    // rename on one side is almost always a mistake, so they are pinned as well.
-    private static void AssertWireCompatible(
-        MessageDescriptor consumer,
-        MessageDescriptor provider,
-        HashSet<string> visited
-    )
+    [Fact]
+    public void whole_service_is_wire_compatible()
     {
-        if (!visited.Add(consumer.FullName))
-            return;
-
-        foreach (var consumerField in consumer.Fields.InDeclarationOrder())
-        {
-            var providerField = provider.FindFieldByNumber(consumerField.FieldNumber);
-
-            providerField
-                .Should()
-                .NotBeNull(
-                    "field {0}.{1} (#{2}) is used by Booking but missing on Flight",
-                    consumer.Name,
-                    consumerField.Name,
-                    consumerField.FieldNumber
-                );
-
-            providerField!.Name.Should().Be(consumerField.Name);
-            providerField.FieldType.Should().Be(consumerField.FieldType);
-            providerField.IsRepeated.Should().Be(consumerField.IsRepeated);
-
-            if (consumerField.FieldType == FieldType.Message)
-            {
-                AssertWireCompatible(consumerField.MessageType, providerField.MessageType, visited);
-            }
-            else if (consumerField.FieldType == FieldType.Enum)
-            {
-                consumerField
-                    .EnumType.Values.Select(v => (v.Name, v.Number))
-                    .Should()
-                    .BeEquivalentTo(providerField.EnumType.Values.Select(v => (v.Name, v.Number)));
-            }
-        }
+        GrpcSchemaCompatibility.AssertServiceCompatible(Consumer, Provider);
     }
 }
