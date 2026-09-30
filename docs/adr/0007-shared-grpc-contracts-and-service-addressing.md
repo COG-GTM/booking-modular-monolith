@@ -92,7 +92,7 @@ C4Container
 
 - **Data classification:** Internal — flight/seat availability and passenger identifiers (passenger id, name) already exchanged in-process today; now crosses the network within the trust boundary.
 - **Encryption at rest:** N/A — no persistence added.
-- **Encryption in transit:** TLS 1.2+ (Kestrel HTTPS endpoint, `https://` logical addresses by default). `AcceptAnyServerCertificate` is opt-in per environment for dev certificates only; docker-compose uses plain HTTP on the internal bridge network (documented in `appsettings.docker.json`).
+- **Encryption in transit:** TLS 1.2+ (Kestrel HTTPS endpoint, `https://` logical addresses by default). `AcceptAnyServerCertificate` is opt-in per environment for dev certificates only; docker-compose routes gRPC over the container's HTTPS endpoint with the mounted dev certificate and `AcceptAnyServerCertificate=true` (`appsettings.docker.json`) because Kestrel only negotiates cleartext HTTP/2 on HTTP/2-only endpoints.
 - **AuthN / AuthZ:** Unchanged — internal gRPC endpoints are not exposed through the API gateway; service-to-service auth (mTLS/JWT propagation) is out of scope and tracked as an open question.
 - **Secrets:** None added. Addresses are non-secret configuration.
 - **Audit logging:** Existing OpenTelemetry gRPC client/server instrumentation and correlation-id middleware cover the calls.
