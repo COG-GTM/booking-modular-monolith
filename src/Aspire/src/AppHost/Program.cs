@@ -319,6 +319,14 @@ var api = builder.AddProject<Api>("api")
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3001, name: "api-http")
-    .WithHttpsEndpoint(port: 3000, name: "api-https");
+    .WithHttpsEndpoint(port: 3000, name: "api-https")
+    .WithHttpHealthCheck("/health");
+
+// Flight and Passenger are still hosted inside the monolith: point Booking's service-discovery
+// names at the api's own endpoints until they get dedicated hosts.
+foreach (var serviceName in new[] { "flight", "passenger" })
+{
+    api.WithEnvironment($"services__{serviceName}__https__0", api.GetEndpoint("api-https"));
+}
 
 builder.Build().Run();

@@ -1,6 +1,6 @@
 namespace Integration.Test.Fakes;
 
-using BookingFlight;
+using Contracts.Grpc.Flight.V1;
 using MassTransit;
 
 public static class FakeReserveSeatResponse
