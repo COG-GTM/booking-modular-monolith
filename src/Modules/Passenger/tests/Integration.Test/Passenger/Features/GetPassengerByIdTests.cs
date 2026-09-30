@@ -3,6 +3,7 @@ using Api;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
 using Integration.Test.Fakes;
+using Contracts.Grpc.Passenger.V1;
 using Passenger;
 using Passenger.Data;
 using Xunit;
