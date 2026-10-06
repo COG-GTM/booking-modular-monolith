@@ -36,6 +36,7 @@
   - [Docker Compose](#docker-compose)
   - [Build](#build)
   - [Run](#run)
+  - [API Gateway (single ingress)](#api-gateway-single-ingress)
   - [Test](#test)
 - [Documentation Apis](#documentation-apis)
 - [Support](#support)
@@ -246,6 +247,32 @@ To `run` all modules, run this command in the root of the `Api` folder:
 ```bash
 dotnet run
 ```
+
+> ### API Gateway (single ingress)
+
+[`src/Gateway`](./src/Gateway) is a YARP reverse proxy that is the only endpoint clients should call. It validates JWTs (same `Jwt` section as the API), applies CORS (`CorsOptions:AllowedOrigins`), a per-client fixed-window rate limit (`RateLimitOptions`; list your load balancer in `TrustedProxyOptions` so `X-Forwarded-For` is used as the client address), HTTP request logging, and forwards `Authorization`, `correlationId` and `traceparent` headers downstream.
+
+| Where | Gateway | Monolith API |
+| --- | --- | --- |
+| `dotnet run` / Aspire | `http://localhost:5000`, `https://localhost:5001` | `http://localhost:3001`, `https://localhost:3000` |
+| Docker Compose | `http://localhost:5000` | `http://localhost:3001`, `https://localhost:3000` |
+
+Routing is fully config-driven (`ReverseProxy` section of [`appsettings.json`](./src/Gateway/src/appsettings.json)). Each module has its own cluster (`flight`, `passenger`, `booking`, `identity`) whose single destination is the monolith, plus a `monolith` fallback cluster for everything else (`/connect`, `/.well-known`, Swagger, health). Any other `/api/*` path still requires a valid token (`api-fallback` route). To move a module to an extracted service, repoint **only** that cluster's destination — no code change:
+
+```bash
+# e.g. Flight is now served by its own service
+ReverseProxy__Clusters__flight__Destinations__monolith__Address=http://flight-service:80
+```
+
+or in `appsettings.<Environment>.json`:
+
+```json
+{ "ReverseProxy": { "Clusters": { "flight": { "Destinations": { "monolith": { "Address": "http://flight-service:80" } } } } } }
+```
+
+Under Aspire the AppHost injects the API endpoint into every cluster, so repoint there through the AppHost configuration instead (`Gateway:Clusters:<cluster>` in `src/Aspire/src/AppHost/appsettings*.json`, user-secrets or `Gateway__Clusters__flight=http://flight-service:80`).
+
+The decision is recorded in [ADR 0006](./docs/adr/0006-api-gateway-single-ingress.md).
 
 > ### Test
 

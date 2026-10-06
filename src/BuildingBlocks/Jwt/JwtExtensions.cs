@@ -13,17 +13,20 @@ namespace BuildingBlocks.Jwt
             // Bind Jwt settings from configuration
             var jwtOptions = services.GetOptions<JwtBearerOptions>("Jwt");
 
+            services.Configure<JwtBearerOptions>(options =>
+            {
+                if (!string.IsNullOrEmpty(jwtOptions.MetadataAddress))
+                {
+                    options.MetadataAddress = jwtOptions.MetadataAddress;
+                }
+            });
+
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
                 options.Authority = jwtOptions.Authority;
                 options.Audience = jwtOptions.Audience;
                 options.RequireHttpsMetadata = false;
-
-                if (!string.IsNullOrEmpty(jwtOptions.MetadataAddress))
-                {
-                    options.MetadataAddress = jwtOptions.MetadataAddress;
-                }
 
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
