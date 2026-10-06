@@ -1,11 +1,13 @@
+using BuildingBlocks.Core;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.PersistMessageProcessor;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MessageEnvelope = BuildingBlocks.Core.Event.MessageEnvelope;
 
-namespace BuildingBlocks.Core;
+namespace BuildingBlocks.PersistMessageProcessor;
 
+// Bound to the outbox owned by TModule (the module's root marker type, e.g. FlightRoot).
 public sealed class EventDispatcher<TModule>(
     IServiceScopeFactory serviceScopeFactory,
     IEnumerable<IEventMapper> eventMappers,
@@ -142,5 +144,4 @@ public sealed class EventDispatcher<TModule>(
             yield return domainNotificationEvent;
         }
     }
-
 }

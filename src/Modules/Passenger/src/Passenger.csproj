@@ -15,8 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Contracts.Messages\Contracts.Messages.csproj" />
     <ProjectReference Include="..\..\..\Contracts.Grpc\Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\Contracts.Messages\Contracts.Messages.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Core\BuildingBlocks.Core.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\EFCore\BuildingBlocks.EFCore.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Mapster\BuildingBlocks.Mapster.csproj" />

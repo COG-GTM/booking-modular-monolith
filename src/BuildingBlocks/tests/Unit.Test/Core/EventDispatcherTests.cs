@@ -1,6 +1,6 @@
 using BuildingBlocks.Core;
-using BuildingBlocks.Core.Event;
 using BuildingBlocks.PersistMessageProcessor;
+using BuildingBlocks.Core.Event;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;

@@ -37,6 +37,7 @@ public class PerModuleEventDispatcherTests
         services.AddHttpContextAccessor();
         services.AddEventHeadersProvider();
         services.AddSingleton(_eventMapper);
+        services.AddSingleton(Substitute.For<IEventHeadersProvider>());
         services.AddSingleton(_flightProcessor);
         services.AddSingleton(_otherProcessor);
         services.AddScoped<IEventDispatcher<FlightRoot>, EventDispatcher<FlightRoot>>();

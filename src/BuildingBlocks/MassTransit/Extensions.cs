@@ -23,6 +23,8 @@ public static class Extensions
     {
         services.AddValidateOptions<RabbitMqOptions>();
 
+        services.AddSingleton(ConsumerTypeMap.FromAssemblies(assembly));
+
         var transport =
             transportType
             ?? configuration.GetValue<TransportType?>("MessageBroker:TransportType")
@@ -98,6 +100,7 @@ public static class Extensions
                         }
 
                         configurator.UseMessageRetry(AddRetryConfiguration);
+                        configurator.UseConsumeFilter(typeof(ConsumeFilter<>), context);
 
                         configurator.ConfigureEndpoints(context);
                     }
@@ -109,6 +112,7 @@ public static class Extensions
                     (context, configurator) =>
                     {
                         configurator.UseMessageRetry(AddRetryConfiguration);
+                        configurator.UseConsumeFilter(typeof(ConsumeFilter<>), context);
 
                         configurator.ConfigureEndpoints(context);
                     }

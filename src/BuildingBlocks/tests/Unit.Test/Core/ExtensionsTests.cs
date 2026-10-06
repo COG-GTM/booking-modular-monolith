@@ -10,11 +10,12 @@ namespace Unit.Test.Core;
 public class ExtensionsTests
 {
     [Fact]
-    public void add_event_headers_provider_should_register_default_provider()
+    public void add_event_dispatcher_should_register_default_headers_provider()
     {
         var services = new ServiceCollection();
-
-        services.AddEventHeadersProvider();
+        services.AddLogging();
+        services.AddScoped(_ => Substitute.For<IIntegrationEventPublisher>());
+        services.AddEventDispatcher();
 
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();

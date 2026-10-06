@@ -11,6 +11,9 @@ public static class Extensions
         return services;
     }
 
+    public static IServiceCollection AddEventDispatcher(this IServiceCollection services) =>
+        services.AddEventHeadersProvider();
+
     public static IServiceCollection AddEventMapper<TMapper>(this IServiceCollection services)
         where TMapper : class, IEventMapper
     {

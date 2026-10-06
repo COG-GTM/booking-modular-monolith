@@ -63,6 +63,10 @@ public static class Extensions
             });
 
         builder.Services.AddScoped<IPersistMessageProcessor<TModule>, PersistMessageProcessor<TModule>>();
+        builder.Services.AddScoped<IIntegrationEventPublisher>(
+            provider =>
+                new PersistMessageIntegrationEventPublisher(
+                    provider.GetRequiredService<IPersistMessageProcessor<TModule>>()));
 
         // Lets module-agnostic infrastructure (e.g. the MassTransit inbox filter) find the store owned by a
         // consumer's module through its assembly.

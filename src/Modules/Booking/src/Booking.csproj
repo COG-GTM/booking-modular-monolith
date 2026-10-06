@@ -8,11 +8,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Contracts.Messages\Contracts.Messages.csproj" />
     <ProjectReference Include="..\..\..\Contracts.Grpc\Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\Contracts.Messages\Contracts.Messages.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Core\BuildingBlocks.Core.csproj" />
-    <ProjectReference Include="..\..\..\BuildingBlocks\EventStoreDB\BuildingBlocks.EventStoreDB.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Grpc\BuildingBlocks.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\EventStoreDB\BuildingBlocks.EventStoreDB.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Mapster\BuildingBlocks.Mapster.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Mongo\BuildingBlocks.Mongo.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\PersistMessageProcessor\BuildingBlocks.PersistMessageProcessor.csproj" />
