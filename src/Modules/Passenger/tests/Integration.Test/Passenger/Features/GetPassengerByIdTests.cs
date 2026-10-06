@@ -1,7 +1,13 @@
+using System.Collections.Generic;
+using System.Net;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Api;
+using BuildingBlocks.Constants;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
+using Grpc.Core;
+using Grpc.Net.Client;
 using Integration.Test.Fakes;
 using Passenger;
 using Passenger.Data;
@@ -14,9 +20,9 @@ using global::Passenger.Passengers.Features.GettingPassengerById.V1;
 public class GetPassengerByIdTests : PassengerIntegrationTestBase
 {
     public GetPassengerByIdTests(
-        TestFixture<Program, PassengerDbContext, PassengerReadDbContext> integrationTestFactory) : base(integrationTestFactory)
-    {
-    }
+        TestFixture<Program, PassengerDbContext, PassengerReadDbContext> integrationTestFactory
+    )
+        : base(integrationTestFactory) { }
 
     [Fact]
     public async Task should_retrive_a_passenger_by_id_currectly()
@@ -34,6 +40,115 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         // Assert
         response.Should().NotBeNull();
         response?.PassengerDto?.Id.Should().Be(command.Id);
+    }
+
+    [Fact]
+    public async Task should_return_forbidden_when_non_admin_user_gets_another_passenger_by_id()
+    {
+        // Arrange
+        var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
+
+        await Fixture.SendAsync(command);
+
+        var nonAdminClient = Fixture.CreateHttpClient(
+            new Dictionary<string, object>
+            {
+                { ClaimTypes.Name, "attacker@sample.com" },
+                { ClaimTypes.Role, IdentityConstant.Role.User },
+                { "scope", "flight-api" },
+            }
+        );
+
+        // Act
+        var result = await nonAdminClient.GetAsync($"api/v1/passenger/{command.Id}");
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task should_return_ok_when_admin_gets_passenger_by_id()
+    {
+        // Arrange
+        var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
+
+        await Fixture.SendAsync(command);
+
+        // Act
+        var result = await Fixture.HttpClient.GetAsync($"api/v1/passenger/{command.Id}");
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task should_return_unauthenticated_when_anonymous_caller_gets_passenger_by_id_from_grpc_service()
+    {
+        // Arrange
+        var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
+
+        await Fixture.SendAsync(command);
+
+        var anonymousClient = Fixture.CreateHttpClient();
+        var anonymousChannel = GrpcChannel.ForAddress(
+            anonymousClient.BaseAddress!,
+            new GrpcChannelOptions { HttpClient = anonymousClient }
+        );
+        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(anonymousChannel);
+
+        // Act
+        var act = async () => await passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = command.Id.ToString() });
+
+        // Assert
+        var exception = await act.Should().ThrowAsync<RpcException>();
+        exception.Which.StatusCode.Should().Be(StatusCode.Unauthenticated);
+    }
+
+    [Fact]
+    public async Task should_return_unauthorized_when_anonymous_caller_gets_passenger_by_id()
+    {
+        // Arrange
+        var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
+
+        await Fixture.SendAsync(command);
+
+        var anonymousClient = Fixture.CreateHttpClient();
+
+        // Act
+        var result = await anonymousClient.GetAsync($"api/v1/passenger/{command.Id}");
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task should_retrive_a_passenger_by_id_from_grpc_service_when_caller_is_authenticated_non_admin_user()
+    {
+        // Arrange
+        var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
+
+        await Fixture.SendAsync(command);
+
+        var nonAdminClient = Fixture.CreateHttpClient(
+            new Dictionary<string, object>
+            {
+                { ClaimTypes.Name, "user@sample.com" },
+                { ClaimTypes.Role, IdentityConstant.Role.User },
+                { "scope", "flight-api" },
+            }
+        );
+        var nonAdminChannel = GrpcChannel.ForAddress(
+            nonAdminClient.BaseAddress!,
+            new GrpcChannelOptions { HttpClient = nonAdminClient }
+        );
+        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(nonAdminChannel);
+
+        // Act
+        var response = await passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = command.Id.ToString() });
+
+        // Assert
+        response?.Should().NotBeNull();
+        response?.PassengerDto?.Id.Should().Be(command.Id.ToString());
     }
 
     [Fact]

@@ -2,6 +2,7 @@ using BuildingBlocks.EFCore;
 using BuildingBlocks.Mapster;
 using BuildingBlocks.Mongo;
 using BuildingBlocks.Web;
+using Duende.IdentityServer.EntityFramework.Entities;
 using FluentValidation;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,7 +31,7 @@ public static class InfrastructureExtensions
     public static WebApplication UsePassengerModules(this WebApplication app)
     {
         app.UseMigration<PassengerDbContext>();
-        app.MapGrpcService<PassengerGrpcServices>();
+        app.MapGrpcService<PassengerGrpcServices>().RequireAuthorization(nameof(ApiScope));
 
         return app;
     }

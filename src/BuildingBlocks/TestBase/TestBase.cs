@@ -65,10 +65,20 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
                 { "scope", "flight-api" },
             };
 
-            var httpClient = _factory.CreateClient();
-            httpClient.SetFakeBearerToken(claims); // Uses FakeJwtBearer
-            return httpClient;
+            return CreateHttpClient(claims);
         }
+    }
+
+    public HttpClient CreateHttpClient(Dictionary<string, object> claims = null)
+    {
+        var httpClient = _factory.CreateClient();
+
+        if (claims is not null)
+        {
+            httpClient.SetFakeBearerToken(claims); // Uses FakeJwtBearer
+        }
+
+        return httpClient;
     }
 
     public GrpcChannel Channel =>
