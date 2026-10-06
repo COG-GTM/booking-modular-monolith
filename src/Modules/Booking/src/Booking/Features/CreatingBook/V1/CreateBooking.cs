@@ -1,15 +1,15 @@
 namespace Booking.Booking.Features.CreatingBook.V1;
 
 using Ardalis.GuardClauses;
-using BookingFlight;
-using BookingPassenger;
+using BuildingBlocks.Constants;
+using Contracts.Grpc.Flight.V1;
+using Contracts.Grpc.Passenger.V1;
 using BuildingBlocks.Core;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Core.Model;
 using BuildingBlocks.EventStoreDB.Repository;
 using BuildingBlocks.Web;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Exceptions;
 using FluentValidation;
 using Mapster;
@@ -50,7 +50,7 @@ public class CreateBookingEndpoint : IMinimalEndpoint
 
                 return Results.Ok(response);
             })
-            .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(IdentityConstant.AuthorizationPolicy.ApiScope)
             .WithName("CreateBooking")
             .WithApiVersionSet(builder.NewApiVersionSet("Booking").Build())
             .Produces<CreateBookingResponseDto>()
@@ -77,13 +77,13 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
 {
     private readonly IEventStoreDBRepository<Models.Booking> _eventStoreDbRepository;
     private readonly ICurrentUserProvider _currentUserProvider;
-    private readonly IEventDispatcher _eventDispatcher;
+    private readonly IEventDispatcher<BookingRoot> _eventDispatcher;
     private readonly FlightGrpcService.FlightGrpcServiceClient _flightGrpcServiceClient;
     private readonly PassengerGrpcService.PassengerGrpcServiceClient _passengerGrpcServiceClient;
 
     public CreateBookingCommandHandler(IEventStoreDBRepository<Models.Booking> eventStoreDbRepository,
         ICurrentUserProvider currentUserProvider,
-        IEventDispatcher eventDispatcher,
+        IEventDispatcher<BookingRoot> eventDispatcher,
         FlightGrpcService.FlightGrpcServiceClient flightGrpcServiceClient,
         PassengerGrpcService.PassengerGrpcServiceClient passengerGrpcServiceClient)
     {
@@ -99,7 +99,7 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
         Guard.Against.Null(command, nameof(command));
 
         var flight =
-            await _flightGrpcServiceClient.GetByIdAsync(new BookingFlight.GetByIdRequest { Id = command.FlightId.ToString() }, cancellationToken: cancellationToken);
+            await _flightGrpcServiceClient.GetByIdAsync(new Contracts.Grpc.Flight.V1.GetByIdRequest { Id = command.FlightId.ToString() }, cancellationToken: cancellationToken);
 
         if (flight is null)
         {
@@ -107,7 +107,7 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
         }
 
         var passenger =
-            await _passengerGrpcServiceClient.GetByIdAsync(new BookingPassenger.GetByIdRequest { Id = command.PassengerId.ToString() }, cancellationToken: cancellationToken);
+            await _passengerGrpcServiceClient.GetByIdAsync(new Contracts.Grpc.Passenger.V1.GetByIdRequest { Id = command.PassengerId.ToString() }, cancellationToken: cancellationToken);
 
         var emptySeat = (await _flightGrpcServiceClient
                 .GetAvailableSeatsAsync(new GetAvailableSeatsRequest { FlightId = command.FlightId.ToString() }, cancellationToken: cancellationToken)

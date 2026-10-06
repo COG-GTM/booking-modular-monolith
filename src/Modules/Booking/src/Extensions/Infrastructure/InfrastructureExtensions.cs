@@ -1,7 +1,9 @@
 using Booking.Data;
+using BuildingBlocks.Core;
 using BuildingBlocks.EventStoreDB;
 using BuildingBlocks.Mapster;
 using BuildingBlocks.Mongo;
+using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Web;
 using FluentValidation;
 using Microsoft.AspNetCore.Builder;
@@ -13,11 +15,12 @@ public static class InfrastructureExtensions
 {
     public static WebApplicationBuilder AddBookingModules(this WebApplicationBuilder builder)
     {
-        builder.Services.AddScoped<BookingEventMapper>();
+        builder.Services.AddEventMapper<BookingEventMapper>();
         builder.AddMinimalEndpoints(assemblies: typeof(BookingRoot).Assembly);
         builder.Services.AddValidatorsFromAssembly(typeof(BookingRoot).Assembly);
         builder.Services.AddCustomMapster(typeof(BookingRoot).Assembly);
-        builder.AddMongoDbContext<BookingReadDbContext>();
+        builder.AddPersistMessageProcessor<BookingRoot>(nameof(Booking));
+        builder.AddMongoDbContext<BookingReadDbContext>(nameof(Booking));
 
         // ref: https://github.com/oskardudycz/EventSourcing.NetCore/tree/main/Sample/EventStoreDB/ECommerce
         builder.Services.AddEventStore(builder.Configuration, typeof(BookingRoot).Assembly)

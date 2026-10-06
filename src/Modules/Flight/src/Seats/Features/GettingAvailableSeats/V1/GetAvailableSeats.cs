@@ -1,3 +1,4 @@
+using BuildingBlocks.Constants;
 using MongoDB.Driver.Linq;
 
 namespace Flight.Seats.Features.GettingAvailableSeats.V1;
@@ -12,7 +13,6 @@ using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Web;
 using Data;
 using Dtos;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Exceptions;
 using FluentValidation;
 using Mapster;
@@ -34,7 +34,7 @@ public class GetAvailableSeatsEndpoint : IMinimalEndpoint
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
         builder.MapGet($"{EndpointConfig.BaseApiPath}/flight/get-available-seats/{{id}}", GetAvailableSeats)
-            .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(IdentityConstant.AuthorizationPolicy.ApiScope)
             .WithName("GetAvailableSeats")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<GetAvailableSeatsResponseDto>()

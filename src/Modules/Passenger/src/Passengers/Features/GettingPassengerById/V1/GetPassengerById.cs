@@ -1,9 +1,9 @@
 namespace Passenger.Passengers.Features.GettingPassengerById.V1;
 
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Web;
-using Duende.IdentityServer.EntityFramework.Entities;
 using FluentValidation;
 using Mapster;
 using MapsterMapper;
@@ -36,7 +36,7 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
 
                     return Results.Ok(response);
                 })
-            .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(IdentityConstant.AuthorizationPolicy.ApiScope)
             .WithName("GetPassengerById")
             .WithApiVersionSet(builder.NewApiVersionSet("Passenger").Build())
             .Produces<GetPassengerByIdResponseDto>()
