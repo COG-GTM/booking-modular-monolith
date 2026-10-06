@@ -35,6 +35,7 @@ public class PerModuleEventDispatcherTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddHttpContextAccessor();
+        services.AddEventHeadersProvider();
         services.AddSingleton(_eventMapper);
         services.AddSingleton(_flightProcessor);
         services.AddSingleton(_otherProcessor);

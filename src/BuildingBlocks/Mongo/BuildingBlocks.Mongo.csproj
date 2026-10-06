@@ -3,6 +3,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Humanizer.Core" Version="3.0.1" />
     <PackageReference Include="MongoDB.Driver" Version="3.6.0" />
   </ItemGroup>
   <ItemGroup>

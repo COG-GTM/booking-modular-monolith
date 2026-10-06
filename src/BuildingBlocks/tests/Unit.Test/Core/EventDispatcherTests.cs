@@ -146,5 +146,5 @@ public class EventDispatcherTests
         headersProvider.DidNotReceive().GetHeaders();
     }
 
-    private sealed class TestModule { }
+    public sealed class TestModule { }
 }

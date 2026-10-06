@@ -99,7 +99,7 @@ public static class Extensions
 
                         configurator.UseMessageRetry(AddRetryConfiguration);
 
-                        configurator.UseConsumeFilter(typeof(ConsumeFilter<>), context);
+                        configurator.UseConsumeFilter(typeof(ConsumeFilter<,>), context);
 
                         configurator.ConfigureEndpoints(context);
                     }
@@ -112,7 +112,7 @@ public static class Extensions
                     {
                         configurator.UseMessageRetry(AddRetryConfiguration);
 
-                        configurator.UseConsumeFilter(typeof(ConsumeFilter<>), context);
+                        configurator.UseConsumeFilter(typeof(ConsumeFilter<,>), context);
 
                         configurator.ConfigureEndpoints(context);
                     }
