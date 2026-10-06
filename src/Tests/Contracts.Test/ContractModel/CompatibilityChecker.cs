@@ -119,11 +119,11 @@ public static class CompatibilityChecker
                 {
                     if (
                         !currentEnum.ReservedNames.Contains(value.Key)
-                        && !IsReserved(currentEnum.ReservedRanges, value.Value)
+                        || !IsReserved(currentEnum.ReservedRanges, value.Value)
                     )
                     {
                         changes.Add(
-                            $"gRPC enum value removed without reserving name or number: {protoEnum.Key}.{value.Key}"
+                            $"gRPC enum value removed without reserving number and name: {protoEnum.Key}.{value.Key}"
                         );
                     }
 

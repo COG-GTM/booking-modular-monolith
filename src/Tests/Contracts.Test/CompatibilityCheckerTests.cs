@@ -153,33 +153,56 @@ public class CompatibilityCheckerTests
     }
 
     [Fact]
-    public void removed_enum_value_without_reservation_is_breaking()
+    public void removed_enum_value_without_both_reservations_is_breaking()
     {
         CompareGrpc(current => current.Enums[".flight.v1.FlightStatus"].Values.Remove("FLIGHT_STATUS_FLYING"))
             .Should()
-            .ContainSingle(change => change.Contains("enum value removed"));
+            .ContainSingle(change =>
+                change
+                == "gRPC enum value removed without reserving number and name: .flight.v1.FlightStatus.FLIGHT_STATUS_FLYING"
+            );
     }
 
     [Fact]
-    public void removed_enum_value_reserved_by_name_is_compatible()
+    public void removed_enum_value_reserved_by_name_only_is_breaking()
+    {
+        CompareGrpc(current =>
+            {
+                var status = current.Enums[".flight.v1.FlightStatus"];
+                status.Values.Remove("FLIGHT_STATUS_FLYING");
+                status.ReservedNames.Add("FLIGHT_STATUS_FLYING");
+            })
+            .Should()
+            .ContainSingle(change =>
+                change
+                == "gRPC enum value removed without reserving number and name: .flight.v1.FlightStatus.FLIGHT_STATUS_FLYING"
+            );
+    }
+
+    [Fact]
+    public void removed_enum_value_reserved_by_number_only_is_breaking()
+    {
+        CompareGrpc(current =>
+            {
+                var status = current.Enums[".flight.v1.FlightStatus"];
+                status.Values.Remove("FLIGHT_STATUS_FLYING");
+                status.ReservedRanges.Add(new ProtoReservedRange(1, 2));
+            })
+            .Should()
+            .ContainSingle(change =>
+                change
+                == "gRPC enum value removed without reserving number and name: .flight.v1.FlightStatus.FLIGHT_STATUS_FLYING"
+            );
+    }
+
+    [Fact]
+    public void removed_enum_value_reserved_by_number_and_name_is_compatible()
     {
         var changes = CompareGrpc(current =>
         {
             var status = current.Enums[".flight.v1.FlightStatus"];
             status.Values.Remove("FLIGHT_STATUS_FLYING");
             status.ReservedNames.Add("FLIGHT_STATUS_FLYING");
-        });
-
-        changes.Should().NotContain(change => change.Contains("enum value removed"));
-    }
-
-    [Fact]
-    public void removed_enum_value_reserved_by_number_is_compatible()
-    {
-        var changes = CompareGrpc(current =>
-        {
-            var status = current.Enums[".flight.v1.FlightStatus"];
-            status.Values.Remove("FLIGHT_STATUS_FLYING");
             status.ReservedRanges.Add(new ProtoReservedRange(1, 2));
         });
 
