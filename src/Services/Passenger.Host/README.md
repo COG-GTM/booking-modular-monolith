@@ -22,8 +22,8 @@ database (`passenger_modular_monolith_read`).
 - `PostgresOptions:ConnectionString:Passenger` — module write DB + outbox/inbox.
 - `MongoOptions` / `MongoOptions:Passenger:DatabaseName` — module read DB.
 - `Jwt` — tokens still issued by Identity in the monolith (`https://localhost:3000`).
-  In containers, `Jwt:MetadataAddress` (host-local optional override, post-configured
-  onto `JwtBearerOptions`) points OIDC metadata discovery at the monolith service
+  In containers, `Jwt:MetadataAddress` (host-local optional override, applied via `Configure<JwtBearerOptions>`
+  before JWT bearer post-configuration builds the discovery manager) points OIDC metadata discovery at the monolith service
   (`http://booking_modular_monolith/.well-known/openid-configuration`); `Authority`
   stays unchanged so issuer validation still matches the issued tokens.
 - `appsettings.docker.json` overrides hostnames to `postgres` / `mongo` / `rabbitmq`
