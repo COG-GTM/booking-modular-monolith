@@ -178,6 +178,33 @@ public class PersistMessageTraceContextTests
     }
 
     [Fact]
+    public async Task processing_outbox_message_restores_traceparent_with_case_insensitive_header_key()
+    {
+        using var listener = CreateActivityListener(PersistMessageTracing.ActivitySourceName);
+        var (processor, dbContext, publishEndpoint, _) = CreateProcessor();
+        const string traceId = "0af7651916cd43dd8448eb211c80319c";
+        const string traceParent = $"00-{traceId}-b7ad6b7169203331-01";
+        Activity? publishActivity = null;
+        publishEndpoint
+            .When(e => e.Publish(Arg.Any<object>(), Arg.Any<IPipe<PublishContext>>(), Arg.Any<CancellationToken>()))
+            .Do(_ => publishActivity = Activity.Current);
+        Activity.Current = null;
+
+        await processor.PublishMessageAsync(
+            new MessageEnvelope(
+                new TestIntegrationEvent("value"),
+                new Dictionary<string, object?> { ["TraceParent"] = traceParent }
+            )
+        );
+        var messageId = (await dbContext.PersistMessage.SingleAsync()).Id;
+
+        await processor.ProcessAsync(messageId, MessageDeliveryType.Outbox);
+
+        publishActivity.Should().NotBeNull();
+        publishActivity!.TraceId.ToHexString().Should().Be(traceId);
+    }
+
+    [Fact]
     public async Task processing_outbox_message_forwards_non_trace_headers_and_the_published_event()
     {
         using var listener = CreateActivityListener(RequestSourceName, PersistMessageTracing.ActivitySourceName);
