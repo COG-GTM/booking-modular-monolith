@@ -287,6 +287,49 @@ public class AppHostTopologyTests
         );
     }
 
+    [Theory]
+    [InlineData("Microservices")]
+    [InlineData("Monolith")]
+    public async Task explicit_project_host_ports_do_not_collide_with_any_other_resource(string topology)
+    {
+        var configuration = new Dictionary<string, string?> { ["AppHost:Topology"] = topology };
+        await using var appHost = await AppHostUnderTest.CreateAsync(configuration);
+
+        var hostEndpoints = appHost
+            .Model.Resources.SelectMany(resource =>
+                resource
+                    .Annotations.OfType<EndpointAnnotation>()
+                    .Where(endpoint => endpoint.Port is not null)
+                    .Select(endpoint => (Resource: resource, Endpoint: endpoint))
+            )
+            .ToList();
+
+        // Endpoints mirrored from launchSettings.json are named after their scheme (http/https);
+        // the host ports the AppHost pins itself are the explicitly named ones (gateway-*, api-*).
+        var projectEndpoints = hostEndpoints
+            .Where(e => e.Resource is ProjectResource && e.Endpoint.Name != e.Endpoint.UriScheme)
+            .ToList();
+        Assert.NotEmpty(projectEndpoints);
+
+        var collisions = projectEndpoints
+            .SelectMany(project =>
+                hostEndpoints
+                    .Where(other =>
+                        !ReferenceEquals(other.Resource, project.Resource)
+                        && other.Endpoint.Port == project.Endpoint.Port
+                        && other.Endpoint.Protocol == project.Endpoint.Protocol
+                    )
+                    .Select(other =>
+                        $"{project.Resource.Name}/{project.Endpoint.Name}:{project.Endpoint.Port} "
+                        + $"vs {other.Resource.Name}/{other.Endpoint.Name}"
+                    )
+            )
+            .Order()
+            .ToList();
+
+        Assert.Empty(collisions);
+    }
+
     private static string ClusterAddressKey(string cluster) =>
         $"ReverseProxy__Clusters__{cluster}__Destinations__monolith__Address";
 
