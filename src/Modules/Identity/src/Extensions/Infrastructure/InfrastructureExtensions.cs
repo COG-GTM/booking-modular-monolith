@@ -2,6 +2,7 @@ using BuildingBlocks.EFCore;
 using BuildingBlocks.Mapster;
 using BuildingBlocks.Web;
 using FluentValidation;
+using Identity.Configurations;
 using Identity.Data;
 using Identity.Data.Seed;
 using Microsoft.AspNetCore.Builder;
@@ -9,7 +10,6 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Identity.Extensions.Infrastructure;
-
 
 public static class InfrastructureExtensions
 {
@@ -20,6 +20,7 @@ public static class InfrastructureExtensions
         builder.Services.AddValidatorsFromAssembly(typeof(IdentityRoot).Assembly);
         builder.Services.AddCustomMapster(typeof(IdentityRoot).Assembly);
         builder.AddCustomDbContext<IdentityContext>(nameof(Identity));
+        builder.Services.AddValidateOptions<IdentitySeedOptions>();
         builder.Services.AddScoped<IDataSeeder, IdentityDataSeeder>();
         builder.AddCustomIdentityServer();
 
@@ -32,7 +33,6 @@ public static class InfrastructureExtensions
 
         return builder;
     }
-
 
     public static WebApplication UseIdentityModules(this WebApplication app)
     {
