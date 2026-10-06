@@ -7,11 +7,9 @@ using BuildingBlocks.OpenApi;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Figgle.Fonts;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
 
 namespace Identity.Host.Extensions;
@@ -93,12 +91,6 @@ public static class IdentityHostExtensions
         var appOptions = app.Configuration.GetOptions<AppOptions>(nameof(AppOptions));
 
         app.UseServiceDefaults();
-        if (!app.Environment.IsDevelopment())
-        {
-            app.MapHealthChecks("/health");
-            app.MapHealthChecks("/alive", new HealthCheckOptions { Predicate = r => r.Tags.Contains("live") });
-        }
-
         app.UseCustomProblemDetails();
         app.UseCorrelationId();
         app.MapGet("/", () => appOptions.Name);
