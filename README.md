@@ -24,6 +24,7 @@
 - [When to Use](#when-to-use)
 - [Challenges](#challenges)
 - [The Domain and Bounded Context - Module Boundary](#the-domain-and-bounded-context---module-boundary)
+- [Microservices Migration - Target Architecture](#microservices-migration---target-architecture)
 - [Structure of Project](#structure-of-project)
 - [Development Setup](#development-setup)
     - [Dotnet Tools Packages](#dotnet-tools-packages)
@@ -127,6 +128,16 @@
 - `Booking Module`: The Booking Module is a bounded context for managing all operation related to booking ticket.
 
 ![](./assets/booking-modular-monolith.png)
+
+
+## Microservices Migration - Target Architecture
+
+This modular monolith is being migrated to microservices using a strangler-fig approach
+behind an API gateway: one service per module (Identity, Flight, Passenger, Booking),
+gRPC for synchronous calls, RabbitMQ for integration events, and a database per service.
+
+- Target-state diagram: [docs/target-architecture.md](docs/target-architecture.md)
+- Decision records: [docs/adr](docs/adr/README.md)
 
 
 ## Structure of Project
