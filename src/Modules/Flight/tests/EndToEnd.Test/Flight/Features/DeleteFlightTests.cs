@@ -32,4 +32,18 @@ public class DeleteFlightTests : FlightEndToEndTestBase
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
+
+    [Fact]
+    public async Task should_delete_flight_when_user_is_admin()
+    {
+        //Arrange
+        var flightId = InitialData.Flights.First().Id.Value;
+
+        // Act
+        var route = ApiRoutes.Flight.DeleteFlight.Replace(ApiRoutes.Flight.Id, flightId.ToString(), StringComparison.CurrentCulture);
+        var result = await Fixture.HttpClient.DeleteAsync(route);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
 }

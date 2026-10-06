@@ -1,10 +1,14 @@
+using System.Net;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Api;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
 using Identity.Data;
 using Integration.Test.Fakes;
+using Integration.Test.Routes;
 using Xunit;
 
 namespace Integration.Test.Identity.Features;
@@ -30,5 +34,34 @@ public class RegisterNewUserTests : IdentityIntegrationTestBase
         response?.Username.Should().Be(command.Username);
 
         (await Fixture.WaitForPublishing<UserCreated>()).Should().Be(true);
+    }
+
+    [Fact]
+    public async Task should_register_new_user_when_caller_is_admin()
+    {
+        // Arrange
+        var command = new FakeRegisterNewUserCommand().Generate();
+
+        // Act
+        var route = ApiRoutes.Identity.RegisterUser;
+        var result = await Fixture.HttpClient.PostAsJsonAsync(route, command);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task should_return_forbidden_when_caller_is_not_admin()
+    {
+        // Arrange
+        var command = new FakeRegisterNewUserCommand().Generate();
+        var httpClient = Fixture.CreateHttpClient(IdentityConstant.Role.User);
+
+        // Act
+        var route = ApiRoutes.Identity.RegisterUser;
+        var result = await httpClient.PostAsJsonAsync(route, command);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 }
