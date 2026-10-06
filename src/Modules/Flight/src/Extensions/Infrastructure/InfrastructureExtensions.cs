@@ -2,6 +2,7 @@ using BuildingBlocks.EFCore;
 using BuildingBlocks.Mapster;
 using BuildingBlocks.Mongo;
 using BuildingBlocks.Web;
+using Duende.IdentityServer.EntityFramework.Entities;
 using Flight.Data;
 using Flight.Data.Seed;
 using Flight.GrpcServer.Services;
@@ -10,7 +11,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Flight.Extensions.Infrastructure;
-
 
 public static class InfrastructureExtensions
 {
@@ -29,11 +29,10 @@ public static class InfrastructureExtensions
         return builder;
     }
 
-
     public static WebApplication UseFlightModules(this WebApplication app)
     {
         app.UseMigration<FlightDbContext>();
-        app.MapGrpcService<FlightGrpcServices>();
+        app.MapGrpcService<FlightGrpcServices>().RequireAuthorization(nameof(ApiScope));
 
         return app;
     }

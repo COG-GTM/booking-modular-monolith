@@ -4,6 +4,7 @@ using BuildingBlocks.TestBase;
 using Flight;
 using Flight.Data;
 using FluentAssertions;
+using Grpc.Core;
 using Integration.Test.Fakes;
 using Xunit;
 
@@ -13,10 +14,8 @@ using global::Flight.Flights.Features.GettingFlightById.V1;
 
 public class GetFlightByIdTests : FlightIntegrationTestBase
 {
-    public GetFlightByIdTests(
-        TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory) : base(integrationTestFactory)
-    {
-    }
+    public GetFlightByIdTests(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory)
+        : base(integrationTestFactory) { }
 
     [Fact]
     public async Task should_retrive_a_flight_by_id_currectly()
@@ -47,10 +46,31 @@ public class GetFlightByIdTests : FlightIntegrationTestBase
         var flightGrpcClient = new FlightGrpcService.FlightGrpcServiceClient(Fixture.Channel);
 
         // Act
-        var response = await flightGrpcClient.GetByIdAsync(new GetByIdRequest { Id = command.Id.ToString() }).ResponseAsync;
+        var response = await flightGrpcClient
+            .GetByIdAsync(new GetByIdRequest { Id = command.Id.ToString() })
+            .ResponseAsync;
 
         // Assert
         response?.Should().NotBeNull();
         response?.FlightDto.Id.Should().Be(command.Id.ToString());
+    }
+
+    [Fact]
+    public async Task should_reject_unauthenticated_get_flight_by_id_from_grpc_service()
+    {
+        //Arrange
+        var command = new FakeCreateFlightMongoCommand().Generate();
+
+        await Fixture.SendAsync(command);
+
+        var flightGrpcClient = new FlightGrpcService.FlightGrpcServiceClient(Fixture.UnauthenticatedChannel);
+
+        // Act
+        var act = async () => await flightGrpcClient.GetByIdAsync(new GetByIdRequest { Id = command.Id.ToString() });
+
+        // Assert
+        (await act.Should().ThrowAsync<RpcException>())
+            .Which.StatusCode.Should()
+            .Be(StatusCode.Unauthenticated);
     }
 }

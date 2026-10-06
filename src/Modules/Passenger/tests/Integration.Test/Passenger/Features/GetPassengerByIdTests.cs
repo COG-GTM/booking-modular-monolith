@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using Api;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
+using Grpc.Core;
 using Integration.Test.Fakes;
 using Passenger;
 using Passenger.Data;
@@ -14,9 +15,9 @@ using global::Passenger.Passengers.Features.GettingPassengerById.V1;
 public class GetPassengerByIdTests : PassengerIntegrationTestBase
 {
     public GetPassengerByIdTests(
-        TestFixture<Program, PassengerDbContext, PassengerReadDbContext> integrationTestFactory) : base(integrationTestFactory)
-    {
-    }
+        TestFixture<Program, PassengerDbContext, PassengerReadDbContext> integrationTestFactory
+    )
+        : base(integrationTestFactory) { }
 
     [Fact]
     public async Task should_retrive_a_passenger_by_id_currectly()
@@ -52,5 +53,24 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         // Assert
         response?.Should().NotBeNull();
         response?.PassengerDto?.Id.Should().Be(command.Id.ToString());
+    }
+
+    [Fact]
+    public async Task should_reject_unauthenticated_get_passenger_by_id_from_grpc_service()
+    {
+        // Arrange
+        var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
+
+        await Fixture.SendAsync(command);
+
+        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(Fixture.UnauthenticatedChannel);
+
+        // Act
+        var act = async () => await passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = command.Id.ToString() });
+
+        // Assert
+        (await act.Should().ThrowAsync<RpcException>())
+            .Which.StatusCode.Should()
+            .Be(StatusCode.Unauthenticated);
     }
 }
