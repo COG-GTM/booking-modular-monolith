@@ -508,6 +508,7 @@ public class TestFixtureCore<TEntryPoint> : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
+        Fixture.SetCurrentUser();
         await InitPostgresAsync();
     }
 
