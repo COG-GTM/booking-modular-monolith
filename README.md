@@ -236,6 +236,26 @@ docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
 
 On the first start of an empty `postgres-data` volume, [init/postgres](./deployments/docker-compose/init/postgres) creates one database and one role per module. If you already have a volume from an older version, recreate it (`docker-compose ... down -v`) or run that SQL against your server once.
 
+#### Multi-service topology
+
+To run Gateway and the standalone Identity, Flight, Passenger, and Booking hosts with shared infrastructure:
+
+```bash
+docker compose -f deployments/docker-compose/docker-compose.services.yaml up -d --build
+```
+
+| Service | Local endpoint(s) |
+| --- | --- |
+| Gateway | `http://localhost:5000` |
+| Identity | `http://localhost:5103` |
+| Flight | `http://localhost:5100` |
+| Passenger HTTP / gRPC | `http://localhost:5102` / `localhost:5202` |
+| Booking | `http://localhost:5004` |
+
+Clients should get tokens through the Gateway (`POST http://localhost:5000/connect/token`). Set `JWT_ISSUER` when the public issuer URL is different from `http://localhost:5000`; the services still fetch identity metadata and signing keys from `identity-service` over the internal network.
+
+The multi-service topology cannot run at the same time as the monolith topology because both use fixed infrastructure container names. Compose project names keep their volumes separate, so switching topologies starts with a fresh database volume; use `down -v` to remove the current topology's data.
+
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
 ```bash
@@ -255,7 +275,7 @@ dotnet run
 | Where | Gateway | Monolith API |
 | --- | --- | --- |
 | `dotnet run` / Aspire | `http://localhost:5000`, `https://localhost:5001` | `http://localhost:3001`, `https://localhost:3000` |
-| Docker Compose | `http://localhost:5000` | `http://localhost:3001`, `https://localhost:3000` |
+| Monolith Docker Compose | `http://localhost:5000` | `http://localhost:3001`, `https://localhost:3000` |
 
 Routing is fully config-driven (`ReverseProxy` section of [`appsettings.json`](./src/Gateway/src/appsettings.json)). Each module has its own cluster (`flight`, `passenger`, `booking`, `identity`) whose single destination is the monolith, plus a `monolith` fallback cluster for everything else (`/connect`, `/.well-known`, Swagger, health). Any other `/api/*` path still requires a valid token (`api-fallback` route). To move a module to an extracted service, repoint **only** that cluster's destination — no code change:
 

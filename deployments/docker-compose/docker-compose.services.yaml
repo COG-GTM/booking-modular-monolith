@@ -1,0 +1,191 @@
+# Run with `docker compose -f deployments/docker-compose/docker-compose.services.yaml up -d --build`.
+# This topology cannot run alongside docker-compose.yaml because both use fixed infrastructure container names.
+# Tokens are issued by identity-service with the gateway's public URL as issuer (`JWT_ISSUER`).
+# The existing monolith fallback cluster has no destination here; unmatched paths return 502.
+name: booking-microservices
+
+include:
+  - docker-compose.infrastructure.yaml
+
+x-common-environment: &common-environment
+  ASPNETCORE_ENVIRONMENT: docker
+  Jwt__Authority: ${JWT_ISSUER:-http://localhost:5000}
+  Jwt__MetadataAddress: http://identity-service/.well-known/openid-configuration
+  ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
+  ObservabilityOptions__UseAspireOTLPExporter: "false"
+  ObservabilityOptions__ZipkinOptions__HttpExporterEndpoint: http://zipkin-all-in-one:9411/api/v2/spans
+  ObservabilityOptions__JaegerOptions__OTLPGrpcExporterEndpoint: http://jaeger-all-in-one:4317
+  ObservabilityOptions__JaegerOptions__HttpExporterEndpoint: http://jaeger-all-in-one:14268/api/traces
+
+x-healthcheck-timing: &healthcheck-timing
+  interval: 10s
+  timeout: 5s
+  retries: 12
+  start_period: 60s
+
+services:
+  gateway:
+    build:
+      context: ../../
+      dockerfile: src/Gateway/Dockerfile
+    ports:
+      - "5000:80"
+    environment:
+      <<: *common-environment
+      ReverseProxy__Clusters__flight__Destinations__monolith__Address: http://flight-service:80
+      ReverseProxy__Clusters__passenger__Destinations__monolith__Address: http://passenger-service:5102
+      ReverseProxy__Clusters__booking__Destinations__monolith__Address: http://booking-service:80
+      ReverseProxy__Clusters__identity__Destinations__monolith__Address: http://identity-service:80
+    healthcheck:
+      <<: *healthcheck-timing
+      test:
+        - CMD
+        - bash
+        - -c
+        - |
+          exec 3<>/dev/tcp/127.0.0.1/80
+          printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          IFS= read -r status <&3
+          [[ "$$status" == *" 200 "* ]]
+    depends_on:
+      identity-service:
+        condition: service_healthy
+      flight-service:
+        condition: service_healthy
+      passenger-service:
+        condition: service_healthy
+      booking-service:
+        condition: service_healthy
+    networks:
+      - infrastructure
+
+  identity-service:
+    build:
+      context: ../../
+      dockerfile: src/Services/Identity/Dockerfile
+    ports:
+      - "5103:80"
+    environment:
+      <<: *common-environment
+      AuthOptions__IssuerUri: ${JWT_ISSUER:-http://localhost:5000}
+    healthcheck:
+      <<: *healthcheck-timing
+      test:
+        - CMD
+        - bash
+        - -c
+        - |
+          exec 3<>/dev/tcp/127.0.0.1/80
+          printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          IFS= read -r status <&3
+          [[ "$$status" == *" 200 "* ]]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - infrastructure
+
+  flight-service:
+    build:
+      context: ../../
+      dockerfile: src/Services/Flight/Flight.Host/Dockerfile
+    ports:
+      - "5100:80"
+    environment:
+      <<: *common-environment
+      Kestrel__Endpoints__Http__Url: http://+:80
+      Kestrel__Endpoints__Http__Protocols: Http1
+      Kestrel__Endpoints__Grpc__Url: http://+:81
+      Kestrel__Endpoints__Grpc__Protocols: Http2
+    healthcheck:
+      <<: *healthcheck-timing
+      test:
+        - CMD
+        - bash
+        - -c
+        - |
+          exec 3<>/dev/tcp/127.0.0.1/80
+          printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          IFS= read -r status <&3
+          [[ "$$status" == *" 200 "* ]]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - infrastructure
+
+  passenger-service:
+    build:
+      context: ../../
+      dockerfile: src/Services/Passenger.Host/Dockerfile
+    ports:
+      - "5102:5102"
+      - "5202:5202"
+    environment:
+      <<: *common-environment
+    healthcheck:
+      <<: *healthcheck-timing
+      test:
+        - CMD
+        - bash
+        - -c
+        - |
+          exec 3<>/dev/tcp/127.0.0.1/5102
+          printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          IFS= read -r status <&3
+          [[ "$$status" == *" 200 "* ]]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - infrastructure
+
+  booking-service:
+    build:
+      context: ../../
+      dockerfile: src/Services/Booking/Dockerfile
+    ports:
+      - "5004:80"
+    environment:
+      <<: *common-environment
+      ASPNETCORE_URLS: http://+:80
+      Grpc__Flight__Address: http://flight
+      Services__flight__http__0: http://flight-service:81
+      Grpc__Passenger__Address: http://passenger
+      Services__passenger__http__0: http://passenger-service:5202
+    healthcheck:
+      <<: *healthcheck-timing
+      test:
+        - CMD
+        - bash
+        - -c
+        - |
+          exec 3<>/dev/tcp/127.0.0.1/80
+          printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          IFS= read -r status <&3
+          [[ "$$status" == *" 200 "* ]]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      eventstore:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      flight-service:
+        condition: service_healthy
+      passenger-service:
+        condition: service_healthy
+    networks:
+      - infrastructure

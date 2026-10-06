@@ -109,7 +109,7 @@ C4Container
 ## Operations
 
 - **On-call rotation:** repository maintainers (COG-GTM).
-- **Runbook:** `cd src/Services/Identity/src && dotnet run` (port 5103) against `deployments/docker-compose` infra, or `docker compose -f docker-compose.yaml -f docker-compose.identity-service.yaml up`.
+- **Runbook:** `cd src/Services/Identity/src && dotnet run` (port 5103) against `deployments/docker-compose` infra, or `docker compose -f deployments/docker-compose/docker-compose.services.yaml up -d`.
 - **Dashboards / alarms:** OpenTelemetry (`identity_service`) to the existing collectors/Aspire dashboard; health endpoints.
 - **Rollback plan:** stop/remove the identity-service container; the monolith still serves Identity (routes never flipped by this change).
 - **Migration / cut-over plan:** out of scope here — gateway route flip per ADR 0002, after which Identity is removed from the monolith composition.
