@@ -41,6 +41,23 @@ public class BookingHostObservabilityTests
         attributes.Should().Contain(new KeyValuePair<string, object>("service.environment", "test"));
     }
 
+    [Fact]
+    public void docker_profile_binds_compose_exporter_endpoints()
+    {
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.docker.json", optional: false)
+            .Build();
+        var options = configuration.GetSection(nameof(ObservabilityOptions)).Get<ObservabilityOptions>();
+
+        options.Should().NotBeNull();
+        options!.OTLPOptions.OTLPGrpcExporterEndpoint.Should().Be("http://otel-collector:4317");
+        options.AspireDashboardOTLPOptions.OTLPGrpcExporterEndpoint.Should().Be("http://otel-collector:4319");
+        options.ZipkinOptions.HttpExporterEndpoint.Should().Be("http://zipkin-all-in-one:9411/api/v2/spans");
+        options.JaegerOptions.OTLPGrpcExporterEndpoint.Should().Be("http://jaeger-all-in-one:4317");
+        options.JaegerOptions.HttpExporterEndpoint.Should().Be("http://jaeger-all-in-one:14268/api/traces");
+    }
+
     [Theory]
     [InlineData("appsettings.json")]
     [InlineData("appsettings.docker.json")]

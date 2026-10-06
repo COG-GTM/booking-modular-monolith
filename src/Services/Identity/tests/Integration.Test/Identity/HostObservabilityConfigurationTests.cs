@@ -35,6 +35,21 @@ public class HostObservabilityConfigurationTests
         options.AspireDashboardOTLPOptions.OTLPGrpcExporterEndpoint.Should().Be("http://localhost:4319");
     }
 
+    [Fact]
+    public void docker_profile_should_bind_compose_exporter_endpoints()
+    {
+        var configuration = LoadHostConfiguration("docker");
+        var options = LoadObservabilityOptions("docker");
+
+        configuration["ObservabilityOptions:OTLPOptions:OTLPGrpcExporterEndpoint"]
+            .Should()
+            .Be("http://otel-collector:4317");
+        options.AspireDashboardOTLPOptions.OTLPGrpcExporterEndpoint.Should().Be("http://otel-collector:4319");
+        options.ZipkinOptions.HttpExporterEndpoint.Should().Be("http://zipkin-all-in-one:9411/api/v2/spans");
+        options.JaegerOptions.OTLPGrpcExporterEndpoint.Should().Be("http://jaeger-all-in-one:4317");
+        options.JaegerOptions.HttpExporterEndpoint.Should().Be("http://jaeger-all-in-one:14268/api/traces");
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("docker")]
