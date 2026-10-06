@@ -83,18 +83,25 @@ internal class ReserveSeatCommandHandler : IRequestHandler<ReserveSeat, ReserveS
     {
         Guard.Against.Null(command, nameof(command));
 
-        // Bypass the soft-delete filter so an already-reserved seat is rejected explicitly
-        // (SeatAlreadyReservedException) instead of being treated as a missing seat. The row
-        // version concurrency token on Seat makes concurrent reservations of the same seat fail
-        // when the change is saved, so only one caller can win.
-        var seat = await _flightDbContext.Seats
-            .IgnoreQueryFilters()
-            .SingleOrDefaultAsync(
-                x => x.SeatNumber.Value == command.SeatNumber &&
-                     x.FlightId == command.FlightId, cancellationToken);
+        var seat = await _flightDbContext.Seats.SingleOrDefaultAsync(
+            x => x.SeatNumber.Value == command.SeatNumber &&
+                 x.FlightId == command.FlightId, cancellationToken);
 
         if (seat is null)
         {
+            // Reserved seats are soft-deleted and hidden by the global query filter, so look past it
+            // to tell "already reserved" apart from "no such seat". The Version concurrency token on
+            // Seat makes concurrent reservations of the same row fail on save, so only one caller wins.
+            var isReserved = await _flightDbContext.Seats
+                .IgnoreQueryFilters()
+                .AnyAsync(x => x.SeatNumber.Value == command.SeatNumber &&
+                               x.FlightId == command.FlightId, cancellationToken);
+
+            if (isReserved)
+            {
+                throw new SeatAlreadyReservedException();
+            }
+
             throw new SeatNumberIncorrectException();
         }
 
