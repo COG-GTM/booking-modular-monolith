@@ -17,7 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\BuildingBlocks\TestBase\BuildingBlocks.TestBase.csproj" />
-    <ProjectReference Include="..\..\..\..\Api\src\Api.csproj" />
+    <ProjectReference Include="..\..\..\..\Services\Flight\Flight.Host\Flight.Host.csproj" />
   </ItemGroup>
 
 </Project>
