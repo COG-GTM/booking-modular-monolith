@@ -104,7 +104,7 @@ public class ObservabilityExtensionsTests
 
         tracedInHandler
             .Should()
-            .Equal(
+            .BeEquivalentTo(
                 new Dictionary<string, bool>
                 {
                     ["/health"] = false,
