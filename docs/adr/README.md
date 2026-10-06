@@ -10,6 +10,7 @@ ADRs documenting the decisions for migrating this modular monolith to microservi
 | [0003](0003-inter-service-communication.md) | Inter-service communication: gRPC (sync) + RabbitMQ broker (async) | Accepted |
 | [0004](0004-data-ownership.md) | Data ownership: database per service | Accepted |
 | [0005](0005-contract-versioning.md) | Versioning and compatibility policy for contracts and protos | Accepted |
+| [0008](0008-standalone-booking-service-host.md) | Standalone Booking service host (strangler-fig) | Proposed |
 
 The target-state diagram lives in [docs/target-architecture.md](../target-architecture.md).
 

@@ -20,6 +20,11 @@ namespace BuildingBlocks.Jwt
                 options.Audience = jwtOptions.Audience;
                 options.RequireHttpsMetadata = false;
 
+                if (!string.IsNullOrEmpty(jwtOptions.MetadataAddress))
+                {
+                    options.MetadataAddress = jwtOptions.MetadataAddress;
+                }
+
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
