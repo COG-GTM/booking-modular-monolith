@@ -8,7 +8,7 @@ namespace BuildingBlocks.Core;
 
 public sealed class EventDispatcher<TModule>(
     IServiceScopeFactory serviceScopeFactory,
-    IEventMapper eventMapper,
+    IEnumerable<IEventMapper> eventMappers,
     ILogger<EventDispatcher<TModule>> logger,
     IPersistMessageProcessor<TModule> persistMessageProcessor,
     IEventHeadersProvider eventHeadersProvider
@@ -16,6 +16,8 @@ public sealed class EventDispatcher<TModule>(
     : IEventDispatcher<TModule>
     where TModule : class
 {
+    private readonly IEventMapper eventMapper = new CompositeEventMapper(eventMappers);
+
     public async Task SendAsync<T>(IReadOnlyList<T> events, Type type = null,
                                    CancellationToken cancellationToken = default)
         where T : IEvent

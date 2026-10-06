@@ -20,7 +20,7 @@ public class EventDispatcherTests
         var scopeFactory = new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
         return new EventDispatcher<TestModule>(
             scopeFactory,
-            new CompositeEventMapper(mappers),
+            mappers,
             NullLogger<EventDispatcher<TestModule>>.Instance,
             processor,
             headersProvider);

@@ -8,7 +8,6 @@ using BuildingBlocks.Web;
 using Figgle.Fonts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
-using IdentityEventMapper = global::Identity.IdentityEventMapper;
 
 namespace Identity.Host.Extensions;
 
@@ -36,8 +35,6 @@ public static class IdentityHostExtensions
         builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);
         builder.Services.AddEasyCaching(options => options.UseInMemory(builder.Configuration, "mem"));
         builder.Services.AddProblemDetails();
-        builder.Services.AddScoped<IdentityEventMapper>();
-        builder.Services.AddScoped<IEventMapper>(sp => sp.GetRequiredService<IdentityEventMapper>());
 
         return builder;
     }

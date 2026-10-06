@@ -59,19 +59,6 @@ public static class SharedInfrastructureExtensions
         });
         builder.Services.AddProblemDetails();
 
-        builder.Services.AddScoped<IEventMapper>(sp =>
-        {
-            var mappers = new IEventMapper[]
-            {
-                sp.GetRequiredService<FlightEventMapper>(),
-                sp.GetRequiredService<IdentityEventMapper>(),
-                sp.GetRequiredService<PassengerEventMapper>(),
-                sp.GetRequiredService<BookingEventMapper>(),
-            };
-
-            return new CompositeEventMapper(mappers);
-        });
-
         return builder;
     }
 
