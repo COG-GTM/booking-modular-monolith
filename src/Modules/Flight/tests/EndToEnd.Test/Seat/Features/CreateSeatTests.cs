@@ -9,38 +9,36 @@ using Flight.Data;
 using FluentAssertions;
 using Xunit;
 
-namespace EndToEnd.Test.Flight.Features;
+namespace EndToEnd.Test.Seat.Features;
 
-public class CreateFlightTests : FlightEndToEndTestBase
+public class CreateSeatTests : FlightEndToEndTestBase
 {
-    public CreateFlightTests(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFixture) : base(integrationTestFixture)
-    {
-    }
-
+    public CreateSeatTests(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFixture)
+        : base(integrationTestFixture) { }
 
     [Fact]
-    public async Task should_create_new_flight_to_db_and_publish_message_to_broker()
+    public async Task should_create_seat_when_user_is_admin()
     {
         //Arrange
-        var command = new FakeCreateFlightCommand().Generate();
+        var command = new FakeCreateSeatCommand().Generate();
 
         // Act
-        var route = ApiRoutes.Flight.CreateFlight;
+        var route = ApiRoutes.Seat.CreateSeat;
         var result = await Fixture.HttpClient.PostAsJsonAsync(route, command);
 
         // Assert
-        result.StatusCode.Should().Be(HttpStatusCode.Created);
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
     public async Task should_return_forbidden_when_user_is_not_admin()
     {
         //Arrange
-        var command = new FakeCreateFlightCommand().Generate();
+        var command = new FakeCreateSeatCommand().Generate();
         var httpClient = Fixture.CreateHttpClient(IdentityConstant.Role.User);
 
         // Act
-        var route = ApiRoutes.Flight.CreateFlight;
+        var route = ApiRoutes.Seat.CreateSeat;
         var result = await httpClient.PostAsJsonAsync(route, command);
 
         // Assert

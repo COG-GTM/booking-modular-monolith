@@ -1,5 +1,6 @@
 using System.Net;
 using Api;
+using BuildingBlocks.Constants;
 using BuildingBlocks.TestBase;
 using EndToEnd.Test.Fakes;
 using EndToEnd.Test.Routes;
@@ -27,6 +28,23 @@ public class GetFlightByIdTests : FlightEndToEndTestBase
         // Act
         var route = ApiRoutes.Flight.GetFlightById.Replace(ApiRoutes.Flight.Id, command.Id.ToString(), StringComparison.CurrentCulture);
         var result = await Fixture.HttpClient.GetAsync(route);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task should_retrieve_a_flight_by_id_when_user_is_not_admin()
+    {
+        //Arrange
+        var command = new FakeCreateFlightMongoCommand().Generate();
+
+        await Fixture.SendAsync(command);
+        var httpClient = Fixture.CreateHttpClient(IdentityConstant.Role.User);
+
+        // Act
+        var route = ApiRoutes.Flight.GetFlightById.Replace(ApiRoutes.Flight.Id, command.Id.ToString(), StringComparison.CurrentCulture);
+        var result = await httpClient.GetAsync(route);
 
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);

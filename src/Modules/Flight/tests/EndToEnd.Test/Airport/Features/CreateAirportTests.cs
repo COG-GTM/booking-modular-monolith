@@ -9,38 +9,36 @@ using Flight.Data;
 using FluentAssertions;
 using Xunit;
 
-namespace EndToEnd.Test.Flight.Features;
+namespace EndToEnd.Test.Airport.Features;
 
-public class CreateFlightTests : FlightEndToEndTestBase
+public class CreateAirportTests : FlightEndToEndTestBase
 {
-    public CreateFlightTests(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFixture) : base(integrationTestFixture)
-    {
-    }
-
+    public CreateAirportTests(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFixture)
+        : base(integrationTestFixture) { }
 
     [Fact]
-    public async Task should_create_new_flight_to_db_and_publish_message_to_broker()
+    public async Task should_create_airport_when_user_is_admin()
     {
         //Arrange
-        var command = new FakeCreateFlightCommand().Generate();
+        var command = new FakeCreateAirportCommand().Generate();
 
         // Act
-        var route = ApiRoutes.Flight.CreateFlight;
+        var route = ApiRoutes.Airport.CreateAirport;
         var result = await Fixture.HttpClient.PostAsJsonAsync(route, command);
 
         // Assert
-        result.StatusCode.Should().Be(HttpStatusCode.Created);
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
     public async Task should_return_forbidden_when_user_is_not_admin()
     {
         //Arrange
-        var command = new FakeCreateFlightCommand().Generate();
+        var command = new FakeCreateAirportCommand().Generate();
         var httpClient = Fixture.CreateHttpClient(IdentityConstant.Role.User);
 
         // Act
-        var route = ApiRoutes.Flight.CreateFlight;
+        var route = ApiRoutes.Airport.CreateAirport;
         var result = await httpClient.PostAsJsonAsync(route, command);
 
         // Assert
