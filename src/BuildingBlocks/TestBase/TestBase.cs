@@ -286,6 +286,7 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
                 new("MongoOptions:ConnectionString", MongoDbTestContainer.GetConnectionString()),
                 new("MongoOptions:DatabaseName", TestContainers.MongoContainerConfiguration.Name),
                 new("EventStoreOptions:ConnectionString", EventStoreDbTestContainer.GetConnectionString()),
+                new("AuthOptions:ClientSecret", Guid.NewGuid().ToString("N")),
             }
         );
     }

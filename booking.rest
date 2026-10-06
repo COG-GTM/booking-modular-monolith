@@ -14,7 +14,7 @@ Content-Type: application/x-www-form-urlencoded
 
 grant_type=password
 &client_id=client
-&client_secret=secret
+&client_secret={{$dotenv AUTH_CLIENT_SECRET}}
 &username=samh
 &password=Admin@123456
 &scope=booking-modular-monolith role

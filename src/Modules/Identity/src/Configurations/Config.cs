@@ -53,8 +53,17 @@ public static class Config
             },
         };
 
-    public static IEnumerable<Client> Clients =>
-        new List<Client>
+    public static IEnumerable<Client> GetClients(AuthOptions authOptions)
+    {
+        if (string.IsNullOrWhiteSpace(authOptions?.ClientSecret))
+        {
+            throw new InvalidOperationException(
+                $"{nameof(AuthOptions)}:{nameof(AuthOptions.ClientSecret)} is not configured. "
+                + "Provide it through configuration (e.g. the AuthOptions__ClientSecret environment variable or user secrets); "
+                + "IdentityServer clients are not registered without it.");
+        }
+
+        return new List<Client>
         {
             new()
             {
@@ -62,22 +71,19 @@ public static class Config
                 AllowedGrantTypes = GrantTypes.ResourceOwnerPassword,
                 ClientSecrets =
                 {
-                    new Secret("secret".Sha256())
+                    new Secret(authOptions.ClientSecret.Sha256())
                 },
                 AllowedScopes =
                 {
                     IdentityServerConstants.StandardScopes.OpenId,
                     IdentityServerConstants.StandardScopes.Profile,
                     JwtClaimTypes.Role, // Include roles scope
-                    Constants.StandardScopes.FlightApi,
-                    Constants.StandardScopes.PassengerApi,
-                    Constants.StandardScopes.BookingApi,
-                    Constants.StandardScopes.IdentityApi,
-                    Constants.StandardScopes.BookingModularMonolith,
+                    Constants.StandardScopes.BookingModularMonolith, // the only API scope the monolith's ApiScope policy requires
                 },
                 AccessTokenLifetime = 3600,  // authorize the client to access protected resources
                 IdentityTokenLifetime = 3600, // authenticate the user,
                 AlwaysIncludeUserClaimsInIdToken = true // Include claims in ID token
             }
         };
+    }
 }

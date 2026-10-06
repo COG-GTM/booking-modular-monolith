@@ -229,6 +229,15 @@ dotnet build
 ```
 
 > ### Run
+The IdentityServer client secret is not stored in the repository. Before running, provide it through configuration (`AuthOptions:ClientSecret`); the application refuses to start without it:
+```bash
+# environment variable
+export AuthOptions__ClientSecret='<your-client-secret>'
+# or user secrets (run in the root of the `Api` folder)
+dotnet user-secrets init
+dotnet user-secrets set "AuthOptions:ClientSecret" "<your-client-secret>"
+```
+
 To `run` all modules, run this command in the root of the `Api` folder:
 ```bash
 dotnet run
@@ -245,7 +254,7 @@ dotnet test
 
 For checking `API documentation`, navigate to `/swagger` for `Swagger OpenAPI` or `/scalar/v1` for `Scalar OpenAPI` to visit list of endpoints.
 
-As part of API testing, I created the [booking.rest](./booking.rest) file which can be run with the [REST Client](https://github.com/Huachao/vscode-restclient) `VSCode plugin`.
+As part of API testing, I created the [booking.rest](./booking.rest) file which can be run with the [REST Client](https://github.com/Huachao/vscode-restclient) `VSCode plugin`. The `Authenticate` request reads the client secret from an `AUTH_CLIENT_SECRET` variable in a `.env` file next to `booking.rest` (same value as `AuthOptions:ClientSecret`).
 
 # Support
 
