@@ -233,10 +233,11 @@ The IdentityServer client secret is not stored in the repository. Before running
 ```bash
 # environment variable
 export AuthOptions__ClientSecret='<your-client-secret>'
-# or user secrets (run in the root of the `Api` folder)
+# or user secrets (run inside `src/Api/src`, or pass --project src/Api/src)
 dotnet user-secrets init
 dotnet user-secrets set "AuthOptions:ClientSecret" "<your-client-secret>"
 ```
+The Docker Compose `booking_modular_monolith` service forwards `AuthOptions__ClientSecret` from your shell (`docker compose up` fails fast if it is unset). The Aspire AppHost reads it from the `auth-client-secret` parameter (`dotnet user-secrets set "Parameters:auth-client-secret" "<your-client-secret>" --project src/Aspire/src/AppHost`).
 
 To `run` all modules, run this command in the root of the `Api` folder:
 ```bash

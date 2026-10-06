@@ -303,7 +303,11 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
+// IdentityServer client secret: supply via AppHost user secrets / config key "Parameters:auth-client-secret"
+var authClientSecret = builder.AddParameter("auth-client-secret", secret: true);
+
 var api = builder.AddProject<Api>("api")
+    .WithEnvironment("AuthOptions__ClientSecret", authClientSecret)
     .WithReference(persistMessageDb)
     .WaitFor(persistMessageDb)
     .WithReference(flightDb)
