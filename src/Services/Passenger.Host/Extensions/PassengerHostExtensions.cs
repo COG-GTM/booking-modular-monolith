@@ -33,7 +33,7 @@ public static class PassengerHostExtensions
         // fetched over the internal network. Authority itself stays unchanged.
         var jwtMetadataAddress = builder.Configuration["Jwt:MetadataAddress"];
         if (!string.IsNullOrEmpty(jwtMetadataAddress))
-            builder.Services.PostConfigure<JwtBearerOptions>(
+            builder.Services.Configure<JwtBearerOptions>(
                 JwtBearerDefaults.AuthenticationScheme,
                 options => options.MetadataAddress = jwtMetadataAddress
             );
@@ -52,10 +52,7 @@ public static class PassengerHostExtensions
         builder.Services.AddCustomMassTransit(
             builder.Configuration,
             builder.Environment,
-            assembly:
-            [
-                typeof(PassengerRoot).Assembly,
-            ]
+            assembly: [typeof(PassengerRoot).Assembly]
         );
 
         builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);
@@ -74,24 +71,19 @@ public static class PassengerHostExtensions
 
         // Host-local readiness checks for the Passenger module's own stores; RabbitMQ
         // is covered by MassTransit's bus health check.
-        builder.Services
-            .AddHealthChecks()
+        builder
+            .Services.AddHealthChecks()
             .AddNpgSql(
-                sp =>
-                    sp.GetRequiredService<IConfiguration>()
-                        .GetPostgresConnectionString(nameof(Passenger)),
+                sp => sp.GetRequiredService<IConfiguration>().GetPostgresConnectionString(nameof(Passenger)),
                 name: "Passenger-Postgres-Health",
                 failureStatus: HealthStatus.Unhealthy,
                 tags: ["ready"],
                 timeout: TimeSpan.FromSeconds(10)
             )
             .AddMongoDb(
-                sp =>
-                    new MongoClient(
-                        sp.GetRequiredService<IOptionsMonitor<MongoOptions>>()
-                            .Get(nameof(Passenger))
-                            .ConnectionString
-                    ),
+                sp => new MongoClient(
+                    sp.GetRequiredService<IOptionsMonitor<MongoOptions>>().Get(nameof(Passenger)).ConnectionString
+                ),
                 name: "Passenger-MongoDB-Health",
                 failureStatus: HealthStatus.Unhealthy,
                 tags: ["ready"],
