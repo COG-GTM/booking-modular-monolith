@@ -290,17 +290,36 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
         );
     }
 
+    public void SetCurrentUser(params Claim[] claims)
+    {
+        var httpContextAccessor = ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+
+        // The request pipeline clears the accessor's HttpContext once an in-process HTTP/gRPC request completes.
+        httpContextAccessor.HttpContext ??= CreateHttpContext(ServiceProvider);
+
+        httpContextAccessor.HttpContext.User =
+            new ClaimsPrincipal(new ClaimsIdentity(claims, FakeJwtBearerDefaults.AuthenticationScheme));
+    }
+
     private IHttpContextAccessor AddHttpContextAccessorMock(IServiceProvider serviceProvider)
     {
         var httpContextAccessorMock = Substitute.For<IHttpContextAccessor>();
-        using var scope = serviceProvider.CreateScope();
 
-        httpContextAccessorMock.HttpContext = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
-
-        httpContextAccessorMock.HttpContext.Request.Host = new HostString("localhost", 6012);
-        httpContextAccessorMock.HttpContext.Request.Scheme = "http";
+        httpContextAccessorMock.HttpContext = CreateHttpContext(serviceProvider);
 
         return httpContextAccessorMock;
+    }
+
+    private static HttpContext CreateHttpContext(IServiceProvider serviceProvider)
+    {
+        using var scope = serviceProvider.CreateScope();
+
+        var httpContext = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
+
+        httpContext.Request.Host = new HostString("localhost", 6012);
+        httpContext.Request.Scheme = "http";
+
+        return httpContext;
     }
 }
 
@@ -500,6 +519,7 @@ public class TestFixtureCore<TEntryPoint> : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
+        Fixture.SetCurrentUser();
         await InitPostgresAsync();
     }
 
