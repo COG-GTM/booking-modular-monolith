@@ -129,7 +129,7 @@ public class PublishModeSecurityTests
             publish ? DistributedApplicationOperation.Publish : DistributedApplicationOperation.Run);
         var context = new EnvironmentCallbackContext(executionContext, resource);
 
-        foreach (var annotation in resource.Annotations.OfType<EnvironmentCallbackAnnotation>())
+        foreach (var annotation in resource.Annotations.OfType<EnvironmentCallbackAnnotation>().ToList())
         {
             await annotation.Callback(context);
         }
