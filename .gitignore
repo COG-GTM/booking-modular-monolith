@@ -440,3 +440,8 @@ fabric.properties
 
 # EventStore
 **/eventstore
+
+# EventStoreDB publish-mode config lives in deployments/configs/eventstore; its TLS material must never be committed.
+!deployments/configs/eventstore/
+deployments/configs/eventstore/certs/*
+!deployments/configs/eventstore/certs/README.md
