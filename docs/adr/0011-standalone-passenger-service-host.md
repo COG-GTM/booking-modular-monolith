@@ -1,4 +1,4 @@
-# 0008. Standalone Passenger service host
+# 0011. Standalone Passenger service host
 
 - **Status:** Proposed
 - **Date:** 2026-10-06

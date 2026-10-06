@@ -272,7 +272,7 @@ or in `appsettings.<Environment>.json`:
 
 Under Aspire the AppHost injects the API endpoint into every cluster, so repoint there through the AppHost configuration instead (`Gateway:Clusters:<cluster>` in `src/Aspire/src/AppHost/appsettings*.json`, user-secrets or `Gateway__Clusters__flight=http://flight-service:80`).
 
-The decision is recorded in [ADR 0006](./docs/adr/0006-api-gateway-single-ingress.md).
+The decision is recorded in [ADR 0008](./docs/adr/0008-api-gateway-single-ingress.md).
 
 > ### Test
 

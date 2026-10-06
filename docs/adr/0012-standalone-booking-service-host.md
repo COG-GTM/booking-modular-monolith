@@ -1,4 +1,4 @@
-# 0008. Standalone Booking service host (strangler-fig extraction of the Booking module)
+# 0012. Standalone Booking service host (strangler-fig extraction of the Booking module)
 
 - **Status:** Proposed
 - **Date:** 2026-10-06

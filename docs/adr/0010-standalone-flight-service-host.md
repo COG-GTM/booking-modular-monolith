@@ -1,4 +1,4 @@
-# 0008. Standalone Flight service host (first strangler-fig extraction)
+# 0010. Standalone Flight service host (first strangler-fig extraction)
 
 - **Status:** Proposed
 - **Date:** 2026-10-06

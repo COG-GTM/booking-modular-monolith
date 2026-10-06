@@ -1,4 +1,4 @@
-# 6. API Gateway (YARP) as the single ingress
+# 0008. API Gateway (YARP) as the single ingress
 
 - **Status:** Proposed
 - **Date:** 2026-09-28

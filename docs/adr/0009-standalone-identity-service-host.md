@@ -1,4 +1,4 @@
-# 0007. Standalone Identity service host
+# 0009. Standalone Identity service host
 
 - **Status:** Proposed
 - **Date:** 2026-10-06
