@@ -7,6 +7,7 @@ using EndToEnd.Test.Fakes;
 using EndToEnd.Test.Routes;
 using Flight.Data;
 using Flight.Data.Seed;
+using Flight.Flights.ValueObjects;
 using FluentAssertions;
 using Xunit;
 
@@ -29,6 +30,10 @@ public class UpdateFlightTests : FlightEndToEndTestBase
 
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var updatedFlight = await Fixture.FindAsync<global::Flight.Flights.Models.Flight, FlightId>(FlightId.Of(command.Id));
+        updatedFlight.FlightNumber.Value.Should().Be(command.FlightNumber);
+        updatedFlight.Price.Value.Should().Be(command.Price);
     }
 
     [Fact]
