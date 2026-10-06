@@ -1,0 +1,303 @@
+{
+  "package": "flight.v1",
+  "fileName": "flight/v1/flight.proto",
+  "services": {
+    "FlightGrpcService": {
+      "methods": {
+        "GetById": {
+          "inputType": ".flight.v1.GetByIdRequest",
+          "outputType": ".flight.v1.GetFlightByIdResult",
+          "clientStreaming": false,
+          "serverStreaming": false
+        },
+        "GetAvailableSeats": {
+          "inputType": ".flight.v1.GetAvailableSeatsRequest",
+          "outputType": ".flight.v1.GetAvailableSeatsResult",
+          "clientStreaming": false,
+          "serverStreaming": false
+        },
+        "ReserveSeat": {
+          "inputType": ".flight.v1.ReserveSeatRequest",
+          "outputType": ".flight.v1.ReserveSeatResult",
+          "clientStreaming": false,
+          "serverStreaming": false
+        }
+      }
+    }
+  },
+  "messages": {
+    ".flight.v1.GetByIdRequest": {
+      "fields": {
+        "1": {
+          "name": "Id",
+          "number": 1,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "id"
+        }
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    },
+    ".flight.v1.GetFlightByIdResult": {
+      "fields": {
+        "1": {
+          "name": "FlightDto",
+          "number": 1,
+          "type": "TYPE_MESSAGE",
+          "typeName": ".flight.v1.FlightResponse",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "flightDto"
+        }
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    },
+    ".flight.v1.GetAvailableSeatsResult": {
+      "fields": {
+        "1": {
+          "name": "SeatDtos",
+          "number": 1,
+          "type": "TYPE_MESSAGE",
+          "typeName": ".flight.v1.SeatDtoResponse",
+          "label": "LABEL_REPEATED",
+          "jsonName": "seatDtos"
+        }
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    },
+    ".flight.v1.ReserveSeatResult": {
+      "fields": {
+        "1": {
+          "name": "Id",
+          "number": 1,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "id"
+        }
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    },
+    ".flight.v1.FlightResponse": {
+      "fields": {
+        "1": {
+          "name": "Id",
+          "number": 1,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "id"
+        },
+        "2": {
+          "name": "FlightNumber",
+          "number": 2,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "flightNumber"
+        },
+        "3": {
+          "name": "AircraftId",
+          "number": 3,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "aircraftId"
+        },
+        "4": {
+          "name": "DepartureAirportId",
+          "number": 4,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "departureAirportId"
+        },
+        "5": {
+          "name": "DepartureDate",
+          "number": 5,
+          "type": "TYPE_MESSAGE",
+          "typeName": ".google.protobuf.Timestamp",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "departureDate"
+        },
+        "6": {
+          "name": "ArriveDate",
+          "number": 6,
+          "type": "TYPE_MESSAGE",
+          "typeName": ".google.protobuf.Timestamp",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "arriveDate"
+        },
+        "7": {
+          "name": "ArriveAirportId",
+          "number": 7,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "arriveAirportId"
+        },
+        "8": {
+          "name": "DurationMinutes",
+          "number": 8,
+          "type": "TYPE_DOUBLE",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "durationMinutes"
+        },
+        "9": {
+          "name": "FlightDate",
+          "number": 9,
+          "type": "TYPE_MESSAGE",
+          "typeName": ".google.protobuf.Timestamp",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "flightDate"
+        },
+        "10": {
+          "name": "Status",
+          "number": 10,
+          "type": "TYPE_ENUM",
+          "typeName": ".flight.v1.FlightStatus",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "status"
+        },
+        "11": {
+          "name": "Price",
+          "number": 11,
+          "type": "TYPE_DOUBLE",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "price"
+        },
+        "12": {
+          "name": "FlightId",
+          "number": 12,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "flightId"
+        }
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    },
+    ".flight.v1.GetAvailableSeatsRequest": {
+      "fields": {
+        "1": {
+          "name": "FlightId",
+          "number": 1,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "flightId"
+        }
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    },
+    ".flight.v1.SeatDtoResponse": {
+      "fields": {
+        "1": {
+          "name": "Id",
+          "number": 1,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "id"
+        },
+        "2": {
+          "name": "SeatNumber",
+          "number": 2,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "seatNumber"
+        },
+        "3": {
+          "name": "Type",
+          "number": 3,
+          "type": "TYPE_ENUM",
+          "typeName": ".flight.v1.SeatType",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "type"
+        },
+        "4": {
+          "name": "Class",
+          "number": 4,
+          "type": "TYPE_ENUM",
+          "typeName": ".flight.v1.SeatClass",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "class"
+        },
+        "5": {
+          "name": "FlightId",
+          "number": 5,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "flightId"
+        }
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    },
+    ".flight.v1.ReserveSeatRequest": {
+      "fields": {
+        "1": {
+          "name": "FlightId",
+          "number": 1,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "flightId"
+        },
+        "2": {
+          "name": "SeatNumber",
+          "number": 2,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "seatNumber"
+        }
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    }
+  },
+  "enums": {
+    ".flight.v1.FlightStatus": {
+      "values": {
+        "FLIGHT_STATUS_UNKNOWN": 0,
+        "FLIGHT_STATUS_FLYING": 1,
+        "FLIGHT_STATUS_DELAY": 2,
+        "FLIGHT_STATUS_CANCELED": 3,
+        "FLIGHT_STATUS_COMPLETED": 4
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    },
+    ".flight.v1.SeatType": {
+      "values": {
+        "SEAT_TYPE_UNKNOWN": 0,
+        "SEAT_TYPE_WINDOW": 1,
+        "SEAT_TYPE_MIDDLE": 2,
+        "SEAT_TYPE_AISLE": 3
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    },
+    ".flight.v1.SeatClass": {
+      "values": {
+        "SEAT_CLASS_UNKNOWN": 0,
+        "SEAT_CLASS_FIRST_CLASS": 1,
+        "SEAT_CLASS_BUSINESS": 2,
+        "SEAT_CLASS_ECONOMY": 3
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    }
+  }
+}

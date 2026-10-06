@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>Flight.Host</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="EasyCaching.InMemory" Version="1.9.2" />
+    <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Aspire\src\ServiceDefaults\ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\..\..\src\BuildingBlocks\Core\BuildingBlocks.Core.csproj" />
+    <ProjectReference Include="..\..\..\..\src\BuildingBlocks\Grpc\BuildingBlocks.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\src\BuildingBlocks\Jwt\BuildingBlocks.Jwt.csproj" />
+    <ProjectReference Include="..\..\..\..\src\BuildingBlocks\MassTransit\BuildingBlocks.MassTransit.csproj" />
+    <ProjectReference Include="..\..\..\..\src\BuildingBlocks\PersistMessageProcessor\BuildingBlocks.PersistMessageProcessor.csproj" />
+    <ProjectReference Include="..\..\..\..\src\BuildingBlocks\ProblemDetails\BuildingBlocks.ProblemDetails.csproj" />
+    <ProjectReference Include="..\..\..\..\src\BuildingBlocks\Web\BuildingBlocks.Web.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Contracts.Grpc\Contracts.Grpc.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Contracts.Messages\Contracts.Messages.csproj" />
+    <ProjectReference Include="..\..\..\..\src\Modules\Flight\src\Flight.csproj" />
+  </ItemGroup>
+</Project>

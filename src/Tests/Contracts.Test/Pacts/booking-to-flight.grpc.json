@@ -1,0 +1,40 @@
+{
+  "consumer": "booking",
+  "package": "flight.v1",
+  "services": [
+    {
+      "name": "FlightGrpcService",
+      "methods": [
+        { "name": "GetById", "input": ".flight.v1.GetByIdRequest", "output": ".flight.v1.GetFlightByIdResult" },
+        { "name": "GetAvailableSeats", "input": ".flight.v1.GetAvailableSeatsRequest", "output": ".flight.v1.GetAvailableSeatsResult" },
+        { "name": "ReserveSeat", "input": ".flight.v1.ReserveSeatRequest", "output": ".flight.v1.ReserveSeatResult" }
+      ]
+    }
+  ],
+  "messages": [
+    { "name": "GetByIdRequest", "fields": [{ "name": "Id", "number": 1, "type": "TYPE_STRING", "label": "LABEL_OPTIONAL" }] },
+    { "name": "GetFlightByIdResult", "fields": [{ "name": "FlightDto", "number": 1, "type": "TYPE_MESSAGE", "typeName": ".flight.v1.FlightResponse", "label": "LABEL_OPTIONAL" }] },
+    {
+      "name": "FlightResponse",
+      "fields": [
+        { "name": "Id", "number": 1, "type": "TYPE_STRING", "label": "LABEL_OPTIONAL" },
+        { "name": "FlightNumber", "number": 2, "type": "TYPE_STRING", "label": "LABEL_OPTIONAL" },
+        { "name": "AircraftId", "number": 3, "type": "TYPE_STRING", "label": "LABEL_OPTIONAL" },
+        { "name": "DepartureAirportId", "number": 4, "type": "TYPE_STRING", "label": "LABEL_OPTIONAL" },
+        { "name": "ArriveAirportId", "number": 7, "type": "TYPE_STRING", "label": "LABEL_OPTIONAL" },
+        { "name": "FlightDate", "number": 9, "type": "TYPE_MESSAGE", "typeName": ".google.protobuf.Timestamp", "label": "LABEL_OPTIONAL" },
+        { "name": "Price", "number": 11, "type": "TYPE_DOUBLE", "label": "LABEL_OPTIONAL" }
+      ]
+    },
+    { "name": "GetAvailableSeatsRequest", "fields": [{ "name": "FlightId", "number": 1, "type": "TYPE_STRING", "label": "LABEL_OPTIONAL" }] },
+    { "name": "GetAvailableSeatsResult", "fields": [{ "name": "SeatDtos", "number": 1, "type": "TYPE_MESSAGE", "typeName": ".flight.v1.SeatDtoResponse", "label": "LABEL_REPEATED" }] },
+    { "name": "SeatDtoResponse", "fields": [{ "name": "SeatNumber", "number": 2, "type": "TYPE_STRING", "label": "LABEL_OPTIONAL" }] },
+    {
+      "name": "ReserveSeatRequest",
+      "fields": [
+        { "name": "FlightId", "number": 1, "type": "TYPE_STRING", "label": "LABEL_OPTIONAL" },
+        { "name": "SeatNumber", "number": 2, "type": "TYPE_STRING", "label": "LABEL_OPTIONAL" }
+      ]
+    }
+  ]
+}

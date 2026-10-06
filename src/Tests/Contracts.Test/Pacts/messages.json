@@ -1,0 +1,10 @@
+[
+  {
+    "consumer": "Passenger.Identity.Consumers.RegisteringNewUser.V1.RegisterNewUserHandler",
+    "messageType": "BuildingBlocks.Contracts.EventBus.Messages.UserCreated",
+    "properties": [
+      { "name": "Name", "type": "System.String" },
+      { "name": "PassportNumber", "type": "System.String" }
+    ]
+  }
+]
