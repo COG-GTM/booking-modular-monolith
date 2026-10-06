@@ -123,7 +123,7 @@ C4Container
 ## Consequences
 
 - Positive: Booking can be built, deployed and scaled independently; cross-process gRPC and broker paths are exercised before the other hosts land.
-- Negative / risks: Until cut-over both hosts can write Booking streams; the all-streams subscription uses a single checkpoint id (`default`), so running the monolith and Booking.Host projections concurrently processes events twice.
+- Negative / risks: Until cut-over both hosts can write Booking streams; the all-streams subscription uses a single checkpoint id (`default`), so running the monolith and Booking.Host projections concurrently processes events twice. Mitigated by the per-module switch in [ADR 0013](0013-per-module-background-processing-switch.md) (`Modules:Booking:BackgroundProcessingEnabled=false` on the monolith).
 - Follow-ups: Point `Services:flight`/`Services:passenger` at the Flight/Passenger hosts when AB-239/AB-240 land; per-service subscription checkpoint ids; gateway routing; remove Booking from `src/Api`.
 
 ## Open questions

@@ -31,3 +31,27 @@ Use the **strangler-fig pattern behind an API gateway**:
   increasing infrastructure footprint.
 - Each extraction is independently shippable and reversible, which keeps risk per step
   small.
+
+## Cut-over: background processing (added for AB-231, see ADR 0013)
+
+Flipping a gateway route moves a module's HTTP traffic, not its background work (outbox/inbox
+poller, Mongo read-model sync, EventStoreDB projections, MassTransit consumers). Exactly one process
+must run that work per module. When a standalone host takes over a module, turn the module's
+background work off in the monolith with:
+
+```jsonc
+// src/Api/src/appsettings.json (defaults: all true)
+"Modules": {
+    "Flight":    { "BackgroundProcessingEnabled": true },
+    "Identity":  { "BackgroundProcessingEnabled": true },
+    "Passenger": { "BackgroundProcessingEnabled": true },
+    "Booking":   { "BackgroundProcessingEnabled": true }
+}
+```
+
+or `Modules__<Module>__BackgroundProcessingEnabled=false` as an environment variable. Per module:
+start the host, set the switch to `false` on the monolith and restart it (it logs a warning per
+disabled module), flip the gateway route, then watch outbox backlog and read-model lag. Rolling back
+is the reverse. Never leave a module with the switch off in every process: its outbox rows would not
+be delivered until a processor is enabled again. See
+[ADR 0013](0013-per-module-background-processing-switch.md).

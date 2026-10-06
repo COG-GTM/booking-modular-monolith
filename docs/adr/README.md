@@ -17,6 +17,7 @@ ADRs documenting the decisions for migrating this modular monolith to microservi
 | [0010](0010-standalone-flight-service-host.md) | Standalone Flight service host (first strangler-fig extraction) | Proposed |
 | [0011](0011-standalone-passenger-service-host.md) | Standalone Passenger service host | Proposed |
 | [0012](0012-standalone-booking-service-host.md) | Standalone Booking service host (strangler-fig extraction of the Booking module) | Proposed |
+| [0013](0013-per-module-background-processing-switch.md) | Per-module background-processing switch in the monolith during cut-over | Proposed |
 
 The target-state diagram lives in [docs/target-architecture.md](../target-architecture.md).
 
