@@ -370,6 +370,8 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
       - ASPNETCORE_URLS=http://+:80
+    volumes:
+      - identity-keys:/app/keys
     depends_on:
       - postgres
       - rabbitmq
@@ -465,5 +467,6 @@ networks:
     driver: bridge
 
 volumes:
+  identity-keys:
   elastic-data:
   postgres-data:

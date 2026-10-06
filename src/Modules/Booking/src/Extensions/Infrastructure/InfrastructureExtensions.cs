@@ -1,9 +1,12 @@
 using Booking.Data;
 using BuildingBlocks.EventStoreDB;
+using BuildingBlocks.EventStoreDB.Subscriptions;
 using BuildingBlocks.Mapster;
 using BuildingBlocks.Mongo;
 using BuildingBlocks.Web;
 using FluentValidation;
+using Humanizer;
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -20,8 +23,10 @@ public static class InfrastructureExtensions
         builder.AddMongoDbContext<BookingReadDbContext>();
 
         // ref: https://github.com/oskardudycz/EventSourcing.NetCore/tree/main/Sample/EventStoreDB/ECommerce
+        // Each host projecting from the shared EventStoreDB keeps its own checkpoint stream (checkpoint_<subscription-id>).
+        var subscriptionId = builder.Configuration.GetSection(nameof(AppOptions)).Get<AppOptions>()?.Name?.Kebaberize() ?? "default";
         builder.Services.AddEventStore(builder.Configuration, typeof(BookingRoot).Assembly)
-            .AddEventStoreDBSubscriptionToAll();
+            .AddEventStoreDBSubscriptionToAll(new EventStoreDBSubscriptionToAllOptions { SubscriptionId = subscriptionId });
 
         builder.Services.AddGrpcClients();
 
