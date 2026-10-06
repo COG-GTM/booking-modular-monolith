@@ -1,6 +1,7 @@
 using System.Reflection;
 using BuildingBlocks.Utils;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Scrutor;
@@ -19,7 +20,7 @@ public static class MinimalApiExtensions
         var scanAssemblies = assemblies.Any()
             ? assemblies
             : TypeProvider.GetReferencedAssemblies(Assembly.GetCallingAssembly())
-                .Concat(TypeProvider.GetApplicationPartAssemblies(Assembly.GetCallingAssembly()))
+                .Concat(GetApplicationPartAssemblies(Assembly.GetCallingAssembly()))
                 .Distinct()
                 .ToArray();
 
@@ -50,5 +51,16 @@ public static class MinimalApiExtensions
         }
 
         return builder;
+    }
+
+    private static IReadOnlyList<Assembly> GetApplicationPartAssemblies(Assembly rootAssembly)
+    {
+        var rootNamespace = rootAssembly.GetName().Name!.Split('.').First();
+        var list = rootAssembly!.GetCustomAttributes<ApplicationPartAttribute>()
+            .Where(x => x.AssemblyName.StartsWith(rootNamespace, StringComparison.InvariantCulture))
+            .Select(name => Assembly.Load(name.AssemblyName))
+            .Distinct();
+
+        return list.ToList().AsReadOnly();
     }
 }

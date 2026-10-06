@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
 
-namespace BuildingBlocks.Web;
+namespace BuildingBlocks.TestBase;
 
 public static class ServiceCollectionExtensions
 {

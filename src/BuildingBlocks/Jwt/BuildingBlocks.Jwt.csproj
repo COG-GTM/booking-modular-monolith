@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Duende.IdentityServer.EntityFramework.Storage" Version="7.4.6" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\BuildingBlocks.Core.csproj" />
+    <ProjectReference Include="..\Web\BuildingBlocks.Web.csproj" />
+  </ItemGroup>
+</Project>
