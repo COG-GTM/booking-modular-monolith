@@ -206,7 +206,7 @@ dotnet dev-certs https --trust
 
 > ### IdentityServer Signing Certificate
 
-In the `Development` environment IdentityServer uses a generated, git-ignored developer key (`tempkey.jwk`). In every other environment (including `docker`) a PKCS#12 signing certificate **must** be supplied, otherwise the app refuses to start:
+In the `Development` and `test` environments IdentityServer uses a generated, git-ignored developer key (`tempkey.jwk`). In every other environment (including `docker`) a PKCS#12 signing certificate **must** be supplied, otherwise the app refuses to start:
 
 ```bash
 openssl req -x509 -newkey rsa:2048 -sha256 -days 365 -nodes -subj "/CN=booking-identityserver" -keyout signing.key -out signing.crt
