@@ -45,8 +45,8 @@ public class RegisterNewUserHandler : IConsumer<UserCreated>
             return;
         }
 
-        var passenger = Passengers.Models.Passenger.Create(PassengerId.Of(NewId.NextGuid()), Name.Of(context.Message.Name),
-            PassportNumber.Of(context.Message.PassportNumber));
+        var passenger = Passengers.Models.Passenger.Create(PassengerId.Of(NewId.NextGuid()), context.Message.Id,
+            Name.Of(context.Message.Name), PassportNumber.Of(context.Message.PassportNumber));
 
         await _passengerDbContext.AddAsync(passenger);
 
