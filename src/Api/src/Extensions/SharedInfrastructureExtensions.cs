@@ -77,8 +77,9 @@ public static class SharedInfrastructureExtensions
             if (!app.Configuration.IsModuleBackgroundProcessingEnabled(module))
             {
                 app.Logger.LogWarning(
-                    "Background processing for module {Module} is disabled (Modules:{Module}:BackgroundProcessingEnabled=false); its standalone host is expected to process its outbox/projections/consumers.",
-                    module
+                    "Background processing for module {Module} is disabled ({SettingKey}=false); its standalone host is expected to process its outbox, projections and consumers.",
+                    module,
+                    $"{ModuleBackgroundProcessing.SectionName}:{module}:{ModuleBackgroundProcessing.EnabledKey}"
                 );
             }
         }
