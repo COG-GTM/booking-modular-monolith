@@ -33,10 +33,11 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 
+// One logical database per service; each service's outbox/inbox (persist_message) lives in its own database.
 var flightDb = postgres.AddDatabase("flight");
 var passengerDb = postgres.AddDatabase("passenger");
 var identityDb = postgres.AddDatabase("identity");
-var persistMessageDb = postgres.AddDatabase("persist-message");
+var bookingDb = postgres.AddDatabase("booking");
 
 var mongoUsername = builder.AddParameter("mongo-username", "root", secret: true);
 var mongoPassword = builder.AddParameter("mongo-password", "secret", secret: true);
@@ -59,6 +60,11 @@ if (builder.ExecutionContext.IsPublishMode)
     mongo.WithDataVolume("mongo-data")
         .WithLifetime(ContainerLifetime.Persistent);
 }
+
+// One logical read database per service.
+var flightReadDb = mongo.AddDatabase("flight-read");
+var passengerReadDb = mongo.AddDatabase("passenger-read");
+var bookingReadDb = mongo.AddDatabase("booking-read");
 
 
 var redis = builder.AddRedis("redis")
@@ -304,21 +310,80 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 var api = builder.AddProject<Api>("api")
-    .WithReference(persistMessageDb)
-    .WaitFor(persistMessageDb)
     .WithReference(flightDb)
     .WaitFor(flightDb)
     .WithReference(passengerDb)
     .WaitFor(passengerDb)
     .WithReference(identityDb)
     .WaitFor(identityDb)
+    .WithReference(bookingDb)
+    .WaitFor(bookingDb)
     .WithReference(mongo)
     .WaitFor(mongo)
+    .WithReference(flightReadDb)
+    .WithReference(passengerReadDb)
+    .WithReference(bookingReadDb)
     .WithReference(eventstore)
     .WaitFor(eventstore)
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3001, name: "api-http")
-    .WithHttpsEndpoint(port: 3000, name: "api-https");
+    .WithHttpsEndpoint(port: 3000, name: "api-https")
+    .WithHttpHealthCheck("/health");
+
+// Flight and Passenger are still hosted inside the monolith: point Booking's service-discovery
+// names at the api's own endpoints until they get dedicated hosts.
+foreach (var serviceName in new[] { "flight", "passenger" })
+{
+    api.WithEnvironment($"services__{serviceName}__https__0", api.GetEndpoint("api-https"));
+}
+
+// Standalone Booking service (strangler-fig: runs alongside the monolith). It owns the booking database,
+// read database and outbox, and reaches Flight/Passenger over gRPC through service discovery.
+var bookingService = builder.AddProject<Booking_Host>("booking-service")
+    .WithReference(bookingDb)
+    .WaitFor(bookingDb)
+    .WithReference(bookingReadDb)
+    .WaitFor(mongo)
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WaitFor(api)
+    .WithHttpEndpoint(port: 5004, name: "booking-http")
+    .WithHttpsEndpoint(port: 5005, name: "booking-https")
+    .WithHttpHealthCheck("/alive");
+
+foreach (var serviceName in new[] { "flight", "passenger" })
+{
+    bookingService.WithEnvironment($"services__{serviceName}__https__0", api.GetEndpoint("api-https"));
+}
+
+// Single ingress: every route is forwarded to the monolith until a module is extracted,
+// at which point only the matching cluster destination below needs to be repointed.
+// IdentityServer's issuer and every JWT validator must agree on the same public address,
+// so all of them are derived from the API's HTTPS endpoint instead of hard-coded appsettings.
+var issuer = api.GetEndpoint("api-https");
+api.WithEnvironment("AuthOptions__IssuerUri", issuer).WithEnvironment("Jwt__Authority", issuer);
+
+var gateway = builder.AddProject<Gateway>("gateway")
+    .WithReference(api)
+    .WaitFor(api)
+    .WithEnvironment("Jwt__Authority", issuer)
+    .WithHttpEndpoint(port: 5000, name: "gateway-http")
+    .WithHttpsEndpoint(port: 5001, name: "gateway-https");
+
+// Cluster destinations default to the monolith; an extracted module is repointed with
+// Gateway:Clusters:<cluster> in the AppHost configuration (appsettings / env / user-secrets).
+foreach (var cluster in new[] { "flight", "passenger", "booking", "identity", "monolith" })
+{
+    var key = $"ReverseProxy__Clusters__{cluster}__Destinations__monolith__Address";
+    var overrideAddress = builder.Configuration[$"Gateway:Clusters:{cluster}"];
+
+    if (string.IsNullOrWhiteSpace(overrideAddress))
+        gateway.WithEnvironment(key, api.GetEndpoint("api-http"));
+    else
+        gateway.WithEnvironment(key, overrideAddress);
+}
 
 builder.Build().Run();

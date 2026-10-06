@@ -1,0 +1,13 @@
+services:
+  identity-service:
+    build:
+      context: ../../
+      dockerfile: src/Services/Identity/Dockerfile
+    container_name: identity-service
+    ports:
+      - "5103:80"
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - booking

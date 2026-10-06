@@ -4,10 +4,10 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Flight.Data;
 using Flight.Seats.Exceptions;
 using FluentValidation;
@@ -35,7 +35,7 @@ public class ReserveSeatEndpoint : IMinimalEndpoint
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
         builder.MapPost($"{EndpointConfig.BaseApiPath}/flight/reserve-seat", ReserveSeat)
-            .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(IdentityConstant.AuthorizationPolicy.ApiScope)
             .WithName("ReserveSeat")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<ReserveSeatResponseDto>()

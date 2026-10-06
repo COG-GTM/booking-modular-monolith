@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
-using Api;
+using Flight.Host;
 using BuildingBlocks.TestBase;
+using Contracts.Grpc.Flight.V1;
 using Flight;
 using Flight.Data;
 using FluentAssertions;
