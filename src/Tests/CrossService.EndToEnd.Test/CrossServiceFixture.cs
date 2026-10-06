@@ -306,32 +306,27 @@ public sealed class CrossServiceFixture : IAsyncLifetime
 
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
         var healthUrl = $"http://localhost:{httpPort}/health";
-        var fallbackUrl = $"http://localhost:{httpPort}/";
+        var lastHealthResponse = "No response received.";
         var deadline = DateTime.UtcNow.AddSeconds(120);
         while (DateTime.UtcNow < deadline)
         {
             if (process.HasExited)
             {
                 throw new InvalidOperationException(
-                    $"{service} exited before readiness.{Environment.NewLine}{TailLog(service)}"
+                    $"{service} exited before readiness. Last /health response: {lastHealthResponse}{Environment.NewLine}{TailLog(service)}"
                 );
             }
 
             try
             {
                 using var healthResponse = await client.GetAsync(healthUrl);
-                if (healthResponse.StatusCode == HttpStatusCode.NotFound)
-                {
-                    using var fallbackResponse = await client.GetAsync(fallbackUrl);
-                    if (fallbackResponse.IsSuccessStatusCode || fallbackResponse.StatusCode == HttpStatusCode.NotFound)
-                    {
-                        return;
-                    }
-                }
-                else if (healthResponse.IsSuccessStatusCode)
+                if (healthResponse.IsSuccessStatusCode)
                 {
                     return;
                 }
+
+                var healthBody = await healthResponse.Content.ReadAsStringAsync();
+                lastHealthResponse = $"HTTP {(int)healthResponse.StatusCode} {healthResponse.StatusCode}: {healthBody}";
             }
             catch (HttpRequestException) { }
             catch (TaskCanceledException) { }
@@ -340,7 +335,7 @@ public sealed class CrossServiceFixture : IAsyncLifetime
         }
 
         throw new TimeoutException(
-            $"Timed out waiting for {service} at {healthUrl}.{Environment.NewLine}{TailLog(service)}"
+            $"Timed out waiting for {service} at {healthUrl}. Last /health response: {lastHealthResponse}{Environment.NewLine}{TailLog(service)}"
         );
     }
 
