@@ -69,6 +69,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppHost", "src\Aspire\src\A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServiceDefaults", "src\Aspire\src\ServiceDefaults\ServiceDefaults.csproj", "{A3DF22DD-8EC2-484A-9389-FA626FF8225D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Contracts.Messages", "src\Contracts.Messages\Contracts.Messages.csproj", "{351F262F-93A8-481C-9881-608300B79ED1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -110,6 +112,7 @@ Global
 		{EE2FB786-543B-425C-A270-C19A36BEFB2F} = {D2A0CE91-BCCA-486D-97D9-184AE242E867}
 		{42BAF3C9-8E06-438D-947F-6FCE2A415C30} = {EE2FB786-543B-425C-A270-C19A36BEFB2F}
 		{A3DF22DD-8EC2-484A-9389-FA626FF8225D} = {EE2FB786-543B-425C-A270-C19A36BEFB2F}
+		{351F262F-93A8-481C-9881-608300B79ED1} = {9AC7F707-81E5-44D7-8148-28069C8AACEB}
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{36B477F2-BE8F-4481-A392-32A6585FA187}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -168,5 +171,9 @@ Global
 		{A3DF22DD-8EC2-484A-9389-FA626FF8225D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A3DF22DD-8EC2-484A-9389-FA626FF8225D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A3DF22DD-8EC2-484A-9389-FA626FF8225D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{351F262F-93A8-481C-9881-608300B79ED1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{351F262F-93A8-481C-9881-608300B79ED1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{351F262F-93A8-481C-9881-608300B79ED1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{351F262F-93A8-481C-9881-608300B79ED1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
