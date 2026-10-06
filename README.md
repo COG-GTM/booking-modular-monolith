@@ -237,7 +237,7 @@ export AuthOptions__ClientSecret='<your-client-secret>'
 dotnet user-secrets init
 dotnet user-secrets set "AuthOptions:ClientSecret" "<your-client-secret>"
 ```
-The Docker Compose `booking_modular_monolith` service forwards `AuthOptions__ClientSecret` from your shell (`docker compose up` fails fast if it is unset). The Aspire AppHost reads it from the `auth-client-secret` parameter (`dotnet user-secrets set "Parameters:auth-client-secret" "<your-client-secret>" --project src/Aspire/src/AppHost`).
+The Docker Compose `booking_modular_monolith` service forwards `AuthOptions__ClientSecret` from your shell (the API container exits at startup if it is unset). The Aspire AppHost reads it from the `auth-client-secret` parameter (`dotnet user-secrets set "Parameters:auth-client-secret" "<your-client-secret>" --project src/Aspire/src/AppHost`).
 
 To `run` all modules, run this command in the root of the `Api` folder:
 ```bash
