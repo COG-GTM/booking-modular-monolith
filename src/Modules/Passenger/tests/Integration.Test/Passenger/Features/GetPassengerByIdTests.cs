@@ -1,5 +1,9 @@
+using System.Collections.Generic;
+using System.Net;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Api;
+using BuildingBlocks.Constants;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
 using Integration.Test.Fakes;
@@ -34,6 +38,43 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         // Assert
         response.Should().NotBeNull();
         response?.PassengerDto?.Id.Should().Be(command.Id);
+    }
+
+    [Fact]
+    public async Task should_return_forbidden_when_non_admin_user_gets_another_passenger_by_id()
+    {
+        // Arrange
+        var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
+
+        await Fixture.SendAsync(command);
+
+        var nonAdminClient = Fixture.CreateHttpClient(new Dictionary<string, object>
+        {
+            { ClaimTypes.Name, "attacker@sample.com" },
+            { ClaimTypes.Role, IdentityConstant.Role.User },
+            { "scope", "flight-api" },
+        });
+
+        // Act
+        var result = await nonAdminClient.GetAsync($"api/v1/passenger/{command.Id}");
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task should_return_ok_when_admin_gets_passenger_by_id()
+    {
+        // Arrange
+        var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
+
+        await Fixture.SendAsync(command);
+
+        // Act
+        var result = await Fixture.HttpClient.GetAsync($"api/v1/passenger/{command.Id}");
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
