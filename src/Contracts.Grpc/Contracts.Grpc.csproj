@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Contracts.Grpc</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>booking-modular-monolith</Authors>
+    <Description>Shared gRPC contracts (protos + generated clients/servers) for the booking modules. Versioned with SemVer; additive changes only, breaking changes require a new proto package version (v2, v3, ...).</Description>
+    <PackageTags>contracts;grpc;protobuf</PackageTags>
+    <RepositoryUrl>https://github.com/COG-GTM/booking-modular-monolith</RepositoryUrl>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <Content Include="Protos\**\*.proto" Pack="true" PackagePath="protos\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.33.5" />
+    <PackageReference Include="Grpc.Core.Api" Version="2.76.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.78.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="Protos\**\*.proto" ProtoRoot="Protos" GrpcServices="Both" />
+  </ItemGroup>
+</Project>

@@ -1,3 +1,4 @@
+using Contracts.Grpc.Passenger.V1;
 using Grpc.Core;
 using MediatR;
 
@@ -5,7 +6,7 @@ namespace Passenger.GrpcServer.Services;
 
 using Mapster;
 using Passengers.Features.GettingPassengerById.V1;
-using GetPassengerByIdResult = Passenger.GetPassengerByIdResult;
+using GetPassengerByIdResult = Contracts.Grpc.Passenger.V1.GetPassengerByIdResult;
 
 public class PassengerGrpcServices : PassengerGrpcService.PassengerGrpcServiceBase
 {
