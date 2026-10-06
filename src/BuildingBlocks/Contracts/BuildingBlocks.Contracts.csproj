@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Core\BuildingBlocks.Core.csproj" />
+    <ProjectReference Include="..\..\Contracts.Messages\Contracts.Messages.csproj" />
+  </ItemGroup>
+</Project>

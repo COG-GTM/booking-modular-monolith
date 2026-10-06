@@ -1,12 +1,12 @@
 using System.Text.Json;
 using System.Transactions;
 using BuildingBlocks.Core;
-using BuildingBlocks.PersistMessageProcessor;
+using BuildingBlocks.EFCore;
 using BuildingBlocks.Polly;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
-namespace BuildingBlocks.EFCore;
+namespace BuildingBlocks.PersistMessageProcessor;
 
 
 public class EfTxBehavior<TRequest, TResponse>(
