@@ -1,21 +1,21 @@
 using BuildingBlocks.Core.Event;
+using BuildingBlocks.PersistMessageProcessor;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MessageEnvelope = BuildingBlocks.Core.Event.MessageEnvelope;
 
 namespace BuildingBlocks.Core;
 
-public sealed class EventDispatcher(
+public sealed class EventDispatcher<TModule>(
     IServiceScopeFactory serviceScopeFactory,
-    IEnumerable<IEventMapper> eventMappers,
-    ILogger<EventDispatcher> logger,
-    IIntegrationEventPublisher integrationEventPublisher,
+    IEventMapper eventMapper,
+    ILogger<EventDispatcher<TModule>> logger,
+    IPersistMessageProcessor<TModule> persistMessageProcessor,
     IEventHeadersProvider eventHeadersProvider
 )
-    : IEventDispatcher
+    : IEventDispatcher<TModule>
+    where TModule : class
 {
-    private readonly IEventMapper eventMapper = new CompositeEventMapper(eventMappers);
-
     public async Task SendAsync<T>(IReadOnlyList<T> events, Type type = null,
                                    CancellationToken cancellationToken = default)
         where T : IEvent
@@ -30,7 +30,7 @@ public sealed class EventDispatcher(
             {
                 foreach (var integrationEvent in integrationEvents)
                 {
-                    await integrationEventPublisher.PublishAsync(
+                    await persistMessageProcessor.PublishMessageAsync(
                         new MessageEnvelope(integrationEvent, eventHeadersProvider.GetHeaders()),
                         cancellationToken);
                 }
@@ -59,7 +59,7 @@ public sealed class EventDispatcher(
 
                 foreach (var internalMessage in internalMessages)
                 {
-                    await integrationEventPublisher.AddInternalMessageAsync(internalMessage, cancellationToken);
+                    await persistMessageProcessor.AddInternalMessageAsync(internalMessage, cancellationToken);
                 }
             }
         }

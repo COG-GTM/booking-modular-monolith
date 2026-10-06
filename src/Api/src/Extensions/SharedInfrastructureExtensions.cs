@@ -1,13 +1,16 @@
+using Booking;
 using BuildingBlocks.Core;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Jwt;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.OpenApi;
-using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Figgle.Fonts;
+using Flight;
+using Identity;
 using Microsoft.AspNetCore.Mvc;
+using Passenger;
 
 namespace Api.Extensions;
 
@@ -23,7 +26,6 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddJwt();
         builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         builder.Services.AddTransient<AuthHeaderHandler>();
-        builder.AddPersistMessageProcessor();
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddControllers();
@@ -31,7 +33,6 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddCustomVersioning();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<IEventHeadersProvider, HttpContextEventHeadersProvider>();
-        builder.Services.AddEventDispatcher();
 
         builder.Services.AddCustomMassTransit(
             builder.Environment,
@@ -51,6 +52,19 @@ public static class SharedInfrastructureExtensions
             options.UseInMemory(builder.Configuration, "mem");
         });
         builder.Services.AddProblemDetails();
+
+        builder.Services.AddScoped<IEventMapper>(sp =>
+        {
+            var mappers = new IEventMapper[]
+            {
+                sp.GetRequiredService<FlightEventMapper>(),
+                sp.GetRequiredService<IdentityEventMapper>(),
+                sp.GetRequiredService<PassengerEventMapper>(),
+                sp.GetRequiredService<BookingEventMapper>(),
+            };
+
+            return new CompositeEventMapper(mappers);
+        });
 
         return builder;
     }
