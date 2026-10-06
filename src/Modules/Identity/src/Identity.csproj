@@ -17,14 +17,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\BuildingBlocks\Contracts\BuildingBlocks.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Contracts.Messages\Contracts.Messages.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Core\BuildingBlocks.Core.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\EFCore\BuildingBlocks.EFCore.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Mapster\BuildingBlocks.Mapster.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\PersistMessageProcessor\BuildingBlocks.PersistMessageProcessor.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Validation\BuildingBlocks.Validation.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Web\BuildingBlocks.Web.csproj" />
-    <ProjectReference Include="..\..\..\Contracts.Messages\Contracts.Messages.csproj" />
   </ItemGroup>
-  
+
 </Project>

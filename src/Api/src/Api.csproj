@@ -11,6 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Aspire\src\ServiceDefaults\ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\Core\BuildingBlocks.Core.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Grpc\BuildingBlocks.Grpc.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\Jwt\BuildingBlocks.Jwt.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\MassTransit\BuildingBlocks.MassTransit.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\PersistMessageProcessor\BuildingBlocks.PersistMessageProcessor.csproj" />

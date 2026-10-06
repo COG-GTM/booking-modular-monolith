@@ -20,7 +20,8 @@ public class ExtensionsTests
         using var scope = provider.CreateScope();
 
         scope.ServiceProvider.GetRequiredService<IEventHeadersProvider>()
-            .Should().BeOfType<DefaultEventHeadersProvider>();
+            .Should()
+            .BeOfType<DefaultEventHeadersProvider>();
     }
 
     [Fact]

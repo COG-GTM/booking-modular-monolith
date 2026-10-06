@@ -142,4 +142,5 @@ public sealed class EventDispatcher<TModule>(
             yield return domainNotificationEvent;
         }
     }
+
 }

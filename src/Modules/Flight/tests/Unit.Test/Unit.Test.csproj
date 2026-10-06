@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\BuildingBlocks\MassTransit\BuildingBlocks.MassTransit.csproj" />
     <ProjectReference Include="..\..\src\Flight.csproj" />
+    <ProjectReference Include="..\..\..\..\BuildingBlocks\MassTransit\BuildingBlocks.MassTransit.csproj" />
   </ItemGroup>
 
 
