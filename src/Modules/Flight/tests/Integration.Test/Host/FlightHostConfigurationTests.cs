@@ -119,4 +119,25 @@ public class FlightHostConfigurationTests
         configuration["Jwt:Authority"].Should().Be("https://localhost:3000");
         configuration["Jwt:Audience"].Should().Be("booking-modular-monolith");
     }
+
+    [Fact]
+    public void default_profile_should_not_override_the_jwt_metadata_address()
+    {
+        var configuration = LoadHostConfiguration();
+
+        configuration["Jwt:MetadataAddress"].Should().BeNull();
+    }
+
+    [Fact]
+    public void docker_profile_should_keep_the_public_issuer_but_read_metadata_from_the_internal_monolith()
+    {
+        var configuration = LoadHostConfiguration("docker");
+
+        // Tokens are issued through the published https://localhost:3000 origin, so the issuer must not change.
+        configuration["Jwt:Authority"].Should().Be("https://localhost:3000");
+        configuration["Jwt:Audience"].Should().Be("booking-modular-monolith");
+        configuration["Jwt:MetadataAddress"]
+            .Should()
+            .Be("http://booking_modular_monolith/.well-known/openid-configuration");
+    }
 }
