@@ -205,6 +205,50 @@ public class PersistMessageTraceContextTests
     }
 
     [Fact]
+    public async Task processing_outbox_message_restores_tracestate_case_insensitively_without_forwarding_trace_headers()
+    {
+        using var listener = CreateActivityListener(PersistMessageTracing.ActivitySourceName);
+        var (processor, dbContext, publishEndpoint, _) = CreateProcessor();
+        const string traceId = "0af7651916cd43dd8448eb211c80319c";
+        const string traceParent = $"00-{traceId}-b7ad6b7169203331-01";
+        Activity? publishActivity = null;
+        var forwardedHeaders = new Dictionary<string, object?>();
+        var publishContext = Substitute.For<PublishContext>();
+        publishContext
+            .Headers.When(h => h.Set(Arg.Any<string>(), Arg.Any<object>()))
+            .Do(call => forwardedHeaders[call.Arg<string>()] = call.Arg<object>());
+        publishEndpoint
+            .When(e => e.Publish(Arg.Any<object>(), Arg.Any<IPipe<PublishContext>>(), Arg.Any<CancellationToken>()))
+            .Do(call =>
+            {
+                publishActivity = Activity.Current;
+                call.Arg<IPipe<PublishContext>>().Send(publishContext);
+            });
+        Activity.Current = null;
+
+        await processor.PublishMessageAsync(
+            new MessageEnvelope(
+                new TestIntegrationEvent("value"),
+                new Dictionary<string, object?>
+                {
+                    ["TRACEPARENT"] = traceParent,
+                    ["TraceState"] = "vendor=abc",
+                    ["x-correlation-id"] = "corr-1",
+                }
+            )
+        );
+        var messageId = (await dbContext.PersistMessage.SingleAsync()).Id;
+
+        await processor.ProcessAsync(messageId, MessageDeliveryType.Outbox);
+
+        publishActivity.Should().NotBeNull();
+        publishActivity!.TraceId.ToHexString().Should().Be(traceId);
+        publishActivity.ParentSpanId.ToHexString().Should().Be("b7ad6b7169203331");
+        publishActivity.TraceStateString.Should().Be("vendor=abc");
+        forwardedHeaders.Keys.Should().BeEquivalentTo("x-correlation-id");
+    }
+
+    [Fact]
     public async Task processing_outbox_message_forwards_non_trace_headers_and_the_published_event()
     {
         using var listener = CreateActivityListener(RequestSourceName, PersistMessageTracing.ActivitySourceName);
