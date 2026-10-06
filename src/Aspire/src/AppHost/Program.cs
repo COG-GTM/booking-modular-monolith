@@ -6,8 +6,10 @@ var builder = DistributedApplication.CreateBuilder(args);
 builder.AddDockerComposeEnvironment("docker-compose");
 
 // 1. Database Services
-var pgUsername = builder.AddParameter("pg-username", "postgres", secret: true);
-var pgPassword = builder.AddParameter("pg-password", "postgres", secret: true);
+// Passwords are never hardcoded: they are generated (and persisted to user secrets locally) unless an explicit
+// value is supplied via configuration (Parameters:<name>), so publish output never contains well-known credentials.
+var pgUsername = builder.AddParameter("pg-username", "postgres");
+var pgPassword = builder.AddParameter("pg-password", GeneratedPassword(), secret: true, persist: true);
 
 var postgres = builder.AddPostgres("postgres", pgUsername, pgPassword)
     .WithImage("postgres:latest")
@@ -38,8 +40,8 @@ var passengerDb = postgres.AddDatabase("passenger");
 var identityDb = postgres.AddDatabase("identity");
 var persistMessageDb = postgres.AddDatabase("persist-message");
 
-var mongoUsername = builder.AddParameter("mongo-username", "root", secret: true);
-var mongoPassword = builder.AddParameter("mongo-password", "secret", secret: true);
+var mongoUsername = builder.AddParameter("mongo-username", "root");
+var mongoPassword = builder.AddParameter("mongo-password", GeneratedPassword(), secret: true, persist: true);
 
 var mongo = builder.AddMongoDB("mongo", userName: mongoUsername, password: mongoPassword)
     .WithImage("mongo")
@@ -85,8 +87,6 @@ var eventstore = builder.AddEventStore("eventstore")
     .WithEnvironment("EVENTSTORE_CLUSTER_SIZE", "1")
     .WithEnvironment("EVENTSTORE_RUN_PROJECTIONS", "All")
     .WithEnvironment("EVENTSTORE_START_STANDARD_PROJECTIONS", "True")
-    .WithEnvironment("EVENTSTORE_INSECURE", "True")
-    .WithEnvironment("EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP", "True")
     .WithEndpoint(
         "http",
         e =>
@@ -94,7 +94,7 @@ var eventstore = builder.AddEventStore("eventstore")
             e.TargetPort = 2113;
             e.Port = 2113;
             e.IsProxied = true;
-            e.IsExternal = true;
+            e.IsExternal = false;
         })
     .WithEndpoint(
         port: 1113,
@@ -103,15 +103,40 @@ var eventstore = builder.AddEventStore("eventstore")
         isProxied: true,
         isExternal: false);
 
+IResourceBuilder<ParameterResource>? eventstoreAdminPassword = null;
+
 if (builder.ExecutionContext.IsPublishMode)
 {
-    eventstore.WithDataVolume("eventstore-data")
+    // Published deployments run EventStoreDB secured (TLS + authentication). Certificates are expected to be
+    // mounted from deployments/configs/eventstore/certs (see the README there); the node refuses to start without them.
+    eventstoreAdminPassword = builder.AddParameter(
+        "eventstore-admin-password",
+        GeneratedPassword(),
+        secret: true,
+        persist: true);
+
+    eventstore
+        .WithEnvironment("EVENTSTORE_INSECURE", "False")
+        .WithEnvironment("EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP", "False")
+        .WithEnvironment("EVENTSTORE_DEFAULT_ADMIN_PASSWORD", eventstoreAdminPassword)
+        .WithEnvironment("EVENTSTORE_CERTIFICATE_FILE", "/etc/eventstore/certs/node/node.crt")
+        .WithEnvironment("EVENTSTORE_CERTIFICATE_PRIVATE_KEY_FILE", "/etc/eventstore/certs/node/node.key")
+        .WithEnvironment("EVENTSTORE_TRUSTED_ROOT_CERTIFICATES_PATH", "/etc/eventstore/certs/ca")
+        .WithBindMount("../../../../deployments/configs/eventstore/certs", "/etc/eventstore/certs", isReadOnly: true)
+        .WithDataVolume("eventstore-data")
         .WithLifetime(ContainerLifetime.Persistent);
+}
+else
+{
+    // Local development only: unauthenticated, plaintext EventStoreDB with AtomPub so the admin UI works without certs.
+    eventstore
+        .WithEnvironment("EVENTSTORE_INSECURE", "True")
+        .WithEnvironment("EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP", "True");
 }
 
 // 2. Messaging Services
-var rabbitmqUsername = builder.AddParameter("rabbitmq-username", "guest", secret: true);
-var rabbitmqPassword = builder.AddParameter("rabbitmq-password", "guest", secret: true);
+var rabbitmqUsername = builder.AddParameter("rabbitmq-username", "guest");
+var rabbitmqPassword = builder.AddParameter("rabbitmq-password", GeneratedPassword(), secret: true, persist: true);
 
 var rabbitmq = builder.AddRabbitMQ("rabbitmq", rabbitmqUsername, rabbitmqPassword)
     .WithManagementPlugin()
@@ -131,7 +156,7 @@ var rabbitmq = builder.AddRabbitMQ("rabbitmq", rabbitmqUsername, rabbitmqPasswor
             e.TargetPort = 15672;
             e.Port = 15672;
             e.IsProxied = true;
-            e.IsExternal = true;
+            e.IsExternal = false;
         });
 
 if (builder.ExecutionContext.IsPublishMode)
@@ -200,14 +225,20 @@ if (builder.ExecutionContext.IsPublishMode)
     prometheus.WithLifetime(ContainerLifetime.Persistent);
 }
 
+var grafanaAdminPassword = builder.AddParameter(
+    "grafana-admin-password",
+    GeneratedPassword(),
+    secret: true,
+    persist: true);
+
 var grafana = builder.AddContainer("grafana", "grafana/grafana")
     .WithEnvironment("GF_INSTALL_PLUGINS", "grafana-clock-panel,grafana-simple-json-datasource")
     .WithEnvironment("GF_SECURITY_ADMIN_USER", "admin")
-    .WithEnvironment("GF_SECURITY_ADMIN_PASSWORD", "admin")
+    .WithEnvironment("GF_SECURITY_ADMIN_PASSWORD", grafanaAdminPassword)
     .WithEnvironment("GF_FEATURE_TOGGLES_ENABLE", "traceqlEditor")
     .WithBindMount("../../../../deployments/configs/grafana/provisioning", "/etc/grafana/provisioning")
     .WithBindMount("../../../../deployments/configs/grafana/dashboards", "/var/lib/grafana/dashboards")
-    .WithEndpoint(port: 3000, targetPort: 3000, name: "http", isProxied: true, isExternal: true);
+    .WithEndpoint(port: 3000, targetPort: 3000, name: "http", isProxied: true, isExternal: false);
 
 if (builder.ExecutionContext.IsPublishMode)
 {
@@ -321,4 +352,17 @@ var api = builder.AddProject<Api>("api")
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
 
+if (eventstoreAdminPassword is not null)
+{
+    // The EventStore hosting integration always emits an insecure (tls=false) connection string; override it so the
+    // published API authenticates over TLS against the secured node.
+    var eventstoreHttp = eventstore.GetEndpoint("http");
+    api.WithEnvironment(
+        "ConnectionStrings__eventstore",
+        ReferenceExpression.Create(
+            $"esdb://admin:{eventstoreAdminPassword.Resource}@{eventstoreHttp.Property(EndpointProperty.Host)}:{eventstoreHttp.Property(EndpointProperty.Port)}?tls=true"));
+}
+
 builder.Build().Run();
+
+static GenerateParameterDefault GeneratedPassword() => new() { MinLength = 22, Special = false };
