@@ -7,6 +7,9 @@ namespace Unit.Test.Seat.Features;
 
 using global::Flight.Seats.Exceptions;
 using global::Flight.Seats.Features.ReservingSeat.V1;
+using global::Flight.Seats.ValueObjects;
+using MassTransit;
+using Seat = global::Flight.Seats.Models.Seat;
 
 [Collection(nameof(UnitTestFixture))]
 public class ReserveSeatCommandHandlerTests
@@ -55,6 +58,30 @@ public class ReserveSeatCommandHandlerTests
 
         // Assert
         await act.Should().ThrowAsync<SeatAlreadyReservedException>();
+    }
+
+    [Fact]
+    public async Task handler_with_reserved_and_available_rows_for_same_seat_number_should_reserve_available_seat()
+    {
+        // Arrange
+        var reservedSeat = await _fixture.DbContext.Seats.FirstAsync(x => x.SeatNumber.Value == "12D");
+        var command = new ReserveSeat(reservedSeat.FlightId, reservedSeat.SeatNumber.Value);
+
+        await Act(command, CancellationToken.None);
+        await _fixture.DbContext.SaveChangesAsync();
+
+        var availableSeat = Seat.Create(SeatId.Of(NewId.NextGuid()), SeatNumber.Of("12D"), reservedSeat.Type,
+            reservedSeat.Class, reservedSeat.FlightId);
+
+        _fixture.DbContext.Seats.Add(availableSeat);
+        await _fixture.DbContext.SaveChangesAsync();
+
+        // Act
+        var response = await Act(command, CancellationToken.None);
+
+        // Assert
+        response.Id.Should().Be(availableSeat.Id.Value);
+        availableSeat.IsDeleted.Should().BeTrue();
     }
 
     [Fact]

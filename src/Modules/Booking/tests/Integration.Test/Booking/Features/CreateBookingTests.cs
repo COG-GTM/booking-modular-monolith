@@ -92,6 +92,46 @@ namespace Integration.Test.Booking.Features
         }
 
 
+        [Fact]
+        public async Task should_throw_seat_not_available_when_flight_has_no_available_seat()
+        {
+            // Arrange
+            var command = new FakeCreateBookingCommand().Generate();
+            var flightGrpcClient = Fixture.ServiceProvider.GetRequiredService<FlightGrpcService.FlightGrpcServiceClient>();
+
+            flightGrpcClient.GetAvailableSeatsAsync(Arg.Any<GetAvailableSeatsRequest>())
+                .Returns(TestCalls.AsyncUnaryCall(Task.FromResult(new GetAvailableSeatsResult()),
+                    Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { }));
+
+            flightGrpcClient.ClearReceivedCalls();
+
+            try
+            {
+                // Act
+                var act = async () => { await Fixture.SendAsync(command); };
+
+                // Assert
+                await act.Should().ThrowAsync<global::Booking.Booking.Exceptions.SeatNotAvailableException>();
+
+                flightGrpcClient.DidNotReceive().ReserveSeatAsync(Arg.Any<ReserveSeatRequest>(), Arg.Any<Metadata>(),
+                    Arg.Any<System.DateTime?>(), Arg.Any<CancellationToken>());
+
+                using var scope = Fixture.ServiceProvider.CreateScope();
+
+                var booking = await scope.ServiceProvider
+                    .GetRequiredService<IEventStoreDBRepository<global::Booking.Booking.Models.Booking>>()
+                    .Find(command.Id, CancellationToken.None);
+
+                booking.Should().BeNull();
+            }
+            finally
+            {
+                flightGrpcClient.GetAvailableSeatsAsync(Arg.Any<GetAvailableSeatsRequest>())
+                    .Returns(TestCalls.AsyncUnaryCall(Task.FromResult(FakeGetAvailableSeatsResponse.Generate()),
+                        Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { }));
+            }
+        }
+
         private void MockPassengerGrpcServices(IServiceCollection services)
         {
             services.Replace(ServiceDescriptor.Singleton(x =>
