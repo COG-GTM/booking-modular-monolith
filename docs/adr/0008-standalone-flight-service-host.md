@@ -135,3 +135,7 @@ C4Container
 - NFR targets and cost owner sign-off.
 - Data migration strategy from `flight_modular_monolith` to `flight_service` at cut-over.
 - Should multiple Flight.Host replicas coordinate outbox polling (leader election / row locking)?
+- Deployed environments must use an HTTPS `Jwt:MetadataAddress` pointing to an internal Identity endpoint with a certificate valid for its DNS name; the plain-HTTP metadata address in `appsettings.docker.json` is accepted only for the local docker-compose profile.
+- Should the Flight gRPC service, particularly `ReserveSeat`, require authorization? It currently matches the monolith and has no policy; requiring authorization would change the Booking→Flight client contract by requiring token forwarding.
+- Should dependency readiness checks for Postgres, MongoDB, and RabbitMQ be enabled per environment through `HealthOptions.Enabled`? They are currently disabled, matching the monolith.
+- `src/Api/src/appsettings.docker.json` (pre-existing on `main`) lacks a Mongo override, so the monolith container cannot start under Compose without one.
