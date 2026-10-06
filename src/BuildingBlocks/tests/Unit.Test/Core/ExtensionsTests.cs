@@ -23,6 +23,31 @@ public class ExtensionsTests
         mappers.Should().HaveCount(2);
         mappers.Should().ContainSingle(m => m is FirstEventMapper);
         mappers.Should().ContainSingle(m => m is SecondEventMapper);
+        scope.ServiceProvider.GetRequiredService<FirstEventMapper>().Should().BeOfType<FirstEventMapper>();
+        scope.ServiceProvider.GetRequiredService<SecondEventMapper>().Should().BeOfType<SecondEventMapper>();
+    }
+
+    [Fact]
+    public void add_event_mapper_should_allow_composite_registration_after_module_mappers()
+    {
+        var services = new ServiceCollection();
+
+        services.AddEventMapper<FirstEventMapper>();
+        services.AddEventMapper<SecondEventMapper>();
+        services.AddScoped<IEventMapper>(sp =>
+            new CompositeEventMapper(
+                new IEventMapper[]
+                {
+                    sp.GetRequiredService<FirstEventMapper>(),
+                    sp.GetRequiredService<SecondEventMapper>(),
+                }
+            )
+        );
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        scope.ServiceProvider.GetRequiredService<IEventMapper>().Should().BeOfType<CompositeEventMapper>();
     }
 
     private sealed class FirstEventMapper : IEventMapper

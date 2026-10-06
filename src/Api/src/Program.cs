@@ -13,6 +13,7 @@ builder.AddFlightModules();
 builder.AddIdentityModules();
 builder.AddPassengerModules();
 builder.AddBookingModules();
+builder.AddCompositeEventMapper();
 
 var app = builder.Build();
 

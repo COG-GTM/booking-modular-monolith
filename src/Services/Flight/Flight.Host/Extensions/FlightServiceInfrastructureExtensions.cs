@@ -1,5 +1,4 @@
 using BuildingBlocks.Core;
-using BuildingBlocks.Core.Event;
 using BuildingBlocks.Grpc;
 using BuildingBlocks.Jwt;
 using BuildingBlocks.MassTransit;
@@ -46,9 +45,6 @@ public static class FlightServiceInfrastructureExtensions
             options.UseInMemory(builder.Configuration, "mem");
         });
         builder.Services.AddProblemDetails();
-
-        builder.Services.AddScoped<FlightEventMapper>();
-        builder.Services.AddScoped<IEventMapper>(sp => sp.GetRequiredService<FlightEventMapper>());
 
         return builder;
     }

@@ -55,6 +55,11 @@ public static class SharedInfrastructureExtensions
         });
         builder.Services.AddProblemDetails();
 
+        return builder;
+    }
+
+    public static WebApplicationBuilder AddCompositeEventMapper(this WebApplicationBuilder builder)
+    {
         builder.Services.AddScoped<IEventMapper>(sp =>
         {
             var mappers = new IEventMapper[]
