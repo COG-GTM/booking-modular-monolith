@@ -4,11 +4,11 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Web;
 using Data;
 using Dtos;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Exceptions;
 using FluentValidation;
 using Mapster;
@@ -39,7 +39,7 @@ public class GetFlightByIdEndpoint : IMinimalEndpoint
 
                     return Results.Ok(response);
                 })
-            .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(IdentityConstant.AuthorizationPolicy.ApiScope)
             .WithName("GetFlightById")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<GetFlightByIdResponseDto>()

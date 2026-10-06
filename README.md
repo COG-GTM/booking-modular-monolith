@@ -24,6 +24,7 @@
 - [When to Use](#when-to-use)
 - [Challenges](#challenges)
 - [The Domain and Bounded Context - Module Boundary](#the-domain-and-bounded-context---module-boundary)
+- [Microservices Migration - Target Architecture](#microservices-migration---target-architecture)
 - [Structure of Project](#structure-of-project)
 - [Development Setup](#development-setup)
     - [Dotnet Tools Packages](#dotnet-tools-packages)
@@ -48,11 +49,11 @@
 - :sparkle: Using `InMemory Broker` on top of `Masstransit` for `Event Driven Architecture`.
 - :sparkle: Using `gRPC` for `internal communication`.
 - :sparkle: Using `CQRS` implementation with `MediatR` library.
-- :sparkle: Using `Postgres` for `write side` database.
-- :sparkle: Using `MongoDB` for `read side` database.
+- :sparkle: Using `Postgres` for `write side` database, one database and one role per module (`flight`, `identity`, `passenger`, `booking`) so no module can reach another module's data.
+- :sparkle: Using `MongoDB` for `read side` database, one database per module (`MongoOptions:{Module}:DatabaseName`).
 - :sparkle: Using `Event Store` for `write side` of Booking Module to store all `historical change` of aggregate.
 - :sparkle: Using `Inbox Pattern` for ensuring message idempotency for receiver and `Exactly once Delivery`.
-- :sparkle: Using `Outbox Pattern` for ensuring no message is lost and there is at `At Least One Delivery`.
+- :sparkle: Using `Outbox Pattern` for ensuring no message is lost and there is at `At Least One Delivery`. Each module owns its own outbox/inbox (`persist_message` table inside the module database, `PersistMessageDbContext<TModule>`); there is no shared persist-message database.
 - :sparkle: Using `Unit Testing` for testing small units and mocking our dependencies with `Nsubstitute`.
 - :sparkle: Using `End-To-End Testing` and `Integration Testing` for testing `features` with all dependencies using `testcontainers`.
 - :sparkle: Using `Fluent Validation` and a `Validation Pipeline Behaviour` on top of `MediatR`.
@@ -127,6 +128,16 @@
 - `Booking Module`: The Booking Module is a bounded context for managing all operation related to booking ticket.
 
 ![](./assets/booking-modular-monolith.png)
+
+
+## Microservices Migration - Target Architecture
+
+This modular monolith is being migrated to microservices using a strangler-fig approach
+behind an API gateway: one service per module (Identity, Flight, Passenger, Booking),
+gRPC for synchronous calls, RabbitMQ for integration events, and a database per service.
+
+- Target-state diagram: [docs/target-architecture.md](docs/target-architecture.md)
+- Decision records: [docs/adr](docs/adr/README.md)
 
 
 ## Structure of Project
@@ -221,6 +232,8 @@ To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-
 ```bash
 docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
 ```
+
+On the first start of an empty `postgres-data` volume, [init/postgres](./deployments/docker-compose/init/postgres) creates one database and one role per module. If you already have a volume from an older version, recreate it (`docker-compose ... down -v`) or run that SQL against your server once.
 
 > ### Build
 To `build` all modules, run this command in the `root` of the project:

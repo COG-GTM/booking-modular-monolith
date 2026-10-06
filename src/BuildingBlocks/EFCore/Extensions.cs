@@ -17,7 +17,7 @@ public static class Extensions
 {
     public static IServiceCollection AddCustomDbContext<TContext>(
         this WebApplicationBuilder builder,
-        string? connectionName = ""
+        string connectionName
     )
         where TContext : DbContext, IDbContext
     {
@@ -28,16 +28,7 @@ public static class Extensions
         builder.Services.AddDbContext<TContext>(
             (sp, options) =>
             {
-                var aspireConnectionString = builder.Configuration.GetConnectionString(connectionName.Kebaberize());
-
-                var connectionString =
-                    aspireConnectionString
-                    ?? builder.Configuration.GetSection($"PostgresOptions:ConnectionString:{connectionName}").Value;
-
-                if (string.IsNullOrEmpty(connectionString))
-                {
-                    throw new ArgumentException($"Connection string '{connectionName}' not found.");
-                }
+                var connectionString = builder.Configuration.GetPostgresConnectionString(connectionName);
 
                 options
                     .UseNpgsql(
@@ -57,6 +48,27 @@ public static class Extensions
         builder.Services.AddScoped<IDbContext>(sp => sp.GetRequiredService<TContext>());
 
         return builder.Services;
+    }
+
+    /// <summary>
+    /// Resolves the Postgres connection string owned by a module: the Aspire-injected
+    /// <c>ConnectionStrings:{connection-name}</c> wins, otherwise <c>PostgresOptions:ConnectionString:{ConnectionName}</c>.
+    /// Every module (and its outbox/inbox) must use its own connection name so no store is shared across modules.
+    /// </summary>
+    public static string GetPostgresConnectionString(this IConfiguration configuration, string connectionName)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(connectionName);
+
+        var connectionString =
+            configuration.GetConnectionString(connectionName.Kebaberize())
+            ?? configuration.GetSection($"{nameof(PostgresOptions)}:{nameof(PostgresOptions.ConnectionString)}:{connectionName}").Value;
+
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new ArgumentException($"Connection string '{connectionName}' not found.");
+        }
+
+        return connectionString;
     }
 
     public static IApplicationBuilder UseMigration<TContext>(this IApplicationBuilder app)

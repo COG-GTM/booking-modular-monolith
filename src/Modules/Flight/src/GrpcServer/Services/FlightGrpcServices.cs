@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Contracts.Grpc.Flight.V1;
 using Grpc.Core;
 using Mapster;
 using MediatR;
@@ -9,9 +10,9 @@ using System;
 using Flights.Features.GettingFlightById.V1;
 using Seats.Features.GettingAvailableSeats.V1;
 using Seats.Features.ReservingSeat.V1;
-using GetAvailableSeatsResult = GetAvailableSeatsResult;
-using GetFlightByIdResult = GetFlightByIdResult;
-using ReserveSeatResult = ReserveSeatResult;
+using GetAvailableSeatsResult = Contracts.Grpc.Flight.V1.GetAvailableSeatsResult;
+using GetFlightByIdResult = Contracts.Grpc.Flight.V1.GetFlightByIdResult;
+using ReserveSeatResult = Contracts.Grpc.Flight.V1.ReserveSeatResult;
 
 public class FlightGrpcServices : FlightGrpcService.FlightGrpcServiceBase
 {

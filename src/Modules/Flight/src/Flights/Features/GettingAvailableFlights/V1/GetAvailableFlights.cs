@@ -1,3 +1,4 @@
+using BuildingBlocks.Constants;
 using MongoDB.Driver.Linq;
 
 namespace Flight.Flights.Features.GettingAvailableFlights.V1;
@@ -13,7 +14,6 @@ using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Web;
 using Data;
 using Dtos;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Exceptions;
 using Mapster;
 using MapsterMapper;
@@ -46,7 +46,7 @@ public class GetAvailableFlightsEndpoint : IMinimalEndpoint
 
                     return Results.Ok(response);
                 })
-            .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(IdentityConstant.AuthorizationPolicy.ApiScope)
             .WithName("GetAvailableFlights")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<GetAvailableFlightsResponseDto>()

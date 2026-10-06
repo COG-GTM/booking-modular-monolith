@@ -1,17 +1,13 @@
-using Booking;
 using BuildingBlocks.Core;
-using BuildingBlocks.Exception;
+using BuildingBlocks.Core.Event;
+using BuildingBlocks.Grpc;
 using BuildingBlocks.Jwt;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.OpenApi;
-using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Figgle.Fonts;
-using Flight;
-using Identity;
 using Microsoft.AspNetCore.Mvc;
-using Passenger;
 
 namespace Api.Extensions;
 
@@ -27,14 +23,13 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddJwt();
         builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         builder.Services.AddTransient<AuthHeaderHandler>();
-        builder.AddPersistMessageProcessor();
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddControllers();
         builder.Services.AddAspnetOpenApi();
         builder.Services.AddCustomVersioning();
         builder.Services.AddHttpContextAccessor();
-        builder.Services.AddScoped<IEventDispatcher, EventDispatcher>();
+        builder.Services.AddScoped<IEventHeadersProvider, HttpContextEventHeadersProvider>();
 
         builder.Services.AddCustomMassTransit(
             builder.Environment,
@@ -48,25 +43,13 @@ public static class SharedInfrastructureExtensions
         {
             options.Interceptors.Add<GrpcExceptionInterceptor>();
         });
+        builder.Services.AddGrpcHealthService();
 
         builder.Services.AddEasyCaching(options =>
         {
             options.UseInMemory(builder.Configuration, "mem");
         });
         builder.Services.AddProblemDetails();
-
-        builder.Services.AddScoped<IEventMapper>(sp =>
-        {
-            var mappers = new IEventMapper[]
-            {
-                sp.GetRequiredService<FlightEventMapper>(),
-                sp.GetRequiredService<IdentityEventMapper>(),
-                sp.GetRequiredService<PassengerEventMapper>(),
-                sp.GetRequiredService<BookingEventMapper>(),
-            };
-
-            return new CompositeEventMapper(mappers);
-        });
 
         return builder;
     }
@@ -82,6 +65,7 @@ public static class SharedInfrastructureExtensions
         app.UseCorrelationId();
 
         app.MapGet("/", x => x.Response.WriteAsync(appOptions.Name));
+        app.MapGrpcHealthService();
 
         if (app.Environment.IsDevelopment())
         {
