@@ -31,8 +31,7 @@ public static class Extensions
             var eventStoreOptions = services.GetOptions<EventStoreOptions>(nameof(EventStoreOptions));
             var mongoOptions = services.GetOptions<MongoOptions>(nameof(MongoOptions));
 
-            var healthChecksBuilder = services
-                .AddHealthChecks()
+            var healthChecksBuilder = services.AddHealthChecks()
                 // Add a default liveness check to ensure app is responsive
                 .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"])
                 .AddRabbitMQ(
@@ -40,14 +39,11 @@ public static class Extensions
                     {
                         var factory = new ConnectionFactory
                         {
-                            Uri = new Uri(
-                                $"amqp://{rabbitMqOptions.UserName}:{rabbitMqOptions.Password}@{rabbitMqOptions.HostName}"
-                            ),
+                            Uri = new Uri($"amqp://{rabbitMqOptions.UserName}:{rabbitMqOptions.Password}@{rabbitMqOptions.HostName}"),
                         };
                         return factory.CreateConnectionAsync();
                     },
-                    tags: ["ready"]
-                );
+                    tags: ["ready"]);
 
             if (!string.IsNullOrEmpty(mongoOptions.ConnectionString))
             {
@@ -56,8 +52,7 @@ public static class Extensions
                     name: "MongoDB-Health",
                     failureStatus: HealthStatus.Unhealthy,
                     tags: ["ready"],
-                    timeout: TimeSpan.FromSeconds(10)
-                );
+                    timeout: TimeSpan.FromSeconds(10));
             }
 
             if (!string.IsNullOrEmpty(postgresOptions.ConnectionString))
@@ -66,13 +61,11 @@ public static class Extensions
             if (!string.IsNullOrEmpty(eventStoreOptions.ConnectionString))
                 healthChecksBuilder.AddEventStore(eventStoreOptions.ConnectionString, tags: ["ready"]);
 
-            services
-                .AddHealthChecksUI(setup =>
-                {
-                    setup.SetEvaluationTimeInSeconds(60); // time in seconds between check
-                    setup.AddHealthCheckEndpoint($"Self Check - {appOptions.Name}", HealthEndpointPath);
-                })
-                .AddInMemoryStorage();
+            services.AddHealthChecksUI(setup =>
+                                       {
+                                           setup.SetEvaluationTimeInSeconds(60); // time in seconds between check
+                                           setup.AddHealthCheckEndpoint($"Self Check - {appOptions.Name}", HealthEndpointPath);
+                                       }).AddInMemoryStorage();
         }
 
         services.AddHealthChecks().AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
@@ -84,22 +77,20 @@ public static class Extensions
         var healthOptions = app.Configuration.GetOptions<HealthOptions>(nameof(HealthOptions));
 
         app.MapHealthChecks(HealthEndpointPath).WithOrder(-1);
-        app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions { Predicate = r => r.Tags.Contains("live") })
-            .WithOrder(-1);
-        app.MapHealthChecks(
-                ReadinessEndpointPath,
-                new HealthCheckOptions
-                {
-                    Predicate = r => r.Tags.Contains("ready"),
-                    ResultStatusCodes =
-                    {
-                        [HealthStatus.Healthy] = 200,
-                        [HealthStatus.Degraded] = 503,
-                        [HealthStatus.Unhealthy] = 503,
-                    },
-                }
-            )
-            .WithOrder(-1);
+        app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = r => r.Tags.Contains("live"),
+        }).WithOrder(-1);
+        app.MapHealthChecks(ReadinessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = r => r.Tags.Contains("ready"),
+            ResultStatusCodes =
+            {
+                [HealthStatus.Healthy] = 200,
+                [HealthStatus.Degraded] = 503,
+                [HealthStatus.Unhealthy] = 503,
+            },
+        }).WithOrder(-1);
 
         if (healthOptions.Enabled)
             app.MapHealthChecksUI(options => options.UIPath = "/health-ui");

@@ -121,10 +121,8 @@ public class ReadinessEndpointTests
             .OnlyContain(registration => registration.Tags.Contains("live") && !registration.Tags.Contains("ready"));
     }
 
-    private static async Task<WebApplication> StartAppAsync(
-        HealthStatus readyStoreStatus,
-        bool includeUnhealthyDownstream = true
-    )
+    private static async Task<WebApplication> StartAppAsync(HealthStatus readyStoreStatus,
+        bool includeUnhealthyDownstream = true)
     {
         var builder = CreateBuilder();
         var healthChecksBuilder = builder
