@@ -25,13 +25,7 @@ public sealed class CrossServiceTests(CrossServiceFixture fixture)
         registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         using var registration = JsonDocument.Parse(await registerResponse.Content.ReadAsStringAsync());
         var userId = registration.RootElement.GetProperty("id").GetGuid();
-        var passengerId = await WaitForPassengerAsync(user.PassportNumber);
-
-        await WaitUntilAsync(async () =>
-        {
-            using var response = await client.GetAsync($"/api/v1.0/passenger/{passengerId}");
-            return response.StatusCode == HttpStatusCode.OK;
-        });
+        var passengerId = await WaitForPassengerAsync(client, user.PassportNumber);
 
         using var passengerResponse = await client.GetAsync($"/api/v1.0/passenger/{passengerId}");
         passengerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -69,7 +63,7 @@ public sealed class CrossServiceTests(CrossServiceFixture fixture)
         using var registerResponse = await client.PostAsJsonAsync("/api/v1.0/identity/register-user", user);
         registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         using var registration = JsonDocument.Parse(await registerResponse.Content.ReadAsStringAsync());
-        var passengerId = await WaitForPassengerAsync(user.PassportNumber);
+        var passengerId = await WaitForPassengerAsync(client, user.PassportNumber);
         passengerId.Should().NotBeEmpty();
 
         var before = await GetAvailableSeatCountAsync(client);
@@ -137,10 +131,10 @@ public sealed class CrossServiceTests(CrossServiceFixture fixture)
     {
         using var response = await client.PostAsJsonAsync("/api/v1.0/identity/register-user", user);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        return await WaitForPassengerAsync(user.PassportNumber);
+        return await WaitForPassengerAsync(client, user.PassportNumber);
     }
 
-    private async Task<Guid> WaitForPassengerAsync(string passportNumber)
+    private async Task<Guid> WaitForPassengerAsync(HttpClient client, string passportNumber)
     {
         var deadline = DateTime.UtcNow.AddSeconds(60);
         while (DateTime.UtcNow < deadline)
@@ -155,6 +149,11 @@ public sealed class CrossServiceTests(CrossServiceFixture fixture)
             var result = await command.ExecuteScalarAsync();
             if (result is Guid id)
             {
+                await WaitUntilAsync(async () =>
+                {
+                    using var response = await client.GetAsync($"/api/v1.0/passenger/{id}");
+                    return response.StatusCode == HttpStatusCode.OK;
+                });
                 return id;
             }
 
