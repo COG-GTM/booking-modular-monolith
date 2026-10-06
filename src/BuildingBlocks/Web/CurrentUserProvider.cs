@@ -1,11 +1,13 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace BuildingBlocks.Web;
 
 public interface ICurrentUserProvider
 {
     long? GetCurrentUserId();
+    string? GetCurrentUserIdentifier();
 }
 
 public class CurrentUserProvider : ICurrentUserProvider
@@ -17,13 +19,19 @@ public class CurrentUserProvider : ICurrentUserProvider
         _httpContextAccessor = httpContextAccessor;
     }
 
-
     public long? GetCurrentUserId()
     {
-        var nameIdentifier = _httpContextAccessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        return long.TryParse(GetCurrentUserIdentifier(), out var userId) ? userId : null;
+    }
 
-        long.TryParse(nameIdentifier, out var userId);
+    // JwtBearer is configured with MapInboundClaims = false, so the subject stays in the raw "sub" claim.
+    public string? GetCurrentUserIdentifier()
+    {
+        var user = _httpContextAccessor?.HttpContext?.User;
 
-        return userId;
+        var identifier = user?.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                         ?? user?.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return string.IsNullOrWhiteSpace(identifier) ? null : identifier;
     }
 }

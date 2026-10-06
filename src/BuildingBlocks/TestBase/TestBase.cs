@@ -290,6 +290,14 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
         );
     }
 
+    public void SetCurrentUser(params Claim[] claims)
+    {
+        var httpContextAccessor = ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+
+        httpContextAccessor.HttpContext!.User =
+            new ClaimsPrincipal(new ClaimsIdentity(claims, FakeJwtBearerDefaults.AuthenticationScheme));
+    }
+
     private IHttpContextAccessor AddHttpContextAccessorMock(IServiceProvider serviceProvider)
     {
         var httpContextAccessorMock = Substitute.For<IHttpContextAccessor>();

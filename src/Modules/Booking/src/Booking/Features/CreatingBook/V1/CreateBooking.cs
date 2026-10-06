@@ -98,6 +98,8 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
     {
         Guard.Against.Null(command, nameof(command));
 
+        EnsurePassengerBelongsToCurrentUser(command.PassengerId);
+
         var flight =
             await _flightGrpcServiceClient.GetByIdAsync(new BookingFlight.GetByIdRequest { Id = command.FlightId.ToString() }, cancellationToken: cancellationToken);
 
@@ -142,5 +144,17 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
             cancellationToken);
 
         return new CreateBookingResult(result);
+    }
+
+    // Passengers are keyed by the Identity user id (see Passenger RegisterNewUserHandler), so a booking may only be
+    // created for the passenger whose id matches the authenticated subject.
+    private void EnsurePassengerBelongsToCurrentUser(Guid passengerId)
+    {
+        var currentUserId = _currentUserProvider.GetCurrentUserIdentifier();
+
+        if (!Guid.TryParse(currentUserId, out var currentPassengerId) || currentPassengerId != passengerId)
+        {
+            throw new PassengerAccessForbiddenException();
+        }
     }
 }

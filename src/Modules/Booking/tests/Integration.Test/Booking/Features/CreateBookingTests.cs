@@ -1,6 +1,9 @@
+using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Api;
 using Booking.Data;
+using global::Booking.Booking.Exceptions;
 using BookingFlight;
 using BookingPassenger;
 using BuildingBlocks.Contracts.EventBus.Messages;
@@ -35,6 +38,7 @@ namespace Integration.Test.Booking.Features
         {
             // Arrange
             var command = new FakeCreateBookingCommand().Generate();
+            Fixture.SetCurrentUser(new Claim("sub", command.PassengerId.ToString()));
 
             // Act
             var response = await Fixture.SendAsync(command);
@@ -43,6 +47,34 @@ namespace Integration.Test.Booking.Features
             response?.Id.Should().BeGreaterThanOrEqualTo(0);
 
             (await Fixture.WaitForPublishing<BookingCreated>()).Should().Be(true);
+        }
+
+        [Fact]
+        public async Task should_not_create_booking_for_passenger_of_another_user()
+        {
+            // Arrange
+            var command = new FakeCreateBookingCommand().Generate();
+            Fixture.SetCurrentUser(new Claim("sub", Guid.NewGuid().ToString()));
+
+            // Act
+            var act = async () => await Fixture.SendAsync(command);
+
+            // Assert
+            await act.Should().ThrowAsync<PassengerAccessForbiddenException>();
+        }
+
+        [Fact]
+        public async Task should_not_create_booking_without_authenticated_user()
+        {
+            // Arrange
+            var command = new FakeCreateBookingCommand().Generate();
+            Fixture.SetCurrentUser();
+
+            // Act
+            var act = async () => await Fixture.SendAsync(command);
+
+            // Assert
+            await act.Should().ThrowAsync<PassengerAccessForbiddenException>();
         }
 
 
