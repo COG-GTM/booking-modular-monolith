@@ -18,6 +18,8 @@ namespace Integration.Test.Host;
 public class FlightHostJwtMetadataTests
 {
     private const string MonolithAuthority = "https://localhost:3000";
+    private const string InternalMetadataAddress =
+        "http://booking_modular_monolith/.well-known/openid-configuration";
 
     private static JwtBearerOptions BuildJwtBearerOptions(string? metadataAddress)
     {
@@ -52,5 +54,16 @@ public class FlightHostJwtMetadataTests
             .BeOfType<ConfigurationManager<OpenIdConnectConfiguration>>()
             .Which.MetadataAddress.Should()
             .Be(options.MetadataAddress);
+    }
+
+    [Fact]
+    public void should_apply_the_configured_metadata_override_before_bearer_post_configuration()
+    {
+        var options = BuildJwtBearerOptions(InternalMetadataAddress);
+        var configurationManager = (ConfigurationManager<OpenIdConnectConfiguration>)options.ConfigurationManager!;
+
+        options.Authority.Should().Be(MonolithAuthority);
+        options.MetadataAddress.Should().Be(InternalMetadataAddress);
+        configurationManager.MetadataAddress.Should().Be(InternalMetadataAddress);
     }
 }

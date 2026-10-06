@@ -18,7 +18,7 @@ public static class FlightServiceInfrastructureExtensions
         builder.AddServiceDefaults();
 
         builder.Services.AddJwt();
-        builder.Services.PostConfigure<JwtBearerOptions>(
+        builder.Services.Configure<JwtBearerOptions>(
             JwtBearerDefaults.AuthenticationScheme,
             options =>
             {
