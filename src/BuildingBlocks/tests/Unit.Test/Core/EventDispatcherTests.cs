@@ -10,17 +10,19 @@ namespace Unit.Test.Core;
 
 public class EventDispatcherTests
 {
-    private readonly IIntegrationEventPublisher publisher = Substitute.For<IIntegrationEventPublisher>();
+    public sealed class TestModule;
+
+    private readonly IIntegrationEventPublisher<TestModule> publisher = Substitute.For<IIntegrationEventPublisher<TestModule>>();
     private readonly IEventHeadersProvider headersProvider = Substitute.For<IEventHeadersProvider>();
     private readonly IEventMapper mapper = Substitute.For<IEventMapper>();
 
-    private EventDispatcher CreateDispatcher(params IEventMapper[] mappers)
+    private EventDispatcher<TestModule> CreateDispatcher(params IEventMapper[] mappers)
     {
         var scopeFactory = new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
-        return new EventDispatcher(
+        return new EventDispatcher<TestModule>(
             scopeFactory,
             mappers,
-            NullLogger<EventDispatcher>.Instance,
+            NullLogger<EventDispatcher<TestModule>>.Instance,
             publisher,
             headersProvider);
     }

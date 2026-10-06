@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\..\BuildingBlocks\EventStoreDB\BuildingBlocks.EventStoreDB.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Mapster\BuildingBlocks.Mapster.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Mongo\BuildingBlocks.Mongo.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\PersistMessageProcessor\BuildingBlocks.PersistMessageProcessor.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Validation\BuildingBlocks.Validation.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Web\BuildingBlocks.Web.csproj" />
   </ItemGroup>

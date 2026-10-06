@@ -5,14 +5,15 @@ using MessageEnvelope = BuildingBlocks.Core.Event.MessageEnvelope;
 
 namespace BuildingBlocks.Core;
 
-public sealed class EventDispatcher(
+public sealed class EventDispatcher<TModule>(
     IServiceScopeFactory serviceScopeFactory,
     IEnumerable<IEventMapper> eventMappers,
-    ILogger<EventDispatcher> logger,
-    IIntegrationEventPublisher integrationEventPublisher,
+    ILogger<EventDispatcher<TModule>> logger,
+    IIntegrationEventPublisher<TModule> integrationEventPublisher,
     IEventHeadersProvider eventHeadersProvider
 )
-    : IEventDispatcher
+    : IEventDispatcher<TModule>
+    where TModule : class
 {
     private readonly IEventMapper eventMapper = new CompositeEventMapper(eventMappers);
 

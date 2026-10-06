@@ -6,9 +6,10 @@ namespace BuildingBlocks.Core;
 
 public static class Extensions
 {
-    public static IServiceCollection AddEventDispatcher(this IServiceCollection services)
+    public static IServiceCollection AddEventDispatcher<TModule>(this IServiceCollection services)
+        where TModule : class
     {
-        services.TryAddScoped<IEventDispatcher, EventDispatcher>();
+        services.TryAddScoped<IEventDispatcher<TModule>, EventDispatcher<TModule>>();
         services.TryAddScoped<IEventHeadersProvider, DefaultEventHeadersProvider>();
         return services;
     }

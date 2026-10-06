@@ -9,19 +9,21 @@ namespace Unit.Test.Core;
 
 public class ExtensionsTests
 {
+    public sealed class TestModule;
+
     [Fact]
     public void add_event_dispatcher_should_register_dispatcher_and_default_headers_provider()
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddScoped(_ => Substitute.For<IIntegrationEventPublisher>());
+        services.AddScoped(_ => Substitute.For<IIntegrationEventPublisher<TestModule>>());
 
-        services.AddEventDispatcher();
+        services.AddEventDispatcher<TestModule>();
 
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
 
-        scope.ServiceProvider.GetRequiredService<IEventDispatcher>().Should().BeOfType<EventDispatcher>();
+        scope.ServiceProvider.GetRequiredService<IEventDispatcher<TestModule>>().Should().BeOfType<EventDispatcher<TestModule>>();
         scope.ServiceProvider.GetRequiredService<IEventHeadersProvider>()
             .Should().BeOfType<DefaultEventHeadersProvider>();
     }
@@ -33,7 +35,7 @@ public class ExtensionsTests
         var customProvider = Substitute.For<IEventHeadersProvider>();
         services.AddScoped(_ => customProvider);
 
-        services.AddEventDispatcher();
+        services.AddEventDispatcher<TestModule>();
 
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
