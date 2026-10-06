@@ -1,5 +1,6 @@
 using BuildingBlocks.Core;
 using BuildingBlocks.Core.Event;
+using BuildingBlocks.EFCore;
 using BuildingBlocks.Jwt;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.OpenApi;
@@ -8,7 +9,10 @@ using BuildingBlocks.Web;
 using Figgle.Fonts;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using RabbitMQ.Client;
 
 namespace Identity.Host.Extensions;
 
@@ -20,6 +24,39 @@ public static class IdentityHostExtensions
         Console.WriteLine(FiggleFonts.Standard.Render(appOptions.Name));
 
         builder.AddServiceDefaults();
+
+        builder
+            .Services.AddHealthChecks()
+            .AddNpgSql(
+                serviceProvider =>
+                    serviceProvider.GetRequiredService<IConfiguration>().GetPostgresConnectionString("Identity"),
+                name: "identity-postgres",
+                tags: ["ready"]
+            );
+
+        if (builder.Configuration.GetValue<TransportType?>("MessageBroker:TransportType") == TransportType.RabbitMq)
+        {
+            builder
+                .Services.AddHealthChecks()
+                .AddRabbitMQ(
+                    serviceProvider =>
+                    {
+                        var rabbitMqOptions = serviceProvider
+                            .GetRequiredService<IConfiguration>()
+                            .GetOptions<RabbitMqOptions>(nameof(RabbitMqOptions));
+                        var factory = new ConnectionFactory
+                        {
+                            HostName = rabbitMqOptions.HostName,
+                            Port = rabbitMqOptions.Port ?? 5672,
+                            UserName = rabbitMqOptions.UserName,
+                            Password = rabbitMqOptions.Password,
+                        };
+                        return factory.CreateConnectionAsync();
+                    },
+                    name: "identity-rabbitmq",
+                    tags: ["ready"]
+                );
+        }
 
         builder.Services.AddJwt();
         builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
