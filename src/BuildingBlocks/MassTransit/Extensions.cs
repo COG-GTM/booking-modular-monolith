@@ -58,10 +58,13 @@ public static class Extensions
         params Assembly[] assembly
     )
     {
-        configure.AddConsumers(assembly);
-        configure.AddSagaStateMachines(assembly);
-        configure.AddSagas(assembly);
-        configure.AddActivities(assembly);
+        if (assembly.Length > 0)
+        {
+            configure.AddConsumers(assembly);
+            configure.AddSagaStateMachines(assembly);
+            configure.AddSagas(assembly);
+            configure.AddActivities(assembly);
+        }
 
         configure.SetEndpointNameFormatter(
             new KebabCaseEndpointNameFormatter(serviceName.Kebaberize(), includeNamespace: false)
