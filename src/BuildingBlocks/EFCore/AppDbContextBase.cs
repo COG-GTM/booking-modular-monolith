@@ -101,21 +101,12 @@ public abstract class AppDbContextBase : DbContext, IDbContext
         //ref: https://learn.microsoft.com/en-us/ef/core/saving/concurrency?tabs=data-annotations#resolving-concurrency-conflicts
         catch (DbUpdateConcurrencyException ex)
         {
-            foreach (var entry in ex.Entries)
-            {
-                var databaseValues = await entry.GetDatabaseValuesAsync(cancellationToken);
-
-                if (databaseValues == null)
-                {
-                    _logger.LogError("The record no longer exists in the database, The record has been deleted by another user.");
-                    throw;
-                }
-
-                // Refresh the original values to bypass next concurrency check
-                entry.OriginalValues.SetValues(databaseValues);
-            }
-
-            return await base.SaveChangesAsync(cancellationToken);
+            // Fail closed: a stale row version means another request changed the same aggregate
+            // concurrently (e.g. two reservations of one seat). Overwriting the database values here
+            // would silently let both writers win, so surface the conflict to the caller instead.
+            _logger?.LogError(ex,
+                "Concurrency conflict while saving changes, the record was modified or deleted by another user.");
+            throw;
         }
     }
 

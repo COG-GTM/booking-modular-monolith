@@ -89,6 +89,19 @@ internal class ReserveSeatCommandHandler : IRequestHandler<ReserveSeat, ReserveS
 
         if (seat is null)
         {
+            // Reserved seats are soft-deleted and hidden by the global query filter, so look past it
+            // to tell "already reserved" apart from "no such seat". The Version concurrency token on
+            // Seat makes concurrent reservations of the same row fail on save, so only one caller wins.
+            var isReserved = await _flightDbContext.Seats
+                .IgnoreQueryFilters()
+                .AnyAsync(x => x.SeatNumber.Value == command.SeatNumber &&
+                               x.FlightId == command.FlightId, cancellationToken);
+
+            if (isReserved)
+            {
+                throw new SeatAlreadyReservedException();
+            }
+
             throw new SeatNumberIncorrectException();
         }
 

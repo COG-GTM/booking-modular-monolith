@@ -3,12 +3,17 @@ using Api;
 using Booking.Data;
 using BookingFlight;
 using BookingPassenger;
+using System.Linq;
+using System.Threading;
 using BuildingBlocks.Contracts.EventBus.Messages;
+using BuildingBlocks.EventStoreDB.Repository;
+using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
 using Grpc.Core;
 using Grpc.Core.Testing;
 using Integration.Test.Fakes;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
@@ -45,6 +50,87 @@ namespace Integration.Test.Booking.Features
             (await Fixture.WaitForPublishing<BookingCreated>()).Should().Be(true);
         }
 
+        [Fact]
+        public async Task should_not_create_booking_when_seat_reservation_fails()
+        {
+            // Arrange
+            var command = new FakeCreateBookingCommand().Generate();
+            var flightGrpcClient = Fixture.ServiceProvider.GetRequiredService<FlightGrpcService.FlightGrpcServiceClient>();
+
+            flightGrpcClient.ReserveSeatAsync(Arg.Any<ReserveSeatRequest>())
+                .Returns(_ => throw new RpcException(new Status(StatusCode.FailedPrecondition, "Seat is already reserved!")));
+
+            try
+            {
+                // Act
+                var act = async () => { await Fixture.SendAsync(command); };
+
+                // Assert
+                await act.Should().ThrowAsync<RpcException>();
+
+                using var scope = Fixture.ServiceProvider.CreateScope();
+
+                var booking = await scope.ServiceProvider
+                    .GetRequiredService<IEventStoreDBRepository<global::Booking.Booking.Models.Booking>>()
+                    .Find(command.Id, CancellationToken.None);
+
+                booking.Should().BeNull();
+
+                var persistedEvents = await scope.ServiceProvider
+                    .GetRequiredService<IPersistMessageDbContext>().PersistMessage
+                    .Where(x => x.DataType == typeof(BookingCreated).ToString())
+                    .ToListAsync();
+
+                persistedEvents.Should().BeEmpty();
+            }
+            finally
+            {
+                flightGrpcClient.ReserveSeatAsync(Arg.Any<ReserveSeatRequest>())
+                    .Returns(TestCalls.AsyncUnaryCall(Task.FromResult(FakeReserveSeatResponse.Generate()),
+                        Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { }));
+            }
+        }
+
+
+        [Fact]
+        public async Task should_throw_seat_not_available_when_flight_has_no_available_seat()
+        {
+            // Arrange
+            var command = new FakeCreateBookingCommand().Generate();
+            var flightGrpcClient = Fixture.ServiceProvider.GetRequiredService<FlightGrpcService.FlightGrpcServiceClient>();
+
+            flightGrpcClient.GetAvailableSeatsAsync(Arg.Any<GetAvailableSeatsRequest>())
+                .Returns(TestCalls.AsyncUnaryCall(Task.FromResult(new GetAvailableSeatsResult()),
+                    Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { }));
+
+            flightGrpcClient.ClearReceivedCalls();
+
+            try
+            {
+                // Act
+                var act = async () => { await Fixture.SendAsync(command); };
+
+                // Assert
+                await act.Should().ThrowAsync<global::Booking.Booking.Exceptions.SeatNotAvailableException>();
+
+                flightGrpcClient.DidNotReceive().ReserveSeatAsync(Arg.Any<ReserveSeatRequest>(), Arg.Any<Metadata>(),
+                    Arg.Any<System.DateTime?>(), Arg.Any<CancellationToken>());
+
+                using var scope = Fixture.ServiceProvider.CreateScope();
+
+                var booking = await scope.ServiceProvider
+                    .GetRequiredService<IEventStoreDBRepository<global::Booking.Booking.Models.Booking>>()
+                    .Find(command.Id, CancellationToken.None);
+
+                booking.Should().BeNull();
+            }
+            finally
+            {
+                flightGrpcClient.GetAvailableSeatsAsync(Arg.Any<GetAvailableSeatsRequest>())
+                    .Returns(TestCalls.AsyncUnaryCall(Task.FromResult(FakeGetAvailableSeatsResponse.Generate()),
+                        Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { }));
+            }
+        }
 
         private void MockPassengerGrpcServices(IServiceCollection services)
         {
