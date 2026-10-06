@@ -41,6 +41,7 @@ services:
       - "max_prepared_transactions=10"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./init/postgres:/docker-entrypoint-initdb.d:ro
     networks:
       - booking
 
@@ -352,9 +353,89 @@ services:
       - ASPNETCORE_HTTP_PORT=3001
       - ASPNETCORE_Kestrel__Certificates__Default__Password=password
       - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      - Jwt__MetadataAddress=http://localhost:80/.well-known/openid-configuration
+      # ADR 0013: Booking.Host owns Booking background processing during cut-over.
+      - Modules__Booking__BackgroundProcessingEnabled=false
     networks:
       - booking
 
+  #######################################################
+  #  Gateway (single ingress, YARP)
+  #######################################################
+  gateway:
+    image: booking-gateway
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Gateway/Dockerfile
+    container_name: gateway
+    ports:
+      - 5000:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=http://+:80
+    depends_on:
+      - booking_modular_monolith
+    networks:
+      - booking
+
+  #######################################################
+  #  flight-service
+  #######################################################
+  flight_service:
+    image: flight-service
+    build:
+      context: ../../
+      dockerfile: src/Services/Flight/Flight.Host/Dockerfile
+    container_name: flight_service
+    ports:
+      - 5100:80
+      - 5101:443
+    volumes:
+      - ~/.aspnet/https:/https:ro
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=https://+;http://+
+      - ASPNETCORE_HTTPS_PORT=5101
+      - ASPNETCORE_HTTP_PORT=5100
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+    networks:
+      - booking
+
+  booking_service:
+    image: booking-service
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Services/Booking/Dockerfile
+    container_name: booking_service
+    ports:
+      - 5004:80
+      - 5005:443
+    volumes:
+      - ~/.aspnet/https:/https:ro
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=https://+;http://+
+      - ASPNETCORE_HTTPS_PORT=5005
+      - ASPNETCORE_HTTP_PORT=5004
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    depends_on:
+      - booking_modular_monolith
+      - postgres
+      - mongo
+      - eventstore
+      - rabbitmq
+    networks:
+      - booking
 networks:
   booking:
     name: booking
