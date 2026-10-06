@@ -91,6 +91,7 @@ public class GatewayAppHostWiringTests
         {
             var env = await GetEnvironmentAsync(appHost.App, name);
             Assert.Equal(IdentityUrl, env["Jwt__Authority"]);
+            Assert.Equal($"{IdentityUrl}/.well-known/openid-configuration", env["Jwt__MetadataAddress"]);
         }
     }
 
@@ -162,6 +163,7 @@ public class GatewayAppHostWiringTests
         Assert.Equal(ApiHttpsUrl, apiEnv["AuthOptions__IssuerUri"]);
         Assert.Equal(ApiHttpsUrl, apiEnv["Jwt__Authority"]);
         Assert.Equal(ApiHttpsUrl, gatewayEnv["Jwt__Authority"]);
+        Assert.Equal($"{ApiHttpsUrl}/.well-known/openid-configuration", gatewayEnv["Jwt__MetadataAddress"]);
     }
 
     private static string ClusterAddressKey(string cluster) =>

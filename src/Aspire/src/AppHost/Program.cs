@@ -359,9 +359,14 @@ if (runMonolith)
 
     // IdentityServer's issuer and every JWT validator must agree on the same public address.
     var issuer = api.GetEndpoint("api-https");
+    var metadataAddress = ReferenceExpression.Create($"{issuer}/.well-known/openid-configuration");
     api.WithEnvironment("AuthOptions__IssuerUri", issuer).WithEnvironment("Jwt__Authority", issuer);
 
-    gateway.WithReference(api).WaitFor(api).WithEnvironment("Jwt__Authority", issuer);
+    gateway
+        .WithReference(api)
+        .WaitFor(api)
+        .WithEnvironment("Jwt__Authority", issuer)
+        .WithEnvironment("Jwt__MetadataAddress", metadataAddress);
 
     var apiHttp = api.GetEndpoint("api-http");
     clusterDestinations = new()
@@ -383,8 +388,13 @@ else
         .WaitFor(rabbitmq)
         .WithHttpHealthCheck("/health", endpointName: "http");
 
+    // Jwt:MetadataAddress is set explicitly because the hosts' docker appsettings point it at the monolith.
     var issuer = identity.GetEndpoint("http");
-    identity.WithEnvironment("AuthOptions__IssuerUri", issuer).WithEnvironment("Jwt__Authority", issuer);
+    var metadataAddress = ReferenceExpression.Create($"{issuer}/.well-known/openid-configuration");
+    identity
+        .WithEnvironment("AuthOptions__IssuerUri", issuer)
+        .WithEnvironment("Jwt__Authority", issuer)
+        .WithEnvironment("Jwt__MetadataAddress", metadataAddress);
 
     var flight = builder.AddProject<Flight_Host>("flight")
         .WithReference(flightDb, "flight")
@@ -394,6 +404,7 @@ else
         .WithReference(rabbitmq)
         .WaitFor(rabbitmq)
         .WithEnvironment("Jwt__Authority", issuer)
+        .WithEnvironment("Jwt__MetadataAddress", metadataAddress)
         .WithHttpHealthCheck("/health", endpointName: "http");
 
     var passenger = builder.AddProject<Passenger_Host>("passenger")
@@ -404,6 +415,7 @@ else
         .WithReference(rabbitmq)
         .WaitFor(rabbitmq)
         .WithEnvironment("Jwt__Authority", issuer)
+        .WithEnvironment("Jwt__MetadataAddress", metadataAddress)
         .WithHttpHealthCheck("/health", endpointName: "http");
 
     // Booking reaches Flight and Passenger over gRPC by logical name; WithReference injects
@@ -426,6 +438,7 @@ else
         .WithEnvironment("Grpc__Flight__Address", "https://flight")
         .WithEnvironment("Grpc__Passenger__Address", "http://_grpc.passenger")
         .WithEnvironment("Jwt__Authority", issuer)
+        .WithEnvironment("Jwt__MetadataAddress", metadataAddress)
         .WithHttpHealthCheck("/health", endpointName: "http");
 
     gateway
@@ -437,7 +450,8 @@ else
         .WaitFor(passenger)
         .WithReference(booking)
         .WaitFor(booking)
-        .WithEnvironment("Jwt__Authority", issuer);
+        .WithEnvironment("Jwt__Authority", issuer)
+        .WithEnvironment("Jwt__MetadataAddress", metadataAddress);
 
     clusterDestinations = new()
     {
