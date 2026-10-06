@@ -1,6 +1,5 @@
 using BuildingBlocks.Constants;
 using BuildingBlocks.Web;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -44,7 +43,7 @@ namespace BuildingBlocks.Jwt
                 options =>
                 {
                     options.AddPolicy(
-                        nameof(ApiScope),
+                        IdentityConstant.AuthorizationPolicy.ApiScope,
                         policy =>
                         {
                             policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
