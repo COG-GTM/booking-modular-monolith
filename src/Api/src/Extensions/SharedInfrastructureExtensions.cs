@@ -1,10 +1,9 @@
 using Booking;
 using BuildingBlocks.Core;
-using BuildingBlocks.Exception;
+using BuildingBlocks.Core.Event;
 using BuildingBlocks.Jwt;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.OpenApi;
-using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Figgle.Fonts;
@@ -27,19 +26,24 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddJwt();
         builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         builder.Services.AddTransient<AuthHeaderHandler>();
-        builder.AddPersistMessageProcessor();
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddControllers();
         builder.Services.AddAspnetOpenApi();
         builder.Services.AddCustomVersioning();
         builder.Services.AddHttpContextAccessor();
-        builder.Services.AddScoped<IEventDispatcher, EventDispatcher>();
+        builder.Services.AddScoped<IEventHeadersProvider, HttpContextEventHeadersProvider>();
 
         builder.Services.AddCustomMassTransit(
+            builder.Configuration,
             builder.Environment,
-            TransportType.InMemory,
-            AppDomain.CurrentDomain.GetAssemblies()
+            assembly:
+            [
+                typeof(FlightEventMapper).Assembly,
+                typeof(IdentityEventMapper).Assembly,
+                typeof(PassengerEventMapper).Assembly,
+                typeof(BookingEventMapper).Assembly,
+            ]
         );
 
         builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);
@@ -54,19 +58,6 @@ public static class SharedInfrastructureExtensions
             options.UseInMemory(builder.Configuration, "mem");
         });
         builder.Services.AddProblemDetails();
-
-        builder.Services.AddScoped<IEventMapper>(sp =>
-        {
-            var mappers = new IEventMapper[]
-            {
-                sp.GetRequiredService<FlightEventMapper>(),
-                sp.GetRequiredService<IdentityEventMapper>(),
-                sp.GetRequiredService<PassengerEventMapper>(),
-                sp.GetRequiredService<BookingEventMapper>(),
-            };
-
-            return new CompositeEventMapper(mappers);
-        });
 
         return builder;
     }
