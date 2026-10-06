@@ -1,0 +1,92 @@
+using BuildingBlocks.Core;
+using BuildingBlocks.Core.Event;
+using BuildingBlocks.PersistMessageProcessor;
+using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
+using Xunit;
+
+namespace Unit.Test.Core;
+
+public class ExtensionsTests
+{
+    public sealed class TestModule;
+
+    [Fact]
+    public void add_event_dispatcher_should_register_default_headers_provider()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddScoped(_ => Substitute.For<IIntegrationEventPublisher>());
+        services.AddEventDispatcher();
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        scope.ServiceProvider.GetRequiredService<IEventHeadersProvider>()
+            .Should()
+            .BeOfType<DefaultEventHeadersProvider>();
+    }
+
+    [Fact]
+    public void add_typed_event_dispatcher_should_register_dispatcher_and_default_headers_provider()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddScoped(_ => Substitute.For<IIntegrationEventPublisher<TestModule>>());
+
+        services.AddEventDispatcher<TestModule>();
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        scope.ServiceProvider.GetRequiredService<IEventDispatcher<TestModule>>().Should().BeOfType<EventDispatcher<TestModule>>();
+        scope.ServiceProvider.GetRequiredService<IEventHeadersProvider>()
+            .Should()
+            .BeOfType<DefaultEventHeadersProvider>();
+    }
+
+    [Fact]
+    public void add_event_headers_provider_should_not_override_existing_provider()
+    {
+        var services = new ServiceCollection();
+        var customProvider = Substitute.For<IEventHeadersProvider>();
+        services.AddScoped(_ => customProvider);
+
+        services.AddEventHeadersProvider();
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        scope.ServiceProvider.GetRequiredService<IEventHeadersProvider>().Should().BeSameAs(customProvider);
+    }
+
+    [Fact]
+    public void add_event_mapper_should_register_multiple_mappers()
+    {
+        var services = new ServiceCollection();
+
+        services.AddEventMapper<FirstEventMapper>();
+        services.AddEventMapper<SecondEventMapper>();
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        var mappers = scope.ServiceProvider.GetServices<IEventMapper>().ToList();
+        mappers.Should().HaveCount(2);
+        mappers.Should().ContainSingle(m => m is FirstEventMapper);
+        mappers.Should().ContainSingle(m => m is SecondEventMapper);
+    }
+
+    private sealed class FirstEventMapper : IEventMapper
+    {
+        public IIntegrationEvent? MapToIntegrationEvent(IDomainEvent @event) => null;
+        public IInternalCommand? MapToInternalCommand(IDomainEvent @event) => null;
+    }
+
+    private sealed class SecondEventMapper : IEventMapper
+    {
+        public IIntegrationEvent? MapToIntegrationEvent(IDomainEvent @event) => null;
+        public IInternalCommand? MapToInternalCommand(IDomainEvent @event) => null;
+    }
+}

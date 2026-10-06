@@ -1,7 +1,7 @@
 namespace BuildingBlocks.ProblemDetails;
 
 using Exception;
-using Grpc.Core;
+using global::Grpc.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
