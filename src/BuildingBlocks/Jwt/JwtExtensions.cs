@@ -13,14 +13,6 @@ namespace BuildingBlocks.Jwt
             // Bind Jwt settings from configuration
             var jwtOptions = services.GetOptions<JwtBearerOptions>("Jwt");
 
-            services.Configure<JwtBearerOptions>(options =>
-            {
-                if (!string.IsNullOrEmpty(jwtOptions.MetadataAddress))
-                {
-                    options.MetadataAddress = jwtOptions.MetadataAddress;
-                }
-            });
-
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
@@ -46,6 +38,16 @@ namespace BuildingBlocks.Jwt
                 options.MapInboundClaims = false;
             });
 
+            services.Configure<JwtBearerOptions>(
+                JwtBearerDefaults.AuthenticationScheme,
+                options =>
+                {
+                    if (!string.IsNullOrWhiteSpace(jwtOptions.MetadataAddress))
+                    {
+                        options.MetadataAddress = jwtOptions.MetadataAddress;
+                    }
+                }
+            );
 
             services.AddAuthorization(
                 options =>

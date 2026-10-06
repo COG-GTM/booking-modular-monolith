@@ -64,14 +64,12 @@ public static class Extensions
             });
 
         builder.Services.AddScoped<IPersistMessageProcessor<TModule>, PersistMessageProcessor<TModule>>();
+        builder.Services.AddScoped<PersistMessageIntegrationEventPublisher<TModule>>();
         builder.Services.AddScoped<IIntegrationEventPublisher>(
-            provider =>
-                new PersistMessageIntegrationEventPublisher(
-                    provider.GetRequiredService<IPersistMessageProcessor<TModule>>()));
-        builder.Services.AddScoped<
-            IIntegrationEventPublisher<TModule>,
-            PersistMessageIntegrationEventPublisher<TModule>
-        >();
+            provider => provider.GetRequiredService<PersistMessageIntegrationEventPublisher<TModule>>());
+        builder.Services.AddScoped<IIntegrationEventPublisher<TModule>>(
+            provider => provider.GetRequiredService<PersistMessageIntegrationEventPublisher<TModule>>()
+        );
 
         // Lets module-agnostic infrastructure (e.g. the MassTransit inbox filter) find the store owned by a
         // consumer's module through its assembly.
@@ -81,7 +79,10 @@ public static class Extensions
 
         builder.Services.AddEventDispatcher<TModule>();
 
-        builder.Services.AddHostedService<PersistMessageBackgroundService<TModule>>();
+        if (builder.Configuration.IsModuleBackgroundProcessingEnabled(connectionName))
+        {
+            builder.Services.AddHostedService<PersistMessageBackgroundService<TModule>>();
+        }
 
         return builder.Services;
     }

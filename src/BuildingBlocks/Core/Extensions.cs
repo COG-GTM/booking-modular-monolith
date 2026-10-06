@@ -1,3 +1,4 @@
+using BuildingBlocks.Core.Event;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 

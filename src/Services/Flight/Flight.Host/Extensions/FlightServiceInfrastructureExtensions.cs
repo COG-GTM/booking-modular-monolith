@@ -6,7 +6,6 @@ using BuildingBlocks.OpenApi;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Flight;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Flight.Host.Extensions;
@@ -18,17 +17,6 @@ public static class FlightServiceInfrastructureExtensions
         builder.AddServiceDefaults();
 
         builder.Services.AddJwt();
-        builder.Services.Configure<JwtBearerOptions>(
-            JwtBearerDefaults.AuthenticationScheme,
-            options =>
-            {
-                var metadataAddress = builder.Configuration["Jwt:MetadataAddress"];
-                if (!string.IsNullOrWhiteSpace(metadataAddress))
-                {
-                    options.MetadataAddress = metadataAddress;
-                }
-            }
-        );
         builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         builder.Services.AddTransient<AuthHeaderHandler>();
 
@@ -39,6 +27,7 @@ public static class FlightServiceInfrastructureExtensions
         builder.Services.AddHttpContextAccessor();
 
         builder.Services.AddCustomMassTransit(
+            builder.Configuration,
             builder.Environment,
             TransportType.RabbitMq,
             typeof(FlightRoot).Assembly

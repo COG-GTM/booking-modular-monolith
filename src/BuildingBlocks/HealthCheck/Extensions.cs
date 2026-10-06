@@ -73,11 +73,11 @@ public static class Extensions
     {
         var healthOptions = app.Configuration.GetOptions<HealthOptions>(nameof(HealthOptions));
 
-        app.MapHealthChecks(HealthEndpointPath);
+        app.MapHealthChecks(HealthEndpointPath).WithOrder(-1);
         app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
         {
             Predicate = r => r.Tags.Contains("live"),
-        });
+        }).WithOrder(-1);
 
         if (healthOptions.Enabled)
             app.MapHealthChecksUI(options => options.UIPath = "/health-ui");

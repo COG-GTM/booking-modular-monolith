@@ -12,6 +12,7 @@ using Figgle.Fonts;
 using Flight;
 using Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Passenger;
 
 namespace Api.Extensions;
@@ -36,16 +37,18 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<IEventHeadersProvider, HttpContextEventHeadersProvider>();
 
+        var moduleConsumerAssemblies = builder.Configuration.WhereModuleBackgroundProcessingEnabled(
+        [
+            (nameof(Flight), typeof(FlightEventMapper).Assembly),
+            (nameof(Identity), typeof(IdentityEventMapper).Assembly),
+            (nameof(Passenger), typeof(PassengerEventMapper).Assembly),
+            (nameof(Booking), typeof(BookingEventMapper).Assembly),
+        ]);
+
         builder.Services.AddCustomMassTransit(
             builder.Configuration,
             builder.Environment,
-            assembly:
-            [
-                typeof(FlightEventMapper).Assembly,
-                typeof(IdentityEventMapper).Assembly,
-                typeof(PassengerEventMapper).Assembly,
-                typeof(BookingEventMapper).Assembly,
-            ]
+            assembly: moduleConsumerAssemblies.ToArray()
         );
 
         builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);
@@ -68,6 +71,17 @@ public static class SharedInfrastructureExtensions
     public static WebApplication UserSharedInfrastructure(this WebApplication app)
     {
         var appOptions = app.Configuration.GetOptions<AppOptions>(nameof(AppOptions));
+
+        foreach (var module in new[] { nameof(Flight), nameof(Identity), nameof(Passenger), nameof(Booking) })
+        {
+            if (!app.Configuration.IsModuleBackgroundProcessingEnabled(module))
+            {
+                app.Logger.LogWarning(
+                    "Background processing for module {Module} is disabled (Modules:{Module}:BackgroundProcessingEnabled=false); its standalone host is expected to process its outbox/projections/consumers.",
+                    module
+                );
+            }
+        }
 
         app.UseServiceDefaults();
 

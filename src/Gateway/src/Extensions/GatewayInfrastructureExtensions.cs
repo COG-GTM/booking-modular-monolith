@@ -2,7 +2,6 @@ using System.Threading.RateLimiting;
 using BuildingBlocks.Jwt;
 using BuildingBlocks.Web;
 using Gateway.Configurations;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
@@ -48,21 +47,7 @@ public static class GatewayInfrastructureExtensions
         app.UseAuthentication();
         app.UseAuthorization();
 
-        app.MapGatewayHealthChecks();
         app.MapReverseProxy();
-
-        return app;
-    }
-
-    // ServiceDefaults only exposes /health and /alive in Development; the gateway is probed by
-    // docker/Aspire in every environment and must answer itself instead of proxying the probe.
-    private static WebApplication MapGatewayHealthChecks(this WebApplication app)
-    {
-        if (app.Environment.IsDevelopment())
-            return app;
-
-        app.MapHealthChecks("/health");
-        app.MapHealthChecks("/alive", new HealthCheckOptions { Predicate = r => r.Tags.Contains("live") });
 
         return app;
     }

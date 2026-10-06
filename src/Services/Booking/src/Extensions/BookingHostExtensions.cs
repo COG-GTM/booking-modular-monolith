@@ -35,7 +35,12 @@ public static class BookingHostExtensions
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<IEventHeadersProvider, HttpContextEventHeadersProvider>();
 
-        builder.Services.AddCustomMassTransit(builder.Environment, TransportType.RabbitMq, typeof(BookingRoot).Assembly);
+        builder.Services.AddCustomMassTransit(
+            builder.Configuration,
+            builder.Environment,
+            TransportType.RabbitMq,
+            typeof(BookingRoot).Assembly
+        );
 
         builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);
 

@@ -9,7 +9,6 @@ using BuildingBlocks.OpenApi;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Figgle.Fonts;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
@@ -27,16 +26,6 @@ public static class PassengerHostExtensions
         builder.AddServiceDefaults();
 
         builder.Services.AddJwt();
-
-        // Optional host-local override for OIDC metadata discovery — in containers the
-        // Jwt:Authority issuer is the monolith's public address while metadata must be
-        // fetched over the internal network. Authority itself stays unchanged.
-        var jwtMetadataAddress = builder.Configuration["Jwt:MetadataAddress"];
-        if (!string.IsNullOrEmpty(jwtMetadataAddress))
-            builder.Services.Configure<JwtBearerOptions>(
-                JwtBearerDefaults.AuthenticationScheme,
-                options => options.MetadataAddress = jwtMetadataAddress
-            );
 
         builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         builder.Services.AddTransient<AuthHeaderHandler>();

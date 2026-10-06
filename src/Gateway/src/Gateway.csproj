@@ -3,6 +3,10 @@
     <RootNamespace>Gateway</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\Aspire\src\ServiceDefaults\ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Jwt\BuildingBlocks.Jwt.csproj" />
   </ItemGroup>
 </Project>
