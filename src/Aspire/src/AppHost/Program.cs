@@ -122,7 +122,7 @@ if (builder.ExecutionContext.IsPublishMode)
         .WithEnvironment("EVENTSTORE_CERTIFICATE_FILE", "/etc/eventstore/certs/node/node.crt")
         .WithEnvironment("EVENTSTORE_CERTIFICATE_PRIVATE_KEY_FILE", "/etc/eventstore/certs/node/node.key")
         .WithEnvironment("EVENTSTORE_TRUSTED_ROOT_CERTIFICATES_PATH", "/etc/eventstore/certs/ca")
-        .WithBindMount("../../../../deployments/configs/eventstore/certs", "/etc/eventstore/certs", isReadOnly: true)
+        .WithBindMount(EventStoreCertsDirectory, "/etc/eventstore/certs", isReadOnly: true)
         .WithDataVolume("eventstore-data")
         .WithLifetime(ContainerLifetime.Persistent);
 }
@@ -355,14 +355,26 @@ var api = builder.AddProject<Api>("api")
 if (eventstoreAdminPassword is not null)
 {
     // The EventStore hosting integration always emits an insecure (tls=false) connection string; override it so the
-    // published API authenticates over TLS against the secured node.
+    // published API authenticates over TLS against the secured node, trusting the private CA that signed its certificate.
+    const string eventstoreCaFile = "/etc/eventstore/certs/ca/ca.crt";
     var eventstoreHttp = eventstore.GetEndpoint("http");
-    api.WithEnvironment(
-        "ConnectionStrings__eventstore",
-        ReferenceExpression.Create(
-            $"esdb://admin:{eventstoreAdminPassword.Resource}@{eventstoreHttp.Property(EndpointProperty.Host)}:{eventstoreHttp.Property(EndpointProperty.Port)}?tls=true"));
+    api.WithAnnotation(
+            new ContainerMountAnnotation(
+                Path.GetFullPath(Path.Combine(builder.AppHostDirectory, EventStoreCertsDirectory, "ca")),
+                Path.GetDirectoryName(eventstoreCaFile)!,
+                ContainerMountType.BindMount,
+                isReadOnly: true))
+        .WithEnvironment(
+            "ConnectionStrings__eventstore",
+            ReferenceExpression.Create(
+                $"esdb://admin:{eventstoreAdminPassword.Resource}@{eventstoreHttp.Property(EndpointProperty.Host)}:{eventstoreHttp.Property(EndpointProperty.Port)}?tls=true&tlsCaFile={eventstoreCaFile}"));
 }
 
 builder.Build().Run();
 
 static GenerateParameterDefault GeneratedPassword() => new() { MinLength = 22, Special = false };
+
+partial class Program
+{
+    private const string EventStoreCertsDirectory = "../../../../deployments/configs/eventstore/certs";
+}

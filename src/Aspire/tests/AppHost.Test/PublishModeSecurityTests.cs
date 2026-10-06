@@ -53,6 +53,24 @@ public class PublishModeSecurityTests
     }
 
     [Fact]
+    public async Task Api_connects_to_EventStore_over_TLS_with_private_CA_in_publish_mode()
+    {
+        await using var app = await BuildAsync(publish: true);
+
+        var api = Model(app).Resources.Single(resource => resource.Name == "api");
+        var environment = await GetEnvironmentAsync(api, publish: true);
+
+        var connectionString = Assert.IsType<ReferenceExpression>(Assert.Contains("ConnectionStrings__eventstore", environment));
+        Assert.Contains("tls=true", connectionString.Format, StringComparison.Ordinal);
+        Assert.Contains("tlsCaFile=/etc/eventstore/certs/ca/ca.crt", connectionString.Format, StringComparison.Ordinal);
+        Assert.Contains(connectionString.ValueProviders, provider => provider is ParameterResource { Name: "eventstore-admin-password" });
+
+        var caMount = Assert.Single(api.Annotations.OfType<ContainerMountAnnotation>());
+        Assert.Equal("/etc/eventstore/certs/ca", caMount.Target);
+        Assert.True(caMount.IsReadOnly);
+    }
+
+    [Fact]
     public async Task EventStore_stays_insecure_for_local_run_mode()
     {
         await using var app = await BuildAsync(publish: false);
