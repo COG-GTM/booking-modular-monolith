@@ -3,6 +3,7 @@ using BuildingBlocks.Core.Model;
 
 namespace Flight.Seats.Models;
 
+using Exceptions;
 using Features.CreatingSeat.V1;
 using Features.ReservingSeat.V1;
 using Flight.Flights.ValueObjects;
@@ -44,6 +45,11 @@ public record Seat : Aggregate<SeatId>
 
     public void ReserveSeat()
     {
+        if (this.IsDeleted)
+        {
+            throw new SeatAlreadyReservedException();
+        }
+
         this.IsDeleted = true;
         this.LastModified = DateTime.Now;
 

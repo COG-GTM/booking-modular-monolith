@@ -114,6 +114,11 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
                 .ResponseAsync)
             ?.SeatDtos?.FirstOrDefault();
 
+        if (emptySeat is null)
+        {
+            throw new SeatNotAvailableException();
+        }
+
         var reservation = await _eventStoreDbRepository.Find(command.Id, cancellationToken);
 
         if (reservation is not null && !reservation.IsDeleted)
@@ -126,16 +131,19 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
                 new Guid(flight.FlightDto.DepartureAirportId),
                 new Guid(flight.FlightDto.ArriveAirportId), flight.FlightDto.FlightDate.ToDateTime(),
                 (decimal)flight.FlightDto.Price, command.Description,
-                emptySeat?.SeatNumber),
+                emptySeat.SeatNumber),
             false, _currentUserProvider.GetCurrentUserId());
 
-        await _eventDispatcher.SendAsync(aggrigate.DomainEvents, cancellationToken: cancellationToken);
-
+        // The seat read model is eventually consistent, so the authoritative reservation in the
+        // Flight module must succeed before anything about this booking is published or stored.
+        // If the seat was taken by a concurrent booking, ReserveSeat fails and so does the booking.
         await _flightGrpcServiceClient.ReserveSeatAsync(new ReserveSeatRequest
         {
             FlightId = flight.FlightDto.Id,
-            SeatNumber = emptySeat?.SeatNumber
+            SeatNumber = emptySeat.SeatNumber
         }, cancellationToken: cancellationToken);
+
+        await _eventDispatcher.SendAsync(aggrigate.DomainEvents, cancellationToken: cancellationToken);
 
         var result = await _eventStoreDbRepository.Add(
             aggrigate,

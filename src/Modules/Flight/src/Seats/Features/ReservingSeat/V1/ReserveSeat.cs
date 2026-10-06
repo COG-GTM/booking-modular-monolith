@@ -83,9 +83,15 @@ internal class ReserveSeatCommandHandler : IRequestHandler<ReserveSeat, ReserveS
     {
         Guard.Against.Null(command, nameof(command));
 
-        var seat = await _flightDbContext.Seats.SingleOrDefaultAsync(
-            x => x.SeatNumber.Value == command.SeatNumber &&
-                 x.FlightId == command.FlightId, cancellationToken);
+        // Bypass the soft-delete filter so an already-reserved seat is rejected explicitly
+        // (SeatAlreadyReservedException) instead of being treated as a missing seat. The row
+        // version concurrency token on Seat makes concurrent reservations of the same seat fail
+        // when the change is saved, so only one caller can win.
+        var seat = await _flightDbContext.Seats
+            .IgnoreQueryFilters()
+            .SingleOrDefaultAsync(
+                x => x.SeatNumber.Value == command.SeatNumber &&
+                     x.FlightId == command.FlightId, cancellationToken);
 
         if (seat is null)
         {
