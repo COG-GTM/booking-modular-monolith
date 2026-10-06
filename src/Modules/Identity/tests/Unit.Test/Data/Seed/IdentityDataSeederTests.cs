@@ -1,5 +1,6 @@
 using BuildingBlocks.Constants;
 using BuildingBlocks.Core;
+using BuildingBlocks.Web;
 using FluentAssertions;
 using Identity.Configurations;
 using Identity.Data;
@@ -9,6 +10,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NSubstitute;
@@ -67,6 +69,61 @@ public class IdentityDataSeederTests
         (await fixture.UserManager.CheckPasswordAsync(user!, ConfiguredUserPassword)).Should().BeTrue();
         (await fixture.UserManager.IsInRoleAsync(user!, IdentityConstant.Role.User)).Should().BeTrue();
         (await fixture.Context.Users.CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task should_seed_admin_on_later_start_when_demo_user_already_exists()
+    {
+        var options = new IdentitySeedOptions { UserPassword = ConfiguredUserPassword };
+        await using var fixture = await SeederFixture.CreateAsync(Environments.Development, options);
+
+        await fixture.Seeder.SeedAllAsync();
+        (await fixture.Context.Users.CountAsync()).Should().Be(1);
+
+        options.AdminPassword = ConfiguredAdminPassword;
+        await fixture.Seeder.SeedAllAsync();
+
+        var admin = await fixture.UserManager.FindByNameAsync(InitialData.Users.First().UserName!);
+        admin.Should().NotBeNull();
+        (await fixture.UserManager.IsInRoleAsync(admin!, IdentityConstant.Role.Admin)).Should().BeTrue();
+        (await fixture.Context.Users.CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task should_not_seed_admin_when_configured_password_violates_policy()
+    {
+        await using var fixture = await SeederFixture.CreateAsync(
+            Environments.Production,
+            new IdentitySeedOptions { AdminPassword = "short" }
+        );
+
+        await fixture.Seeder.SeedAllAsync();
+
+        (await fixture.Context.Users.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public void should_bind_seed_options_from_configuration_section()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["IdentitySeedOptions:AdminPassword"] = ConfiguredAdminPassword,
+                    ["IdentitySeedOptions:UserPassword"] = ConfiguredUserPassword,
+                }
+            )
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddValidateOptions<IdentitySeedOptions>();
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IdentitySeedOptions>();
+
+        options.AdminPassword.Should().Be(ConfiguredAdminPassword);
+        options.UserPassword.Should().Be(ConfiguredUserPassword);
     }
 
     private sealed class SeederFixture : IAsyncDisposable

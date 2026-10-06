@@ -75,28 +75,23 @@ public class IdentityDataSeeder : IDataSeeder
 
     private async Task SeedUsers()
     {
-        if (!await _identityContext.Users.AnyAsync())
+        if (string.IsNullOrWhiteSpace(_seedOptions.AdminPassword))
         {
-            var admin = InitialData.Users.First();
+            _logger.LogWarning(
+                "No {Section}:{Key} configured; skipping initial admin user seed.",
+                nameof(IdentitySeedOptions),
+                nameof(IdentitySeedOptions.AdminPassword)
+            );
+        }
+        else
+        {
+            await SeedUser(InitialData.Users.First(), _seedOptions.AdminPassword, IdentityConstant.Role.Admin);
+        }
 
-            if (string.IsNullOrWhiteSpace(_seedOptions.AdminPassword))
-            {
-                _logger.LogWarning(
-                    "No {Section}:{Key} configured; skipping initial admin user seed.",
-                    nameof(IdentitySeedOptions),
-                    nameof(IdentitySeedOptions.AdminPassword)
-                );
-            }
-            else
-            {
-                await SeedUser(admin, _seedOptions.AdminPassword, IdentityConstant.Role.Admin);
-            }
-
-            // demo (non-admin) account is only ever seeded for local development
-            if (_env.IsDevelopment() && !string.IsNullOrWhiteSpace(_seedOptions.UserPassword))
-            {
-                await SeedUser(InitialData.Users.Last(), _seedOptions.UserPassword, IdentityConstant.Role.User);
-            }
+        // demo (non-admin) account is only ever seeded for local development
+        if (_env.IsDevelopment() && !string.IsNullOrWhiteSpace(_seedOptions.UserPassword))
+        {
+            await SeedUser(InitialData.Users.Last(), _seedOptions.UserPassword, IdentityConstant.Role.User);
         }
     }
 
@@ -109,13 +104,21 @@ public class IdentityDataSeeder : IDataSeeder
 
         var result = await _userManager.CreateAsync(user, password);
 
-        if (result.Succeeded)
+        if (!result.Succeeded)
         {
-            await _userManager.AddToRoleAsync(user, role);
-
-            await _eventDispatcher.SendAsync(
-                new UserCreated(user.Id, user.FirstName + " " + user.LastName, user.PassPortNumber)
+            _logger.LogError(
+                "Seeding initial user {UserName} failed: {Errors}",
+                user.UserName,
+                string.Join("; ", result.Errors.Select(e => e.Description))
             );
+
+            return;
         }
+
+        await _userManager.AddToRoleAsync(user, role);
+
+        await _eventDispatcher.SendAsync(
+            new UserCreated(user.Id, user.FirstName + " " + user.LastName, user.PassPortNumber)
+        );
     }
 }
