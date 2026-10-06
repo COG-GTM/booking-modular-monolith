@@ -1,10 +1,11 @@
 using Booking;
 using BuildingBlocks.Core;
+using BuildingBlocks.Core.Event;
 using BuildingBlocks.Exception;
+using BuildingBlocks.Grpc;
 using BuildingBlocks.Jwt;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.OpenApi;
-using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Figgle.Fonts;
@@ -27,14 +28,12 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddJwt();
         builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         builder.Services.AddTransient<AuthHeaderHandler>();
-        builder.AddPersistMessageProcessor();
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddControllers();
         builder.Services.AddAspnetOpenApi();
         builder.Services.AddCustomVersioning();
         builder.Services.AddHttpContextAccessor();
-        builder.Services.AddScoped<IEventDispatcher, EventDispatcher>();
 
         builder.Services.AddCustomMassTransit(
             builder.Environment,
@@ -48,6 +47,7 @@ public static class SharedInfrastructureExtensions
         {
             options.Interceptors.Add<GrpcExceptionInterceptor>();
         });
+        builder.Services.AddGrpcHealthService();
 
         builder.Services.AddEasyCaching(options =>
         {
@@ -55,6 +55,11 @@ public static class SharedInfrastructureExtensions
         });
         builder.Services.AddProblemDetails();
 
+        return builder;
+    }
+
+    public static WebApplicationBuilder AddCompositeEventMapper(this WebApplicationBuilder builder)
+    {
         builder.Services.AddScoped<IEventMapper>(sp =>
         {
             var mappers = new IEventMapper[]
@@ -82,6 +87,7 @@ public static class SharedInfrastructureExtensions
         app.UseCorrelationId();
 
         app.MapGet("/", x => x.Response.WriteAsync(appOptions.Name));
+        app.MapGrpcHealthService();
 
         if (app.Environment.IsDevelopment())
         {
