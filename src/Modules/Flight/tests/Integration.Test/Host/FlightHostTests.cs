@@ -63,6 +63,12 @@ public class FlightHostTests : FlightIntegrationTestBase
 
         registrations.Should().Contain(r => r.Name == "flight-postgres" && r.Tags.Contains("ready"));
         registrations.Should().Contain(r => r.Name == "flight-mongo" && r.Tags.Contains("ready"));
+        registrations.Should().Contain(r => r.Name == "flight-rabbitmq" && r.Tags.Contains("ready"));
+        registrations
+            .Should()
+            .Contain(r =>
+                r.Name.Contains("masstransit", StringComparison.OrdinalIgnoreCase) && r.Tags.Contains("ready")
+            );
     }
 
     [Fact]
