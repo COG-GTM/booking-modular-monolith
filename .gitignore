@@ -434,6 +434,8 @@ fabric.properties
 .tye/
 
 *.jwk
+# Duende IdentityServer automatic key management store (private signing keys)
+keys/
 
 # Monitoring
 **/grafana-data
