@@ -1,6 +1,8 @@
+using BuildingBlocks.Core;
 using BuildingBlocks.EFCore;
 using BuildingBlocks.Mapster;
 using BuildingBlocks.Mongo;
+using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Web;
 using FluentValidation;
 using Microsoft.AspNetCore.Builder;
@@ -14,12 +16,13 @@ public static class InfrastructureExtensions
 {
     public static WebApplicationBuilder AddPassengerModules(this WebApplicationBuilder builder)
     {
-        builder.Services.AddScoped<PassengerEventMapper>();
+        builder.Services.AddEventMapper<PassengerEventMapper>();
         builder.AddMinimalEndpoints(assemblies: typeof(PassengerRoot).Assembly);
         builder.Services.AddValidatorsFromAssembly(typeof(PassengerRoot).Assembly);
         builder.Services.AddCustomMapster(typeof(PassengerRoot).Assembly);
         builder.AddCustomDbContext<PassengerDbContext>(nameof(Passenger));
-        builder.AddMongoDbContext<PassengerReadDbContext>();
+        builder.AddPersistMessageProcessor<PassengerRoot>(nameof(Passenger));
+        builder.AddMongoDbContext<PassengerReadDbContext>(nameof(Passenger));
 
         builder.Services.AddCustomMediatR();
 

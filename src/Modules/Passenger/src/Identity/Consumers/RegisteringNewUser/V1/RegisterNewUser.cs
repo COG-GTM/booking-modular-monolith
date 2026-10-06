@@ -16,12 +16,12 @@ using Passengers.ValueObjects;
 public class RegisterNewUserHandler : IConsumer<UserCreated>
 {
     private readonly PassengerDbContext _passengerDbContext;
-    private readonly IEventDispatcher _eventDispatcher;
+    private readonly IEventDispatcher<PassengerRoot> _eventDispatcher;
     private readonly ILogger<RegisterNewUserHandler> _logger;
     private readonly AppOptions _options;
 
     public RegisterNewUserHandler(PassengerDbContext passengerDbContext,
-        IEventDispatcher eventDispatcher,
+        IEventDispatcher<PassengerRoot> eventDispatcher,
         ILogger<RegisterNewUserHandler> logger,
         IOptions<AppOptions> options)
     {
