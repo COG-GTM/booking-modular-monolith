@@ -204,6 +204,17 @@ dotnet dev-certs https --trust
 ```
 
 
+> ### IdentityServer Signing Certificate
+
+In the `Development` environment IdentityServer uses a generated, git-ignored developer key (`tempkey.jwk`). In every other environment (including `docker`) a PKCS#12 signing certificate **must** be supplied, otherwise the app refuses to start:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -sha256 -days 365 -nodes -subj "/CN=booking-identityserver" -keyout signing.key -out signing.crt
+openssl pkcs12 -export -inkey signing.key -in signing.crt -out signing.pfx -passout pass:$CREDENTIAL_PLACEHOLDER$
+```
+
+Then configure `AuthOptions:SigningCertificatePath` and `AuthOptions:SigningCertificatePassword` (e.g. `AuthOptions__SigningCertificatePath=/https/signing.pfx` as environment variables) and keep the file out of source control.
+
 > ### Aspire
 
 To run the application using the `Aspire App Host`, execute the following command from the solution root:
