@@ -2,8 +2,9 @@ using BuildingBlocks.Core.Event;
 
 namespace BuildingBlocks.PersistMessageProcessor;
 
-public class PersistMessageIntegrationEventPublisher(IPersistMessageProcessor persistMessageProcessor)
-    : IIntegrationEventPublisher
+public class PersistMessageIntegrationEventPublisher<TModule>(IPersistMessageProcessor<TModule> persistMessageProcessor)
+    : IIntegrationEventPublisher<TModule>
+    where TModule : class
 {
     public Task PublishAsync(MessageEnvelope messageEnvelope, CancellationToken cancellationToken = default)
     {

@@ -1,5 +1,6 @@
 using BuildingBlocks.Core;
 using BuildingBlocks.Core.Event;
+using BuildingBlocks.PersistMessageProcessor;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using NSubstitute;
@@ -9,6 +10,8 @@ namespace Unit.Test.Core;
 
 public class ExtensionsTests
 {
+    public sealed class TestModule;
+
     [Fact]
     public void add_event_dispatcher_should_register_default_headers_provider()
     {
@@ -20,6 +23,24 @@ public class ExtensionsTests
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
 
+        scope.ServiceProvider.GetRequiredService<IEventHeadersProvider>()
+            .Should()
+            .BeOfType<DefaultEventHeadersProvider>();
+    }
+
+    [Fact]
+    public void add_typed_event_dispatcher_should_register_dispatcher_and_default_headers_provider()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddScoped(_ => Substitute.For<IIntegrationEventPublisher<TestModule>>());
+
+        services.AddEventDispatcher<TestModule>();
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        scope.ServiceProvider.GetRequiredService<IEventDispatcher<TestModule>>().Should().BeOfType<EventDispatcher<TestModule>>();
         scope.ServiceProvider.GetRequiredService<IEventHeadersProvider>()
             .Should()
             .BeOfType<DefaultEventHeadersProvider>();

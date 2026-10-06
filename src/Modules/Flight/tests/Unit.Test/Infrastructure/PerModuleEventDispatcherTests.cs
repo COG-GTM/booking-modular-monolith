@@ -40,8 +40,16 @@ public class PerModuleEventDispatcherTests
         services.AddSingleton(Substitute.For<IEventHeadersProvider>());
         services.AddSingleton(_flightProcessor);
         services.AddSingleton(_otherProcessor);
-        services.AddScoped<IEventDispatcher<FlightRoot>, EventDispatcher<FlightRoot>>();
-        services.AddScoped<IEventDispatcher<OtherModuleRoot>, EventDispatcher<OtherModuleRoot>>();
+        services.AddScoped<
+            IIntegrationEventPublisher<FlightRoot>,
+            PersistMessageIntegrationEventPublisher<FlightRoot>
+        >();
+        services.AddScoped<
+            IIntegrationEventPublisher<OtherModuleRoot>,
+            PersistMessageIntegrationEventPublisher<OtherModuleRoot>
+        >();
+        services.AddEventDispatcher<FlightRoot>();
+        services.AddEventDispatcher<OtherModuleRoot>();
 
         return services.BuildServiceProvider();
     }

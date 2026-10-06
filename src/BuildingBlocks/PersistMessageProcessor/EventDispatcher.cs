@@ -12,7 +12,7 @@ public sealed class EventDispatcher<TModule>(
     IServiceScopeFactory serviceScopeFactory,
     IEnumerable<IEventMapper> eventMappers,
     ILogger<EventDispatcher<TModule>> logger,
-    IPersistMessageProcessor<TModule> persistMessageProcessor,
+    IIntegrationEventPublisher<TModule> integrationEventPublisher,
     IEventHeadersProvider eventHeadersProvider
 )
     : IEventDispatcher<TModule>
@@ -34,7 +34,7 @@ public sealed class EventDispatcher<TModule>(
             {
                 foreach (var integrationEvent in integrationEvents)
                 {
-                    await persistMessageProcessor.PublishMessageAsync(
+                    await integrationEventPublisher.PublishAsync(
                         new MessageEnvelope(integrationEvent, eventHeadersProvider.GetHeaders()),
                         cancellationToken);
                 }
@@ -63,7 +63,7 @@ public sealed class EventDispatcher<TModule>(
 
                 foreach (var internalMessage in internalMessages)
                 {
-                    await persistMessageProcessor.AddInternalMessageAsync(internalMessage, cancellationToken);
+                    await integrationEventPublisher.AddInternalMessageAsync(internalMessage, cancellationToken);
                 }
             }
         }

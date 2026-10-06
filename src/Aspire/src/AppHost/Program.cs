@@ -338,4 +338,25 @@ foreach (var serviceName in new[] { "flight", "passenger" })
     api.WithEnvironment($"services__{serviceName}__https__0", api.GetEndpoint("api-https"));
 }
 
+// Standalone Booking service (strangler-fig: runs alongside the monolith). It owns the booking database,
+// read database and outbox, and reaches Flight/Passenger over gRPC through service discovery.
+var bookingService = builder.AddProject<Booking_Host>("booking-service")
+    .WithReference(bookingDb)
+    .WaitFor(bookingDb)
+    .WithReference(bookingReadDb)
+    .WaitFor(mongo)
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WaitFor(api)
+    .WithHttpEndpoint(port: 5004, name: "booking-http")
+    .WithHttpsEndpoint(port: 5005, name: "booking-https")
+    .WithHttpHealthCheck("/alive");
+
+foreach (var serviceName in new[] { "flight", "passenger" })
+{
+    bookingService.WithEnvironment($"services__{serviceName}__https__0", api.GetEndpoint("api-https"));
+}
+
 builder.Build().Run();

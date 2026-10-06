@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace BuildingBlocks.PersistMessageProcessor;
 
@@ -67,6 +68,10 @@ public static class Extensions
             provider =>
                 new PersistMessageIntegrationEventPublisher(
                     provider.GetRequiredService<IPersistMessageProcessor<TModule>>()));
+        builder.Services.AddScoped<
+            IIntegrationEventPublisher<TModule>,
+            PersistMessageIntegrationEventPublisher<TModule>
+        >();
 
         // Lets module-agnostic infrastructure (e.g. the MassTransit inbox filter) find the store owned by a
         // consumer's module through its assembly.
@@ -74,8 +79,7 @@ public static class Extensions
             typeof(TModule).Assembly,
             (provider, _) => provider.GetRequiredService<IPersistMessageProcessor<TModule>>());
 
-        builder.Services.AddEventHeadersProvider();
-        builder.Services.AddScoped<IEventDispatcher<TModule>, EventDispatcher<TModule>>();
+        builder.Services.AddEventDispatcher<TModule>();
 
         builder.Services.AddHostedService<PersistMessageBackgroundService<TModule>>();
 
@@ -88,5 +92,13 @@ public static class Extensions
     )
     {
         return serviceProvider.GetRequiredKeyedService<IPersistMessageProcessor>(moduleAssembly);
+    }
+
+    public static IServiceCollection AddEventDispatcher<TModule>(this IServiceCollection services)
+        where TModule : class
+    {
+        services.TryAddScoped<IEventDispatcher<TModule>, EventDispatcher<TModule>>();
+        services.AddEventHeadersProvider();
+        return services;
     }
 }
