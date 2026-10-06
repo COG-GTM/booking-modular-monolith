@@ -38,6 +38,15 @@ var passengerDb = postgres.AddDatabase("passenger");
 var identityDb = postgres.AddDatabase("identity");
 var persistMessageDb = postgres.AddDatabase("persist-message");
 
+// Database-per-service: the standalone hosts own their data and never share the monolith databases.
+var identityServiceDb = postgres.AddDatabase("identity-db");
+var flightServiceDb = postgres.AddDatabase("flight-db");
+var passengerServiceDb = postgres.AddDatabase("passenger-db");
+var identityOutboxDb = postgres.AddDatabase("identity-outbox-db");
+var flightOutboxDb = postgres.AddDatabase("flight-outbox-db");
+var passengerOutboxDb = postgres.AddDatabase("passenger-outbox-db");
+var bookingOutboxDb = postgres.AddDatabase("booking-outbox-db");
+
 var mongoUsername = builder.AddParameter("mongo-username", "root", secret: true);
 var mongoPassword = builder.AddParameter("mongo-password", "secret", secret: true);
 
@@ -59,6 +68,11 @@ if (builder.ExecutionContext.IsPublishMode)
     mongo.WithDataVolume("mongo-data")
         .WithLifetime(ContainerLifetime.Persistent);
 }
+
+// Read-side projections get one Mongo database per service (the monolith keeps booking_modular_monolith_read).
+var flightReadDb = mongo.AddDatabase("flight-read-db");
+var passengerReadDb = mongo.AddDatabase("passenger-read-db");
+var bookingReadDb = mongo.AddDatabase("booking-read-db");
 
 
 var redis = builder.AddRedis("redis")
@@ -320,5 +334,77 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
+
+// 4. Per-module services (strangler fig: they run next to the monolith and share the broker)
+// Module code resolves its database through ConnectionStrings:<module> and the outbox through
+// ConnectionStrings:persist-message, so service-specific databases are mapped onto those names.
+var identityApi = builder.AddProject<Identity_Api>("identity-api")
+    .WithReference(identityServiceDb, connectionName: "identity")
+    .WaitFor(identityServiceDb)
+    .WithReference(identityOutboxDb, connectionName: "persist-message")
+    .WaitFor(identityOutboxDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq);
+
+// IdentityServer issues tokens with its own https endpoint as issuer; resource APIs validate against it.
+var identityAuthority = identityApi.GetEndpoint("https");
+identityApi
+    .WithEnvironment("AuthOptions__IssuerUri", identityAuthority)
+    .WithEnvironment("Jwt__Authority", identityAuthority);
+
+var flightApi = builder.AddProject<Flight_Api>("flight-api")
+    .WithReference(flightServiceDb, connectionName: "flight")
+    .WaitFor(flightServiceDb)
+    .WithReference(flightOutboxDb, connectionName: "persist-message")
+    .WaitFor(flightOutboxDb)
+    .WithReference(flightReadDb, connectionName: "mongo")
+    .WaitFor(flightReadDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(identityApi)
+    .WithEnvironment("Jwt__Authority", identityAuthority);
+
+var passengerApi = builder.AddProject<Passenger_Api>("passenger-api")
+    .WithReference(passengerServiceDb, connectionName: "passenger")
+    .WaitFor(passengerServiceDb)
+    .WithReference(passengerOutboxDb, connectionName: "persist-message")
+    .WaitFor(passengerOutboxDb)
+    .WithReference(passengerReadDb, connectionName: "mongo")
+    .WaitFor(passengerReadDb)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(identityApi)
+    .WithEnvironment("Jwt__Authority", identityAuthority);
+
+var bookingApi = builder.AddProject<Booking_Api>("booking-api")
+    .WithReference(bookingOutboxDb, connectionName: "persist-message")
+    .WaitFor(bookingOutboxDb)
+    .WithReference(bookingReadDb, connectionName: "mongo")
+    .WaitFor(bookingReadDb)
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(rabbitmq)
+    .WaitFor(rabbitmq)
+    .WithReference(identityApi)
+    .WithEnvironment("Jwt__Authority", identityAuthority)
+    // gRPC calls go through Aspire service discovery: "https://flight-api" resolves to the flight-api https endpoint.
+    .WithReference(flightApi)
+    .WaitFor(flightApi)
+    .WithEnvironment("Grpc__FlightAddress", "https://flight-api")
+    .WithReference(passengerApi)
+    .WaitFor(passengerApi)
+    .WithEnvironment("Grpc__PassengerAddress", "https://passenger-api");
+
+// 5. YARP gateway in front of the services (routes /api/v{n}/{identity|flight|passenger|booking}/*)
+builder.AddProject<Gateway>("gateway")
+    .WithReference(identityApi)
+    .WithReference(flightApi)
+    .WithReference(passengerApi)
+    .WithReference(bookingApi)
+    .WithEnvironment("ReverseProxy__Clusters__identity-cluster__Destinations__primary__Address", "https://identity-api")
+    .WithEnvironment("ReverseProxy__Clusters__flight-cluster__Destinations__primary__Address", "https://flight-api")
+    .WithEnvironment("ReverseProxy__Clusters__passenger-cluster__Destinations__primary__Address", "https://passenger-api")
+    .WithEnvironment("ReverseProxy__Clusters__booking-cluster__Destinations__primary__Address", "https://booking-api")
+    .WithExternalHttpEndpoints();
 
 builder.Build().Run();

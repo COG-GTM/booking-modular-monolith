@@ -1,5 +1,6 @@
 using System.Reflection;
 using BuildingBlocks.Web;
+using Humanizer;
 using MassTransit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -12,6 +13,19 @@ using Exception;
 
 public static class Extensions
 {
+    /// <summary>
+    /// Registers MassTransit using RabbitMQ as the transport. The broker is resolved from the Aspire
+    /// <c>ConnectionStrings:rabbitmq</c> entry when present, otherwise from <see cref="RabbitMqOptions"/>.
+    /// </summary>
+    public static IServiceCollection AddCustomMassTransit(
+        this IServiceCollection services,
+        IWebHostEnvironment env,
+        params Assembly[] assembly
+    )
+    {
+        return services.AddCustomMassTransit(env, TransportType.RabbitMq, assembly);
+    }
+
     public static IServiceCollection AddCustomMassTransit(
         this IServiceCollection services,
         IWebHostEnvironment env,
@@ -60,6 +74,7 @@ public static class Extensions
                     (context, configurator) =>
                     {
                         var configuration = context.GetRequiredService<IConfiguration>();
+                        var rabbitMqOptions = configuration.GetSection(nameof(RabbitMqOptions)).Get<RabbitMqOptions>();
 
                         var aspireConnectionString = configuration.GetConnectionString("rabbitmq");
 
@@ -69,13 +84,12 @@ public static class Extensions
                         }
                         else
                         {
-                            var rabbitMqOptions = services.GetOptions<RabbitMqOptions>(nameof(RabbitMqOptions));
-
                             ArgumentNullException.ThrowIfNull(rabbitMqOptions);
+                            ArgumentException.ThrowIfNullOrWhiteSpace(rabbitMqOptions.HostName);
 
                             configurator.Host(
-                                rabbitMqOptions?.HostName,
-                                rabbitMqOptions?.Port ?? 5672,
+                                rabbitMqOptions.HostName,
+                                rabbitMqOptions.Port ?? 5672,
                                 "/",
                                 h =>
                                 {
@@ -84,7 +98,12 @@ public static class Extensions
                                 });
                         }
 
-                        configurator.ConfigureEndpoints(context);
+                        // Each service gets its own queue per consumer (e.g. "passenger-api-register-new-user"),
+                        // so several hosts can consume the same integration event from the shared broker.
+                        var queuePrefix = ResolveQueuePrefix(configuration, rabbitMqOptions);
+                        configurator.ConfigureEndpoints(
+                            context,
+                            new KebabCaseEndpointNameFormatter(queuePrefix, includeNamespace: false));
 
                         configurator.UseMessageRetry(AddRetryConfiguration);
                     });
@@ -105,6 +124,18 @@ public static class Extensions
                     transportType,
                     message: null);
         }
+    }
+
+    private static string ResolveQueuePrefix(IConfiguration configuration, RabbitMqOptions? rabbitMqOptions)
+    {
+        if (!string.IsNullOrWhiteSpace(rabbitMqOptions?.QueuePrefix))
+        {
+            return rabbitMqOptions.QueuePrefix;
+        }
+
+        var appName = configuration.GetSection(nameof(AppOptions)).Get<AppOptions>()?.Name;
+
+        return string.IsNullOrWhiteSpace(appName) ? "service" : appName.Kebaberize();
     }
 
     private static void AddRetryConfiguration(IRetryConfigurator retryConfigurator)

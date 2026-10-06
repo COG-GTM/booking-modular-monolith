@@ -222,6 +222,20 @@ To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-
 docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
 ```
 
+> ### Microservices (strangler fig)
+
+Each module also has a standalone host under [`src/Services`](./src/Services) that runs next to the monolith and talks to the other services through RabbitMQ (integration events) and gRPC (contracts in [`src/BuildingBlocks/Contracts`](./src/BuildingBlocks/Contracts)):
+
+| Service | Project | https / http | Data |
+| --- | --- | --- | --- |
+| Identity (Duende IdentityServer issuer) | `src/Services/Identity.Api` | 5001 / 5101 | Postgres `identity-db`, `identity-outbox-db` |
+| Flight | `src/Services/Flight.Api` | 5002 / 5102 | Postgres `flight-db`, `flight-outbox-db`; Mongo `flight-read-db` |
+| Passenger | `src/Services/Passenger.Api` | 5003 / 5103 | Postgres `passenger-db`, `passenger-outbox-db`; Mongo `passenger-read-db` |
+| Booking | `src/Services/Booking.Api` | 5004 / 5104 | EventStoreDB; Postgres `booking-outbox-db`; Mongo `booking-read-db` |
+| Gateway (YARP) | `src/Services/Gateway` | 5005 / 5105 | routes `/api/v{n}/{identity,flight,passenger,booking}/*` and `/connect/*` |
+
+Flight, Passenger and Booking are JWT bearer resource APIs that validate tokens issued by Identity (`Jwt:Authority`). The Aspire AppHost (`dotnet run` in `src/Aspire/src/AppHost`) starts the monolith, all services, the gateway and their dependencies, and wires service discovery (Booking → `https://flight-api` / `https://passenger-api`). `docker compose up` starts the same topology with the containers in [`deployments/docker-compose`](./deployments/docker-compose/docker-compose.yaml); inside compose, gRPC uses the dedicated h2c port `81` on `flight-api` / `passenger-api`.
+
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
 ```bash
