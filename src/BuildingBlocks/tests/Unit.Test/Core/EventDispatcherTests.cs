@@ -1,6 +1,8 @@
 using BuildingBlocks.Core;
 using BuildingBlocks.Core.Event;
+using BuildingBlocks.PersistMessageProcessor;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -10,19 +12,22 @@ namespace Unit.Test.Core;
 
 public class EventDispatcherTests
 {
-    private readonly IIntegrationEventPublisher publisher = Substitute.For<IIntegrationEventPublisher>();
-    private readonly IEventHeadersProvider headersProvider = Substitute.For<IEventHeadersProvider>();
-    private readonly IEventMapper mapper = Substitute.For<IEventMapper>();
+    public sealed class TestModule;
 
-    private EventDispatcher CreateDispatcher(params IEventMapper[] mappers)
+    private readonly IPersistMessageProcessor<TestModule> persistMessageProcessor =
+        Substitute.For<IPersistMessageProcessor<TestModule>>();
+    private readonly IEventMapper mapper = Substitute.For<IEventMapper>();
+    private readonly HttpContextAccessor httpContextAccessor = new();
+
+    private EventDispatcher<TestModule> CreateDispatcher(params IEventMapper[] mappers)
     {
         var scopeFactory = new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
-        return new EventDispatcher(
+        return new EventDispatcher<TestModule>(
             scopeFactory,
-            mappers,
-            NullLogger<EventDispatcher>.Instance,
-            publisher,
-            headersProvider);
+            new CompositeEventMapper(mappers),
+            NullLogger<EventDispatcher<TestModule>>.Instance,
+            persistMessageProcessor,
+            httpContextAccessor);
     }
 
     [Fact]
@@ -30,19 +35,20 @@ public class EventDispatcherTests
     {
         var domainEvent = new FakeDomainEvent(Guid.NewGuid());
         var integrationEvent = new FakeIntegrationEvent(domainEvent.Id);
-        var headers = new Dictionary<string, object?> { ["CorrelationId"] = "test-correlation" };
+        var correlationId = Guid.NewGuid();
+        httpContextAccessor.HttpContext = new DefaultHttpContext();
+        httpContextAccessor.HttpContext.Items["correlationId"] = correlationId;
 
         mapper.MapToIntegrationEvent(domainEvent).Returns(integrationEvent);
-        headersProvider.GetHeaders().Returns(headers);
 
         var dispatcher = CreateDispatcher(mapper);
 
         await dispatcher.SendAsync(new IDomainEvent[] { domainEvent }.ToList().AsReadOnly());
 
-        await publisher.Received(1).PublishAsync(
+        await persistMessageProcessor.Received(1).PublishMessageAsync(
             Arg.Is<MessageEnvelope>(envelope =>
                 ReferenceEquals(envelope.Message, integrationEvent) &&
-                Equals(envelope.Headers["CorrelationId"], "test-correlation")),
+                Equals(envelope.Headers["CorrelationId"], correlationId)),
             Arg.Any<CancellationToken>());
     }
 
@@ -55,13 +61,12 @@ public class EventDispatcherTests
         var nonMatchingMapper = Substitute.For<IEventMapper>();
         nonMatchingMapper.MapToIntegrationEvent(domainEvent).Returns((IIntegrationEvent?)null);
         mapper.MapToIntegrationEvent(domainEvent).Returns(integrationEvent);
-        headersProvider.GetHeaders().Returns(new Dictionary<string, object?>());
 
         var dispatcher = CreateDispatcher(nonMatchingMapper, mapper);
 
         await dispatcher.SendAsync(new IDomainEvent[] { domainEvent }.ToList().AsReadOnly());
 
-        await publisher.Received(1).PublishAsync(
+        await persistMessageProcessor.Received(1).PublishMessageAsync(
             Arg.Is<MessageEnvelope>(envelope => ReferenceEquals(envelope.Message, integrationEvent)),
             Arg.Any<CancellationToken>());
     }
@@ -72,26 +77,26 @@ public class EventDispatcherTests
         var domainEvent = new FakeDomainEvent(Guid.NewGuid());
 
         mapper.MapToIntegrationEvent(domainEvent).Returns((IIntegrationEvent?)null);
-        headersProvider.GetHeaders().Returns(new Dictionary<string, object?>());
 
         var dispatcher = CreateDispatcher(mapper);
 
         await dispatcher.SendAsync(new IDomainEvent[] { domainEvent }.ToList().AsReadOnly());
 
-        await publisher.DidNotReceive().PublishAsync(Arg.Any<MessageEnvelope>(), Arg.Any<CancellationToken>());
+        await persistMessageProcessor
+            .DidNotReceive()
+            .PublishMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task send_async_should_publish_integration_events_directly()
     {
         var integrationEvent = new FakeIntegrationEvent(Guid.NewGuid());
-        headersProvider.GetHeaders().Returns(new Dictionary<string, object?>());
 
         var dispatcher = CreateDispatcher(mapper);
 
         await dispatcher.SendAsync(new IIntegrationEvent[] { integrationEvent }.ToList().AsReadOnly());
 
-        await publisher.Received(1).PublishAsync(
+        await persistMessageProcessor.Received(1).PublishMessageAsync(
             Arg.Is<MessageEnvelope>(envelope => ReferenceEquals(envelope.Message, integrationEvent)),
             Arg.Any<CancellationToken>());
         mapper.DidNotReceive().MapToIntegrationEvent(Arg.Any<IDomainEvent>());
@@ -101,13 +106,12 @@ public class EventDispatcherTests
     public async Task send_async_should_wrap_events_implementing_have_integration_event()
     {
         var domainEvent = new FakeWrappedDomainEvent(Guid.NewGuid());
-        headersProvider.GetHeaders().Returns(new Dictionary<string, object?>());
 
         var dispatcher = CreateDispatcher(mapper);
 
         await dispatcher.SendAsync(new IDomainEvent[] { domainEvent }.ToList().AsReadOnly());
 
-        await publisher.Received(1).PublishAsync(
+        await persistMessageProcessor.Received(1).PublishMessageAsync(
             Arg.Is<MessageEnvelope>(envelope =>
                 envelope.Message is IntegrationEventWrapper<FakeWrappedDomainEvent> &&
                 ((IntegrationEventWrapper<FakeWrappedDomainEvent>)envelope.Message!).DomainEvent == domainEvent),
@@ -123,7 +127,6 @@ public class EventDispatcherTests
 
         mapper.MapToIntegrationEvent(domainEvent).Returns((IIntegrationEvent?)null);
         mapper.MapToInternalCommand(domainEvent).Returns(internalCommand);
-        headersProvider.GetHeaders().Returns(new Dictionary<string, object?>());
 
         var dispatcher = CreateDispatcher(mapper);
 
@@ -131,7 +134,7 @@ public class EventDispatcherTests
             new IDomainEvent[] { domainEvent }.ToList().AsReadOnly(),
             typeof(FakeInternalCommand));
 
-        await publisher.Received(1).AddInternalMessageAsync(internalCommand, Arg.Any<CancellationToken>());
+        await persistMessageProcessor.Received(1).AddInternalMessageAsync(internalCommand, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -141,7 +144,8 @@ public class EventDispatcherTests
 
         await dispatcher.SendAsync(Array.Empty<IDomainEvent>().ToList().AsReadOnly());
 
-        await publisher.DidNotReceive().PublishAsync(Arg.Any<MessageEnvelope>(), Arg.Any<CancellationToken>());
-        headersProvider.DidNotReceive().GetHeaders();
+        await persistMessageProcessor
+            .DidNotReceive()
+            .PublishMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<CancellationToken>());
     }
 }
