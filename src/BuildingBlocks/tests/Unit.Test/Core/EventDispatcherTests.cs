@@ -1,4 +1,5 @@
 using BuildingBlocks.Core;
+using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Core.Event;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,18 +11,21 @@ namespace Unit.Test.Core;
 
 public class EventDispatcherTests
 {
-    private readonly IIntegrationEventPublisher publisher = Substitute.For<IIntegrationEventPublisher>();
+    public sealed class FakeModule;
+
+    private readonly IPersistMessageProcessor<FakeModule> persistMessageProcessor =
+        Substitute.For<IPersistMessageProcessor<FakeModule>>();
     private readonly IEventHeadersProvider headersProvider = Substitute.For<IEventHeadersProvider>();
     private readonly IEventMapper mapper = Substitute.For<IEventMapper>();
 
     private EventDispatcher CreateDispatcher(params IEventMapper[] mappers)
     {
         var scopeFactory = new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
-        return new EventDispatcher(
+        return new EventDispatcher<FakeModule>(
             scopeFactory,
             mappers,
-            NullLogger<EventDispatcher>.Instance,
-            publisher,
+            NullLogger<EventDispatcher<FakeModule>>.Instance,
+            persistMessageProcessor,
             headersProvider);
     }
 
@@ -39,7 +43,7 @@ public class EventDispatcherTests
 
         await dispatcher.SendAsync(new IDomainEvent[] { domainEvent }.ToList().AsReadOnly());
 
-        await publisher.Received(1).PublishAsync(
+        await persistMessageProcessor.Received(1).PublishMessageAsync(
             Arg.Is<MessageEnvelope>(envelope =>
                 ReferenceEquals(envelope.Message, integrationEvent) &&
                 Equals(envelope.Headers["CorrelationId"], "test-correlation")),
@@ -61,7 +65,7 @@ public class EventDispatcherTests
 
         await dispatcher.SendAsync(new IDomainEvent[] { domainEvent }.ToList().AsReadOnly());
 
-        await publisher.Received(1).PublishAsync(
+        await persistMessageProcessor.Received(1).PublishMessageAsync(
             Arg.Is<MessageEnvelope>(envelope => ReferenceEquals(envelope.Message, integrationEvent)),
             Arg.Any<CancellationToken>());
     }
@@ -78,7 +82,7 @@ public class EventDispatcherTests
 
         await dispatcher.SendAsync(new IDomainEvent[] { domainEvent }.ToList().AsReadOnly());
 
-        await publisher.DidNotReceive().PublishAsync(Arg.Any<MessageEnvelope>(), Arg.Any<CancellationToken>());
+        await persistMessageProcessor.DidNotReceive().PublishMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -91,7 +95,7 @@ public class EventDispatcherTests
 
         await dispatcher.SendAsync(new IIntegrationEvent[] { integrationEvent }.ToList().AsReadOnly());
 
-        await publisher.Received(1).PublishAsync(
+        await persistMessageProcessor.Received(1).PublishMessageAsync(
             Arg.Is<MessageEnvelope>(envelope => ReferenceEquals(envelope.Message, integrationEvent)),
             Arg.Any<CancellationToken>());
         mapper.DidNotReceive().MapToIntegrationEvent(Arg.Any<IDomainEvent>());
@@ -107,7 +111,7 @@ public class EventDispatcherTests
 
         await dispatcher.SendAsync(new IDomainEvent[] { domainEvent }.ToList().AsReadOnly());
 
-        await publisher.Received(1).PublishAsync(
+        await persistMessageProcessor.Received(1).PublishMessageAsync(
             Arg.Is<MessageEnvelope>(envelope =>
                 envelope.Message is IntegrationEventWrapper<FakeWrappedDomainEvent> &&
                 ((IntegrationEventWrapper<FakeWrappedDomainEvent>)envelope.Message!).DomainEvent == domainEvent),
@@ -131,7 +135,7 @@ public class EventDispatcherTests
             new IDomainEvent[] { domainEvent }.ToList().AsReadOnly(),
             typeof(FakeInternalCommand));
 
-        await publisher.Received(1).AddInternalMessageAsync(internalCommand, Arg.Any<CancellationToken>());
+        await persistMessageProcessor.Received(1).AddInternalMessageAsync(internalCommand, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -141,7 +145,7 @@ public class EventDispatcherTests
 
         await dispatcher.SendAsync(Array.Empty<IDomainEvent>().ToList().AsReadOnly());
 
-        await publisher.DidNotReceive().PublishAsync(Arg.Any<MessageEnvelope>(), Arg.Any<CancellationToken>());
+        await persistMessageProcessor.DidNotReceive().PublishMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<CancellationToken>());
         headersProvider.DidNotReceive().GetHeaders();
     }
 }

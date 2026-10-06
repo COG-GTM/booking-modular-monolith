@@ -8,7 +8,6 @@ public static class Extensions
 {
     public static IServiceCollection AddEventDispatcher(this IServiceCollection services)
     {
-        services.TryAddScoped<IEventDispatcher, EventDispatcher>();
         services.TryAddScoped<IEventHeadersProvider, DefaultEventHeadersProvider>();
         return services;
     }

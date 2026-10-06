@@ -11,16 +11,17 @@ namespace BuildingBlocks.PersistMessageProcessor;
 
 using Microsoft.EntityFrameworkCore;
 
-public class PersistMessageProcessor : IPersistMessageProcessor
+public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule>
+    where TModule : class
 {
-    private readonly ILogger<PersistMessageProcessor> _logger;
+    private readonly ILogger<PersistMessageProcessor<TModule>> _logger;
     private readonly IMediator _mediator;
-    private readonly IPersistMessageDbContext _persistMessageDbContext;
+    private readonly IPersistMessageDbContext<TModule> _persistMessageDbContext;
     private readonly IPublishEndpoint _publishEndpoint;
     public PersistMessageProcessor(
-        ILogger<PersistMessageProcessor> logger,
+        ILogger<PersistMessageProcessor<TModule>> logger,
         IMediator mediator,
-        IPersistMessageDbContext persistMessageDbContext,
+        IPersistMessageDbContext<TModule> persistMessageDbContext,
         IPublishEndpoint publishEndpoint)
     {
         _logger = logger;
