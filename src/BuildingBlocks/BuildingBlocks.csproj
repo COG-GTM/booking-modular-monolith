@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- BuildingBlocks.Contracts is a nested project; keep its sources out of this assembly. -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);Contracts\**</DefaultItemExcludes>
+    <!-- BuildingBlocks.Contracts and the tests are nested projects; keep their sources out of this assembly. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Contracts\**;tests\**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="Contracts\BuildingBlocks.Contracts.csproj" />
