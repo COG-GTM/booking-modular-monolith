@@ -12,9 +12,7 @@ using Xunit;
 
 namespace Integration.Test.Host;
 
-// The monolith registers one IEventMapper per module through AddEventMapper and then composes them with
-// AddCompositeEventMapper, so the outbox dispatcher must resolve a single CompositeEventMapper that wraps
-// every module mapper instead of only the last registered module.
+// The monolith registers one IEventMapper per module; the event dispatcher composes those mappers internally.
 public class MonolithEventMapperTests : PassengerIntegrationTestBase
 {
     public MonolithEventMapperTests(
@@ -23,30 +21,30 @@ public class MonolithEventMapperTests : PassengerIntegrationTestBase
         : base(integrationTestFactory) { }
 
     [Fact]
-    public void should_resolve_the_composite_event_mapper_as_the_last_registered_mapper()
-    {
-        using var scope = Fixture.ServiceProvider.CreateScope();
-
-        scope.ServiceProvider.GetRequiredService<IEventMapper>().Should().BeOfType<CompositeEventMapper>();
-    }
-
-    [Fact]
-    public void should_register_every_module_event_mapper_behind_the_composite()
+    public void should_register_one_event_mapper_per_module_without_a_composite()
     {
         using var scope = Fixture.ServiceProvider.CreateScope();
 
         var mappers = scope.ServiceProvider.GetServices<IEventMapper>().ToList();
 
-        mappers.Should().ContainSingle(m => m is CompositeEventMapper);
+        mappers.Should().HaveCount(4);
         mappers.Should().ContainSingle(m => m is FlightEventMapper);
         mappers.Should().ContainSingle(m => m is IdentityEventMapper);
         mappers.Should().ContainSingle(m => m is PassengerEventMapper);
         mappers.Should().ContainSingle(m => m is BookingEventMapper);
-        mappers.Last().Should().BeOfType<CompositeEventMapper>();
+        mappers.Should().NotContain(m => m is CompositeEventMapper);
 
         scope.ServiceProvider.GetRequiredService<FlightEventMapper>().Should().NotBeNull();
         scope.ServiceProvider.GetRequiredService<IdentityEventMapper>().Should().NotBeNull();
         scope.ServiceProvider.GetRequiredService<PassengerEventMapper>().Should().NotBeNull();
         scope.ServiceProvider.GetRequiredService<BookingEventMapper>().Should().NotBeNull();
+    }
+
+    [Fact]
+    public void should_resolve_the_module_event_dispatcher()
+    {
+        using var scope = Fixture.ServiceProvider.CreateScope();
+
+        scope.ServiceProvider.GetRequiredService<IEventDispatcher<PassengerRoot>>().Should().NotBeNull();
     }
 }
