@@ -260,7 +260,8 @@ dotnet run
 
 | Where | Gateway | Monolith API |
 | --- | --- | --- |
-| `dotnet run` / Aspire | `http://localhost:5000`, `https://localhost:5001` | `http://localhost:3001`, `https://localhost:3000` |
+| `dotnet run` | `http://localhost:5000`, `https://localhost:5001` | `http://localhost:3001`, `https://localhost:3000` |
+| Aspire (`AppHost:Topology=Monolith`) | `http://localhost:5000`, `https://localhost:5001` | `http://localhost:3001`, `https://localhost:3002` (Grafana owns 3000) |
 | Docker Compose | `http://localhost:5000` | `http://localhost:3001`, `https://localhost:3000` |
 
 Routing is fully config-driven (`ReverseProxy` section of [`appsettings.json`](./src/Gateway/src/appsettings.json)). Each module has its own cluster (`flight`, `passenger`, `booking`, `identity`) whose single destination is the monolith, plus a `monolith` fallback cluster for everything else (`/connect`, `/.well-known`, Swagger, health). Any other `/api/*` path still requires a valid token (`api-fallback` route). To move a module to an extracted service, repoint **only** that cluster's destination — no code change:

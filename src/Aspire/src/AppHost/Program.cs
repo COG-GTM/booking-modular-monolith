@@ -348,7 +348,7 @@ if (runMonolith)
         .WithReference(rabbitmq)
         .WaitFor(rabbitmq)
         .WithHttpEndpoint(port: 3001, name: "api-http")
-        .WithHttpsEndpoint(port: 3000, name: "api-https")
+        .WithHttpsEndpoint(port: 3002, name: "api-https")
         .WithHttpHealthCheck("/health", endpointName: "api-http");
 
     // Flight and Passenger are hosted inside the monolith: point Booking's service-discovery names at the api itself.

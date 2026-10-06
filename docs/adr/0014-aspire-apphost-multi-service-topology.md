@@ -135,7 +135,7 @@ C4Container
 ## Consequences
 
 - Positive: local dev and `aspire publish` match the target topology; each service gets only its own resources; no hard-coded service addresses; one flag to fall back to the monolith.
-- Negative / risks: more processes locally (slower startup); a token issued by the monolith topology is not valid in the microservices topology (different issuer); Grafana and the monolith's HTTPS endpoint still both use host port 3000 in monolith mode (pre-existing).
+- Negative / risks: more processes locally (slower startup); a token issued by the monolith topology is not valid in the microservices topology (different issuer); in the Aspire monolith topology the monolith's HTTPS endpoint moves from host port 3000 to 3002, because Grafana already binds 3000 and the clash left the api and gateway unhealthy.
 - Follow-ups: create the ARB ticket; AB-242 to align Dockerfiles/compose with the published model; AB-246 dashboards; gRPC authentication (ARB follow-up).
 
 ## Open questions

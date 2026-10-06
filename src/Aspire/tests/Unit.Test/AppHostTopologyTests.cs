@@ -222,7 +222,7 @@ public class AppHostTopologyTests
 
         var endpoints = api.Annotations.OfType<EndpointAnnotation>().ToDictionary(endpoint => endpoint.Name);
         Assert.Equal(3001, endpoints["api-http"].Port);
-        Assert.Equal(3000, endpoints["api-https"].Port);
+        Assert.Equal(3002, endpoints["api-https"].Port);
 
         var healthCheck = Assert.Single(api.Annotations.OfType<HealthCheckAnnotation>());
         Assert.StartsWith("api_api-http_/health", healthCheck.Key, StringComparison.Ordinal);
