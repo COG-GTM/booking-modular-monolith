@@ -318,7 +318,11 @@ if (builder.ExecutionContext.IsPublishMode)
 var topology = builder.Configuration["AppHost:Topology"];
 var runMonolith = string.Equals(topology, "Monolith", StringComparison.OrdinalIgnoreCase);
 
+// Launch-profile endpoints (http/https) would otherwise claim the same host ports as the named endpoints
+// pinned below (and the api's https one Grafana's 3000), so they are left on dynamic ports.
 var gateway = builder.AddProject<Gateway>("gateway")
+    .WithEndpoint("http", endpoint => endpoint.Port = null)
+    .WithEndpoint("https", endpoint => endpoint.Port = null)
     .WithHttpEndpoint(port: 5000, name: "gateway-http")
     .WithHttpsEndpoint(port: 5001, name: "gateway-https")
     .WithHttpHealthCheck("/health", endpointName: "gateway-http");
@@ -330,6 +334,8 @@ Dictionary<string, EndpointReference> clusterDestinations;
 if (runMonolith)
 {
     var api = builder.AddProject<Api>("api")
+        .WithEndpoint("http", endpoint => endpoint.Port = null)
+        .WithEndpoint("https", endpoint => endpoint.Port = null)
         .WithReference(flightDb, "flight")
         .WaitFor(flightDb)
         .WithReference(passengerDb, "passenger")

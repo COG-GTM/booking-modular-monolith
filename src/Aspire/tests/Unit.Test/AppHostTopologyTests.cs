@@ -304,18 +304,16 @@ public class AppHostTopologyTests
             )
             .ToList();
 
-        // Endpoints mirrored from launchSettings.json are named after their scheme (http/https);
-        // the host ports the AppHost pins itself are the explicitly named ones (gateway-*, api-*).
-        var projectEndpoints = hostEndpoints
-            .Where(e => e.Resource is ProjectResource && e.Endpoint.Name != e.Endpoint.UriScheme)
-            .ToList();
+        // Includes the endpoints mirrored from launchSettings.json (http/https) as well as the named ones the
+        // AppHost pins itself (gateway-*, api-*): any of them claiming a taken host port breaks the proxy.
+        var projectEndpoints = hostEndpoints.Where(e => e.Resource is ProjectResource).ToList();
         Assert.NotEmpty(projectEndpoints);
 
         var collisions = projectEndpoints
             .SelectMany(project =>
                 hostEndpoints
                     .Where(other =>
-                        !ReferenceEquals(other.Resource, project.Resource)
+                        !ReferenceEquals(other.Endpoint, project.Endpoint)
                         && other.Endpoint.Port == project.Endpoint.Port
                         && other.Endpoint.Protocol == project.Endpoint.Protocol
                     )
