@@ -1,5 +1,4 @@
 using BuildingBlocks.EFCore;
-using BuildingBlocks.EventStoreDB;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.Mongo;
 using BuildingBlocks.Web;
@@ -26,11 +25,7 @@ public static class HealthCheckExtensions
     public static IHealthChecksBuilder AddBookingStoreHealthChecks(this WebApplicationBuilder builder)
     {
         var configuration = builder.Configuration;
-        var eventStoreOptions = builder.Services.GetOptions<EventStoreOptions>(nameof(EventStoreOptions));
         var rabbitMqOptions = builder.Services.GetOptions<RabbitMqOptions>(nameof(RabbitMqOptions));
-
-        var eventStoreConnectionString =
-            configuration.GetConnectionString("eventstore") ?? eventStoreOptions.ConnectionString;
         var rabbitMqConnectionString =
             configuration.GetConnectionString("rabbitmq")
             ?? $"amqp://{rabbitMqOptions.UserName}:{rabbitMqOptions.Password}@{rabbitMqOptions.HostName}:{rabbitMqOptions.Port ?? 5672}";
@@ -51,7 +46,7 @@ public static class HealthCheckExtensions
                 failureStatus: HealthStatus.Unhealthy,
                 tags: ReadinessTags
             )
-            .AddEventStore(eventStoreConnectionString, name: EventStoreCheckName, tags: ReadinessTags)
+            .AddCheck<EventStoreHealthCheck>(EventStoreCheckName, tags: ReadinessTags)
             .AddRabbitMQ(
                 _ => new ConnectionFactory { Uri = new Uri(rabbitMqConnectionString) }.CreateConnectionAsync(),
                 name: RabbitMqCheckName,
