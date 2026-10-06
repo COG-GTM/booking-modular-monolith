@@ -1,6 +1,8 @@
 syntax = "proto3";
 
-package bookingPassenger;
+package passenger.v1;
+
+option csharp_namespace = "Contracts.Grpc.Passenger.V1";
 
 service PassengerGrpcService {
 

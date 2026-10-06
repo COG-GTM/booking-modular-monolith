@@ -18,7 +18,7 @@ public class EventDispatcherTests
     private readonly IEventHeadersProvider headersProvider = Substitute.For<IEventHeadersProvider>();
     private readonly IEventMapper mapper = Substitute.For<IEventMapper>();
 
-    private EventDispatcher CreateDispatcher(params IEventMapper[] mappers)
+    private EventDispatcher<FakeModule> CreateDispatcher(params IEventMapper[] mappers)
     {
         var scopeFactory = new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
         return new EventDispatcher<FakeModule>(

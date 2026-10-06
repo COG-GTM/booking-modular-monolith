@@ -1,6 +1,6 @@
 using System;
 using AutoBogus;
-using BookingFlight;
+using Contracts.Grpc.Flight.V1;
 using Google.Protobuf.WellKnownTypes;
 
 namespace Integration.Test.Fakes;
