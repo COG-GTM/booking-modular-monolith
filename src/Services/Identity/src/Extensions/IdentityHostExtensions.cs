@@ -6,7 +6,7 @@ using BuildingBlocks.OpenApi;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Figgle.Fonts;
-using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
 
