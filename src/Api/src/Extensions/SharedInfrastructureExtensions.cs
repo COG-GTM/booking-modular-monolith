@@ -1,6 +1,8 @@
 using Booking;
 using BuildingBlocks.Core;
 using BuildingBlocks.Core.Event;
+using BuildingBlocks.Exception;
+using BuildingBlocks.Grpc;
 using BuildingBlocks.Jwt;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.OpenApi;
@@ -45,6 +47,7 @@ public static class SharedInfrastructureExtensions
         {
             options.Interceptors.Add<GrpcExceptionInterceptor>();
         });
+        builder.Services.AddGrpcHealthService();
 
         builder.Services.AddEasyCaching(options =>
         {
@@ -79,6 +82,7 @@ public static class SharedInfrastructureExtensions
         app.UseCorrelationId();
 
         app.MapGet("/", x => x.Response.WriteAsync(appOptions.Name));
+        app.MapGrpcHealthService();
 
         if (app.Environment.IsDevelopment())
         {

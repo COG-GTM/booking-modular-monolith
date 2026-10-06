@@ -2,8 +2,8 @@ namespace Booking.Booking.Features.CreatingBook.V1;
 
 using Ardalis.GuardClauses;
 using BuildingBlocks.Constants;
-using BookingFlight;
-using BookingPassenger;
+using Contracts.Grpc.Flight.V1;
+using Contracts.Grpc.Passenger.V1;
 using BuildingBlocks.Core;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
@@ -99,7 +99,7 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
         Guard.Against.Null(command, nameof(command));
 
         var flight =
-            await _flightGrpcServiceClient.GetByIdAsync(new BookingFlight.GetByIdRequest { Id = command.FlightId.ToString() }, cancellationToken: cancellationToken);
+            await _flightGrpcServiceClient.GetByIdAsync(new Contracts.Grpc.Flight.V1.GetByIdRequest { Id = command.FlightId.ToString() }, cancellationToken: cancellationToken);
 
         if (flight is null)
         {
@@ -107,7 +107,7 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
         }
 
         var passenger =
-            await _passengerGrpcServiceClient.GetByIdAsync(new BookingPassenger.GetByIdRequest { Id = command.PassengerId.ToString() }, cancellationToken: cancellationToken);
+            await _passengerGrpcServiceClient.GetByIdAsync(new Contracts.Grpc.Passenger.V1.GetByIdRequest { Id = command.PassengerId.ToString() }, cancellationToken: cancellationToken);
 
         var emptySeat = (await _flightGrpcServiceClient
                 .GetAvailableSeatsAsync(new GetAvailableSeatsRequest { FlightId = command.FlightId.ToString() }, cancellationToken: cancellationToken)
