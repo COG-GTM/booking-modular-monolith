@@ -41,16 +41,27 @@ public static class IdentityHostExtensions
                 .AddRabbitMQ(
                     serviceProvider =>
                     {
-                        var rabbitMqOptions = serviceProvider
-                            .GetRequiredService<IConfiguration>()
-                            .GetOptions<RabbitMqOptions>(nameof(RabbitMqOptions));
-                        var factory = new ConnectionFactory
+                        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+                        var connectionString = configuration.GetConnectionString("rabbitmq");
+                        ConnectionFactory factory;
+
+                        if (!string.IsNullOrEmpty(connectionString))
                         {
-                            HostName = rabbitMqOptions.HostName,
-                            Port = rabbitMqOptions.Port ?? 5672,
-                            UserName = rabbitMqOptions.UserName,
-                            Password = rabbitMqOptions.Password,
-                        };
+                            factory = new ConnectionFactory { Uri = new Uri(connectionString) };
+                        }
+                        else
+                        {
+                            var rabbitMqOptions = configuration.GetOptions<RabbitMqOptions>(nameof(RabbitMqOptions));
+                            factory = new ConnectionFactory
+                            {
+                                HostName = rabbitMqOptions.HostName,
+                                Port = rabbitMqOptions.Port ?? 5672,
+                                UserName = rabbitMqOptions.UserName,
+                                Password = rabbitMqOptions.Password,
+                                VirtualHost = "/",
+                            };
+                        }
+
                         return factory.CreateConnectionAsync();
                     },
                     name: "identity-rabbitmq",
