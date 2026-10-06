@@ -68,13 +68,36 @@ jobs:
         id: build-test-passenger-step
         with:
           project-path: 'src/Modules/Passenger/src/'
-          tests-path: 'src/Modules/Passenger/tests/'
+          tests-path: 'src/Modules/Passenger/tests/Integration.Test/'
           # wildcard search for files with the ".cobertura.xml" extension in all subdirectories of the current directory
           # https://www.jamescroft.co.uk/combining-multiple-code-coverage-results-in-azure-devops/
           # https://stackoverflow.com/questions/53255065/dotnet-unit-test-with-coverlet-how-to-get-coverage-for-entire-solution-and-not
           reports-path: ${{ github.workspace }}/**/*.cobertura.xml
           reports-output-path: ${{ github.workspace }}/output/test-results
           service-name: 'Passenger'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Test Passenger Service Host
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-passenger-host-step
+        with:
+          project-path: 'src/Services/Passenger.Host/'
+          tests-path: 'src/Modules/Passenger/tests/Host.Test/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'PassengerHost'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Flight Service Host
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-flight-host-step
+        with:
+          project-path: 'src/Services/Flight/Flight.Host/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'FlightHost'
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Test Booking Microservice
@@ -104,6 +127,30 @@ jobs:
           service-name: 'Booking.Host'
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build and Test Gateway
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-gateway-step
+        with:
+          project-path: 'src/Gateway/src/'
+          tests-path: 'src/Gateway/tests/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'Gateway'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Test Contract Tests
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-contracts-step
+        with:
+          project-path: 'src/Tests/Contracts.Test/'
+          tests-path: 'src/Tests/Contracts.Test/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'Contracts'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update Release Drafter
         if: ${{ github.ref == 'refs/heads/main' && success() }}
         id: last_release
@@ -114,3 +161,27 @@ jobs:
       - name: Release Version Info
         run:
           echo "Release version is:" ${{ steps.last_release.outputs.tag_name }}
+
+  cross-service-e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and Test Cross-Service E2E
+        uses: ./.github/actions/build-test
+        with:
+          project-path: 'src/Tests/CrossService.EndToEnd.Test/'
+          tests-path: 'src/Tests/CrossService.EndToEnd.Test/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'CrossService.E2E'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload E2E host logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-service-e2e-host-logs
+          path: '**/TestResults/e2e-logs/**'
+          if-no-files-found: ignore

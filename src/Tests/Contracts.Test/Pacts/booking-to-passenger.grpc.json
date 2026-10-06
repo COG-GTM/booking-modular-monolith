@@ -1,0 +1,15 @@
+{
+  "consumer": "booking",
+  "package": "passenger.v1",
+  "services": [
+    {
+      "name": "PassengerGrpcService",
+      "methods": [{ "name": "GetById", "input": ".passenger.v1.GetByIdRequest", "output": ".passenger.v1.GetPassengerByIdResult" }]
+    }
+  ],
+  "messages": [
+    { "name": "GetByIdRequest", "fields": [{ "name": "Id", "number": 1, "type": "TYPE_STRING", "label": "LABEL_OPTIONAL" }] },
+    { "name": "GetPassengerByIdResult", "fields": [{ "name": "PassengerDto", "number": 1, "type": "TYPE_MESSAGE", "typeName": ".passenger.v1.PassengerResponse", "label": "LABEL_OPTIONAL" }] },
+    { "name": "PassengerResponse", "fields": [{ "name": "Name", "number": 2, "type": "TYPE_STRING", "label": "LABEL_OPTIONAL" }] }
+  ]
+}

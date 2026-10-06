@@ -1,0 +1,112 @@
+{
+  "package": "passenger.v1",
+  "fileName": "passenger/v1/passenger.proto",
+  "services": {
+    "PassengerGrpcService": {
+      "methods": {
+        "GetById": {
+          "inputType": ".passenger.v1.GetByIdRequest",
+          "outputType": ".passenger.v1.GetPassengerByIdResult",
+          "clientStreaming": false,
+          "serverStreaming": false
+        }
+      }
+    }
+  },
+  "messages": {
+    ".passenger.v1.GetByIdRequest": {
+      "fields": {
+        "1": {
+          "name": "Id",
+          "number": 1,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "id"
+        }
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    },
+    ".passenger.v1.GetPassengerByIdResult": {
+      "fields": {
+        "1": {
+          "name": "PassengerDto",
+          "number": 1,
+          "type": "TYPE_MESSAGE",
+          "typeName": ".passenger.v1.PassengerResponse",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "passengerDto"
+        }
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    },
+    ".passenger.v1.PassengerResponse": {
+      "fields": {
+        "1": {
+          "name": "Id",
+          "number": 1,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "id"
+        },
+        "2": {
+          "name": "Name",
+          "number": 2,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "name"
+        },
+        "3": {
+          "name": "PassportNumber",
+          "number": 3,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "passportNumber"
+        },
+        "4": {
+          "name": "PassengerType",
+          "number": 4,
+          "type": "TYPE_ENUM",
+          "typeName": ".passenger.v1.PassengerType",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "passengerType"
+        },
+        "5": {
+          "name": "Age",
+          "number": 5,
+          "type": "TYPE_INT32",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "age"
+        },
+        "6": {
+          "name": "Email",
+          "number": 6,
+          "type": "TYPE_STRING",
+          "typeName": "",
+          "label": "LABEL_OPTIONAL",
+          "jsonName": "email"
+        }
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    }
+  },
+  "enums": {
+    ".passenger.v1.PassengerType": {
+      "values": {
+        "PASSENGER_TYPE_UNKNOWN": 0,
+        "PASSENGER_TYPE_MALE": 1,
+        "PASSENGER_TYPE_FEMALE": 2,
+        "PASSENGER_TYPE_BABY": 3
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    }
+  }
+}
