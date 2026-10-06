@@ -226,6 +226,12 @@ aspire run
 
 > Note:The `Aspire dashboard` will be available at `http://localhost:18888`
 
+By default the AppHost runs the microservices topology: `gateway` (`http://localhost:5000`) in front of the standalone `identity`, `flight`, `passenger` and `booking` hosts, each wired only to its own database, Mongo read database, EventStoreDB (Booking) and RabbitMQ, with gRPC/HTTP addresses resolved through Aspire service discovery ([ADR 0014](./docs/adr/0014-aspire-apphost-multi-service-topology.md)). To run the modular monolith (`api`) behind the gateway instead, e.g. for rollback or comparison:
+
+```bash
+aspire run -- --AppHost:Topology=Monolith
+```
+
 > ### Docker Compose
 
 To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-compose/docker-compose.yaml) and execute the below command at the `root` of the application:
@@ -270,7 +276,7 @@ or in `appsettings.<Environment>.json`:
 { "ReverseProxy": { "Clusters": { "flight": { "Destinations": { "monolith": { "Address": "http://flight-service:80" } } } } } }
 ```
 
-Under Aspire the AppHost injects the API endpoint into every cluster, so repoint there through the AppHost configuration instead (`Gateway:Clusters:<cluster>` in `src/Aspire/src/AppHost/appsettings*.json`, user-secrets or `Gateway__Clusters__flight=http://flight-service:80`).
+Under Aspire the AppHost injects each standalone service's endpoint into its cluster (or the API endpoint into every cluster with `AppHost:Topology=Monolith`), so repoint there through the AppHost configuration instead (`Gateway:Clusters:<cluster>` in `src/Aspire/src/AppHost/appsettings*.json`, user-secrets or `Gateway__Clusters__flight=http://flight-service:80`).
 
 The decision is recorded in [ADR 0008](./docs/adr/0008-api-gateway-single-ingress.md).
 

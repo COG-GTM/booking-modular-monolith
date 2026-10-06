@@ -18,6 +18,7 @@ ADRs documenting the decisions for migrating this modular monolith to microservi
 | [0011](0011-standalone-passenger-service-host.md) | Standalone Passenger service host | Proposed |
 | [0012](0012-standalone-booking-service-host.md) | Standalone Booking service host (strangler-fig extraction of the Booking module) | Proposed |
 | [0013](0013-per-module-background-processing-switch.md) | Per-module background-processing switch in the monolith during cut-over | Proposed |
+| [0014](0014-aspire-apphost-multi-service-topology.md) | Aspire AppHost orchestrates the gateway and four standalone services | Proposed |
 
 The target-state diagram lives in [docs/target-architecture.md](../target-architecture.md).
 
