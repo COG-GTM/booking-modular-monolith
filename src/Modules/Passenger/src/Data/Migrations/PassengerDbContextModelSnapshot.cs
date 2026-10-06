@@ -17,7 +17,7 @@ namespace Passenger.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "7.0.2")
+                .HasAnnotation("ProductVersion", "10.0.3")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -54,6 +54,10 @@ namespace Passenger.Data.Migrations
                         .HasColumnType("text")
                         .HasDefaultValue("Unknown")
                         .HasColumnName("passenger_type");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
 
                     b.Property<long>("Version")
                         .IsConcurrencyToken()

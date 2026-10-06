@@ -1,5 +1,6 @@
 namespace Passenger.Passengers.Features.CompletingRegisterPassenger.V1;
 
+using System.Security.Claims;
 using Ardalis.GuardClauses;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
@@ -17,6 +18,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Passenger.Passengers.ValueObjects;
 
 public record CompleteRegisterPassenger
@@ -24,6 +26,7 @@ public record CompleteRegisterPassenger
         IInternalCommand
 {
     public Guid Id { get; init; } = NewId.NextGuid();
+    public Guid UserId { get; init; }
 }
 
 public record PassengerRegistrationCompletedDomainEvent(Guid Id, string Name, string PassportNumber,
@@ -41,9 +44,9 @@ public class CompleteRegisterPassengerEndpoint : IMinimalEndpoint
     {
         builder.MapPost($"{EndpointConfig.BaseApiPath}/passenger/complete-registration", async (
                 CompleteRegisterPassengerRequestDto request, IMapper mapper,
-                IMediator mediator, CancellationToken cancellationToken, IHttpContextAccessor httpContextAccessor) =>
+                IMediator mediator, CancellationToken cancellationToken, ClaimsPrincipal user) =>
             {
-                var command = mapper.Map<CompleteRegisterPassenger>(request);
+                var command = mapper.Map<CompleteRegisterPassenger>(request) with { UserId = GetUserId(user) };
 
                 var result = await mediator.Send(command, cancellationToken);
 
@@ -63,6 +66,14 @@ public class CompleteRegisterPassengerEndpoint : IMinimalEndpoint
 
         return builder;
     }
+
+    private static Guid GetUserId(ClaimsPrincipal user)
+    {
+        var subject = user.FindFirstValue(JwtRegisteredClaimNames.Sub) ??
+                      user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(subject, out var userId) ? userId : Guid.Empty;
+    }
 }
 
 public class CompleteRegisterPassengerValidator : AbstractValidator<CompleteRegisterPassenger>
@@ -70,6 +81,7 @@ public class CompleteRegisterPassengerValidator : AbstractValidator<CompleteRegi
     public CompleteRegisterPassengerValidator()
     {
         RuleFor(x => x.PassportNumber).NotNull().WithMessage("The PassportNumber is required!");
+        RuleFor(x => x.UserId).NotEmpty().WithMessage("The UserId is required!");
         RuleFor(x => x.Age).GreaterThan(0).WithMessage("The Age must be greater than 0!");
         RuleFor(x => x.PassengerType).Must(p => p.GetType().IsEnum &&
                                                 p == Enums.PassengerType.Baby ||
@@ -98,7 +110,7 @@ internal class CompleteRegisterPassengerCommandHandler : ICommandHandler<Complet
         Guard.Against.Null(request, nameof(request));
 
         var passenger = await _passengerDbContext.Passengers.SingleOrDefaultAsync(
-            x => x.PassportNumber.Value == request.PassportNumber, cancellationToken);
+            x => x.PassportNumber.Value == request.PassportNumber && x.UserId == request.UserId, cancellationToken);
 
         if (passenger is null)
         {

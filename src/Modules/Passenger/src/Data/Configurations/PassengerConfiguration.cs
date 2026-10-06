@@ -17,6 +17,8 @@ public class PassengerConfiguration : IEntityTypeConfiguration<Passengers.Models
 
         builder.Property(r => r.Version).IsConcurrencyToken();
 
+        builder.Property(r => r.UserId).IsRequired();
+
         builder.OwnsOne(
             x => x.Name,
             a =>
