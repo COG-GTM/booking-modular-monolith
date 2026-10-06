@@ -35,9 +35,15 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddScoped<IEventHeadersProvider, HttpContextEventHeadersProvider>();
 
         builder.Services.AddCustomMassTransit(
+            builder.Configuration,
             builder.Environment,
-            TransportType.InMemory,
-            AppDomain.CurrentDomain.GetAssemblies()
+            assembly:
+            [
+                typeof(FlightEventMapper).Assembly,
+                typeof(IdentityEventMapper).Assembly,
+                typeof(PassengerEventMapper).Assembly,
+                typeof(BookingEventMapper).Assembly,
+            ]
         );
 
         builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);
