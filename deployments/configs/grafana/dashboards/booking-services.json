@@ -957,7 +957,7 @@
             "uid": "tempo-uid"
           },
           "queryType": "traceql",
-          "query": "{resource.service.name=\"$service\" && kind=server && name !~ \".*[Hh]ealth.*\"}",
+          "query": "{resource.service.name=\"$service\" && (kind=server || kind=consumer) && name !~ \".*[Hh]ealth.*\"}",
           "limit": 20,
           "tableType": "traces"
         }
