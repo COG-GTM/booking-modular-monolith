@@ -1,12 +1,17 @@
 using BuildingBlocks.Core;
+using BuildingBlocks.EFCore;
 using BuildingBlocks.Grpc;
 using BuildingBlocks.Jwt;
 using BuildingBlocks.MassTransit;
+using BuildingBlocks.Mongo;
 using BuildingBlocks.OpenApi;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Flight;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
+using MongoDB.Driver;
 
 namespace Flight.Host.Extensions;
 
@@ -46,6 +51,25 @@ public static class FlightServiceInfrastructureExtensions
             options.UseInMemory(builder.Configuration, "mem");
         });
         builder.Services.AddProblemDetails();
+
+        builder
+            .Services.AddHealthChecks()
+            .AddNpgSql(
+                sp => sp.GetRequiredService<IConfiguration>().GetPostgresConnectionString(nameof(Flight)),
+                name: "flight-postgres",
+                failureStatus: HealthStatus.Unhealthy,
+                tags: ["ready"],
+                timeout: TimeSpan.FromSeconds(10)
+            )
+            .AddMongoDb(
+                sp => new MongoClient(
+                    sp.GetRequiredService<IOptionsMonitor<MongoOptions>>().Get(nameof(Flight)).ConnectionString
+                ),
+                name: "flight-mongo",
+                failureStatus: HealthStatus.Unhealthy,
+                tags: ["ready"],
+                timeout: TimeSpan.FromSeconds(10)
+            );
 
         return builder;
     }

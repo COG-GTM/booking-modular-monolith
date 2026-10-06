@@ -17,6 +17,7 @@ public static class Extensions
 {
     private const string HealthEndpointPath = "/health";
     private const string AlivenessEndpointPath = "/alive";
+    private const string ReadinessEndpointPath = "/ready";
 
     public static IServiceCollection AddCustomHealthCheck(this IServiceCollection services)
     {
@@ -77,6 +78,10 @@ public static class Extensions
         app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
         {
             Predicate = r => r.Tags.Contains("live"),
+        }).WithOrder(-1);
+        app.MapHealthChecks(ReadinessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = r => r.Tags.Contains("ready"),
         }).WithOrder(-1);
 
         if (healthOptions.Enabled)

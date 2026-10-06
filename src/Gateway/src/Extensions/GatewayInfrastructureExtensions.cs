@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Threading.RateLimiting;
 using BuildingBlocks.Jwt;
 using BuildingBlocks.Web;
@@ -40,6 +41,19 @@ public static class GatewayInfrastructureExtensions
     {
         app.UseForwardedHeaders();
         app.UseServiceDefaults();
+        app.Use(
+            async (context, next) =>
+            {
+                context.Response.OnStarting(() =>
+                {
+                    if (Activity.Current is { } activity)
+                        context.Response.Headers["X-Trace-Id"] = activity.TraceId.ToHexString();
+
+                    return Task.CompletedTask;
+                });
+                await next();
+            }
+        );
         app.UseCorrelationId();
         app.UseHttpLogging();
         app.UseCors();

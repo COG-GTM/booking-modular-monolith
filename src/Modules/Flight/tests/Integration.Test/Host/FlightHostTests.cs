@@ -18,6 +18,7 @@ using MassTransit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -44,12 +45,24 @@ public class FlightHostTests : FlightIntegrationTestBase
     [Theory]
     [InlineData("/health")]
     [InlineData("/alive")]
+    [InlineData("/ready")]
     public async Task health_endpoints_should_be_mapped_and_healthy(string path)
     {
         var response = await Fixture.HttpClient.GetAsync(path);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         (await response.Content.ReadAsStringAsync()).Should().Be("Healthy");
+    }
+
+    [Fact]
+    public void should_register_flight_store_readiness_checks()
+    {
+        var registrations = Fixture
+            .ServiceProvider.GetRequiredService<IOptions<HealthCheckServiceOptions>>()
+            .Value.Registrations;
+
+        registrations.Should().Contain(r => r.Name == "flight-postgres" && r.Tags.Contains("ready"));
+        registrations.Should().Contain(r => r.Name == "flight-mongo" && r.Tags.Contains("ready"));
     }
 
     [Fact]

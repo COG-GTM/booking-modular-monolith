@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -85,6 +86,22 @@ public class GatewayIngressTests : IClassFixture<DownstreamStub>, IAsyncLifetime
     }
 
     [Fact]
+    public async Task response_includes_current_trace_id()
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "Microsoft.AspNetCore",
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var response = await _factory.CreateClient().GetAsync("/api/v1/flight/x");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Matches("^[0-9a-f]{32}$", response.Headers.GetValues("X-Trace-Id").Single());
+    }
+
+    [Fact]
     public async Task module_route_with_wrong_scope_is_forbidden_at_the_gateway()
     {
         var client = _factory.CreateClient();
@@ -162,6 +179,7 @@ public class GatewayIngressTests : IClassFixture<DownstreamStub>, IAsyncLifetime
     [Theory]
     [InlineData("/health")]
     [InlineData("/alive")]
+    [InlineData("/ready")]
     public async Task health_probes_are_answered_by_the_gateway_itself(string path)
     {
         var response = await _factory.CreateClient().GetAsync(path);

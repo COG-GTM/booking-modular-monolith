@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Text.Json;
 using Ardalis.GuardClauses;
@@ -143,10 +144,25 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
         if (data is not IEvent)
             return false;
 
+        using var activity = PersistMessageTracing.ActivitySource.StartActivity(
+            $"outbox publish {data.GetType().Name}",
+            ActivityKind.Internal,
+            GetParentContext(messageEnvelope)
+        );
+        activity?.SetTag("messaging.message.id", message.Id);
+        activity?.SetTag("outbox.delivery_type", message.DeliveryType.ToString());
+        activity?.SetTag("messaging.message.type", message.DataType);
+
         await _publishEndpoint.Publish(data, context =>
         {
             foreach (var header in messageEnvelope.Headers)
+            {
+                if (header.Key.Equals(PersistMessageTracing.TraceParentHeader, StringComparison.OrdinalIgnoreCase) ||
+                    header.Key.Equals(PersistMessageTracing.TraceStateHeader, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 context.Headers.Set(header.Key, header.Value);
+            }
         }, cancellationToken);
 
         _logger.LogInformation(
@@ -170,6 +186,15 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
         if (data is not IInternalCommand internalCommand)
             return false;
 
+        using var activity = PersistMessageTracing.ActivitySource.StartActivity(
+            $"internal command {internalCommand.GetType().Name}",
+            ActivityKind.Internal,
+            GetParentContext(messageEnvelope)
+        );
+        activity?.SetTag("messaging.message.id", message.Id);
+        activity?.SetTag("outbox.delivery_type", message.DeliveryType.ToString());
+        activity?.SetTag("messaging.message.type", message.DataType);
+
         await _mediator.Send(internalCommand, cancellationToken);
 
         _logger.LogInformation(
@@ -186,6 +211,16 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
         CancellationToken cancellationToken = default)
     {
         Guard.Against.Null(messageEnvelope.Message, nameof(messageEnvelope.Message));
+
+        if (
+            Activity.Current is { IdFormat: ActivityIdFormat.W3C, Id: { } traceParent } activity
+            && !messageEnvelope.Headers.ContainsKey(PersistMessageTracing.TraceParentHeader)
+        )
+        {
+            messageEnvelope.Headers[PersistMessageTracing.TraceParentHeader] = traceParent;
+            if (!string.IsNullOrEmpty(activity.TraceStateString))
+                messageEnvelope.Headers[PersistMessageTracing.TraceStateHeader] = activity.TraceStateString;
+        }
 
         Guid id;
         if (messageEnvelope.Message is IEvent message)
@@ -209,6 +244,20 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
             deliveryType.ToString());
 
         return id;
+    }
+
+    private static ActivityContext GetParentContext(MessageEnvelope messageEnvelope)
+    {
+        var traceParent = messageEnvelope.Headers.TryGetValue(PersistMessageTracing.TraceParentHeader, out var parent)
+            ? parent?.ToString()
+            : null;
+        var traceState = messageEnvelope.Headers.TryGetValue(PersistMessageTracing.TraceStateHeader, out var state)
+            ? state?.ToString()
+            : null;
+
+        return ActivityContext.TryParse(traceParent, traceState, isRemote: true, out var parentContext)
+            ? parentContext
+            : default;
     }
 
     private async Task ChangeMessageStatusAsync(PersistMessage message, CancellationToken cancellationToken)
