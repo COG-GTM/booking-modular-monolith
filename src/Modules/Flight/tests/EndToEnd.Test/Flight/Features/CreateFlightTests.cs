@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Api;
+using BuildingBlocks.Constants;
 using BuildingBlocks.TestBase;
 using EndToEnd.Test.Fakes;
 using EndToEnd.Test.Routes;
@@ -29,5 +30,20 @@ public class CreateFlightTests : FlightEndToEndTestBase
 
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task should_return_forbidden_when_user_is_not_admin()
+    {
+        //Arrange
+        var command = new FakeCreateFlightCommand().Generate();
+        var httpClient = Fixture.CreateHttpClient(IdentityConstant.Role.User);
+
+        // Act
+        var route = ApiRoutes.Flight.CreateFlight;
+        var result = await httpClient.PostAsJsonAsync(route, command);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 }

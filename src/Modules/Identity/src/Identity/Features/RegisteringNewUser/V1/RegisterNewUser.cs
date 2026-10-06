@@ -50,7 +50,7 @@ public class RegisterNewUserEndpoint : IMinimalEndpoint
 
                 return Results.Ok(response);
             })
-            .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(nameof(ApiScope), IdentityConstant.Role.Admin)
             .WithName("RegisterUser")
             .WithApiVersionSet(builder.NewApiVersionSet("Identity").Build())
             .Produces<RegisterNewUserResponseDto>()
