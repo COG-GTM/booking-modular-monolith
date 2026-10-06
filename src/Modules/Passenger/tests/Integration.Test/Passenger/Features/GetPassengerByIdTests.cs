@@ -6,6 +6,8 @@ using Api;
 using BuildingBlocks.Constants;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
+using Grpc.Core;
+using Grpc.Net.Client;
 using Integration.Test.Fakes;
 using Passenger;
 using Passenger.Data;
@@ -75,6 +77,27 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
 
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task should_return_unauthenticated_when_anonymous_caller_gets_passenger_by_id_from_grpc_service()
+    {
+        // Arrange
+        var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
+
+        await Fixture.SendAsync(command);
+
+        var anonymousClient = Fixture.CreateHttpClient();
+        var anonymousChannel = GrpcChannel.ForAddress(anonymousClient.BaseAddress!,
+            new GrpcChannelOptions { HttpClient = anonymousClient });
+        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(anonymousChannel);
+
+        // Act
+        var act = async () => await passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = command.Id.ToString() });
+
+        // Assert
+        var exception = await act.Should().ThrowAsync<RpcException>();
+        exception.Which.StatusCode.Should().Be(StatusCode.Unauthenticated);
     }
 
     [Fact]

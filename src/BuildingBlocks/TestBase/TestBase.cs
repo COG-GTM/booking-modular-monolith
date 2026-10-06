@@ -69,10 +69,15 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
         }
     }
 
-    public HttpClient CreateHttpClient(Dictionary<string, object> claims)
+    public HttpClient CreateHttpClient(Dictionary<string, object> claims = null)
     {
         var httpClient = _factory.CreateClient();
-        httpClient.SetFakeBearerToken(claims); // Uses FakeJwtBearer
+
+        if (claims is not null)
+        {
+            httpClient.SetFakeBearerToken(claims); // Uses FakeJwtBearer
+        }
+
         return httpClient;
     }
 
