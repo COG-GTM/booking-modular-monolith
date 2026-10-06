@@ -4,6 +4,9 @@
 @contentType = application/json
 @flightid = "3c5c0000-97c6-fc34-2eb9-08db322230c9"
 @passengerId = "8c9c0000-97c6-fc34-2eb9-66db322230c9"
+# IdentitySeedOptions:AdminPassword the app was seeded with, percent-encoded for the
+# x-www-form-urlencoded body below (e.g. `&` -> %26, `+` -> %2B, `#` -> %23)
+@adminPassword = <your-url-encoded-admin-password>
 
 ################################# Identity API #################################
 
@@ -16,7 +19,7 @@ grant_type=password
 &client_id=client
 &client_secret=secret
 &username=samh
-&password=Admin@123456
+&password={{adminPassword}}
 &scope=booking-modular-monolith role
 ###
 

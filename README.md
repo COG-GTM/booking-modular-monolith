@@ -234,6 +234,14 @@ To `run` all modules, run this command in the root of the `Api` folder:
 dotnet run
 ```
 
+> ### Initial Admin User
+On startup, whenever the admin user `samh` does not exist yet (e.g. first start with an empty identity database), the `Identity` module seeds it **only if** an initial password is provided through configuration (there is no default password). If the password is configured later, the admin is seeded on the next start. Set it via environment variable, user secrets, or any other configuration source, e.g.:
+```bash
+export IdentitySeedOptions__AdminPassword=<choose-a-strong-password>
+# optional, Development environment only: also seed the demo user `samh2`
+export IdentitySeedOptions__UserPassword=<choose-a-password>
+```
+
 > ### Test
 
 To `test` all modules, run this command in the `root` of the project:
