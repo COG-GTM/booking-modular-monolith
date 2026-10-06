@@ -24,6 +24,7 @@
 - [When to Use](#when-to-use)
 - [Challenges](#challenges)
 - [The Domain and Bounded Context - Module Boundary](#the-domain-and-bounded-context---module-boundary)
+- [Microservices Migration - Target Architecture](#microservices-migration---target-architecture)
 - [Structure of Project](#structure-of-project)
 - [Development Setup](#development-setup)
     - [Dotnet Tools Packages](#dotnet-tools-packages)
@@ -35,6 +36,7 @@
   - [Docker Compose](#docker-compose)
   - [Build](#build)
   - [Run](#run)
+  - [API Gateway (single ingress)](#api-gateway-single-ingress)
   - [Test](#test)
 - [Documentation Apis](#documentation-apis)
 - [Support](#support)
@@ -48,11 +50,11 @@
 - :sparkle: Using `InMemory Broker` on top of `Masstransit` for `Event Driven Architecture`.
 - :sparkle: Using `gRPC` for `internal communication`.
 - :sparkle: Using `CQRS` implementation with `MediatR` library.
-- :sparkle: Using `Postgres` for `write side` database.
-- :sparkle: Using `MongoDB` for `read side` database.
+- :sparkle: Using `Postgres` for `write side` database, one database and one role per module (`flight`, `identity`, `passenger`, `booking`) so no module can reach another module's data.
+- :sparkle: Using `MongoDB` for `read side` database, one database per module (`MongoOptions:{Module}:DatabaseName`).
 - :sparkle: Using `Event Store` for `write side` of Booking Module to store all `historical change` of aggregate.
 - :sparkle: Using `Inbox Pattern` for ensuring message idempotency for receiver and `Exactly once Delivery`.
-- :sparkle: Using `Outbox Pattern` for ensuring no message is lost and there is at `At Least One Delivery`.
+- :sparkle: Using `Outbox Pattern` for ensuring no message is lost and there is at `At Least One Delivery`. Each module owns its own outbox/inbox (`persist_message` table inside the module database, `PersistMessageDbContext<TModule>`); there is no shared persist-message database.
 - :sparkle: Using `Unit Testing` for testing small units and mocking our dependencies with `Nsubstitute`.
 - :sparkle: Using `End-To-End Testing` and `Integration Testing` for testing `features` with all dependencies using `testcontainers`.
 - :sparkle: Using `Fluent Validation` and a `Validation Pipeline Behaviour` on top of `MediatR`.
@@ -127,6 +129,16 @@
 - `Booking Module`: The Booking Module is a bounded context for managing all operation related to booking ticket.
 
 ![](./assets/booking-modular-monolith.png)
+
+
+## Microservices Migration - Target Architecture
+
+This modular monolith is being migrated to microservices using a strangler-fig approach
+behind an API gateway: one service per module (Identity, Flight, Passenger, Booking),
+gRPC for synchronous calls, RabbitMQ for integration events, and a database per service.
+
+- Target-state diagram: [docs/target-architecture.md](docs/target-architecture.md)
+- Decision records: [docs/adr](docs/adr/README.md)
 
 
 ## Structure of Project
@@ -214,6 +226,12 @@ aspire run
 
 > Note:The `Aspire dashboard` will be available at `http://localhost:18888`
 
+By default the AppHost runs the microservices topology: `gateway` (`http://localhost:5000`) in front of the standalone `identity`, `flight`, `passenger` and `booking` hosts, each wired only to its own database, Mongo read database, EventStoreDB (Booking) and RabbitMQ, with gRPC/HTTP addresses resolved through Aspire service discovery ([ADR 0014](./docs/adr/0014-aspire-apphost-multi-service-topology.md)). To run the modular monolith (`api`) behind the gateway instead, e.g. for rollback or comparison:
+
+```bash
+aspire run -- --AppHost:Topology=Monolith
+```
+
 > ### Docker Compose
 
 To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-compose/docker-compose.yaml) and execute the below command at the `root` of the application:
@@ -221,6 +239,8 @@ To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-
 ```bash
 docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
 ```
+
+On the first start of an empty `postgres-data` volume, [init/postgres](./deployments/docker-compose/init/postgres) creates one database and one role per module. If you already have a volume from an older version, recreate it (`docker-compose ... down -v`) or run that SQL against your server once.
 
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
@@ -233,6 +253,33 @@ To `run` all modules, run this command in the root of the `Api` folder:
 ```bash
 dotnet run
 ```
+
+> ### API Gateway (single ingress)
+
+[`src/Gateway`](./src/Gateway) is a YARP reverse proxy that is the only endpoint clients should call. It validates JWTs (same `Jwt` section as the API), applies CORS (`CorsOptions:AllowedOrigins`), a per-client fixed-window rate limit (`RateLimitOptions`; list your load balancer in `TrustedProxyOptions` so `X-Forwarded-For` is used as the client address), HTTP request logging, and forwards `Authorization`, `correlationId` and `traceparent` headers downstream.
+
+| Where | Gateway | Monolith API |
+| --- | --- | --- |
+| `dotnet run` | `http://localhost:5000`, `https://localhost:5001` | `http://localhost:3001`, `https://localhost:3000` |
+| Aspire (`AppHost:Topology=Monolith`) | `http://localhost:5000`, `https://localhost:5001` | `http://localhost:3001`, `https://localhost:3002` (Grafana owns 3000) |
+| Docker Compose | `http://localhost:5000` | `http://localhost:3001`, `https://localhost:3000` |
+
+Routing is fully config-driven (`ReverseProxy` section of [`appsettings.json`](./src/Gateway/src/appsettings.json)). Each module has its own cluster (`flight`, `passenger`, `booking`, `identity`) whose single destination is the monolith, plus a `monolith` fallback cluster for everything else (`/connect`, `/.well-known`, Swagger, health). Any other `/api/*` path still requires a valid token (`api-fallback` route). To move a module to an extracted service, repoint **only** that cluster's destination — no code change:
+
+```bash
+# e.g. Flight is now served by its own service
+ReverseProxy__Clusters__flight__Destinations__monolith__Address=http://flight-service:80
+```
+
+or in `appsettings.<Environment>.json`:
+
+```json
+{ "ReverseProxy": { "Clusters": { "flight": { "Destinations": { "monolith": { "Address": "http://flight-service:80" } } } } } }
+```
+
+Under Aspire the AppHost injects each standalone service's endpoint into its cluster (or the API endpoint into every cluster with `AppHost:Topology=Monolith`), so repoint there through the AppHost configuration instead (`Gateway:Clusters:<cluster>` in `src/Aspire/src/AppHost/appsettings*.json`, user-secrets or `Gateway__Clusters__flight=http://flight-service:80`).
+
+The decision is recorded in [ADR 0008](./docs/adr/0008-api-gateway-single-ingress.md).
 
 > ### Test
 

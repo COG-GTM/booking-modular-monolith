@@ -33,10 +33,13 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 
-var flightDb = postgres.AddDatabase("flight");
-var passengerDb = postgres.AddDatabase("passenger");
-var identityDb = postgres.AddDatabase("identity");
-var persistMessageDb = postgres.AddDatabase("persist-message");
+// One logical database per service; each service's outbox/inbox (persist_message) lives in its own database.
+// Resource names carry a "-db" suffix so the service projects own the logical names used by service
+// discovery (https://flight, http://_grpc.passenger); consumers still read ConnectionStrings:<service>.
+var flightDb = postgres.AddDatabase("flight-db", databaseName: "flight");
+var passengerDb = postgres.AddDatabase("passenger-db", databaseName: "passenger");
+var identityDb = postgres.AddDatabase("identity-db", databaseName: "identity");
+var bookingDb = postgres.AddDatabase("booking-db", databaseName: "booking");
 
 var mongoUsername = builder.AddParameter("mongo-username", "root", secret: true);
 var mongoPassword = builder.AddParameter("mongo-password", "secret", secret: true);
@@ -59,6 +62,11 @@ if (builder.ExecutionContext.IsPublishMode)
     mongo.WithDataVolume("mongo-data")
         .WithLifetime(ContainerLifetime.Persistent);
 }
+
+// One logical read database per service.
+var flightReadDb = mongo.AddDatabase("flight-read");
+var passengerReadDb = mongo.AddDatabase("passenger-read");
+var bookingReadDb = mongo.AddDatabase("booking-read");
 
 
 var redis = builder.AddRedis("redis")
@@ -303,22 +311,176 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
-var api = builder.AddProject<Api>("api")
-    .WithReference(persistMessageDb)
-    .WaitFor(persistMessageDb)
-    .WithReference(flightDb)
-    .WaitFor(flightDb)
-    .WithReference(passengerDb)
-    .WaitFor(passengerDb)
-    .WithReference(identityDb)
-    .WaitFor(identityDb)
-    .WithReference(mongo)
-    .WaitFor(mongo)
-    .WithReference(eventstore)
-    .WaitFor(eventstore)
-    .WithReference(rabbitmq)
-    .WaitFor(rabbitmq)
-    .WithHttpEndpoint(port: 3001, name: "api-http")
-    .WithHttpsEndpoint(port: 3000, name: "api-https");
+// 4. Application topology
+// "Microservices" (default) runs the gateway in front of the standalone Identity, Flight, Passenger and
+// Booking hosts, matching the production layout. "Monolith" runs the gateway in front of src/Api only.
+// Select it with AppHost:Topology (e.g. `aspire run -- --AppHost:Topology=Monolith` or AppHost__Topology=Monolith).
+var topology = builder.Configuration["AppHost:Topology"];
+var runMonolith = string.Equals(topology, "Monolith", StringComparison.OrdinalIgnoreCase);
+
+// Launch-profile endpoints (http/https) would otherwise claim the same host ports as the named endpoints
+// pinned below (and the api's https one Grafana's 3000), so they are left on dynamic ports.
+var gateway = builder.AddProject<Gateway>("gateway")
+    .WithEndpoint("http", endpoint => endpoint.Port = null)
+    .WithEndpoint("https", endpoint => endpoint.Port = null)
+    .WithHttpEndpoint(port: 5000, name: "gateway-http")
+    .WithHttpsEndpoint(port: 5001, name: "gateway-https")
+    .WithHttpHealthCheck("/health", endpointName: "gateway-http");
+
+// Default destination per gateway cluster; Gateway:Clusters:<cluster> in the AppHost configuration
+// (appsettings / env / user-secrets) repoints a single cluster without touching the others.
+Dictionary<string, EndpointReference> clusterDestinations;
+
+if (runMonolith)
+{
+    var api = builder.AddProject<Api>("api")
+        .WithEndpoint("http", endpoint => endpoint.Port = null)
+        .WithEndpoint("https", endpoint => endpoint.Port = null)
+        .WithReference(flightDb, "flight")
+        .WaitFor(flightDb)
+        .WithReference(passengerDb, "passenger")
+        .WaitFor(passengerDb)
+        .WithReference(identityDb, "identity")
+        .WaitFor(identityDb)
+        .WithReference(bookingDb, "booking")
+        .WaitFor(bookingDb)
+        .WithReference(mongo)
+        .WaitFor(mongo)
+        .WithReference(flightReadDb)
+        .WithReference(passengerReadDb)
+        .WithReference(bookingReadDb)
+        .WithReference(eventstore)
+        .WaitFor(eventstore)
+        .WithReference(rabbitmq)
+        .WaitFor(rabbitmq)
+        .WithHttpEndpoint(port: 3001, name: "api-http")
+        .WithHttpsEndpoint(port: 3002, name: "api-https")
+        .WithHttpHealthCheck("/health", endpointName: "api-http");
+
+    // Flight and Passenger are hosted inside the monolith: point Booking's service-discovery names at the api itself.
+    foreach (var serviceName in new[] { "flight", "passenger" })
+    {
+        api.WithEnvironment($"services__{serviceName}__https__0", api.GetEndpoint("api-https"));
+    }
+
+    // IdentityServer's issuer and every JWT validator must agree on the same public address.
+    var issuer = api.GetEndpoint("api-https");
+    var metadataAddress = ReferenceExpression.Create($"{issuer}/.well-known/openid-configuration");
+    api.WithEnvironment("AuthOptions__IssuerUri", issuer).WithEnvironment("Jwt__Authority", issuer);
+
+    gateway
+        .WithReference(api)
+        .WaitFor(api)
+        .WithEnvironment("Jwt__Authority", issuer)
+        .WithEnvironment("Jwt__MetadataAddress", metadataAddress);
+
+    var apiHttp = api.GetEndpoint("api-http");
+    clusterDestinations = new()
+    {
+        ["flight"] = apiHttp,
+        ["passenger"] = apiHttp,
+        ["booking"] = apiHttp,
+        ["identity"] = apiHttp,
+        ["monolith"] = apiHttp,
+    };
+}
+else
+{
+    // Identity owns IdentityServer: its address is the token issuer and the JWT authority of every other service.
+    var identity = builder.AddProject<Identity_Host>("identity")
+        .WithReference(identityDb, "identity")
+        .WaitFor(identityDb)
+        .WithReference(rabbitmq)
+        .WaitFor(rabbitmq)
+        .WithHttpHealthCheck("/health", endpointName: "http");
+
+    // Jwt:MetadataAddress is set explicitly because the hosts' docker appsettings point it at the monolith.
+    var issuer = identity.GetEndpoint("http");
+    var metadataAddress = ReferenceExpression.Create($"{issuer}/.well-known/openid-configuration");
+    identity
+        .WithEnvironment("AuthOptions__IssuerUri", issuer)
+        .WithEnvironment("Jwt__Authority", issuer)
+        .WithEnvironment("Jwt__MetadataAddress", metadataAddress);
+
+    var flight = builder.AddProject<Flight_Host>("flight")
+        .WithReference(flightDb, "flight")
+        .WaitFor(flightDb)
+        .WithReference(flightReadDb)
+        .WaitFor(mongo)
+        .WithReference(rabbitmq)
+        .WaitFor(rabbitmq)
+        .WithEnvironment("Jwt__Authority", issuer)
+        .WithEnvironment("Jwt__MetadataAddress", metadataAddress)
+        .WithHttpHealthCheck("/health", endpointName: "http");
+
+    var passenger = builder.AddProject<Passenger_Host>("passenger")
+        .WithReference(passengerDb, "passenger")
+        .WaitFor(passengerDb)
+        .WithReference(passengerReadDb)
+        .WaitFor(mongo)
+        .WithReference(rabbitmq)
+        .WaitFor(rabbitmq)
+        .WithEnvironment("Jwt__Authority", issuer)
+        .WithEnvironment("Jwt__MetadataAddress", metadataAddress)
+        .WithHttpHealthCheck("/health", endpointName: "http");
+
+    // Booking reaches Flight and Passenger over gRPC by logical name; WithReference injects
+    // services__<name>__<endpoint>__0 so service discovery resolves them without hard-coded addresses.
+    // Flight serves gRPC on its HTTPS endpoint (https://flight); Passenger on its dedicated
+    // HTTP/2-only "grpc" endpoint (http://_grpc.passenger).
+    var booking = builder.AddProject<Booking_Host>("booking")
+        .WithReference(bookingDb, "booking")
+        .WaitFor(bookingDb)
+        .WithReference(bookingReadDb)
+        .WaitFor(mongo)
+        .WithReference(eventstore)
+        .WaitFor(eventstore)
+        .WithReference(rabbitmq)
+        .WaitFor(rabbitmq)
+        .WithReference(flight)
+        .WaitFor(flight)
+        .WithReference(passenger)
+        .WaitFor(passenger)
+        .WithEnvironment("Grpc__Flight__Address", "https://flight")
+        .WithEnvironment("Grpc__Passenger__Address", "http://_grpc.passenger")
+        .WithEnvironment("Jwt__Authority", issuer)
+        .WithEnvironment("Jwt__MetadataAddress", metadataAddress)
+        .WithHttpHealthCheck("/health", endpointName: "http");
+
+    gateway
+        .WithReference(identity)
+        .WaitFor(identity)
+        .WithReference(flight)
+        .WaitFor(flight)
+        .WithReference(passenger)
+        .WaitFor(passenger)
+        .WithReference(booking)
+        .WaitFor(booking)
+        .WithEnvironment("Jwt__Authority", issuer)
+        .WithEnvironment("Jwt__MetadataAddress", metadataAddress);
+
+    clusterDestinations = new()
+    {
+        ["flight"] = flight.GetEndpoint("http"),
+        ["passenger"] = passenger.GetEndpoint("http"),
+        ["booking"] = booking.GetEndpoint("http"),
+        ["identity"] = issuer,
+        // No monolith in this topology: non-module routes (e.g. "/") fall through to the Identity host.
+        ["monolith"] = issuer,
+    };
+}
+
+// The gateway's appsettings name each cluster's single destination "monolith"; overriding that destination's
+// address (rather than adding a second one) keeps exactly one destination per cluster.
+foreach (var (cluster, destination) in clusterDestinations)
+{
+    var key = $"ReverseProxy__Clusters__{cluster}__Destinations__monolith__Address";
+    var overrideAddress = builder.Configuration[$"Gateway:Clusters:{cluster}"];
+
+    if (string.IsNullOrWhiteSpace(overrideAddress))
+        gateway.WithEnvironment(key, destination);
+    else
+        gateway.WithEnvironment(key, overrideAddress);
+}
 
 builder.Build().Run();

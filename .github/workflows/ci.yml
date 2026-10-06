@@ -50,6 +50,18 @@ jobs:
           service-name: 'Identity'
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build and Test Identity Service Host
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-identity-host-step
+        with:
+          project-path: 'src/Services/Identity/src/'
+          tests-path: 'src/Services/Identity/tests/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'IdentityHost'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and Test Passenger Microservice
         uses: ./.github/actions/build-test
         if: success()
@@ -78,6 +90,18 @@ jobs:
           reports-path: ${{ github.workspace }}/**/*.cobertura.xml
           reports-output-path: ${{ github.workspace }}/output/test-results
           service-name: 'Booking'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Test Booking Service Host
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-booking-host-step
+        with:
+          project-path: 'src/Services/Booking/src/'
+          tests-path: 'src/Services/Booking/tests/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'Booking.Host'
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update Release Drafter
