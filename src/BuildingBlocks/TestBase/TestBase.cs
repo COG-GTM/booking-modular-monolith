@@ -560,7 +560,10 @@ public class TestFixtureCore<TEntryPoint> : IAsyncLifetime
         using (var scope = Fixture.ServiceProvider.CreateScope())
         {
             // the module's write context must be created before its outbox/inbox table is added to the same database
-            if (_dbContextType != null && scope.ServiceProvider.GetRequiredService(_dbContextType) is DbContext dbContext)
+            if (
+                _dbContextType != null
+                && scope.ServiceProvider.GetRequiredService(_dbContextType) is DbContext dbContext
+            )
             {
                 await dbContext.Database.EnsureCreatedAsync();
                 connectionStrings.Add(dbContext.Database.GetConnectionString());
@@ -569,7 +572,8 @@ public class TestFixtureCore<TEntryPoint> : IAsyncLifetime
             foreach (var persistMessageDbContextType in Fixture.PersistMessageDbContextTypes)
             {
                 // resolving the module store also creates its database/persist_message table
-                var persistMessageDbContext = (DbContext)scope.ServiceProvider.GetRequiredService(persistMessageDbContextType);
+                var persistMessageDbContext = (DbContext)
+                    scope.ServiceProvider.GetRequiredService(persistMessageDbContextType);
                 connectionStrings.Add(persistMessageDbContext.Database.GetConnectionString());
             }
         }
@@ -647,15 +651,9 @@ public class TestFixtureCore<TEntryPoint> : IAsyncLifetime
             port
         );
 
-        var bd = await managementClient.GetBindingsAsync(cancellationToken);
-
-        var bindings = bd.Where(x => !string.IsNullOrEmpty(x.Source) && !string.IsNullOrEmpty(x.Destination));
-
-        foreach (var binding in bindings)
-        {
-            await managementClient.DeleteBindingAsync(binding, cancellationToken);
-        }
-
+        // Only purge queues. Deleting exchange/queue bindings would detach the running bus's
+        // consumers from their message exchanges, so any test that publishes after the first
+        // reset would never see its message consumed.
         var queues = await managementClient.GetQueuesAsync(cancellationToken: cancellationToken);
 
         foreach (var queue in queues)
