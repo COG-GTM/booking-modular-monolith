@@ -1,26 +1,45 @@
+# Monolith image and compose validation. The Gateway and service images are built (and pushed on
+# main/tags) by their own path-filtered pipelines: see service-*.yml and docs/ci-cd.md.
 name: Docker images
 
 on:
   pull_request:
+    paths:
+      - "src/Api/**"
+      - "src/Modules/**"
+      - "src/BuildingBlocks/**"
+      - "src/Contracts.Grpc/**"
+      - "src/Contracts.Messages/**"
+      - "src/Aspire/src/ServiceDefaults/**"
+      - "deployments/docker-compose/**"
+      - "Directory.*.props"
+      - "global.json"
+      - ".editorconfig"
+      - ".dockerignore"
+      - ".github/workflows/docker-images.yml"
   push:
     branches: [main]
+    paths:
+      - "src/Api/**"
+      - "src/Modules/**"
+      - "src/BuildingBlocks/**"
+      - "src/Contracts.Grpc/**"
+      - "src/Contracts.Messages/**"
+      - "src/Aspire/src/ServiceDefaults/**"
+      - "deployments/docker-compose/**"
+      - "Directory.*.props"
+      - "global.json"
+      - ".editorconfig"
+      - ".dockerignore"
+      - ".github/workflows/docker-images.yml"
 
 jobs:
-  build-images:
+  build-monolith-image:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        dockerfile:
-          - src/Api/Dockerfile
-          - src/Gateway/Dockerfile
-          - src/Services/Identity/Dockerfile
-          - src/Services/Flight/Flight.Host/Dockerfile
-          - src/Services/Passenger.Host/Dockerfile
-          - src/Services/Booking/Dockerfile
     steps:
       - uses: actions/checkout@v4
-      - name: Build ${{ matrix.dockerfile }}
-        run: docker build -f ${{ matrix.dockerfile }} .
+      - name: Build src/Api/Dockerfile
+        run: docker build -f src/Api/Dockerfile .
 
   validate-compose:
     runs-on: ubuntu-latest

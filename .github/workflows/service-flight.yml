@@ -1,0 +1,56 @@
+# Flight pipeline: build/test, then image booking-flight. Runs only when the Flight host,
+# its module, or a shared input it builds from changes. Logic lives in _service-pipeline.yml.
+name: Service - Flight
+
+on:
+  push:
+    branches: [main]
+    # Path filters are not evaluated for tag pushes: v* releases every service, flight-v* only this one.
+    tags: ["v*.*.*", "flight-v*.*.*"]
+    paths:
+      - "src/Services/Flight/**"
+      - "src/Modules/Flight/**"
+      - "src/BuildingBlocks/**"
+      - "src/Contracts.Grpc/**"
+      - "src/Contracts.Messages/**"
+      - "src/Aspire/src/ServiceDefaults/**"
+      - "Directory.*.props"
+      - "global.json"
+      - ".editorconfig"
+      - ".github/actions/**"
+      - ".github/workflows/_service-pipeline.yml"
+      - ".github/workflows/service-flight.yml"
+  pull_request:
+    paths:
+      - "src/Services/Flight/**"
+      - "src/Modules/Flight/**"
+      - "src/BuildingBlocks/**"
+      - "src/Contracts.Grpc/**"
+      - "src/Contracts.Messages/**"
+      - "src/Aspire/src/ServiceDefaults/**"
+      - "Directory.*.props"
+      - "global.json"
+      - ".editorconfig"
+      - ".github/actions/**"
+      - ".github/workflows/_service-pipeline.yml"
+      - ".github/workflows/service-flight.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_service-pipeline.yml
+    with:
+      service: flight
+      dockerfile: src/Services/Flight/Flight.Host/Dockerfile
+      targets: >-
+        [
+          {"name": "Flight", "project": "src/Modules/Flight/src/", "tests": "src/Modules/Flight/tests/"},
+          {"name": "FlightHost", "project": "src/Services/Flight/Flight.Host/", "tests": ""}
+        ]

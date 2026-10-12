@@ -1,0 +1,64 @@
+# Packs the shared NuGet packages and publishes the ones whose version was bumped to GitHub Packages.
+# Pull requests do a dry run (pack everything, push nothing, warn about missed version bumps).
+# Versioning scheme: docs/ci-cd.md.
+name: Shared NuGet packages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/BuildingBlocks/**"
+      - "src/Contracts.Grpc/**"
+      - "src/Contracts.Messages/**"
+      - "Directory.*.props"
+      - "global.json"
+      - ".github/scripts/publish-packages.sh"
+      - ".github/workflows/packages.yml"
+  pull_request:
+    paths:
+      - "src/BuildingBlocks/**"
+      - "src/Contracts.Grpc/**"
+      - "src/Contracts.Messages/**"
+      - "Directory.*.props"
+      - "global.json"
+      - ".github/scripts/publish-packages.sh"
+      - ".github/workflows/packages.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  pack-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.x.x"
+
+      - name: Pack and publish bumped packages
+        env:
+          NUGET_SOURCE: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+          NUGET_USER: ${{ github.actor }}
+          NUGET_API_KEY: ${{ secrets.GITHUB_TOKEN }}
+          PUBLISH: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+          BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+          OUTPUT_DIR: ${{ github.workspace }}/artifacts/packages
+        run: .github/scripts/publish-packages.sh
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts/packages/*.nupkg
+          if-no-files-found: ignore
