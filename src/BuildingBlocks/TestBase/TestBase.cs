@@ -83,6 +83,13 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
         }
     }
 
+    public GrpcChannel CreateChannel(Dictionary<string, object> claims)
+    {
+        var httpClient = _factory.CreateClient();
+        httpClient.SetFakeBearerToken(claims); // Uses FakeJwtBearer
+        return GrpcChannel.ForAddress(httpClient.BaseAddress!, new GrpcChannelOptions { HttpClient = httpClient });
+    }
+
     public IServiceProvider ServiceProvider => _factory?.Services;
     public IConfiguration Configuration => _factory?.Services.GetRequiredService<IConfiguration>();
     public ILogger Logger { get; set; }

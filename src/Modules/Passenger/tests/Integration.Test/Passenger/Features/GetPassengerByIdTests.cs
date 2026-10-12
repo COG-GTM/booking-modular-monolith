@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Api;
 using BuildingBlocks.TestBase;
@@ -68,5 +70,25 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         // Assert
         var exception = await act.Should().ThrowAsync<RpcException>();
         exception.Which.StatusCode.Should().Be(StatusCode.Unauthenticated);
+    }
+
+    [Fact]
+    public async Task should_reject_grpc_get_passenger_by_id_when_token_lacks_api_scope()
+    {
+        // Arrange
+        var claimsWithoutScope = new Dictionary<string, object>
+        {
+            { ClaimTypes.Name, "test@sample.com" },
+            { ClaimTypes.Role, "admin" },
+        };
+
+        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(Fixture.CreateChannel(claimsWithoutScope));
+
+        // Act
+        var act = async () => await passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = Guid.NewGuid().ToString() });
+
+        // Assert
+        var exception = await act.Should().ThrowAsync<RpcException>();
+        exception.Which.StatusCode.Should().Be(StatusCode.PermissionDenied);
     }
 }
