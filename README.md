@@ -139,6 +139,7 @@ gRPC for synchronous calls, RabbitMQ for integration events, and a database per 
 
 - Target-state diagram: [docs/target-architecture.md](docs/target-architecture.md)
 - Decision records: [docs/adr](docs/adr/README.md)
+- CI/CD pipelines (per-service images, shared NuGet packages): [docs/ci-cd.md](docs/ci-cd.md)
 
 
 ## Structure of Project

@@ -1,14 +1,31 @@
 name: CI
 
+# Monolith CI: the four modules (consumed by src/Api) plus the cross-service E2E suite.
+# The Gateway and standalone service hosts are built, tested and imaged by their own
+# path-filtered pipelines (service-*.yml), so changes confined to them do not trigger this workflow.
 on:
   push:
     branches: [ "main"]
     paths-ignore:
-      - "README.md"
+      - "**/*.md"
+      - "docs/**"
+      - "src/Gateway/**"
+      - "src/Services/**"
+      - ".github/workflows/service-*.yml"
+      - ".github/workflows/_service-pipeline.yml"
+      - ".github/workflows/packages.yml"
+      - ".github/scripts/**"
   pull_request:
     branches: [ "main"]
     paths-ignore:
-      - "README.md"
+      - "**/*.md"
+      - "docs/**"
+      - "src/Gateway/**"
+      - "src/Services/**"
+      - ".github/workflows/service-*.yml"
+      - ".github/workflows/_service-pipeline.yml"
+      - ".github/workflows/packages.yml"
+      - ".github/scripts/**"
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
   cancel-in-progress: true
@@ -50,17 +67,6 @@ jobs:
           service-name: 'Identity'
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Test Identity Service Host
-        uses: ./.github/actions/build-test
-        if: success()
-        id: build-test-identity-host-step
-        with:
-          project-path: 'src/Services/Identity/src/'
-          tests-path: 'src/Services/Identity/tests/'
-          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
-          reports-output-path: ${{ github.workspace }}/output/test-results
-          service-name: 'IdentityHost'
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Test Passenger Microservice
         uses: ./.github/actions/build-test
@@ -77,28 +83,7 @@ jobs:
           service-name: 'Passenger'
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Test Passenger Service Host
-        uses: ./.github/actions/build-test
-        if: success()
-        id: build-test-passenger-host-step
-        with:
-          project-path: 'src/Services/Passenger.Host/'
-          tests-path: 'src/Modules/Passenger/tests/Host.Test/'
-          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
-          reports-output-path: ${{ github.workspace }}/output/test-results
-          service-name: 'PassengerHost'
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Flight Service Host
-        uses: ./.github/actions/build-test
-        if: success()
-        id: build-flight-host-step
-        with:
-          project-path: 'src/Services/Flight/Flight.Host/'
-          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
-          reports-output-path: ${{ github.workspace }}/output/test-results
-          service-name: 'FlightHost'
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Test Booking Microservice
         uses: ./.github/actions/build-test
@@ -115,29 +100,7 @@ jobs:
           service-name: 'Booking'
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Test Booking Service Host
-        uses: ./.github/actions/build-test
-        if: success()
-        id: build-test-booking-host-step
-        with:
-          project-path: 'src/Services/Booking/src/'
-          tests-path: 'src/Services/Booking/tests/'
-          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
-          reports-output-path: ${{ github.workspace }}/output/test-results
-          service-name: 'Booking.Host'
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Test Gateway
-        uses: ./.github/actions/build-test
-        if: success()
-        id: build-test-gateway-step
-        with:
-          project-path: 'src/Gateway/src/'
-          tests-path: 'src/Gateway/tests/'
-          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
-          reports-output-path: ${{ github.workspace }}/output/test-results
-          service-name: 'Gateway'
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Test Contract Tests
         uses: ./.github/actions/build-test

@@ -1,0 +1,58 @@
+# Identity pipeline: build/test, then image booking-identity. Runs only when the Identity host,
+# its module, or a shared input it builds from changes. Logic lives in _service-pipeline.yml.
+name: Service - Identity
+
+on:
+  push:
+    branches: [main]
+    # Path filters are not evaluated for tag pushes: v* releases every service, identity-v* only this one.
+    tags: ["v*.*.*", "identity-v*.*.*"]
+    paths:
+      - "src/Services/Identity/**"
+      - "src/Modules/Identity/**"
+      - "src/BuildingBlocks/**"
+      - "src/Contracts.Grpc/**"
+      - "src/Contracts.Messages/**"
+      - "src/Aspire/src/ServiceDefaults/**"
+      - "Directory.*.props"
+      - "global.json"
+      - ".dockerignore"
+      - ".editorconfig"
+      - ".github/actions/**"
+      - ".github/workflows/_service-pipeline.yml"
+      - ".github/workflows/service-identity.yml"
+  pull_request:
+    paths:
+      - "src/Services/Identity/**"
+      - "src/Modules/Identity/**"
+      - "src/BuildingBlocks/**"
+      - "src/Contracts.Grpc/**"
+      - "src/Contracts.Messages/**"
+      - "src/Aspire/src/ServiceDefaults/**"
+      - "Directory.*.props"
+      - "global.json"
+      - ".dockerignore"
+      - ".editorconfig"
+      - ".github/actions/**"
+      - ".github/workflows/_service-pipeline.yml"
+      - ".github/workflows/service-identity.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_service-pipeline.yml
+    with:
+      service: identity
+      dockerfile: src/Services/Identity/Dockerfile
+      targets: >-
+        [
+          {"name": "Identity", "project": "src/Modules/Identity/src/", "tests": "src/Modules/Identity/tests/"},
+          {"name": "IdentityHost", "project": "src/Services/Identity/src/", "tests": "src/Services/Identity/tests/"}
+        ]
