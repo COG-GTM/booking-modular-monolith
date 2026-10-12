@@ -6,6 +6,7 @@ using Gateway.Configurations;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
+using Yarp.ReverseProxy.Model;
 using Yarp.ReverseProxy.Transforms;
 
 namespace Gateway.Extensions;
@@ -18,6 +19,8 @@ public static class GatewayInfrastructureExtensions
     public static WebApplicationBuilder AddGatewayInfrastructure(this WebApplicationBuilder builder)
     {
         builder.AddServiceDefaults();
+
+        var upstreamHeader = builder.Services.GetOptions<UpstreamHeaderOptions>(nameof(UpstreamHeaderOptions));
 
         builder.Services.AddJwt();
         builder.Services.AddCustomForwardedHeaders();
@@ -32,6 +35,9 @@ public static class GatewayInfrastructureExtensions
             {
                 context.AddOriginalHost();
                 context.AddRequestTransform(PropagateCorrelationId);
+
+                if (upstreamHeader.Enabled)
+                    context.AddResponseTransform(AddUpstreamHeader);
             });
 
         return builder;
@@ -146,6 +152,16 @@ public static class GatewayInfrastructureExtensions
         });
 
         return services;
+    }
+
+    private static ValueTask AddUpstreamHeader(ResponseTransformContext context)
+    {
+        var address = context.HttpContext.Features.Get<IReverseProxyFeature>()?.ProxiedDestination?.Model.Config.Address;
+
+        if (Uri.TryCreate(address, UriKind.Absolute, out var uri))
+            context.HttpContext.Response.Headers[UpstreamHeaderOptions.HeaderName] = $"{uri.Host}:{uri.Port}";
+
+        return ValueTask.CompletedTask;
     }
 
     private static ValueTask PropagateCorrelationId(RequestTransformContext context)

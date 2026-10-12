@@ -139,6 +139,7 @@ gRPC for synchronous calls, RabbitMQ for integration events, and a database per 
 
 - Target-state diagram: [docs/target-architecture.md](docs/target-architecture.md)
 - Decision records: [docs/adr](docs/adr/README.md)
+- Cut-over, rollback and monolith decommission runbook (order Identity → Flight → Passenger → Booking): [docs/migration/cutover-runbook.md](docs/migration/cutover-runbook.md) ([ADR 0016](docs/adr/0016-cutover-order-route-flip-and-decommission.md))
 
 
 ## Structure of Project
@@ -298,6 +299,18 @@ or in `appsettings.<Environment>.json`:
 ```
 
 Under Aspire the AppHost injects each standalone service's endpoint into its cluster (or the API endpoint into every cluster with `AppHost:Topology=Monolith`), so repoint there through the AppHost configuration instead (`Gateway:Clusters:<cluster>` in `src/Aspire/src/AppHost/appsettings*.json`, user-secrets or `Gateway__Clusters__flight=http://flight-service:80`).
+
+To flip one context with a dry-run option and a post-flip health/smoke check (docker compose or `--target k8s`), and to roll it back, use `deployments/scripts/route-flip.sh`; `docker-compose.cutover.yaml` adds the monolith to the multi-service topology so both are reachable from the gateway:
+
+```bash
+docker compose -f deployments/docker-compose/docker-compose.services.yaml -f deployments/docker-compose/docker-compose.cutover.yaml up -d --build --wait gateway
+deployments/scripts/route-flip.sh flight monolith --dry-run
+deployments/scripts/route-flip.sh flight monolith     # rollback target
+deployments/scripts/route-flip.sh flight service
+deployments/scripts/validate-rollback.sh flight       # automated monolith -> service -> monolith rehearsal
+```
+
+See the [cut-over runbook](./docs/migration/cutover-runbook.md) for order, pre-flight checks, canaries, data backfill and the decommission checklist.
 
 The decision is recorded in [ADR 0008](./docs/adr/0008-api-gateway-single-ingress.md).
 

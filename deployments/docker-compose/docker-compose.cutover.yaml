@@ -1,0 +1,87 @@
+# Strangler-fig cut-over overlay (AB-248, docs/migration/cutover-runbook.md).
+# Adds the legacy monolith (src/Api) to the multi-service topology and makes each gateway cluster
+# switchable between the monolith and its standalone service:
+#
+#   docker compose -f docker-compose.services.yaml -f docker-compose.cutover.yaml up -d --build
+#   deployments/scripts/route-flip.sh flight monolith      # or: service
+#
+# route-flip.sh keeps the chosen upstream per cluster in `.cutover.env` (git-ignored) and recreates
+# only the gateway. Defaults below = every cluster on its service (fully cut over).
+#
+# Data ownership in this overlay (see the runbook's data section):
+# - identity/passenger/booking services already use the monolith's module stores, so the monolith
+#   turns its background processing off for them (ADR 0013): exactly one processor per store.
+# - flight-service uses its own flight_service database; the monolith keeps processing its own
+#   flight_modular_monolith outbox, so a flight flip moves traffic between two separate data sets
+#   until the backfill in the runbook has run.
+
+services:
+  booking_modular_monolith:
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Api/Dockerfile
+    ports:
+      - "3001:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: docker
+      # HTTP/1.1 for REST, h2c for the monolith's own gRPC (its Booking module calls its Flight and
+      # Passenger modules over gRPC; the default https://booking_modular_monolith:443 has no cert here).
+      Kestrel__Endpoints__Http__Url: http://+:80
+      Kestrel__Endpoints__Http__Protocols: Http1
+      Kestrel__Endpoints__Grpc__Url: http://+:81
+      Kestrel__Endpoints__Grpc__Protocols: Http2
+      Grpc__Flight__Address: http://flight
+      Services__flight__http__0: http://localhost:81
+      Grpc__Passenger__Address: http://passenger
+      Services__passenger__http__0: http://localhost:81
+      # Accept tokens issued by identity-service (same issuer and keys as the other services).
+      Jwt__Authority: ${JWT_ISSUER:-http://localhost:5000}
+      Jwt__MetadataAddress: http://identity-service/.well-known/openid-configuration
+      AuthOptions__IssuerUri: ${JWT_ISSUER:-http://localhost:5000}
+      Modules__Identity__BackgroundProcessingEnabled: "false"
+      Modules__Passenger__BackgroundProcessingEnabled: "false"
+      Modules__Booking__BackgroundProcessingEnabled: "false"
+      Modules__Flight__BackgroundProcessingEnabled: "true"
+      ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
+      ObservabilityOptions__UseAspireOTLPExporter: "false"
+    healthcheck:
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+      test:
+        - CMD
+        - bash
+        - -c
+        - |
+          exec 3<>/dev/tcp/127.0.0.1/80
+          printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          IFS= read -r status <&3
+          [[ "$$status" == *" 200 "* ]]
+    depends_on:
+      # Started after the services so both hosts never run EF migrations/seeders on a shared
+      # module database at the same time.
+      identity-service:
+        condition: service_healthy
+      passenger-service:
+        condition: service_healthy
+      booking-service:
+        condition: service_healthy
+      flight-service:
+        condition: service_healthy
+    networks:
+      - infrastructure
+
+  gateway:
+    environment:
+      UpstreamHeaderOptions__Enabled: "true"
+      ReverseProxy__Clusters__identity__Destinations__monolith__Address: ${GATEWAY_IDENTITY_UPSTREAM:-http://identity-service:80}
+      ReverseProxy__Clusters__flight__Destinations__monolith__Address: ${GATEWAY_FLIGHT_UPSTREAM:-http://flight-service:80}
+      ReverseProxy__Clusters__passenger__Destinations__monolith__Address: ${GATEWAY_PASSENGER_UPSTREAM:-http://passenger-service:5102}
+      ReverseProxy__Clusters__booking__Destinations__monolith__Address: ${GATEWAY_BOOKING_UPSTREAM:-http://booking-service:80}
+      ReverseProxy__Clusters__monolith__Destinations__monolith__Address: http://booking_modular_monolith:80
+    depends_on:
+      booking_modular_monolith:
+        condition: service_healthy

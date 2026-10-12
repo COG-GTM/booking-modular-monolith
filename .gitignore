@@ -443,3 +443,6 @@ fabric.properties
 
 # IdentityServer auto-generated signing keys
 **/keys/is-signing-key-*.json
+
+# Route-flip state written by deployments/scripts/route-flip.sh
+deployments/docker-compose/.cutover.env

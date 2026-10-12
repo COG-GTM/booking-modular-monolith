@@ -20,8 +20,9 @@ ADRs documenting the decisions for migrating this modular monolith to microservi
 | [0013](0013-per-module-background-processing-switch.md) | Per-module background-processing switch in the monolith during cut-over | Proposed |
 | [0014](0014-multi-service-docker-compose-topology.md) | Per-service container images and a multi-service Docker Compose topology | Proposed |
 | [0015](0015-aspire-apphost-multi-service-topology.md) | Aspire AppHost orchestrates the gateway and four standalone services | Proposed |
+| [0016](0016-cutover-order-route-flip-and-decommission.md) | Cut-over order, per-context route flips with instant rollback, and monolith decommission | Proposed |
 
-The target-state diagram lives in [docs/target-architecture.md](../target-architecture.md).
+The target-state diagram lives in [docs/target-architecture.md](../target-architecture.md); the cut-over/rollback procedure in [docs/migration/cutover-runbook.md](../migration/cutover-runbook.md).
 
 ## Format
 

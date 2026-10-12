@@ -1,0 +1,58 @@
+# 0016. Cut-over order, per-context route flips with instant rollback, and monolith decommission
+
+- **Status:** Proposed
+- **Date:** 2026-10-12
+- **ARB ticket:** TO BE CREATED
+- **Authors:** Devin (for AB-248)
+- **Owning team:** Booking platform team (owners of `booking-modular-monolith`)
+- **Related ADRs:** 0002 Strangler-fig migration, 0006 Per-service database and outbox isolation, 0008 API gateway single ingress, 0009–0012 Standalone Identity/Flight/Passenger/Booking hosts, 0013 Per-module background-processing switch, 0014 Multi-service Docker Compose topology, 0015 Aspire AppHost multi-service topology
+
+## Context
+
+With the standalone hosts (ADRs 0009–0012), the YARP gateway (0008) and the compose/Aspire topologies (0014,
+0015) in place, the remaining migration work is operational: moving production traffic from `src/Api` to the
+services, being able to undo each step, and eventually deleting the monolith. ADR 0002 suggested the order
+Flight → Passenger → Booking → Identity ("lowest coupling first") before the services existed. Since then:
+
+- every service validates tokens against the standalone Identity host (`Jwt:MetadataAddress`), and every smoke
+  check of a later flip needs a token;
+- Identity publishes `UserCreated` over RabbitMQ to Passenger;
+- Booking calls Flight and Passenger synchronously over gRPC;
+- Identity, Passenger and Booking services currently share their module's monolith stores, while Flight has its
+  own `flight_service` database.
+
+There was no runbook, no tooling for the flip itself, and no rehearsed rollback.
+
+ARB triggers: T1 (deployment topology: compose overlay adding the monolith to the services topology, gateway
+deployment env changed per flip), T6 (routing of authenticated traffic and of the token endpoint moves between
+processes). The heuristic detector reported no triggers (no IaC files); the triggers above come from reading the diff.
+
+## Decision
+
+1. **Order:** Identity → Flight → Passenger → Booking. Identity first so the token issuer is the same process for
+   every later flip and the publisher of Passenger's input moves before its consumer; Flight is a leaf (no outbound
+   gRPC) and the only context needing a data backfill; Passenger before Booking; Booking last because it depends on
+   both over gRPC. This supersedes the order in ADR 0002.
+2. **A flip is one setting:** `ReverseProxy__Clusters__<ctx>__Destinations__monolith__Address` on the gateway,
+   applied by `deployments/scripts/route-flip.sh` (compose: git-ignored `.cutover.env` + recreate only the gateway;
+   Kubernetes: `kubectl set env deploy/gateway` + `rollout status`), with `--dry-run`, a post-flip `/health` check and
+   an authenticated smoke request. **Rollback is the same command with `monolith`.**
+3. **Two-phase data move:** flip routes while the service still uses the monolith's module store (instant, lossless
+   rollback; ADR 0013 switch keeps exactly one background processor), then separate data per context after burn-in,
+   draining the outbox/inbox first and copying in a write freeze.
+4. **Observability for the window:** opt-in `X-Gateway-Upstream` response header (`UpstreamHeaderOptions:Enabled`,
+   default off because it leaks internal host names) plus YARP's per-request `Proxying to` log line.
+5. **Decommission** of `src/Api`, its CI/compose/Aspire wiring and the gateway `monolith` cluster happens only after
+   all four contexts have burned in, as the checklist in `docs/migration/cutover-runbook.md`. It is not done in AB-248.
+
+## Consequences
+
+- Each flip is reversible in one gateway restart; rehearsed locally with `deployments/scripts/validate-rollback.sh`
+  against `docker-compose.services.yaml` + `docker-compose.cutover.yaml`.
+- The monolith must keep running (and stay deployable) until decommission; the cut-over overlay runs it with Flight
+  background processing on and Identity/Passenger/Booking off.
+- Flight's service database diverges from the monolith's once the route is on the service; a rollback after Flight
+  writes needs the reverse copy described in the runbook, or Flight must use the shared store during Phase A.
+- Identity rollback requires both identity processes to share signing keys; this is a pre-flight check.
+- YARP's built-in load balancers are not weighted, so weighted canaries use repeated destinations or a custom policy;
+  header-based dark launch is the recommended canary.
