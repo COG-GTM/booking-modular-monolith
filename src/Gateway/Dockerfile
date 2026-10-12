@@ -7,23 +7,10 @@ COPY .editorconfig .
 COPY global.json .
 COPY Directory.Build.props .
 
-# Copy project files first (better Docker layer caching)
-COPY src/BuildingBlocks/BuildingBlocks.csproj src/BuildingBlocks/
-COPY src/Aspire/src/ServiceDefaults/ServiceDefaults.csproj src/Aspire/src/ServiceDefaults/
-COPY src/Gateway/src/Gateway.csproj src/Gateway/src/
+COPY src ./src
 
-# Restore packages
 RUN dotnet restore src/Gateway/src/Gateway.csproj
-
-# Copy everything else
-COPY src/BuildingBlocks ./src/BuildingBlocks
-COPY src/Aspire/src/ServiceDefaults ./src/Aspire/src/ServiceDefaults
-COPY src/Gateway ./src/Gateway
-
-# Build
 RUN dotnet build src/Gateway/src/Gateway.csproj -c Release --no-restore
-
-# Publish
 RUN dotnet publish src/Gateway/src/Gateway.csproj -c Release --no-build -o /app/publish
 
 # Runtime image

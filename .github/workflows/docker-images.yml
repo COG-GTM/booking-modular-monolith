@@ -1,0 +1,32 @@
+name: Docker images
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-images:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dockerfile:
+          - src/Api/Dockerfile
+          - src/Gateway/Dockerfile
+          - src/Services/Identity/Dockerfile
+          - src/Services/Flight/Flight.Host/Dockerfile
+          - src/Services/Passenger.Host/Dockerfile
+          - src/Services/Booking/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.dockerfile }}
+        run: docker build -f ${{ matrix.dockerfile }} .
+
+  validate-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate monolith compose
+        run: docker compose -f deployments/docker-compose/docker-compose.yaml config -q
+      - name: Validate multi-service compose
+        run: docker compose -f deployments/docker-compose/docker-compose.services.yaml config -q

@@ -19,6 +19,6 @@ COPY --from=builder /app/publish .
 ENV ASPNETCORE_URLS=http://+:80
 ENV ASPNETCORE_ENVIRONMENT=docker
 
-EXPOSE 80 443
+EXPOSE 80 81
 
 ENTRYPOINT ["dotnet", "Flight.Host.dll"]
