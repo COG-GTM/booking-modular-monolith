@@ -1,7 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Api;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
+using Grpc.Core;
 using Integration.Test.Fakes;
 using Passenger;
 using Passenger.Data;
@@ -52,5 +56,39 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         // Assert
         response?.Should().NotBeNull();
         response?.PassengerDto?.Id.Should().Be(command.Id.ToString());
+    }
+
+    [Fact]
+    public async Task should_reject_unauthenticated_grpc_get_passenger_by_id()
+    {
+        // Arrange
+        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(Fixture.AnonymousChannel);
+
+        // Act
+        var act = async () => await passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = Guid.NewGuid().ToString() });
+
+        // Assert
+        var exception = await act.Should().ThrowAsync<RpcException>();
+        exception.Which.StatusCode.Should().Be(StatusCode.Unauthenticated);
+    }
+
+    [Fact]
+    public async Task should_reject_grpc_get_passenger_by_id_when_token_lacks_api_scope()
+    {
+        // Arrange
+        var claimsWithoutScope = new Dictionary<string, object>
+        {
+            { ClaimTypes.Name, "test@sample.com" },
+            { ClaimTypes.Role, "admin" },
+        };
+
+        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(Fixture.CreateChannel(claimsWithoutScope));
+
+        // Act
+        var act = async () => await passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = Guid.NewGuid().ToString() });
+
+        // Assert
+        var exception = await act.Should().ThrowAsync<RpcException>();
+        exception.Which.StatusCode.Should().Be(StatusCode.PermissionDenied);
     }
 }
