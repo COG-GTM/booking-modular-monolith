@@ -1,0 +1,39 @@
+{{- range $name, $raw := .Values.services }}
+{{- if $raw.enabled }}
+{{- $svc := include "booking.serviceConfig" (dict "root" $ "svc" $raw) | fromYaml }}
+{{- if $svc.autoscaling.enabled }}
+{{- $ctx := dict "root" $ "name" $name "svc" $svc }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "booking.labels" $ctx | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $name }}
+  minReplicas: {{ $svc.autoscaling.minReplicas }}
+  maxReplicas: {{ $svc.autoscaling.maxReplicas }}
+  metrics:
+    {{- with $svc.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ . }}
+    {{- end }}
+    {{- with $svc.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ . }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

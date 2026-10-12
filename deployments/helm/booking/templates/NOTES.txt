@@ -1,0 +1,16 @@
+booking {{ .Chart.Version }} installed into namespace {{ .Release.Namespace }}.
+
+Services (ClusterIP, compose-compatible DNS names):
+{{- range $name, $svc := .Values.services }}{{ if $svc.enabled }}
+  - {{ $name }}{{ range $svc.ports }} {{ .name }}:{{ .servicePort | default .containerPort }}{{ end }}
+{{- end }}{{ end }}
+{{- if .Values.ingress.enabled }}
+
+Public entry point (ingress -> {{ .Values.ingress.service }}): {{ .Values.global.publicUrl }}
+Token:
+  curl -s {{ .Values.global.publicUrl }}/connect/token -d grant_type=password -d client_id=client \
+    -d client_secret=secret -d username=samh -d password=Admin@123456 \
+    --data-urlencode "scope=booking-modular-monolith role"
+{{- end }}
+
+Status: kubectl -n {{ .Release.Namespace }} get pods,svc,hpa,ingress

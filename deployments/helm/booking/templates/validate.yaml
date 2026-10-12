@@ -1,0 +1,18 @@
+{{- range $name, $raw := .Values.services }}
+{{- if $raw.enabled }}
+{{- $svc := include "booking.serviceConfig" (dict "root" $ "svc" $raw) | fromYaml }}
+{{- if and $.Values.global.requireExistingSecrets (not $svc.existingSecret) }}
+{{- fail (printf "services.%s.existingSecret is required when global.requireExistingSecrets=true" $name) }}
+{{- end }}
+{{- if eq $name "identity-service" }}
+{{- $signing := $svc.signingKey | default dict }}
+{{- if and (not $signing.existingSecret) (or (gt (int $svc.replicaCount) 1) $svc.autoscaling.enabled) }}
+{{- fail "services.identity-service.signingKey.existingSecret is required when identity-service replicaCount > 1 or autoscaling.enabled: each replica would otherwise generate its own tempkey.jwk and reject the others' tokens" }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- $ingressSvc := index .Values.services .Values.ingress.service | default dict }}
+{{- if and .Values.ingress.enabled (not $ingressSvc.enabled) }}
+{{- fail (printf "ingress.service %q is not an enabled entry under services" .Values.ingress.service) }}
+{{- end }}

@@ -1,0 +1,89 @@
+# Production overlay: managed Postgres/MongoDB/RabbitMQ/EventStoreDB, every credential from a pre-created
+# Secret, TLS at the ingress. Replace the placeholders (registry, host, secret names) for your environment.
+global:
+  image:
+    registry: ghcr.io/cog-gtm/booking-modular-monolith
+    tag: ""  # set with --set global.image.tag=<git-sha>
+    pullPolicy: IfNotPresent
+  publicUrl: https://booking.example.com
+  requireExistingSecrets: true
+  aspnetcoreEnvironment: docker
+  env:
+    # Pod CIDR (or ingress controller subnet) of the cluster, so X-Forwarded-For from the ingress is trusted.
+    TrustedProxyOptions__KnownNetworks__0: 10.0.0.0/8
+    ObservabilityOptions__UseOTLPExporter: "true"
+    ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector.observability:4317
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
+      add: [NET_BIND_SERVICE]
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: booking
+
+defaults:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+# Each existingSecret must contain the same keys as that service's `secretEnv` in values.yaml, e.g.
+#   kubectl -n booking create secret generic identity-service-secret \
+#     --from-literal=PostgresOptions__ConnectionString__Identity='Server=...;Database=identity_modular_monolith;User Id=identity;Password=...;SSL Mode=Require' \
+#     --from-literal=RabbitMqOptions__UserName=... --from-literal=RabbitMqOptions__Password=...
+services:
+  gateway:
+    image: {repository: gateway}
+    existingSecret: gateway-secret
+  identity-service:
+    image: {repository: identity-service}
+    existingSecret: identity-service-secret
+    signingKey:
+      existingSecret: identity-signing-key
+    env:
+      RabbitMqOptions__HostName: rabbitmq.example.internal
+  flight-service:
+    image: {repository: flight-service}
+    existingSecret: flight-service-secret
+    env:
+      RabbitMqOptions__HostName: rabbitmq.example.internal
+  passenger-service:
+    image: {repository: passenger-service}
+    existingSecret: passenger-service-secret
+    env:
+      RabbitMqOptions__HostName: rabbitmq.example.internal
+  booking-service:
+    image: {repository: booking-service}
+    existingSecret: booking-service-secret
+    env:
+      RabbitMqOptions__HostName: rabbitmq.example.internal
+
+ingress:
+  enabled: true
+  className: nginx
+  host: booking.example.com
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  tls:
+    - secretName: booking-gateway-tls
+      hosts: [booking.example.com]
+
+infrastructure:
+  enabled: false

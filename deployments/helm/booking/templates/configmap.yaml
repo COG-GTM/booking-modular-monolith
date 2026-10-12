@@ -1,0 +1,16 @@
+{{- range $name, $raw := .Values.services }}
+{{- if $raw.enabled }}
+{{- $ctx := dict "root" $ "name" $name "svc" $raw }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "booking.configMapName" $ctx }}
+  labels:
+    {{- include "booking.labels" $ctx | nindent 4 }}
+data:
+  {{- range $k, $v := (include "booking.env" $ctx | fromYaml) }}
+  {{ $k }}: {{ $v | toString | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}
