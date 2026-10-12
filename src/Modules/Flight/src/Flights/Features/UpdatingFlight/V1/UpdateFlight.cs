@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Aircrafts.ValueObjects;
 using Ardalis.GuardClauses;
 using BuildingBlocks.Caching;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
@@ -13,7 +14,6 @@ using Data;
 using Duende.IdentityServer.EntityFramework.Entities;
 using Exceptions;
 using Flight.Airports.ValueObjects;
-using Flight.Flights.Features.CreatingFlight.V1;
 using FluentValidation;
 using MapsterMapper;
 using MediatR;
@@ -56,7 +56,7 @@ public class UpdateFlightEndpoint : IMinimalEndpoint
 
                 return Results.NoContent();
             })
-            .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(nameof(ApiScope), IdentityConstant.Role.Admin)
             .WithName("UpdateFlight")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces(StatusCodes.Status204NoContent)
@@ -70,7 +70,7 @@ public class UpdateFlightEndpoint : IMinimalEndpoint
     }
 }
 
-public class UpdateFlightValidator : AbstractValidator<CreateFlight>
+public class UpdateFlightValidator : AbstractValidator<UpdateFlight>
 {
     public UpdateFlightValidator()
     {
@@ -83,6 +83,7 @@ public class UpdateFlightValidator : AbstractValidator<CreateFlight>
                                          p == Enums.FlightStatus.Completed)
             .WithMessage("Status must be Flying, Delay, Canceled or Completed");
 
+        RuleFor(x => x.Id).NotEmpty().WithMessage("Id must be not empty");
         RuleFor(x => x.AircraftId).NotEmpty().WithMessage("AircraftId must be not empty");
         RuleFor(x => x.DepartureAirportId).NotEmpty().WithMessage("DepartureAirportId must be not empty");
         RuleFor(x => x.ArriveAirportId).NotEmpty().WithMessage("ArriveAirportId must be not empty");
