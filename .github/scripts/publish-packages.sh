@@ -36,6 +36,19 @@ if [ -n "${BASE_REF:-}" ]; then
   changed_files=$(git diff --name-only "${BASE_REF}...HEAD" || true)
 fi
 
+# True when the project's directory or any Directory.*.props on its path to the repo root changed.
+sources_changed() {
+  [ -n "$changed_files" ] || return 1
+  local dir
+  dir="$(dirname "$1")"
+  grep -q "^${dir}/" <<<"$changed_files" && return 0
+  while :; do
+    grep -qE "^(${dir}/)?Directory\.[^/]+\.props$" <<<"$changed_files" && return 0
+    [ "$dir" = "." ] && return 1
+    dir="$(dirname "$dir")"
+  done
+}
+
 to_pack=()
 summary="| Package | Version | Feed | Action |\n|---|---|---|---|\n"
 for p in "${projects[@]}"; do
@@ -58,8 +71,7 @@ for p in "${projects[@]}"; do
 
   if grep -qxF "${version,,}" <<<"$published"; then
     action="up to date"
-    project_dir="$(dirname "$p")/"
-    if [ -n "$changed_files" ] && grep -q "^${project_dir}" <<<"$changed_files"; then
+    if sources_changed "$p"; then
       echo "::warning file=$p::$id sources changed but $version is already published; bump the version to publish it"
       action="changed, version not bumped"
     fi
@@ -73,14 +85,18 @@ for p in "${projects[@]}"; do
   echo "$id $version -> $action"
 done
 
+# Pack into a fresh directory so only this run's packages are pushed, then copy them to OUTPUT_DIR.
 mkdir -p "$OUTPUT_DIR"
+pack_dir=$(mktemp -d)
+trap 'rm -rf "$pack_dir"' EXIT
 for p in "${to_pack[@]}"; do
-  dotnet pack "$p" -c Release -o "$OUTPUT_DIR" -p:ContinuousIntegrationBuild=true
+  dotnet pack "$p" -c Release -o "$pack_dir" -p:ContinuousIntegrationBuild=true
 done
+shopt -s nullglob
+packages=("$pack_dir"/*.nupkg)
+if [ ${#packages[@]} -gt 0 ]; then cp "${packages[@]}" "$OUTPUT_DIR"/; fi
 
 if [ "$PUBLISH" = "true" ]; then
-  shopt -s nullglob
-  packages=("$OUTPUT_DIR"/*.nupkg)
   if [ ${#packages[@]} -eq 0 ]; then
     echo "No package version bumps; nothing to publish."
   else

@@ -26,7 +26,7 @@ A service pipeline runs when any of these change:
 
 | Service | Own paths | Shared inputs (all services) |
 | --- | --- | --- |
-| gateway | `src/Gateway/**` (includes `src/Gateway/Dockerfile`) | `src/BuildingBlocks/**`, `src/Contracts.Grpc/**`, `src/Contracts.Messages/**`, `src/Aspire/src/ServiceDefaults/**`, `Directory.*.props`, `global.json`, `.editorconfig`, `.github/actions/**`, `.github/workflows/_service-pipeline.yml`, its own `service-<name>.yml` |
+| gateway | `src/Gateway/**` (includes `src/Gateway/Dockerfile`) | `src/BuildingBlocks/**`, `src/Contracts.Grpc/**`, `src/Contracts.Messages/**`, `src/Aspire/src/ServiceDefaults/**`, `Directory.*.props`, `global.json`, `.dockerignore`, `.editorconfig`, `.github/actions/**`, `.github/workflows/_service-pipeline.yml`, its own `service-<name>.yml` |
 | identity | `src/Services/Identity/**`, `src/Modules/Identity/**` | ↑ |
 | flight | `src/Services/Flight/**`, `src/Modules/Flight/**` | ↑ |
 | passenger | `src/Services/Passenger.Host/**`, `src/Modules/Passenger/**` | ↑ |
@@ -80,7 +80,7 @@ project's `PackageVersion` (`dotnet msbuild -getProperty`), asks the feed (NuGet
 there yet. Unchanged versions are skipped (and `--skip-duplicate` guards against races), so a
 version bump is the only way to publish. On pull requests the workflow is a dry run: it packs every
 package (to catch packaging errors), pushes nothing, uploads the `.nupkg` files as an artifact, and
-emits a warning for any package whose sources changed in the PR without a version bump.
+emits a warning for any package whose sources changed in the PR without a version bump (a change to its project directory or to any `Directory.*.props` between it and the repo root counts).
 
 Consuming the feed requires a token with `read:packages`, e.g.:
 
