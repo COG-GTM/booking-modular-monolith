@@ -251,7 +251,16 @@ The Identity module no longer ships with a hardcoded IdentityServer client secre
 | `AuthOptions:SigningCertificatePath` / `AuthOptions:SigningCertificatePassword` | PKCS#12 certificate used to sign tokens. Required in every environment except `Development` (and the `test` environment used by integration tests), which fall back to a temporary developer signing key. |
 | `AuthOptions:SeedDefaultUsers`, `AuthOptions:SeedAdminPassword`, `AuthOptions:SeedUserPassword` | Opt-in seeding of the sample `samh` (admin) and `samh2` (user) accounts. Seeding only ever runs in the `Development` environment. |
 
-`appsettings.Development.json` contains development-only defaults so `dotnet run` works out of the box. For Docker Compose and real deployments, provide the values via environment variables (`AUTH_CLIENT_SECRET`, `AUTH_SIGNING_CERT_PATH`, `AUTH_SIGNING_CERT_PASSWORD` in `deployments/docker-compose/docker-compose.yaml`) or a secret store.
+No secret value is committed to the repository, not even for development. `appsettings.Development.json` only enables `SeedDefaultUsers`; supply the actual secrets locally with [user secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets) (never commit them):
+
+```bash
+cd src/Api/src
+dotnet user-secrets set "AuthOptions:ClientSecret" "<pick-a-random-secret>"
+dotnet user-secrets set "AuthOptions:SeedAdminPassword" "<admin-password>"
+dotnet user-secrets set "AuthOptions:SeedUserPassword" "<user-password>"
+```
+
+Without these the app still starts in `Development` only if `AuthOptions:ClientSecret` is set; seeding of the sample users is skipped (with a warning) when the seed passwords are missing. For Docker Compose and real deployments, provide the values via environment variables (`AUTH_CLIENT_SECRET`, `AUTH_SIGNING_CERT_PATH`, `AUTH_SIGNING_CERT_PASSWORD` in `deployments/docker-compose/docker-compose.yaml`) or a secret store.
 
 > ### Documentation Apis
 
