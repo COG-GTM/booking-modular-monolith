@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Claims;
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Core.Model;
 using BuildingBlocks.EFCore;
@@ -54,21 +55,20 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
     public PersistMessageBackgroundService PersistMessageBackgroundService =>
         ServiceProvider.GetRequiredService<PersistMessageBackgroundService>();
 
-    public HttpClient HttpClient
-    {
-        get
-        {
-            var claims = new Dictionary<string, object>
-            {
-                { ClaimTypes.Name, "test@sample.com" },
-                { ClaimTypes.Role, "admin" },
-                { "scope", "flight-api" },
-            };
+    public HttpClient HttpClient => CreateHttpClient(IdentityConstant.Role.Admin);
 
-            var httpClient = _factory.CreateClient();
-            httpClient.SetFakeBearerToken(claims); // Uses FakeJwtBearer
-            return httpClient;
-        }
+    public HttpClient CreateHttpClient(string role)
+    {
+        var claims = new Dictionary<string, object>
+        {
+            { ClaimTypes.Name, "test@sample.com" },
+            { ClaimTypes.Role, role },
+            { "scope", "flight-api" },
+        };
+
+        var httpClient = _factory.CreateClient();
+        httpClient.SetFakeBearerToken(claims); // Uses FakeJwtBearer
+        return httpClient;
     }
 
     public GrpcChannel Channel =>
@@ -124,6 +124,22 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
                             policy.AddAuthenticationSchemes(FakeJwtBearerDefaults.AuthenticationScheme);
                             policy.RequireAuthenticatedUser();
                             policy.RequireClaim("scope", "flight-api"); // Test-specific scope
+                        }
+                    );
+                    options.AddPolicy(
+                        IdentityConstant.Role.Admin,
+                        policy =>
+                        {
+                            policy.AddAuthenticationSchemes(FakeJwtBearerDefaults.AuthenticationScheme);
+                            policy.RequireRole(IdentityConstant.Role.Admin);
+                        }
+                    );
+                    options.AddPolicy(
+                        IdentityConstant.Role.User,
+                        policy =>
+                        {
+                            policy.AddAuthenticationSchemes(FakeJwtBearerDefaults.AuthenticationScheme);
+                            policy.RequireRole(IdentityConstant.Role.User);
                         }
                     );
                 });
