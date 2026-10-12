@@ -1,0 +1,111 @@
+{
+  "messages": {
+    "BuildingBlocks.Contracts.EventBus.Messages.FlightCreated": {
+      "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:FlightCreated",
+      "properties": {
+        "Id": {
+          "type": "System.Guid",
+          "nullability": "NotNull"
+        }
+      }
+    },
+    "BuildingBlocks.Contracts.EventBus.Messages.FlightUpdated": {
+      "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:FlightUpdated",
+      "properties": {
+        "Id": {
+          "type": "System.Guid",
+          "nullability": "NotNull"
+        }
+      }
+    },
+    "BuildingBlocks.Contracts.EventBus.Messages.FlightDeleted": {
+      "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:FlightDeleted",
+      "properties": {
+        "Id": {
+          "type": "System.Guid",
+          "nullability": "NotNull"
+        }
+      }
+    },
+    "BuildingBlocks.Contracts.EventBus.Messages.AircraftCreated": {
+      "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:AircraftCreated",
+      "properties": {
+        "Id": {
+          "type": "System.Guid",
+          "nullability": "NotNull"
+        }
+      }
+    },
+    "BuildingBlocks.Contracts.EventBus.Messages.AirportCreated": {
+      "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:AirportCreated",
+      "properties": {
+        "Id": {
+          "type": "System.Guid",
+          "nullability": "NotNull"
+        }
+      }
+    },
+    "BuildingBlocks.Contracts.EventBus.Messages.SeatCreated": {
+      "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:SeatCreated",
+      "properties": {
+        "Id": {
+          "type": "System.Guid",
+          "nullability": "NotNull"
+        }
+      }
+    },
+    "BuildingBlocks.Contracts.EventBus.Messages.SeatReserved": {
+      "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:SeatReserved",
+      "properties": {
+        "Id": {
+          "type": "System.Guid",
+          "nullability": "NotNull"
+        }
+      }
+    },
+    "BuildingBlocks.Contracts.EventBus.Messages.UserCreated": {
+      "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:UserCreated",
+      "properties": {
+        "Id": {
+          "type": "System.Guid",
+          "nullability": "NotNull"
+        },
+        "Name": {
+          "type": "System.String",
+          "nullability": "NotNull"
+        },
+        "PassportNumber": {
+          "type": "System.String",
+          "nullability": "NotNull"
+        }
+      }
+    },
+    "BuildingBlocks.Contracts.EventBus.Messages.PassengerRegistrationCompleted": {
+      "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:PassengerRegistrationCompleted",
+      "properties": {
+        "Id": {
+          "type": "System.Guid",
+          "nullability": "NotNull"
+        }
+      }
+    },
+    "BuildingBlocks.Contracts.EventBus.Messages.PassengerCreated": {
+      "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:PassengerCreated",
+      "properties": {
+        "Id": {
+          "type": "System.Guid",
+          "nullability": "NotNull"
+        }
+      }
+    },
+    "BuildingBlocks.Contracts.EventBus.Messages.BookingCreated": {
+      "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:BookingCreated",
+      "properties": {
+        "Id": {
+          "type": "System.Guid",
+          "nullability": "NotNull"
+        }
+      }
+    }
+  }
+}

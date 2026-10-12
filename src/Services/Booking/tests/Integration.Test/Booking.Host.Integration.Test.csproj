@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Booking.Host.csproj" />
+    <ProjectReference Include="..\..\..\..\BuildingBlocks\TestBase\BuildingBlocks.TestBase.csproj" />
   </ItemGroup>
 
 </Project>
