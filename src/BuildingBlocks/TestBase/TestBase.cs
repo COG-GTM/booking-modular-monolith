@@ -86,6 +86,10 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
 
             builder.UseEnvironment("test");
 
+            // Read eagerly by AddCustomIdentityServer while Program.cs runs, before the deferred
+            // ConfigureAppConfiguration callbacks are applied, so it has to be a host setting.
+            builder.UseSetting("AuthOptions:ClientSecret", Guid.NewGuid().ToString("N"));
+
             builder.ConfigureServices(services =>
             {
                 TestRegistrationServices?.Invoke(services);

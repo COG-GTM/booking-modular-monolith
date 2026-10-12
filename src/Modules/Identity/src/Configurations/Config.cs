@@ -1,3 +1,4 @@
+using System;
 using Duende.IdentityServer;
 using Duende.IdentityServer.Models;
 using Identity.Identity.Constants;
@@ -12,9 +13,8 @@ public static class Config
         {
             new IdentityResources.OpenId(),
             new IdentityResources.Profile(),
-            new IdentityResources.Email()
+            new IdentityResources.Email(),
         };
-
 
     public static IEnumerable<ApiScope> ApiScopes =>
         new List<ApiScope>
@@ -24,46 +24,46 @@ public static class Config
             new(Constants.StandardScopes.BookingApi),
             new(Constants.StandardScopes.IdentityApi),
             new(Constants.StandardScopes.BookingModularMonolith),
-            new(JwtClaimTypes.Role, new List<string> {"role"})
+            new(JwtClaimTypes.Role, new List<string> { "role" }),
         };
-
 
     public static IList<ApiResource> ApiResources =>
         new List<ApiResource>
         {
-            new(Constants.StandardScopes.FlightApi)
-            {
-                Scopes = { Constants.StandardScopes.FlightApi }
-            },
-            new(Constants.StandardScopes.PassengerApi)
-            {
-                Scopes = { Constants.StandardScopes.PassengerApi }
-            },
-            new(Constants.StandardScopes.BookingApi)
-            {
-                Scopes = { Constants.StandardScopes.BookingApi }
-            },
-            new(Constants.StandardScopes.IdentityApi)
-            {
-                Scopes = { Constants.StandardScopes.IdentityApi }
-            },
+            new(Constants.StandardScopes.FlightApi) { Scopes = { Constants.StandardScopes.FlightApi } },
+            new(Constants.StandardScopes.PassengerApi) { Scopes = { Constants.StandardScopes.PassengerApi } },
+            new(Constants.StandardScopes.BookingApi) { Scopes = { Constants.StandardScopes.BookingApi } },
+            new(Constants.StandardScopes.IdentityApi) { Scopes = { Constants.StandardScopes.IdentityApi } },
             new(Constants.StandardScopes.BookingModularMonolith)
             {
-                Scopes = { Constants.StandardScopes.BookingModularMonolith }
+                Scopes = { Constants.StandardScopes.BookingModularMonolith },
             },
         };
 
-    public static IEnumerable<Client> Clients =>
-        new List<Client>
+    public static IEnumerable<Client> GetClients(AuthOptions authOptions)
+    {
+        if (string.IsNullOrWhiteSpace(authOptions.ClientId))
+        {
+            throw new InvalidOperationException(
+                $"{nameof(AuthOptions)}:{nameof(AuthOptions.ClientId)} must be configured."
+            );
+        }
+
+        if (string.IsNullOrWhiteSpace(authOptions.ClientSecret))
+        {
+            throw new InvalidOperationException(
+                $"{nameof(AuthOptions)}:{nameof(AuthOptions.ClientSecret)} must be configured (e.g. via environment variable or a secret store). "
+                    + "Refusing to start IdentityServer with no client secret."
+            );
+        }
+
+        return new List<Client>
         {
             new()
             {
-                ClientId = "client",
+                ClientId = authOptions.ClientId,
                 AllowedGrantTypes = GrantTypes.ResourceOwnerPassword,
-                ClientSecrets =
-                {
-                    new Secret("secret".Sha256())
-                },
+                ClientSecrets = { new Secret(authOptions.ClientSecret.Sha256()) },
                 AllowedScopes =
                 {
                     IdentityServerConstants.StandardScopes.OpenId,
@@ -75,9 +75,10 @@ public static class Config
                     Constants.StandardScopes.IdentityApi,
                     Constants.StandardScopes.BookingModularMonolith,
                 },
-                AccessTokenLifetime = 3600,  // authorize the client to access protected resources
+                AccessTokenLifetime = 3600, // authorize the client to access protected resources
                 IdentityTokenLifetime = 3600, // authenticate the user,
-                AlwaysIncludeUserClaimsInIdToken = true // Include claims in ID token
-            }
+                AlwaysIncludeUserClaimsInIdToken = true, // Include claims in ID token
+            },
         };
+    }
 }

@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
+    <UserSecretsId>booking-modular-monolith-api</UserSecretsId>
     <RootNamespace>Api</RootNamespace>
   </PropertyGroup>
   <ItemGroup>

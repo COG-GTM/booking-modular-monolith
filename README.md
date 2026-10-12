@@ -241,6 +241,27 @@ To `test` all modules, run this command in the `root` of the project:
 dotnet test
 ```
 
+> ### Authentication configuration
+
+The Identity module no longer ships with a hardcoded IdentityServer client secret, default user passwords or a committed signing key. These values come from the `AuthOptions` configuration section (environment variables use the `AuthOptions__<Name>` form):
+
+| Setting | Purpose |
+| --- | --- |
+| `AuthOptions:ClientId` / `AuthOptions:ClientSecret` | Credentials of the resource-owner-password client used at `/connect/token`. The app refuses to start when `ClientSecret` is empty. |
+| `AuthOptions:SigningCertificatePath` / `AuthOptions:SigningCertificatePassword` | PKCS#12 certificate used to sign tokens. Required in every environment except `Development` (and the `test` environment used by integration tests), which fall back to a temporary developer signing key. |
+| `AuthOptions:SeedDefaultUsers`, `AuthOptions:SeedAdminPassword`, `AuthOptions:SeedUserPassword` | Opt-in seeding of the sample `samh` (admin) and `samh2` (user) accounts. Seeding only ever runs in the `Development` environment. |
+
+No secret value is committed to the repository, not even for development. `appsettings.Development.json` only enables `SeedDefaultUsers`; supply the actual secrets locally with [user secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets) (never commit them):
+
+```bash
+cd src/Api/src
+dotnet user-secrets set "AuthOptions:ClientSecret" "<pick-a-random-secret>"
+dotnet user-secrets set "AuthOptions:SeedAdminPassword" "<admin-password>"
+dotnet user-secrets set "AuthOptions:SeedUserPassword" "<user-password>"
+```
+
+Without these the app still starts in `Development` only if `AuthOptions:ClientSecret` is set; seeding of the sample users is skipped (with a warning) when the seed passwords are missing. For Docker Compose and real deployments, provide the values via environment variables (`AUTH_CLIENT_SECRET`, `AUTH_SIGNING_CERT_PATH`, `AUTH_SIGNING_CERT_PASSWORD` in `deployments/docker-compose/docker-compose.yaml`) or a secret store.
+
 > ### Documentation Apis
 
 For checking `API documentation`, navigate to `/swagger` for `Swagger OpenAPI` or `/scalar/v1` for `Scalar OpenAPI` to visit list of endpoints.
