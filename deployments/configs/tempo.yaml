@@ -14,13 +14,6 @@ distributor:
         grpc:
           endpoint: "tempo:4317"
 
-ingester:
-  max_block_duration: 5m               # cut the headblock when this much time passes. this is being set for demo purposes and should probably be left alone normally
-
-compactor:
-  compaction:
-    block_retention: 1h                # overall Tempo trace retention. set for demo purposes
-
 metrics_generator:
   registry:
     external_labels:
@@ -31,9 +24,14 @@ metrics_generator:
     remote_write:
       - url: http://prometheus:9090/api/v1/write
         send_exemplars: true
-  traces_storage:
-    path: /var/tempo/generator/traces
-
+backend_scheduler:
+  provider:
+    compaction:
+      compaction:
+        block_retention: 1h # overall Tempo trace retention. set for demo purposes
+backend_worker:
+  compaction:
+    block_retention: 1h
 storage:
   trace:
     backend: local                     # backend configuration to use
@@ -45,5 +43,5 @@ storage:
 overrides:
   defaults:
     metrics_generator:
-      processors: [service-graphs, span-metrics, local-blocks] # enables metrics generator
+      processors: [service-graphs, span-metrics] # enables metrics generator
       generate_native_histograms: both

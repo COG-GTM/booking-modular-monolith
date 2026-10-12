@@ -10,6 +10,7 @@ public class GatewayHealthProbeTests
     [Theory]
     [InlineData("/health")]
     [InlineData("/alive")]
+    [InlineData("/ready")]
     public async Task in_development_probes_are_mapped_once_by_service_defaults(string path)
     {
         using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>

@@ -150,7 +150,7 @@ public class BookingHostCompositionTests
             .ToList();
 
         routes.Should().Contain("api/v{version:apiVersion}/booking");
-        routes.Should().Contain(["/health", "/alive"]);
+        routes.Should().Contain(["/health", "/alive", "/ready"]);
         routes.Should().NotContain(r => r != null && (r.Contains("/flight") || r.Contains("/passenger") || r.Contains("/identity")));
     }
 

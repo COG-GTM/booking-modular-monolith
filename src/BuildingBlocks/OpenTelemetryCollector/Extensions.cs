@@ -31,6 +31,7 @@ public static class Extensions
 {
     private const string HealthEndpointPath = "/health";
     private const string AlivenessEndpointPath = "/alive";
+    private const string ReadinessEndpointPath = "/ready";
 
     public static WebApplicationBuilder AddCustomObservability(this WebApplicationBuilder builder)
     {
@@ -56,7 +57,7 @@ public static class Extensions
 
             resourceBuilder.AddService(
                 serviceName: observabilityOptions.ServiceName ?? builder.Environment.ApplicationName,
-                serviceVersion: Assembly.GetCallingAssembly().GetName().Version?.ToString() ?? "unknown",
+                serviceVersion: Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "unknown",
                 serviceInstanceId: Environment.MachineName
             );
         }
@@ -77,17 +78,6 @@ public static class Extensions
                 options.ParseStateValues = true;
                 // which means the message wouldn't have the placeholders replaced
                 options.IncludeFormattedMessage = true;
-
-                // add some metadata to exported logs
-                options.SetResourceBuilder(
-                    ResourceBuilder
-                        .CreateDefault()
-                        .AddService(
-                            observabilityOptions.ServiceName ?? builder.Environment.ApplicationName,
-                            serviceVersion: Assembly.GetCallingAssembly().GetName().Version?.ToString() ?? "unknown",
-                            serviceInstanceId: Environment.MachineName
-                        )
-                );
 
                 options.AddLoggingExporters(observabilityOptions);
             });
@@ -155,6 +145,9 @@ public static class Extensions
                                                    HealthEndpointPath, StringComparison.OrdinalIgnoreCase) ||
                                                httpContext.Request.Path.StartsWithSegments(
                                                    AlivenessEndpointPath, StringComparison.OrdinalIgnoreCase
+                                               ) ||
+                                               httpContext.Request.Path.StartsWithSegments(
+                                                   ReadinessEndpointPath, StringComparison.OrdinalIgnoreCase
                                                ));
                     })
                     .AddGrpcClientInstrumentation()
@@ -167,6 +160,8 @@ public static class Extensions
                     .AddNpgsql()
                     // `AddSource` for adding custom activity sources
                     .AddSource(observabilityOptions.InstrumentationName)
+                    .AddSource("BuildingBlocks.PersistMessageProcessor")
+                    .AddSource("Yarp.ReverseProxy")
                     // metrics provides by ASP.NET Core in .NET 8
                     .AddSource("Microsoft.AspNetCore.Hosting")
                     .AddSource("Microsoft.AspNetCore.Server.Kestrel");
@@ -178,7 +173,6 @@ public static class Extensions
         return builder;
     }
 
-
     public static WebApplication UseCustomObservability(this WebApplication app)
     {
         var options = app.Services.GetRequiredService<IOptions<ObservabilityOptions>>().Value;
@@ -187,7 +181,7 @@ public static class Extensions
             async (context, next) =>
             {
                 var metricsFeature = context.Features.Get<IHttpMetricsTagsFeature>();
-                if (metricsFeature != null && context.Request.Path is { Value: "/metrics" or "/health" })
+                if (metricsFeature != null && context.Request.Path is { Value: "/metrics" or "/health" or "/alive" or "/ready" })
                 {
                     metricsFeature.MetricsDisabled = true;
                 }
