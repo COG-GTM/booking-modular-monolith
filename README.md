@@ -241,6 +241,18 @@ To `test` all modules, run this command in the `root` of the project:
 dotnet test
 ```
 
+> ### Authentication configuration
+
+The Identity module no longer ships with a hardcoded IdentityServer client secret, default user passwords or a committed signing key. These values come from the `AuthOptions` configuration section (environment variables use the `AuthOptions__<Name>` form):
+
+| Setting | Purpose |
+| --- | --- |
+| `AuthOptions:ClientId` / `AuthOptions:ClientSecret` | Credentials of the resource-owner-password client used at `/connect/token`. The app refuses to start when `ClientSecret` is empty. |
+| `AuthOptions:SigningCertificatePath` / `AuthOptions:SigningCertificatePassword` | PKCS#12 certificate used to sign tokens. Required in every environment except `Development` (and the `test` environment used by integration tests), which fall back to a temporary developer signing key. |
+| `AuthOptions:SeedDefaultUsers`, `AuthOptions:SeedAdminPassword`, `AuthOptions:SeedUserPassword` | Opt-in seeding of the sample `samh` (admin) and `samh2` (user) accounts. Seeding only ever runs in the `Development` environment. |
+
+`appsettings.Development.json` contains development-only defaults so `dotnet run` works out of the box. For Docker Compose and real deployments, provide the values via environment variables (`AUTH_CLIENT_SECRET`, `AUTH_SIGNING_CERT_PATH`, `AUTH_SIGNING_CERT_PASSWORD` in `deployments/docker-compose/docker-compose.yaml`) or a secret store.
+
 > ### Documentation Apis
 
 For checking `API documentation`, navigate to `/swagger` for `Swagger OpenAPI` or `/scalar/v1` for `Scalar OpenAPI` to visit list of endpoints.
