@@ -7,6 +7,7 @@ using BuildingBlocks.OpenTelemetryCollector;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Figgle.Fonts;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 namespace Identity.Host.Extensions;
 
@@ -47,6 +48,7 @@ public static class ServiceInfrastructureExtensions
         var appOptions = app.Configuration.GetOptions<AppOptions>(nameof(AppOptions));
 
         app.UseCustomHealthCheck();
+        app.MapProbeHealthChecks();
         app.UseCustomObservability();
         app.UseCustomProblemDetails();
         app.UseCorrelationId();
@@ -57,6 +59,18 @@ public static class ServiceInfrastructureExtensions
         {
             app.UseAspnetOpenApi();
         }
+
+        return app;
+    }
+
+    // UseCustomHealthCheck only maps /health and /alive in Development; docker/k8s probe every environment.
+    private static WebApplication MapProbeHealthChecks(this WebApplication app)
+    {
+        if (app.Environment.IsDevelopment())
+            return app;
+
+        app.MapHealthChecks("/health");
+        app.MapHealthChecks("/alive", new HealthCheckOptions { Predicate = r => r.Tags.Contains("live") });
 
         return app;
     }
