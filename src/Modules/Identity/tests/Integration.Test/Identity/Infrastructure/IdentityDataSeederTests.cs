@@ -162,6 +162,12 @@ public class IdentityDataSeederTests
         (await harness.UserManager.GetRolesAsync(user)).Should().BeEmpty();
         (await harness.Context.Users.CountAsync()).Should().Be(1);
         harness.Events.Should().BeEmpty();
+        harness.Logger.Entries.Should().NotContain(e => e.Level == LogLevel.Error);
+        harness
+            .Logger.Entries.Should()
+            .ContainSingle(e => e.Level == LogLevel.Warning && e.Message.Contains("'samh'"))
+            .Which.Message.Should()
+            .Contain("unrelated account already uses that username");
     }
 
     [Fact]
