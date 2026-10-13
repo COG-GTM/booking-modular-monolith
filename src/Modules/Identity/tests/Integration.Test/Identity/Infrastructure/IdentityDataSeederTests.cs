@@ -141,6 +141,24 @@ public class IdentityDataSeederTests
     }
 
     [Fact]
+    public async Task should_assign_missing_role_to_existing_seeded_user_without_recreating_it()
+    {
+        await using var harness = await SeederHarness.CreateAsync(
+            new IdentitySeedOptions { AdminPassword = AdminPassword }
+        );
+        var stranded = InitialData.Users.First();
+        (await harness.UserManager.CreateAsync(stranded, AdminPassword)).Succeeded.Should().BeTrue();
+
+        await harness.Seeder.SeedAllAsync();
+
+        var admin = await harness.UserManager.FindByNameAsync("samh");
+        admin!.Id.Should().Be(stranded.Id);
+        (await harness.UserManager.GetRolesAsync(admin)).Should().BeEquivalentTo(IdentityConstant.Role.Admin);
+        harness.Events.Should().BeEmpty();
+        harness.Logger.Entries.Should().NotContain(e => e.Level == LogLevel.Error);
+    }
+
+    [Fact]
     public async Task should_seed_both_users_with_their_roles_when_both_passwords_are_configured()
     {
         await using var harness = await SeederHarness.CreateAsync(

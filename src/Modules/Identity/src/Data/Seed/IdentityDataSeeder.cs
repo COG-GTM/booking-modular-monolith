@@ -106,8 +106,10 @@ public class IdentityDataSeeder : IDataSeeder
             return;
         }
 
-        if (await _userManager.FindByNameAsync(user.UserName!) != null)
+        var existing = await _userManager.FindByNameAsync(user.UserName!);
+        if (existing != null)
         {
+            await EnsureRole(existing, role);
             return;
         }
 
@@ -134,12 +136,39 @@ public class IdentityDataSeeder : IDataSeeder
                 user.UserName,
                 string.Join("; ", roleResult.Errors.Select(e => e.Description))
             );
-            await _userManager.DeleteAsync(user);
+            var deleteResult = await _userManager.DeleteAsync(user);
+            if (!deleteResult.Succeeded)
+            {
+                _logger.LogError(
+                    "Rolling back seeded user '{UserName}' failed; the role will be reconciled on the next run: {Errors}",
+                    user.UserName,
+                    string.Join("; ", deleteResult.Errors.Select(e => e.Description))
+                );
+            }
             return;
         }
 
         await _eventDispatcher.SendAsync(
             new UserCreated(user.Id, user.FirstName + " " + user.LastName, user.PassPortNumber)
         );
+    }
+
+    private async Task EnsureRole(User user, string role)
+    {
+        if (await _userManager.IsInRoleAsync(user, role))
+        {
+            return;
+        }
+
+        var result = await _userManager.AddToRoleAsync(user, role);
+        if (!result.Succeeded)
+        {
+            _logger.LogError(
+                "Assigning missing role '{Role}' to existing seeded user '{UserName}' failed: {Errors}",
+                role,
+                user.UserName,
+                string.Join("; ", result.Errors.Select(e => e.Description))
+            );
+        }
     }
 }
