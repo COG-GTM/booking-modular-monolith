@@ -1,0 +1,13 @@
+{
+  "consumer": "booking (Booking.Features.CreatingBook.V1.CreateBookingCommandHandler)",
+  "provider": "passenger",
+  "protoFile": "passenger.proto",
+  "rpcs": [
+    { "service": ".passenger.PassengerGrpcService", "method": "GetById", "input": ".passenger.GetByIdRequest", "output": ".passenger.GetPassengerByIdResult" }
+  ],
+  "fields": [
+    { "message": ".passenger.GetByIdRequest", "number": 1, "name": "Id", "type": "String" },
+    { "message": ".passenger.GetPassengerByIdResult", "number": 1, "name": "PassengerDto", "type": "Message", "typeName": ".passenger.PassengerResponse" },
+    { "message": ".passenger.PassengerResponse", "number": 2, "name": "Name", "type": "String" }
+  ]
+}

@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Microservices.EndToEnd.Test</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="EventStore.Client.Grpc.Streams" Version="23.3.9" />
+    <PackageReference Include="FluentAssertions" Version="8.8.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="Npgsql" Version="10.0.0" />
+    <PackageReference Include="Testcontainers.EventStoreDb" Version="4.9.0" />
+    <PackageReference Include="Testcontainers.MongoDb" Version="4.9.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.9.0" />
+    <PackageReference Include="Testcontainers.RabbitMq" Version="4.9.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- Build order only: the hosts run as separate processes from their own bin folders. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Services\Identity.Host\src\Identity.Host.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\Services\Flight.Host\src\Flight.Host.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\Services\Passenger.Host\src\Passenger.Host.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\Services\Booking.Host\src\Booking.Host.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\Gateway\src\Gateway.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>
