@@ -92,10 +92,10 @@ burn-in (default 7 days without rollback, error budget intact).
 
 1. **Service is healthy:** `GET http://<service>/ready` = 200 (checks its Postgres/Mongo/RabbitMQ/EventStore), and `GET /alive` = 200.
 2. **Gateway is healthy:** `GET http://gateway/health` = 200; `route-flip.sh status` shows the expected current state.
-3. **Tokens are interchangeable:** a token from `POST /connect/token` through the gateway is accepted by both the monolith and the service (call one endpoint on each directly with the same bearer token). For the identity flip also compare the signing keys: `curl -s http://identity-service/.well-known/openid-configuration/jwks` and the monolith's must contain the same `kid`, otherwise tokens issued by one are rejected by the other's validators after a rollback. `AuthOptions:SigningKeyPath` makes an Identity host load/persist its signing key from a given file (and store automatic key-management keys next to it): `docker-compose.cutover.yaml` points both hosts at `/keys/identity/tempkey.jwk` on the shared `identity-signing-keys` volume, and `validate-rollback.sh identity` fails if the two JWKS documents differ. In Kubernetes mount the same secret/PVC into both deployments (or move both to a shared Duende key store); the developer credential is a stop-gap for the cut-over window, not a production key.
+3. **Tokens are interchangeable:** a token from `POST /connect/token` through the gateway is accepted by both the monolith and the service (call one endpoint on each directly with the same bearer token). For the identity flip also compare the signing keys: `curl -s http://identity-service/.well-known/openid-configuration/jwks` and the monolith's must contain the same `kid`, otherwise tokens issued by one are rejected by the other's validators after a rollback. `AuthOptions:SigningKeyPath` makes an Identity host load/persist its signing key from a given file and turns off Duende's automatic key management (otherwise every host adds its own generated key and the JWKS differ). On the first start with the setting, a host whose target file does not exist yet copies the key it has been signing with (its content-root `tempkey.jwk`) to that path, so tokens issued before the switch keep validating — seed the shared location from the *currently active* issuer (start it first) and verify a pre-switch token afterwards: `docker-compose.cutover.yaml` points both hosts at `/keys/identity/tempkey.jwk` on the shared `identity-signing-keys` volume, and `validate-rollback.sh identity` fails if the two JWKS documents differ. In Kubernetes mount the same secret/PVC into both deployments (or move both to a shared Duende key store); the developer credential is a stop-gap for the cut-over window, not a production key.
 4. **Background-processing ownership (ADR 0013):** exactly one process runs each module's outbox/inbox poller, consumers and projections. Before flipping a context whose service shares the monolith's store, set `Modules__<Module>__BackgroundProcessingEnabled=false` on the monolith and restart it; the service keeps it `true`. Check the monolith's start-up warning (`Background processing is disabled for module <Module>`).
 5. **Outbox/inbox drained** in the store being handed over (section 4): `select count(*) from persist_message where message_status <> 'Processed'` (adjust to the module schema) is 0, or stable and owned by the process that will keep running.
-6. **Data backfilled and verified** for contexts with their own database (Flight today; section 4).
+6. **One store per context (Phase A)** or **data backfilled and verified** (Phase B, section 4) — never a service and the monolith writing different stores for the same context.
 7. **gRPC addressing for dependants:** Booking's `Services__flight__http__0` / `Services__passenger__http__0` point at the services (they already do in `docker-compose.services.yaml`).
 8. **Dashboards open:** gateway and target service (section 6). Announce the window; name the person who will run the rollback.
 9. **Dry run:** `route-flip.sh <ctx> service --dry-run` prints exactly the change you expect.
@@ -110,7 +110,7 @@ creates one role per module; a role owns only its module's databases):
 | identity | Postgres `identity_modular_monolith` | same database | **Shared store** – no data move at flip time |
 | passenger | Postgres `passenger_modular_monolith`, Mongo `passenger_modular_monolith_read` | same | **Shared store** |
 | booking | Postgres `booking_modular_monolith` (outbox/inbox), Mongo `booking_modular_monolith_read`, EventStoreDB streams | same | **Shared store** |
-| flight | Postgres `flight_modular_monolith`, Mongo `flight_modular_monolith_read` | Postgres `flight_service`, Mongo `flight_service_read` | **Separate store** – needs backfill |
+| flight | Postgres `flight_modular_monolith`, Mongo `flight_modular_monolith_read` | Postgres `flight_service`, Mongo `flight_service_read` by default; the cut-over overlay points flight-service at the monolith's stores | **Shared store in the overlay**; separate store = Phase B |
 
 Two-phase approach for every context:
 
@@ -118,10 +118,16 @@ Two-phase approach for every context:
 module database (same EF Core migrations: both hosts compose the same `src/Modules/<Module>`
 project) and the monolith's background processing for that module is switched off. A route flip
 in either direction then moves no data and loses no writes; rollback is instant. Identity,
-Passenger and Booking are already configured this way. For Flight, either point the service at
-`flight_modular_monolith` / `flight_modular_monolith_read` for the flip
-(`PostgresOptions__ConnectionString__Flight`, `MongoOptions__Flight__DatabaseName`) or run the
-Phase B backfill below *before* the flip.
+Passenger and Booking are already configured this way, and `docker-compose.cutover.yaml` does the
+same for Flight (`PostgresOptions__ConnectionString__Flight`, `MongoOptions__Flight__DatabaseName`
+→ `flight_modular_monolith` / `flight_modular_monolith_read`, monolith Flight background processing
+off). This matters beyond the flipped route itself: while Booking is still served by the monolith,
+its Booking module reserves seats through *its own* Flight module over gRPC (`Services__flight__http__0`
+→ `localhost:81` in the overlay), so Flight data written through flight-service and Flight data read
+by monolith Booking must be the same rows. Running Flight on a separate store before Booking has
+moved would make new flights invisible to monolith bookings. Do Phase B for Flight only after the
+Booking flip, or re-point the monolith's `Services__flight__http__0` at `flight-service:81` together
+with the Flight flip (and back on rollback).
 
 **Phase B – separate the data (after burn-in, per context).** Done in a short write freeze, after
 the route has been on the service long enough that rolling back to the monolith is no longer
@@ -256,13 +262,20 @@ Do **not** start until all four contexts have been on their services for the bur
 `route-flip.sh status` shows `service` for every context, and the `monolith` fallback cluster has
 served no traffic for 7 days (gateway `Proxying to http://booking_modular_monolith` = 0).
 
-**Step 1 — remove the running host** (`deployments/scripts/decommission-monolith.sh`): checks both
-preconditions (`--check-only` to just report; `--quiet-hours` defaults to 168), stops and removes the
-monolith host (compose: `stop` + `rm booking_modular_monolith`; `--target k8s`: scales the monolith
-deployment to 0), then smoke-tests all four contexts through the gateway with the monolith gone.
-After it the gateway's `monolith` fallback cluster has no live destination — the plain
-`docker-compose.services.yaml` topology. The host can be started again until Step 2 lands; keep the
-image and database backups for the retention period.
+**Step 1 — remove the running host** (`deployments/scripts/decommission-monolith.sh`). The script
+fails closed on missing evidence: every cluster must report `service`, the gateway container/pod
+must have been running for the whole quiet period (`--quiet-hours`, default 168) so its log can
+prove silence — after a recent gateway recreate use the aggregated log store instead
+(Loki: `{container="gateway"} |= "Proxying to http://booking_modular_monolith"` over the period) —
+and the log must be readable and contain zero `Proxying to http://booking_modular_monolith` lines
+(`--check-only` to just report). It then stops and removes the monolith host and, on compose,
+**recreates the gateway from `docker-compose.services.yaml` alone**, dropping the cut-over overlay
+(no monolith dependency, clusters fixed to the services); `--target k8s` scales the monolith
+deployment to 0. Finally it proves the gateway serves all four contexts with the monolith gone: one
+authenticated request per context must succeed and the gateway log must show it proxied to the
+service and nothing proxied to the monolith. From then on deploy with `docker-compose.services.yaml`
+only — the overlay would start the monolith again. The host can still be started by hand until
+Step 2 lands; keep the image and database backups for the retention period.
 
 ```bash
 deployments/scripts/decommission-monolith.sh --check-only

@@ -32,8 +32,8 @@ two token issuers; `X-Gateway-Upstream` restricted to authenticated callers). Th
 
 1. **Order:** Identity → Flight → Passenger → Booking. Identity first so the token issuer is the same process for
    every later flip and the publisher of Passenger's input moves before its consumer; Flight is a leaf (no outbound
-   gRPC) and the only context needing a data backfill; Passenger before Booking; Booking last because it depends on
-   both over gRPC. This supersedes the order in ADR 0002.
+   gRPC); Passenger before Booking; Booking last because it depends on both over gRPC. This supersedes the order in
+   ADR 0002.
 2. **A flip is one setting:** `ReverseProxy__Clusters__<ctx>__Destinations__monolith__Address` on the gateway,
    applied by `deployments/scripts/route-flip.sh` (compose: the project's git-ignored `.env`, so plain
    `docker compose up` preserves the flipped routes, + recreate only the gateway; Kubernetes:
@@ -41,8 +41,10 @@ two token issuers; `X-Gateway-Upstream` restricted to authenticated callers). Th
    authenticated smoke request that fails unless `X-Gateway-Upstream` names the expected destination.
    **Rollback is the same command with `monolith`.**
 3. **Two-phase data move:** flip routes while the service still uses the monolith's module store (instant, lossless
-   rollback; ADR 0013 switch keeps exactly one background processor), then separate data per context after burn-in,
-   draining the outbox/inbox first and copying in a write freeze.
+   rollback; ADR 0013 switch keeps exactly one background processor) — the cut-over overlay configures all four
+   contexts this way, Flight included, because the monolith's Booking module reads Flight over its in-process gRPC
+   and must see the rows flight-service writes — then separate data per context after burn-in (Flight only after
+   Booking has moved), draining the outbox/inbox first and copying in a write freeze.
 4. **Observability for the window:** opt-in `X-Gateway-Upstream` response header (`UpstreamHeaderOptions:Enabled`,
    default off because it leaks internal host names; when on, emitted only to authenticated callers,
    `AuthenticatedOnly` default true) plus YARP's per-request `Proxying to` log line.
@@ -50,8 +52,9 @@ two token issuers; `X-Gateway-Upstream` restricted to authenticated callers). Th
    points them at a shared key file/volume (compose) or secret (Kubernetes); `validate-rollback.sh identity`
    fails when their JWKS differ. A production key store replaces the developer credential before the identity flip.
 6. **Decommission** in two steps: `deployments/scripts/decommission-monolith.sh` removes the running monolith host
-   once every cluster is on its service and the gateway has proxied nothing to the monolith for the quiet period,
-   then verifies all four contexts through the gateway without it; deleting `src/Api`, its CI/compose/Aspire wiring
+   once every cluster is on its service and a gateway log covering the whole quiet period shows nothing proxied to
+   the monolith (fails closed if the log is unavailable or too young), recreates the gateway without the cut-over
+   overlay so a redeploy cannot restart the monolith, then verifies all four contexts through the gateway without it; deleting `src/Api`, its CI/compose/Aspire wiring
    and the gateway `monolith` cluster follows as the checklist in `docs/migration/cutover-runbook.md`, after
    production burn-in. The code removal is not done in AB-248.
 
@@ -61,8 +64,8 @@ two token issuers; `X-Gateway-Upstream` restricted to authenticated callers). Th
   against `docker-compose.services.yaml` + `docker-compose.cutover.yaml`.
 - The monolith must keep running (and stay deployable) until decommission; the cut-over overlay runs it with Flight
   background processing on and Identity/Passenger/Booking off.
-- Flight's service database diverges from the monolith's once the route is on the service; a rollback after Flight
-  writes needs the reverse copy described in the runbook, or Flight must use the shared store during Phase A.
+- flight-service's default configuration (own `flight_service` databases) must not be used while the monolith still
+  serves Booking; the overlay overrides it to the shared store, and Phase B for Flight follows the Booking flip.
 - Identity rollback requires both identity processes to share signing keys; enforced by `AuthOptions:SigningKeyPath`
   in the cut-over overlay and checked by `validate-rollback.sh identity` (pre-flight 3.3).
 - YARP's built-in load balancers are not weighted, so weighted canaries use repeated destinations or a custom policy;

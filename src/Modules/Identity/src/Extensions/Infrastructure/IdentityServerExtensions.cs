@@ -36,8 +36,10 @@ public static class IdentityServerExtensions
                 options.Events.RaiseFailureEvents = true;
                 options.Events.RaiseSuccessEvents = true;
                 options.IssuerUri = authOptions.IssuerUri;
+                // One shared key file means one key: automatic key management would otherwise create a
+                // per-host key next to it and the hosts' JWKS would differ.
                 if (!string.IsNullOrWhiteSpace(authOptions.SigningKeyPath))
-                    options.KeyManagement.KeyPath = Path.GetDirectoryName(Path.GetFullPath(authOptions.SigningKeyPath));
+                    options.KeyManagement.Enabled = false;
             })
             .AddInMemoryIdentityResources(Config.IdentityResources)
             .AddInMemoryApiResources(Config.ApiResources)
@@ -46,11 +48,15 @@ public static class IdentityServerExtensions
             .AddAspNetIdentity<User>()
             .AddResourceOwnerValidator<UserValidator>();
 
+        var defaultKeyFile = Path.Combine(builder.Environment.ContentRootPath, "tempkey.jwk");
+        var keyFile = string.IsNullOrWhiteSpace(authOptions.SigningKeyPath)
+            ? defaultKeyFile
+            : Path.GetFullPath(authOptions.SigningKeyPath);
+        if (keyFile != defaultKeyFile)
+            SeedSharedSigningKey(defaultKeyFile, keyFile);
+
         //ref: https://documentation.openiddict.com/configuration/encryption-and-signing-credentials.html
-        identityServerBuilder.AddDeveloperSigningCredential(
-            persistKey: true,
-            filename: string.IsNullOrWhiteSpace(authOptions.SigningKeyPath) ? null : authOptions.SigningKeyPath
-        );
+        identityServerBuilder.AddDeveloperSigningCredential(persistKey: true, filename: keyFile);
 
         builder.Services.ConfigureApplicationCookie(options =>
         {
@@ -68,5 +74,16 @@ public static class IdentityServerExtensions
         });
 
         return builder;
+    }
+
+    // First start with a shared key path: carry over the key this host was already signing with (its
+    // content-root tempkey.jwk) so tokens issued before the switch keep validating.
+    private static void SeedSharedSigningKey(string currentKeyFile, string sharedKeyFile)
+    {
+        if (File.Exists(sharedKeyFile) || !File.Exists(currentKeyFile))
+            return;
+
+        Directory.CreateDirectory(Path.GetDirectoryName(sharedKeyFile)!);
+        File.Copy(currentKeyFile, sharedKeyFile);
     }
 }

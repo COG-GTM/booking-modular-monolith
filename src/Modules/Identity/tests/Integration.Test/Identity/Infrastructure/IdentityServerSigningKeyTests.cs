@@ -30,12 +30,17 @@ public class IdentityServerSigningKeyTests : IDisposable
 
     // Like the cut-over compose overlay, the directory holding the key is provided by the host
     // (a shared volume); AddDeveloperSigningCredential only creates the file.
-    private static ServiceProvider BuildIdentityServer(string signingKeyPath)
+    // Each host gets its own content root (where the default tempkey.jwk lives) unless the test shares one.
+    private ServiceProvider BuildIdentityServer(string signingKeyPath, string contentRoot = null)
     {
         if (!string.IsNullOrWhiteSpace(signingKeyPath))
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(signingKeyPath))!);
+        contentRoot ??= Path.Combine(_directory, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
 
-        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "test" });
+        var builder = WebApplication.CreateBuilder(
+            new WebApplicationOptions { EnvironmentName = "test", ContentRootPath = contentRoot }
+        );
         builder.Configuration.Sources.Clear();
         builder.Configuration.AddInMemoryCollection(
             new Dictionary<string, string>
@@ -94,29 +99,60 @@ public class IdentityServerSigningKeyTests : IDisposable
     }
 
     [Fact]
-    public async Task automatic_key_management_keys_are_stored_next_to_the_signing_key_file()
+    public async Task automatic_key_management_is_turned_off_when_a_signing_key_path_is_set()
     {
         var keyFile = Path.Combine(_directory, "shared", "tempkey.jwk");
         await using var provider = BuildIdentityServer(keyFile);
 
         var options = provider.GetRequiredService<IdentityServerOptions>();
 
-        options.KeyManagement.KeyPath.Should().Be(Path.GetDirectoryName(Path.GetFullPath(keyFile)));
+        options.KeyManagement.Enabled.Should().BeFalse("a per-host generated key would make the hosts' JWKS differ");
+    }
+
+    [Fact]
+    public async Task first_start_with_a_signing_key_path_carries_over_the_host_s_existing_key()
+    {
+        var contentRoot = Path.Combine(_directory, "host");
+        var existing = Path.Combine(contentRoot, "tempkey.jwk");
+        await using (var before = BuildIdentityServer(null, contentRoot))
+            (await SigningKeyIdOf(before)).Should().NotBeNullOrEmpty();
+        File.Exists(existing).Should().BeTrue();
+        var previousKid = await SigningKeyIdOf(BuildIdentityServer(null, contentRoot));
+
+        var shared = Path.Combine(_directory, "shared", "tempkey.jwk");
+        await using var after = BuildIdentityServer(shared, contentRoot);
+
+        (await SigningKeyIdOf(after))
+            .Should()
+            .Be(previousKid, "the shared key file is seeded from the host's current key");
+        File.ReadAllText(shared).Should().Be(File.ReadAllText(existing));
+    }
+
+    [Fact]
+    public async Task an_existing_shared_key_is_not_overwritten_by_a_host_s_own_key()
+    {
+        var shared = Path.Combine(_directory, "shared", "tempkey.jwk");
+        var sharedKid = await SigningKeyIdOf(BuildIdentityServer(shared));
+        var contentRoot = Path.Combine(_directory, "host2");
+        await using (var own = BuildIdentityServer(null, contentRoot))
+            (await SigningKeyIdOf(own)).Should().NotBe(sharedKid);
+
+        await using var joined = BuildIdentityServer(shared, contentRoot);
+
+        (await SigningKeyIdOf(joined)).Should().Be(sharedKid);
     }
 
     [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public async Task without_a_signing_key_path_the_key_management_directory_is_left_at_its_default(
-        string signingKeyPath
-    )
+    public async Task without_a_signing_key_path_key_management_stays_enabled(string signingKeyPath)
     {
         await using var provider = BuildIdentityServer(signingKeyPath);
 
         var options = provider.GetRequiredService<IdentityServerOptions>();
 
-        options.KeyManagement.KeyPath.Should().Be(new KeyManagementOptions().KeyPath);
+        options.KeyManagement.Enabled.Should().BeTrue();
         options.IssuerUri.Should().Be("http://localhost:5000");
     }
 }

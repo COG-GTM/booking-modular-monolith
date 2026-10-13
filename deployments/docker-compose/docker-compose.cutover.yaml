@@ -11,14 +11,16 @@
 #
 # Token continuity: both Identity hosts (identity-service and the monolith) sign with the same key,
 # stored on the shared `identity-signing-keys` volume, so tokens issued before a flip stay valid
-# after it in either direction. In Kubernetes mount the same secret/PVC into both deployments.
+# after it in either direction. The first host to start seeds the volume with the key it was already
+# using. This is the developer credential for the local rehearsal only: in production mount one
+# secret/KMS-backed credential into both deployments; never a plain volume.
 #
-# Data ownership in this overlay (see the runbook's data section):
-# - identity/passenger/booking services already use the monolith's module stores, so the monolith
-#   turns its background processing off for them (ADR 0013): exactly one processor per store.
-# - flight-service uses its own flight_service database; the monolith keeps processing its own
-#   flight_modular_monolith outbox, so a flight flip moves traffic between two separate data sets
-#   until the backfill in the runbook has run.
+# Data ownership in this overlay = runbook Phase A for every context: each service uses the
+# monolith's module store (identity/passenger/booking do by default; flight-service is pointed at
+# flight_modular_monolith below) and the monolith turns its background processing off for all of
+# them (ADR 0013): exactly one processor per store, flips are lossless in both directions, and the
+# monolith's own Booking -> Flight/Passenger gRPC calls read the same rows the services serve.
+# Separating the data (Phase B, runbook section 4) happens per context after burn-in.
 
 services:
   booking_modular_monolith:
@@ -49,7 +51,7 @@ services:
       Modules__Identity__BackgroundProcessingEnabled: "false"
       Modules__Passenger__BackgroundProcessingEnabled: "false"
       Modules__Booking__BackgroundProcessingEnabled: "false"
-      Modules__Flight__BackgroundProcessingEnabled: "true"
+      Modules__Flight__BackgroundProcessingEnabled: "false"
       ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
       ObservabilityOptions__UseAspireOTLPExporter: "false"
     healthcheck:
@@ -87,6 +89,12 @@ services:
       AuthOptions__SigningKeyPath: /keys/identity/tempkey.jwk
     volumes:
       - identity-signing-keys:/keys/identity
+
+  flight-service:
+    environment:
+      # Phase A: serve the monolith's Flight store (default is the service's own flight_service DBs).
+      PostgresOptions__ConnectionString__Flight: Server=postgres;Port=5432;Database=flight_modular_monolith;User Id=flight;Password=flight;Include Error Detail=true
+      MongoOptions__Flight__DatabaseName: flight_modular_monolith_read
 
   gateway:
     environment:
