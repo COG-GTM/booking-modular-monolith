@@ -77,13 +77,13 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
 {
     private readonly IEventStoreDBRepository<Models.Booking> _eventStoreDbRepository;
     private readonly ICurrentUserProvider _currentUserProvider;
-    private readonly IEventDispatcher _eventDispatcher;
+    private readonly IEventDispatcher<BookingRoot> _eventDispatcher;
     private readonly FlightGrpcService.FlightGrpcServiceClient _flightGrpcServiceClient;
     private readonly PassengerGrpcService.PassengerGrpcServiceClient _passengerGrpcServiceClient;
 
     public CreateBookingCommandHandler(IEventStoreDBRepository<Models.Booking> eventStoreDbRepository,
         ICurrentUserProvider currentUserProvider,
-        IEventDispatcher eventDispatcher,
+        IEventDispatcher<BookingRoot> eventDispatcher,
         FlightGrpcService.FlightGrpcServiceClient flightGrpcServiceClient,
         PassengerGrpcService.PassengerGrpcServiceClient passengerGrpcServiceClient)
     {

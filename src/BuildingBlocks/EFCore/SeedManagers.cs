@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -11,12 +12,17 @@ public class SeedManager(
     IServiceProvider serviceProvider
 ) : ISeedManager
 {
-    public async Task ExecuteSeedAsync()
+    public Task ExecuteSeedAsync() => ExecuteSeedAsync(_ => true);
+
+    public Task ExecuteSeedAsync(Assembly moduleAssembly) =>
+        ExecuteSeedAsync(seeder => seeder.GetType().Assembly == moduleAssembly);
+
+    private async Task ExecuteSeedAsync(Func<IDataSeeder, bool> predicate)
     {
         if (!env.IsEnvironment("test"))
         {
             await using var scope = serviceProvider.CreateAsyncScope();
-            var dataSeeders = scope.ServiceProvider.GetServices<IDataSeeder>();
+            var dataSeeders = scope.ServiceProvider.GetServices<IDataSeeder>().Where(predicate);
 
             foreach (var seeder in dataSeeders)
             {

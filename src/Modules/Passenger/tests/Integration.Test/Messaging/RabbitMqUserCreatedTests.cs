@@ -240,8 +240,18 @@ public class RabbitMqUserCreatedTests : TestBase<Program, PassengerDbContext, Pa
     )
     {
         using var scope = _fixture.ServiceProvider.CreateScope();
-        var processor = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor>();
-        return await processor.GetByFilterAsync(predicate);
+        var messages = new List<PersistMessage>();
+
+        // Outbox rows live in the publisher's (Identity) store, inbox rows in the consumer's (Passenger) store.
+        foreach (var store in scope.ServiceProvider.GetServices<PersistMessageStore>())
+        {
+            var module = store.DbContextType.GetGenericArguments()[0];
+            var processor = (IPersistMessageProcessor)
+                scope.ServiceProvider.GetRequiredService(typeof(IPersistMessageProcessor<>).MakeGenericType(module));
+            messages.AddRange(await processor.GetByFilterAsync(predicate));
+        }
+
+        return messages;
     }
 
     private static async Task<T?> WaitForAsync<T>(Func<Task<T?>> probe)

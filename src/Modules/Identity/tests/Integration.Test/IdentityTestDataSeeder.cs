@@ -12,7 +12,7 @@ namespace Integration.Test;
 public class IdentityTestDataSeeder(
     UserManager<User> userManager,
     RoleManager<Role> roleManager,
-    IEventDispatcher eventDispatcher
+    IEventDispatcher<global::Identity.IdentityRoot> eventDispatcher
 )
     : ITestDataSeeder
 {
