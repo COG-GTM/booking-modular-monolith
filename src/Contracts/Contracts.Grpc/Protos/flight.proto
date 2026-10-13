@@ -1,7 +1,11 @@
+// Shared contract: additive changes only. See ../README.md before editing.
 syntax = "proto3";
 
-package bookingFlight;
+package flight;
+
 import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "Contracts.Grpc.Flight";
 
 service FlightGrpcService {
 
