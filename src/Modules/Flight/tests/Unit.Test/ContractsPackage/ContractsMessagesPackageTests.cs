@@ -21,6 +21,7 @@ public class ContractsMessagesPackageTests
     private static readonly string[] InRepoAssemblies =
     {
         "BuildingBlocks",
+        "BuildingBlocks.Core",
         "Api",
         "Booking",
         "Flight",
@@ -55,7 +56,7 @@ public class ContractsMessagesPackageTests
     [Fact]
     public void building_blocks_domain_event_still_derives_from_the_relocated_event_marker()
     {
-        typeof(IDomainEvent).Assembly.GetName().Name.Should().Be("BuildingBlocks");
+        typeof(IDomainEvent).Assembly.GetName().Name.Should().Be("BuildingBlocks.Core");
         typeof(IDomainEvent).Should().Implement<IEvent>();
         typeof(IntegrationEventWrapper<IDomainEvent>).Should().Implement<IIntegrationEvent>();
     }
