@@ -7,4 +7,9 @@ public static class IdentityConstant
         public const string Admin = "admin";
         public const string User = "user";
     }
+
+    public static class Policy
+    {
+        public const string ApiScope = "ApiScope";
+    }
 }

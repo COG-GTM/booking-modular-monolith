@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>ASP.NET Core web helpers: minimal API endpoints, versioning, OpenAPI, Mapster, correlation id, current user and gRPC exception interceptor.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Asp.Versioning.Abstractions" Version="8.1.0" />
+    <PackageReference Include="Asp.Versioning.Http" Version="8.1.1" />
+    <PackageReference Include="Asp.Versioning.Mvc" Version="8.1.1" />
+    <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.1" />
+    <PackageReference Include="Grpc.Core.Api" Version="2.76.0" />
+    <PackageReference Include="Mapster" Version="7.4.0" />
+    <PackageReference Include="Mapster.DependencyInjection" Version="1.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.3" />
+    <PackageReference Include="NSubstitute" Version="5.3.0" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.12.39" />
+    <PackageReference Include="Scrutor" Version="7.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.1.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Exception\GrpcExceptionInterceptor.cs" Link="Exception\GrpcExceptionInterceptor.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Mapster\**\*.cs" Link="Mapster\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\OpenApi\**\*.cs" Link="OpenApi\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\BuildingBlocks.Core.csproj" />
+  </ItemGroup>
+</Project>
