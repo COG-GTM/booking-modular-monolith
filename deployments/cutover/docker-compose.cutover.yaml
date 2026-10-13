@@ -1,0 +1,129 @@
+# Strangler-fig cut-over overlay (AB-505). Adds the monolith (src/Api) next to the four service hosts
+# of deployments/docker-compose/docker-compose.yaml and makes every per-module switch a variable, so
+# deployments/cutover/flip-route.sh can move one bounded context at a time and back again.
+#
+#   docker compose -f deployments/docker-compose/docker-compose.yaml \
+#                  -f deployments/cutover/docker-compose.cutover.yaml up -d --build --wait
+#
+# Route state lives in deployments/cutover/.state/routes.env (git-ignored, written by flip-route.sh,
+# passed with --env-file). Without it every context starts on the monolith, every service host runs
+# dark (no background work) and the monolith owns all background processing.
+#
+# Runbook: docs/runbooks/README.md
+x-cutover-signing-key: &cutover-signing-key
+  # Identity's developer signing key (tempkey.jwk) is written to the working directory. Both Identity
+  # hosts run from the shared volume (absolute entrypoint, content root stays /app) so tokens issued
+  # by either one validate on the other side of an identity flip. Duende's automatic signing keys
+  # (keys/is-signing-key-*.json) are protected with ASP.NET Data Protection, so its key ring is
+  # shared too; both hosts have content root /app and therefore the same application discriminator.
+  working_dir: /keys
+  volumes:
+    - identity-signing-key:/keys
+    - identity-data-protection:/root/.aspnet/DataProtection-Keys
+
+services:
+  booking_modular_monolith:
+    image: ${MONOLITH_IMAGE:-booking-modular-monolith}
+    build:
+      context: ../../
+      dockerfile: src/Api/Dockerfile
+    container_name: booking_modular_monolith
+    <<: *cutover-signing-key
+    entrypoint: ["dotnet", "/app/Api.dll"]
+    ports:
+      - "${MONOLITH_HOST_PORT:-3001}:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: docker
+      ASPNETCORE_CONTENTROOT: /app
+      AuthOptions__IssuerUri: ${PUBLIC_GATEWAY_URL:-http://localhost:5000}
+      Jwt__Authority: ${PUBLIC_GATEWAY_URL:-http://localhost:5000}
+      Jwt__MetadataAddress: http://identity-service/.well-known/openid-configuration
+      PostgresOptions__ConnectionString__Identity: Server=postgres;Port=5432;Database=identity_modular_monolith;User Id=postgres;Password=postgres
+      PostgresOptions__ConnectionString__Flight: Server=postgres;Port=5432;Database=flight_modular_monolith;User Id=postgres;Password=postgres
+      PostgresOptions__ConnectionString__Passenger: Server=postgres;Port=5432;Database=passenger_modular_monolith;User Id=postgres;Password=postgres
+      PersistMessageOptions__ConnectionString__Identity: Server=postgres;Port=5432;Database=identity_modular_monolith_persist_message;User Id=postgres;Password=postgres
+      PersistMessageOptions__ConnectionString__Flight: Server=postgres;Port=5432;Database=flight_modular_monolith_persist_message;User Id=postgres;Password=postgres
+      PersistMessageOptions__ConnectionString__Passenger: Server=postgres;Port=5432;Database=passenger_modular_monolith_persist_message;User Id=postgres;Password=postgres
+      PersistMessageOptions__ConnectionString__Booking: Server=postgres;Port=5432;Database=booking_modular_monolith_persist_message;User Id=postgres;Password=postgres
+      PersistMessageOptions__Interval: ${PERSIST_MESSAGE_INTERVAL:-30}
+      MongoOptions__ConnectionString: mongodb://mongo:27017
+      EventStoreOptions__ConnectionString: esdb://eventstore:2113?tls=false
+      MessageBroker__TransportType: RabbitMq
+      MessageBroker__RabbitMq__Host: rabbitmq
+      MessageBroker__RabbitMq__Username: ${RABBITMQ_USER:-booking}
+      MessageBroker__RabbitMq__Password: ${RABBITMQ_PASSWORD:-booking}
+      # Booking (while it is still in the monolith) reaches Flight/Passenger wherever they are served.
+      Grpc__FlightAddress: ${MONOLITH_GRPC_FLIGHT:-http://localhost:81}
+      Grpc__PassengerAddress: ${MONOLITH_GRPC_PASSENGER:-http://localhost:81}
+      Modules__Identity__BackgroundProcessingEnabled: ${MONOLITH_IDENTITY_BACKGROUND:-true}
+      Modules__Flight__BackgroundProcessingEnabled: ${MONOLITH_FLIGHT_BACKGROUND:-true}
+      Modules__Passenger__BackgroundProcessingEnabled: ${MONOLITH_PASSENGER_BACKGROUND:-true}
+      Modules__Booking__BackgroundProcessingEnabled: ${MONOLITH_BOOKING_BACKGROUND:-true}
+      ObservabilityOptions__OTLPOptions__OTLPGrpExporterEndpoint: http://otel-collector:4317
+      ObservabilityOptions__UseAspireOTLPExporter: "false"
+    healthcheck:
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+      test:
+        - CMD
+        - bash
+        - -c
+        - |
+          exec 3<>/dev/tcp/127.0.0.1/80
+          printf 'GET /health/live HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          IFS= read -r status <&3
+          [[ "$$status" == *" 200 "* ]]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eventstore:
+        condition: service_healthy
+      identity-service:
+        condition: service_healthy
+    networks:
+      infrastructure:
+        aliases: [monolith]
+
+  gateway:
+    environment:
+      ReverseProxy__Clusters__identity__Destinations__monolith__Address: ${GATEWAY_IDENTITY_UPSTREAM:-http://booking_modular_monolith:80}
+      ReverseProxy__Clusters__flight__Destinations__monolith__Address: ${GATEWAY_FLIGHT_UPSTREAM:-http://booking_modular_monolith:80}
+      ReverseProxy__Clusters__passenger__Destinations__monolith__Address: ${GATEWAY_PASSENGER_UPSTREAM:-http://booking_modular_monolith:80}
+      ReverseProxy__Clusters__booking__Destinations__monolith__Address: ${GATEWAY_BOOKING_UPSTREAM:-http://booking_modular_monolith:80}
+      ReverseProxy__Clusters__monolith__Destinations__monolith__Address: ${GATEWAY_FALLBACK_UPSTREAM:-http://booking_modular_monolith:80}
+    depends_on:
+      booking_modular_monolith:
+        condition: service_healthy
+
+  identity-service:
+    <<: *cutover-signing-key
+    entrypoint: ["dotnet", "/app/Identity.Host.dll"]
+    environment:
+      ASPNETCORE_CONTENTROOT: /app
+      PersistMessageOptions__Interval: ${PERSIST_MESSAGE_INTERVAL:-30}
+      Modules__Identity__BackgroundProcessingEnabled: ${SERVICE_IDENTITY_BACKGROUND:-false}
+
+  flight-service:
+    environment:
+      PersistMessageOptions__Interval: ${PERSIST_MESSAGE_INTERVAL:-30}
+      Modules__Flight__BackgroundProcessingEnabled: ${SERVICE_FLIGHT_BACKGROUND:-false}
+
+  passenger-service:
+    environment:
+      PersistMessageOptions__Interval: ${PERSIST_MESSAGE_INTERVAL:-30}
+      Modules__Passenger__BackgroundProcessingEnabled: ${SERVICE_PASSENGER_BACKGROUND:-false}
+
+  booking-service:
+    environment:
+      PersistMessageOptions__Interval: ${PERSIST_MESSAGE_INTERVAL:-30}
+      Modules__Booking__BackgroundProcessingEnabled: ${SERVICE_BOOKING_BACKGROUND:-false}
+
+volumes:
+  identity-signing-key:
+  identity-data-protection:

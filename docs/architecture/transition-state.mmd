@@ -9,14 +9,17 @@ flowchart LR
     end
     gw --> cI & cF & cP & cB
 
-    mono["Monolith src/Api (unchanged)<br/>Modules:Flight:BackgroundProcessingEnabled=false"]
+    mono["Monolith src/Api<br/>Modules:Identity|Flight:BackgroundProcessingEnabled=false"]
+    isvc["Identity service :5100"]
     fsvc["Flight service :5200"]
 
-    cI --> mono
+    cI -->|"ReverseProxy__Clusters__identity__<br/>Destinations__monolith__Address"| isvc
+    cF -->|"ReverseProxy__Clusters__flight__<br/>Destinations__monolith__Address"| fsvc
     cP --> mono
     cB --> mono
-    cF -->|"ReverseProxy__Clusters__flight__<br/>Destinations__monolith__Address"| fsvc
 
-    mono --- monoDb[("*_modular_monolith DBs<br/>persist_message, in-memory bus")]
+    mono --- monoDb[("passenger/booking *_modular_monolith DBs<br/>identity/flight DBs kept read-only for rollback")]
+    isvc --- iDb[("identity_service DBs")]
     fsvc --- fDb[("flight_service DBs")]
-    mono -->|"gRPC (Booking -> Flight)"| fsvc
+    mono -->|"gRPC (Booking -> Flight) :81"| fsvc
+    isvc -.->|"UserCreated (RabbitMQ)"| mono
