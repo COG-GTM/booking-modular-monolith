@@ -20,6 +20,7 @@ deployments/k8s/
 | Service (ClusterIP) | `gateway:80` | `identity:80` | `flight:80`, `flight:81` (`grpc`, h2c) | `passenger:80`, `passenger:81` (`grpc`, h2c) | `booking:80` |
 | HPA (CPU) | 1–3 | off (see signing key) | 1–3 | 1–3 | **never** — pinned to 1 replica, `Recreate` |
 | Probes | startup + liveness `/health/live`, readiness `/health/ready` (AB-495) on every service |
+| Probe paths | `defaults.probes.livenessPath` / `readinessPath` (per service under `services.<name>.probes`); images built before AB-495 serve `/alive` + `/health` instead |
 
 - The **Ingress** (class `nginx`) → `gateway` Service is the only external entry. The gateway's YARP
   clusters are repointed with `ReverseProxy__Clusters__<module>__Destinations__monolith__Address=http://<service>:80`.
