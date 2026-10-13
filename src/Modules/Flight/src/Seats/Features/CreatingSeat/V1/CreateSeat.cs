@@ -4,6 +4,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
@@ -44,7 +45,7 @@ public class CreateSeatEndpoint : IMinimalEndpoint
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
         builder.MapPost($"{EndpointConfig.BaseApiPath}/flight/seat", CreateSeat)
-            .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(nameof(ApiScope), IdentityConstant.Role.Admin)
             .WithName("CreateSeat")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<CreateSeatResponseDto>()

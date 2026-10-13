@@ -30,4 +30,18 @@ public class CreateFlightTests : FlightEndToEndTestBase
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.Created);
     }
+
+    [Fact]
+    public async Task should_return_forbidden_when_user_is_not_admin()
+    {
+        //Arrange
+        var command = new FakeCreateFlightCommand().Generate();
+
+        // Act
+        var route = ApiRoutes.Flight.CreateFlight;
+        var result = await Fixture.UserHttpClient.PostAsJsonAsync(route, command);
+
+        // Assert
+        result.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
 }
