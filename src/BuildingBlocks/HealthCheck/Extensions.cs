@@ -133,15 +133,16 @@ public static class Extensions
             );
         }
 
-        var eventStoreConnection = configuration[EventStoreConnectionKey];
-        if (!string.IsNullOrEmpty(eventStoreConnection))
+        if (!string.IsNullOrEmpty(configuration[EventStoreConnectionKey]))
         {
-            builder.AddEventStore(
-                eventStoreConnection,
-                name: "eventstore",
-                failureStatus: HealthStatus.Unhealthy,
-                tags: readyTags,
-                timeout: DependencyTimeout
+            builder.Add(
+                new HealthCheckRegistration(
+                    "eventstore",
+                    sp => new EventStoreDbHealthCheck(() => sp.GetRequiredService<IConfiguration>()[EventStoreConnectionKey]),
+                    HealthStatus.Unhealthy,
+                    readyTags,
+                    DependencyTimeout
+                )
             );
         }
 

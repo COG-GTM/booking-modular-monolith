@@ -140,3 +140,23 @@ public class HealthCheckExtensionsTests
         return app;
     }
 }
+
+public class EventStoreDbHealthCheckTests
+{
+    [Theory]
+    [InlineData("esdb://localhost:2113?tls=false", "http://localhost:2113/health/live")]
+    [InlineData("esdb://admin:changeit@node1:2113,node2:2113?tls=true", "https://node1:2113/health/live")]
+    [InlineData("esdb+discover://cluster.local:2113", "https://cluster.local:2113/health/live")]
+    public void builds_the_liveness_uri_from_a_grpc_connection_string(string connectionString, string expected)
+    {
+        EventStoreDbHealthCheck.TryGetLivenessUri(connectionString, out var uri).Should().BeTrue();
+        uri.ToString().Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("not a connection string")]
+    public void rejects_invalid_connection_strings(string? connectionString) =>
+        EventStoreDbHealthCheck.TryGetLivenessUri(connectionString, out _).Should().BeFalse();
+}
