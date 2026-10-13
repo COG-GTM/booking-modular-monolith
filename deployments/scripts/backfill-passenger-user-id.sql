@@ -17,7 +17,7 @@ CREATE EXTENSION IF NOT EXISTS dblink;
 WITH identity_users AS (
     SELECT id, passport_number
     FROM dblink(:'identity_conninfo',
-                'SELECT id, pass_port_number FROM "user" WHERE pass_port_number IS NOT NULL')
+                'SELECT id, pass_port_number FROM asp_net_users WHERE pass_port_number IS NOT NULL')
          AS u(id uuid, passport_number text)
 ),
 unique_owners AS (
