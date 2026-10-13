@@ -93,9 +93,11 @@ public static class IdentityServerExtensions
             if (File.Exists(currentKeyFile))
                 ownKey = File.ReadAllBytes(currentKeyFile);
         }
-        catch (IOException)
+        catch (FileNotFoundException)
         {
-            // Vanished or unreadable: nothing to carry over; a fresh shared key is generated instead.
+            // Vanished between the check and the read: nothing to carry over. Any other read failure
+            // propagates and aborts startup: silently seeding a replacement key would invalidate the
+            // tokens the legacy key already signed.
         }
 
         if (ownKey is { Length: > 0 })
