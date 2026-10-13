@@ -275,6 +275,21 @@ public class BreakingChangeDetectionTests
         CompareUserCreated(modified).Should().BeEmpty();
 
     [Fact]
+    public void initializer_on_a_required_member_is_not_a_default()
+    {
+        CompareUserCreated(typeof(RequiredInitializer.UserCreated))
+            .Should()
+            .ContainSingle(v => v.Contains("property Country added as required"));
+        var oldPayload = """{"id":"3c5c0000-97c6-fc34-2eb9-08db322230c9","name":"n","passportNumber":"p"}""";
+        var deserialize = () =>
+            System.Text.Json.JsonSerializer.Deserialize<RequiredInitializer.UserCreated>(
+                oldPayload,
+                MassTransit.Serialization.SystemTextJsonMessageSerializer.Options
+            );
+        deserialize.Should().Throw<System.Text.Json.JsonException>();
+    }
+
+    [Fact]
     public void removing_the_default_of_an_accepted_member_is_breaking()
     {
         var baseline = ContractSnapshots.ForMessages(ContractSnapshots.MessagesAssembly);

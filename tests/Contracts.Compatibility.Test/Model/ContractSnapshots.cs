@@ -125,7 +125,13 @@ public static class ContractSnapshots
 
     private static bool HasInitializer(PropertyInfo property, object? prototype)
     {
-        if (prototype is null || property.SetMethod is null)
+        // System.Text.Json rejects payloads that omit required members, initializer or not.
+        if (
+            prototype is null
+            || property.SetMethod is null
+            || property.IsDefined(typeof(System.Runtime.CompilerServices.RequiredMemberAttribute))
+            || property.IsDefined(typeof(System.Text.Json.Serialization.JsonRequiredAttribute))
+        )
         {
             return false;
         }

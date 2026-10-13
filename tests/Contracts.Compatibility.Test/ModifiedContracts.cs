@@ -41,6 +41,17 @@ namespace Contracts.Compatibility.Test.InitializerDefault
     }
 }
 
+namespace Contracts.Compatibility.Test.RequiredInitializer
+{
+    public class UserCreated
+    {
+        public Guid Id { get; init; }
+        public string Name { get; init; } = string.Empty;
+        public string PassportNumber { get; init; } = string.Empty;
+        public required string Country { get; init; } = "US";
+    }
+}
+
 namespace Contracts.Compatibility.Test.PrivateJsonConstructor
 {
     public class UserCreated
