@@ -72,6 +72,9 @@ flowchart LR
 
 - Signing keys: `AddDeveloperSigningCredential` (unchanged from the monolith) — production key
   management is an open item for ARB.
+- Clients: the in-memory resource-owner-password client (`client`/`secret`, from the module's
+  `Config.cs`, unchanged from the monolith) is carried over as-is; moving client secrets to secret
+  storage and/or retiring ROPC is an open item for ARB.
 - Secrets (DB/RabbitMQ credentials) come from configuration/environment; defaults are local-dev only.
 - Transport: plain HTTP inside the cluster behind the gateway, same as other hosts (ADR 0008).
 
