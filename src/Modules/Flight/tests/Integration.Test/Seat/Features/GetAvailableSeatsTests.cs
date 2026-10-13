@@ -1,4 +1,5 @@
 using BuildingBlocks.TestBase;
+using BuildingBlocks.Contracts.Grpc.Flight;
 using Flight;
 using Flight.Data;
 using FluentAssertions;

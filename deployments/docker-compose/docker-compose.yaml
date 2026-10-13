@@ -41,6 +41,7 @@ services:
       - "max_prepared_transactions=10"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
     networks:
       - booking
 
@@ -149,6 +150,10 @@ services:
     image: rabbitmq:management
     container_name: rabbitmq
     restart: unless-stopped
+    environment:
+      # the built-in guest account is loopback-only; the service containers connect with this user
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-booking}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-booking}
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -352,6 +357,100 @@ services:
       - ASPNETCORE_HTTP_PORT=3001
       - ASPNETCORE_Kestrel__Certificates__Default__Password=password
       - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    networks:
+      - booking
+
+  #######################################################
+  #  standalone services (src/Services/*)
+  #  Each host is built from its own Dockerfile and talks to the
+  #  broker (rabbitmq) and to its own databases on the shared servers.
+  #######################################################
+  identity-api:
+    image: booking-identity-api
+    build:
+      context: ../../
+      dockerfile: src/Services/Identity.Api/Dockerfile
+    container_name: identity-api
+    restart: unless-stopped
+    ports:
+      - 5100:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - RabbitMqOptions__UserName=${RABBITMQ_USER:-booking}
+      - RabbitMqOptions__Password=${RABBITMQ_PASSWORD:-booking}
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - booking
+
+  flight-api:
+    image: booking-flight-api
+    build:
+      context: ../../
+      dockerfile: src/Services/Flight.Api/Dockerfile
+    container_name: flight-api
+    restart: unless-stopped
+    ports:
+      - 5200:80 # REST
+    expose:
+      - "81" # gRPC (HTTP/2 only) - reachable by other services on the compose network, not published to the host
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - RabbitMqOptions__UserName=${RABBITMQ_USER:-booking}
+      - RabbitMqOptions__Password=${RABBITMQ_PASSWORD:-booking}
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+      - identity-api
+    networks:
+      - booking
+
+  passenger-api:
+    image: booking-passenger-api
+    build:
+      context: ../../
+      dockerfile: src/Services/Passenger.Api/Dockerfile
+    container_name: passenger-api
+    restart: unless-stopped
+    ports:
+      - 5300:80 # REST
+    expose:
+      - "81" # gRPC (HTTP/2 only) - reachable by other services on the compose network, not published to the host
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - RabbitMqOptions__UserName=${RABBITMQ_USER:-booking}
+      - RabbitMqOptions__Password=${RABBITMQ_PASSWORD:-booking}
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+      - identity-api
+    networks:
+      - booking
+
+  booking-api:
+    image: booking-booking-api
+    build:
+      context: ../../
+      dockerfile: src/Services/Booking.Api/Dockerfile
+    container_name: booking-api
+    restart: unless-stopped
+    ports:
+      - 5400:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - RabbitMqOptions__UserName=${RABBITMQ_USER:-booking}
+      - RabbitMqOptions__Password=${RABBITMQ_PASSWORD:-booking}
+    depends_on:
+      - postgres
+      - mongo
+      - eventstore
+      - rabbitmq
+      - identity-api
+      - flight-api
+      - passenger-api
     networks:
       - booking
 

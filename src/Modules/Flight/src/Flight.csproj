@@ -1,4 +1,4 @@
-﻿  <Project Sdk="Microsoft.NET.Sdk">
+  <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
@@ -15,10 +15,6 @@
 
   <ItemGroup>
     <Folder Include="Data\Migrations" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Protobuf Include="GrpcServer\Protos\flight.proto" GrpcServices="Both" />
   </ItemGroup>
 
   <ItemGroup>

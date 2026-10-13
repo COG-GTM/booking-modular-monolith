@@ -222,6 +222,29 @@ To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-
 docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
 ```
 
+> ### Standalone services
+
+Each module can also run as an independently deployable host under [`src/Services`](./src/Services):
+
+| Service | Project | Local URLs (`dotnet run`) | Owns |
+| --- | --- | --- | --- |
+| Identity | `src/Services/Identity.Api` | https://localhost:5101 / http://localhost:5100 | `identity_service` (Postgres), Duende IdentityServer (token issuer) |
+| Flight | `src/Services/Flight.Api` | https://localhost:5201 / http://localhost:5200 | `flight_service` (Postgres), `flight_service_read` (Mongo), gRPC server |
+| Passenger | `src/Services/Passenger.Api` | https://localhost:5301 / http://localhost:5300 | `passenger_service` (Postgres), `passenger_service_read` (Mongo), gRPC server |
+| Booking | `src/Services/Booking.Api` | https://localhost:5401 / http://localhost:5400 | EventStoreDB streams, `booking_service_read` (Mongo), gRPC client to Flight/Passenger |
+
+- Every host has its own outbox/inbox database (`<module>_service_persist_message`) and exchanges integration events through
+  `RabbitMQ` (`MessageBrokerOptions:TransportType`, `RabbitMq` for the hosts, `InMemory` for the monolith).
+- `Identity.Api` issues JWTs; the other hosts validate them with `Jwt:Authority` pointing at the Identity host and a per-service
+  audience (`flight-api`, `passenger-api`, `booking-api`). Request those scopes when asking for a token.
+- gRPC contracts live in [`src/BuildingBlocks/Contracts/Grpc/Protos`](./src/BuildingBlocks/Contracts/Grpc/Protos); Booking reaches
+  Flight/Passenger through `Grpc:FlightAddress` / `Grpc:PassengerAddress` (Aspire service discovery or compose host names).
+- The Aspire AppHost orchestrates the four services plus Postgres, MongoDB, EventStoreDB and RabbitMQ (`aspire run`);
+  set `AppHost:IncludeMonolith=true` to run the monolith side by side.
+- `docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d identity-api flight-api passenger-api booking-api`
+  builds the per-service images (`src/Services/*/Dockerfile`) and exposes REST on ports 5100, 5200, 5300 and 5400; the Flight/Passenger gRPC ports (`:81`) stay internal to the compose network. The broker user defaults to `booking`/`booking` (`RABBITMQ_USER`/`RABBITMQ_PASSWORD`).
+- Smoke tests per service (Testcontainers): `dotnet test src/Services/<Module>.Api/tests/<Module>.Api.Test`.
+
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
 ```bash

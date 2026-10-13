@@ -38,9 +38,10 @@ public class PersistMessageProcessor : IPersistMessageProcessor
     }
 
     public Task<Guid> AddReceivedMessageAsync<TMessageEnvelope>(TMessageEnvelope messageEnvelope,
+        Guid? messageId = null,
         CancellationToken cancellationToken = default) where TMessageEnvelope : MessageEnvelope
     {
-        return SavePersistMessageAsync(messageEnvelope, MessageDeliveryType.Inbox, cancellationToken);
+        return SavePersistMessageAsync(messageEnvelope, MessageDeliveryType.Inbox, cancellationToken, messageId);
     }
 
     public async Task AddInternalMessageAsync<TCommand>(TCommand internalCommand,
@@ -182,12 +183,15 @@ public class PersistMessageProcessor : IPersistMessageProcessor
     private async Task<Guid> SavePersistMessageAsync(
         MessageEnvelope messageEnvelope,
         MessageDeliveryType deliveryType,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? messageId = null)
     {
         Guard.Against.Null(messageEnvelope.Message, nameof(messageEnvelope.Message));
 
         Guid id;
-        if (messageEnvelope.Message is IEvent message)
+        if (messageId.HasValue)
+            id = messageId.Value;
+        else if (messageEnvelope.Message is IEvent message)
             id = message.EventId;
         else
             id = NewId.NextGuid();

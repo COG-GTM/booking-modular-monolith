@@ -17,6 +17,7 @@ public interface IPersistMessageProcessor
 
     Task<Guid> AddReceivedMessageAsync<TMessageEnvelope>(
         TMessageEnvelope messageEnvelope,
+        Guid? messageId = null,
         CancellationToken cancellationToken = default)
         where TMessageEnvelope : MessageEnvelope;
 

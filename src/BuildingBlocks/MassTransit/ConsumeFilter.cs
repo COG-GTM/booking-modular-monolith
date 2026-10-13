@@ -4,7 +4,8 @@ using MassTransit;
 
 namespace BuildingBlocks.MassTransit;
 
-// Handle inbox messages with masstransit pipeline
+// Inbox: makes consumption idempotent by keying the persisted message on the transport MessageId,
+// which is stable across broker redeliveries (IEvent.EventId is regenerated on every access).
 public class ConsumeFilter<T> : IFilter<ConsumeContext<T>>
     where T : class
 {
@@ -17,22 +18,30 @@ public class ConsumeFilter<T> : IFilter<ConsumeContext<T>>
 
     public async Task Send(ConsumeContext<T> context, IPipe<ConsumeContext<T>> next)
     {
-        var id = await _persistMessageProcessor.AddReceivedMessageAsync(
-            new MessageEnvelope(
-                context.Message,
-                context.Headers.ToDictionary(x => x.Key, x => x.Value))
-        );
+        var messageId = context.MessageId ?? NewId.NextGuid();
 
-        var message = await _persistMessageProcessor.ExistMessageAsync(id);
+        var existing = (
+            await _persistMessageProcessor.GetByFilterAsync(x =>
+                x.Id == messageId && x.DeliveryType == MessageDeliveryType.Inbox
+            )
+        ).FirstOrDefault();
 
-        if (message is null)
+        if (existing?.MessageStatus == MessageStatus.Processed)
         {
-            await next.Send(context);
-            await _persistMessageProcessor.ProcessInboxAsync(id);
+            return; // duplicate delivery: already handled, acknowledge without running the consumer again
         }
+
+        if (existing is null)
+        {
+            await _persistMessageProcessor.AddReceivedMessageAsync(
+                new MessageEnvelope(context.Message, context.Headers.ToDictionary(x => x.Key, x => x.Value)),
+                messageId
+            );
+        }
+
+        await next.Send(context);
+        await _persistMessageProcessor.ProcessInboxAsync(messageId);
     }
 
-    public void Probe(ProbeContext context)
-    {
-    }
+    public void Probe(ProbeContext context) { }
 }
