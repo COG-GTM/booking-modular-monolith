@@ -11,9 +11,9 @@ using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Contracts.Grpc.Flight;
 using Contracts.Grpc.Passenger;
-using Grpc.AspNetCore.HealthChecks;
 using Figgle.Fonts;
 using Flight;
+using Grpc.AspNetCore.HealthChecks;
 using Identity;
 using Microsoft.AspNetCore.Mvc;
 using Passenger;
@@ -45,8 +45,8 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddHttpContextEventHeaders();
 
         builder.Services.AddCustomMassTransit(
+            builder.Configuration,
             builder.Environment,
-            TransportType.InMemory,
             GetMessagingAssemblies(builder.Configuration)
         );
 
@@ -75,7 +75,6 @@ public static class SharedInfrastructureExtensions
         });
         builder.Services.AddProblemDetails();
 
-
         return builder;
     }
 
@@ -91,12 +90,10 @@ public static class SharedInfrastructureExtensions
             [nameof(Booking)] = typeof(BookingRoot).Assembly,
         };
 
-        var disabledAssemblies = moduleAssemblies
-            .Where(module => !configuration.IsModuleBackgroundProcessingEnabled(module.Key))
+        return moduleAssemblies
+            .Where(module => configuration.IsModuleBackgroundProcessingEnabled(module.Key))
             .Select(module => module.Value)
-            .ToHashSet();
-
-        return AppDomain.CurrentDomain.GetAssemblies().Where(a => !disabledAssemblies.Contains(a)).ToArray();
+            .ToArray();
     }
 
     public static WebApplication UserSharedInfrastructure(this WebApplication app)

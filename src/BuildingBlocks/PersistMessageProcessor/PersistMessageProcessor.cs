@@ -43,6 +43,12 @@ public class PersistMessageProcessor : IPersistMessageProcessor
         return SavePersistMessageAsync(messageEnvelope, MessageDeliveryType.Inbox, cancellationToken);
     }
 
+    public Task<Guid> AddReceivedMessageAsync<TMessageEnvelope>(Guid messageId, TMessageEnvelope messageEnvelope,
+        CancellationToken cancellationToken = default) where TMessageEnvelope : MessageEnvelope
+    {
+        return SavePersistMessageAsync(messageEnvelope, MessageDeliveryType.Inbox, cancellationToken, messageId);
+    }
+
     public async Task AddInternalMessageAsync<TCommand>(TCommand internalCommand,
         CancellationToken cancellationToken = default) where TCommand : class, IInternalCommand
     {
@@ -144,6 +150,9 @@ public class PersistMessageProcessor : IPersistMessageProcessor
 
         await _publishEndpoint.Publish(data, context =>
         {
+            // Stable MessageId per outbox row so a re-published message is deduplicated by the consumer inbox.
+            context.MessageId = message.Id;
+
             foreach (var header in messageEnvelope.Headers)
                 context.Headers.Set(header.Key, header.Value);
         }, cancellationToken);
@@ -182,12 +191,15 @@ public class PersistMessageProcessor : IPersistMessageProcessor
     private async Task<Guid> SavePersistMessageAsync(
         MessageEnvelope messageEnvelope,
         MessageDeliveryType deliveryType,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? messageId = null)
     {
         Guard.Against.Null(messageEnvelope.Message, nameof(messageEnvelope.Message));
 
         Guid id;
-        if (messageEnvelope.Message is IEvent message)
+        if (messageId is { } explicitId)
+            id = explicitId;
+        else if (messageEnvelope.Message is IEvent message)
             id = message.EventId;
         else
             id = NewId.NextGuid();
