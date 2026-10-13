@@ -1,0 +1,90 @@
+# Monolith topology: shared infrastructure + the unchanged src/Api monolith behind the YARP gateway.
+# Run from the repository root:
+#   docker compose -f deployments/docker-compose/docker-compose.monolith.yaml up -d --build
+# Cannot run at the same time as docker-compose.yaml (same infrastructure container names/ports).
+# The monolith keeps its *_modular_monolith databases; Npgsql creates them on first migration.
+name: booking-modular-monolith
+
+include:
+  - docker-compose.infrastructure.yaml
+
+services:
+  #######################################################
+  #  booking-modular-monolith
+  #######################################################
+  booking_modular_monolith:
+    image: booking-modular-monolith
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Api/Dockerfile
+    container_name: booking_modular_monolith
+    ports:
+      - 3001:80
+      # 3000 is taken by grafana (docker-compose.infrastructure.yaml).
+      - ${MONOLITH_HTTPS_HOST_PORT:-3443}:443
+    volumes:
+      - ~/.aspnet/https:/https:ro
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=https://+;http://+
+      - Kestrel__Endpoints__Https__Url=https://+:443
+      - ASPNETCORE_HTTPS_PORT=${MONOLITH_HTTPS_HOST_PORT:-3443}
+      - ASPNETCORE_HTTP_PORT=3001
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      - Jwt__MetadataAddress=http://localhost:80/.well-known/openid-configuration
+      - AuthOptions__IssuerUri=https://localhost:${MONOLITH_HTTPS_HOST_PORT:-3443}
+      - Jwt__Authority=https://localhost:${MONOLITH_HTTPS_HOST_PORT:-3443}
+      - PostgresOptions__ConnectionString__Flight=Server=postgres;Port=5432;Database=flight_modular_monolith;User Id=postgres;Password=postgres
+      - PostgresOptions__ConnectionString__Identity=Server=postgres;Port=5432;Database=identity_modular_monolith;User Id=postgres;Password=postgres
+      - PostgresOptions__ConnectionString__Passenger=Server=postgres;Port=5432;Database=passenger_modular_monolith;User Id=postgres;Password=postgres
+      - PersistMessageOptions__ConnectionString__Flight=Server=postgres;Port=5432;Database=flight_modular_monolith_persist_message;User Id=postgres;Password=postgres
+      - PersistMessageOptions__ConnectionString__Identity=Server=postgres;Port=5432;Database=identity_modular_monolith_persist_message;User Id=postgres;Password=postgres
+      - PersistMessageOptions__ConnectionString__Passenger=Server=postgres;Port=5432;Database=passenger_modular_monolith_persist_message;User Id=postgres;Password=postgres
+      - PersistMessageOptions__ConnectionString__Booking=Server=postgres;Port=5432;Database=booking_modular_monolith_persist_message;User Id=postgres;Password=postgres
+      - MongoOptions__ConnectionString=mongodb://mongo:27017
+      - EventStoreOptions__ConnectionString=esdb://eventstore:2113?tls=false
+      - MessageBroker__RabbitMq__Username=${RABBITMQ_USER:-booking}
+      - MessageBroker__RabbitMq__Password=${RABBITMQ_PASSWORD:-booking}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eventstore:
+        condition: service_healthy
+    networks:
+      - infrastructure
+
+  #######################################################
+  #  Gateway (single ingress, YARP) -> monolith
+  #######################################################
+  gateway:
+    image: booking-gateway
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Gateway/Dockerfile
+    container_name: gateway
+    ports:
+      - 5000:80
+      - 5001:443
+    volumes:
+      - ~/.aspnet/https:/https:ro
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=https://+;http://+
+      - ASPNETCORE_HTTPS_PORT=5001
+      - ASPNETCORE_HTTP_PORT=5000
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      - Jwt__Authority=https://localhost:${MONOLITH_HTTPS_HOST_PORT:-3443}
+    depends_on:
+      - booking_modular_monolith
+    networks:
+      - infrastructure
