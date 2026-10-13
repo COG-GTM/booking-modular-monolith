@@ -19,7 +19,7 @@ public class AuthHeaderHandler : DelegatingHandler
     {
         var token = (_httpContext?.HttpContext?.Request.Headers["Authorization"])?.ToString();
 
-        if (!string.IsNullOrWhiteSpace(token))
+        if (!string.IsNullOrWhiteSpace(token) && IsTrustedDestination(request.RequestUri))
         {
             request.Headers.Authorization = new AuthenticationHeaderValue(
                 "Bearer",
@@ -28,5 +28,12 @@ public class AuthHeaderHandler : DelegatingHandler
         }
 
         return base.SendAsync(request, cancellationToken);
+    }
+
+    // Only forward the caller's bearer token over TLS or to the local process so a
+    // misconfigured plaintext/external gRPC address cannot receive a reusable credential.
+    private static bool IsTrustedDestination(Uri? uri)
+    {
+        return uri is not null && (uri.Scheme == Uri.UriSchemeHttps || uri.IsLoopback);
     }
 }
