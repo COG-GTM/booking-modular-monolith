@@ -21,7 +21,11 @@ public class SeatMappings : IRegister
 
         config.NewConfig<Seat, SeatReadModel>()
             .Map(d => d.Id, s => NewId.NextGuid())
-            .Map(d => d.SeatId, s => s.Id.Value);
+            .Map(d => d.SeatId, s => s.Id.Value)
+            .Map(d => d.SeatNumber, s => s.SeatNumber.Value);
+
+        config.NewConfig<SeatReadModel, SeatDto>()
+            .Map(d => d.Id, s => s.SeatId);
 
         config.NewConfig<ReserveSeatMongo, SeatReadModel>()
             .Map(d => d.SeatId, s => s.Id);

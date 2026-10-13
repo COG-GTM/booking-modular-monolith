@@ -8,11 +8,23 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Duende.IdentityServer" Version="7.4.6" />
+    <PackageReference Include="Duende.IdentityServer.AspNetIdentity" Version="7.4.6" />
+    <PackageReference Include="Duende.IdentityServer.EntityFramework" Version="7.4.6" />
+    <PackageReference Include="IdentityModel" Version="5.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="Data\Migrations" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Core\BuildingBlocks.Core.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\EFCore\BuildingBlocks.EFCore.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\PersistMessageProcessor\BuildingBlocks.PersistMessageProcessor.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Validation\BuildingBlocks.Validation.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Web\BuildingBlocks.Web.csproj" />
     <ProjectReference Include="..\..\..\Contracts\Contracts.Messages\Contracts.Messages.csproj" />
   </ItemGroup>
   
