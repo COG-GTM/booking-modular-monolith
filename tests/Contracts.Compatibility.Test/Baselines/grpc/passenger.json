@@ -1,0 +1,105 @@
+{
+  "file": "passenger.proto",
+  "package": "passenger",
+  "cSharpNamespace": "Contracts.Grpc.Passenger",
+  "services": {
+    ".passenger.PassengerGrpcService": {
+      "methods": {
+        "GetById": {
+          "input": ".passenger.GetByIdRequest",
+          "output": ".passenger.GetPassengerByIdResult",
+          "clientStreaming": false,
+          "serverStreaming": false
+        }
+      }
+    }
+  },
+  "messages": {
+    ".passenger.GetByIdRequest": {
+      "fields": {
+        "1": {
+          "name": "Id",
+          "jsonName": "",
+          "type": "String",
+          "typeName": "",
+          "label": "Optional"
+        }
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    },
+    ".passenger.GetPassengerByIdResult": {
+      "fields": {
+        "1": {
+          "name": "PassengerDto",
+          "jsonName": "",
+          "type": "Message",
+          "typeName": ".passenger.PassengerResponse",
+          "label": "Optional"
+        }
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    },
+    ".passenger.PassengerResponse": {
+      "fields": {
+        "1": {
+          "name": "Id",
+          "jsonName": "",
+          "type": "String",
+          "typeName": "",
+          "label": "Optional"
+        },
+        "2": {
+          "name": "Name",
+          "jsonName": "",
+          "type": "String",
+          "typeName": "",
+          "label": "Optional"
+        },
+        "3": {
+          "name": "PassportNumber",
+          "jsonName": "",
+          "type": "String",
+          "typeName": "",
+          "label": "Optional"
+        },
+        "4": {
+          "name": "PassengerType",
+          "jsonName": "",
+          "type": "Enum",
+          "typeName": ".passenger.PassengerType",
+          "label": "Optional"
+        },
+        "5": {
+          "name": "Age",
+          "jsonName": "",
+          "type": "Int32",
+          "typeName": "",
+          "label": "Optional"
+        },
+        "6": {
+          "name": "Email",
+          "jsonName": "",
+          "type": "String",
+          "typeName": "",
+          "label": "Optional"
+        }
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    }
+  },
+  "enums": {
+    ".passenger.PassengerType": {
+      "values": {
+        "PASSENGER_TYPE_BABY": 3,
+        "PASSENGER_TYPE_FEMALE": 2,
+        "PASSENGER_TYPE_MALE": 1,
+        "PASSENGER_TYPE_UNKNOWN": 0
+      },
+      "reservedNames": [],
+      "reservedRanges": []
+    }
+  }
+}

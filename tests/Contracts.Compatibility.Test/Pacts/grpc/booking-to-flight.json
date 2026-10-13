@@ -1,0 +1,26 @@
+{
+  "consumer": "booking (Booking.Features.CreatingBook.V1.CreateBookingCommandHandler)",
+  "provider": "flight",
+  "protoFile": "flight.proto",
+  "rpcs": [
+    { "service": ".flight.FlightGrpcService", "method": "GetById", "input": ".flight.GetByIdRequest", "output": ".flight.GetFlightByIdResult" },
+    { "service": ".flight.FlightGrpcService", "method": "GetAvailableSeats", "input": ".flight.GetAvailableSeatsRequest", "output": ".flight.GetAvailableSeatsResult" },
+    { "service": ".flight.FlightGrpcService", "method": "ReserveSeat", "input": ".flight.ReserveSeatRequest", "output": ".flight.ReserveSeatResult" }
+  ],
+  "fields": [
+    { "message": ".flight.GetByIdRequest", "number": 1, "name": "Id", "type": "String" },
+    { "message": ".flight.GetFlightByIdResult", "number": 1, "name": "FlightDto", "type": "Message", "typeName": ".flight.FlightResponse" },
+    { "message": ".flight.FlightResponse", "number": 1, "name": "Id", "type": "String" },
+    { "message": ".flight.FlightResponse", "number": 2, "name": "FlightNumber", "type": "String" },
+    { "message": ".flight.FlightResponse", "number": 3, "name": "AircraftId", "type": "String" },
+    { "message": ".flight.FlightResponse", "number": 4, "name": "DepartureAirportId", "type": "String" },
+    { "message": ".flight.FlightResponse", "number": 7, "name": "ArriveAirportId", "type": "String" },
+    { "message": ".flight.FlightResponse", "number": 9, "name": "FlightDate", "type": "Message", "typeName": ".google.protobuf.Timestamp" },
+    { "message": ".flight.FlightResponse", "number": 11, "name": "Price", "type": "Double" },
+    { "message": ".flight.GetAvailableSeatsRequest", "number": 1, "name": "FlightId", "type": "String" },
+    { "message": ".flight.GetAvailableSeatsResult", "number": 1, "name": "SeatDtos", "type": "Message", "typeName": ".flight.SeatDtoResponse", "label": "Repeated" },
+    { "message": ".flight.SeatDtoResponse", "number": 2, "name": "SeatNumber", "type": "String" },
+    { "message": ".flight.ReserveSeatRequest", "number": 1, "name": "FlightId", "type": "String" },
+    { "message": ".flight.ReserveSeatRequest", "number": 2, "name": "SeatNumber", "type": "String" }
+  ]
+}
