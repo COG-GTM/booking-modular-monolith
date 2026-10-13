@@ -59,6 +59,8 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
 
     public HttpClient UserHttpClient => CreateHttpClient(IdentityConstant.Role.User);
 
+    public HttpClient AnonymousHttpClient => _factory.CreateClient();
+
     public HttpClient CreateHttpClient(string role)
     {
         var claims = new Dictionary<string, object>
