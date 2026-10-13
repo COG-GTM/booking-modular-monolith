@@ -1,17 +1,19 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using BuildingBlocks.Constants;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.Core;
 using BuildingBlocks.EFCore;
+using Identity.Configurations;
 using Identity.Identity.Constants;
 using Identity.Identity.Models;
+using MassTransit;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Identity.Data.Seed;
-
-using System.Linq;
 
 public class IdentityDataSeeder : IDataSeeder
 {
@@ -19,18 +21,24 @@ public class IdentityDataSeeder : IDataSeeder
     private readonly RoleManager<Role> _roleManager;
     private readonly IEventDispatcher _eventDispatcher;
     private readonly IdentityContext _identityContext;
+    private readonly IdentitySeedOptions _seedOptions;
+    private readonly ILogger<IdentityDataSeeder> _logger;
 
     public IdentityDataSeeder(
         UserManager<User> userManager,
         RoleManager<Role> roleManager,
         IEventDispatcher eventDispatcher,
-        IdentityContext identityContext
+        IdentityContext identityContext,
+        IdentitySeedOptions seedOptions,
+        ILogger<IdentityDataSeeder> logger
     )
     {
         _userManager = userManager;
         _roleManager = roleManager;
         _eventDispatcher = eventDispatcher;
         _identityContext = identityContext;
+        _seedOptions = seedOptions;
+        _logger = logger;
     }
 
     public async Task SeedAllAsync()
@@ -40,7 +48,7 @@ public class IdentityDataSeeder : IDataSeeder
         if (!pendingMigrations.Any())
         {
             await SeedRoles();
-            await SeedUsers();
+            await SeedInitialAdminUser();
         }
     }
 
@@ -60,45 +68,69 @@ public class IdentityDataSeeder : IDataSeeder
         }
     }
 
-    private async Task SeedUsers()
+    // No accounts are created unless an operator explicitly opts in and supplies the
+    // initial admin password through configuration (environment variable / user secrets /
+    // secret store). The repository never ships a default password.
+    private async Task SeedInitialAdminUser()
     {
-        if (!await _identityContext.Users.AnyAsync())
+        if (!_seedOptions.Enabled)
         {
-            if (await _userManager.FindByNameAsync("samh") == null)
-            {
-                var result = await _userManager.CreateAsync(InitialData.Users.First(), "Admin@123456");
-
-                if (result.Succeeded)
-                {
-                    await _userManager.AddToRoleAsync(InitialData.Users.First(), IdentityConstant.Role.Admin);
-
-                    await _eventDispatcher.SendAsync(
-                        new UserCreated(
-                            InitialData.Users.First().Id,
-                            InitialData.Users.First().FirstName +
-                            " " +
-                            InitialData.Users.First().LastName,
-                            InitialData.Users.First().PassPortNumber));
-                }
-            }
-
-            if (await _userManager.FindByNameAsync("meysamh2") == null)
-            {
-                var result = await _userManager.CreateAsync(InitialData.Users.Last(), "User@123456");
-
-                if (result.Succeeded)
-                {
-                    await _userManager.AddToRoleAsync(InitialData.Users.Last(), IdentityConstant.Role.User);
-
-                    await _eventDispatcher.SendAsync(
-                        new UserCreated(
-                            InitialData.Users.Last().Id,
-                            InitialData.Users.Last().FirstName +
-                            " " +
-                            InitialData.Users.Last().LastName,
-                            InitialData.Users.Last().PassPortNumber));
-                }
-            }
+            _logger.LogInformation("Identity user seeding is disabled; no initial admin account will be created.");
+            return;
         }
+
+        if (await _identityContext.Users.AnyAsync())
+        {
+            return;
+        }
+
+        if (
+            string.IsNullOrWhiteSpace(_seedOptions.AdminUserName)
+            || string.IsNullOrWhiteSpace(_seedOptions.AdminEmail)
+            || string.IsNullOrWhiteSpace(_seedOptions.AdminPassword)
+        )
+        {
+            _logger.LogWarning(
+                "Identity user seeding is enabled but {Section}:AdminUserName, AdminEmail or AdminPassword is not configured; skipping initial admin creation.",
+                nameof(IdentitySeedOptions)
+            );
+            return;
+        }
+
+        if (await _userManager.FindByNameAsync(_seedOptions.AdminUserName) != null)
+        {
+            return;
+        }
+
+        var admin = new User
+        {
+            Id = NewId.NextGuid(),
+            UserName = _seedOptions.AdminUserName,
+            Email = _seedOptions.AdminEmail,
+            FirstName = _seedOptions.AdminFirstName ?? string.Empty,
+            LastName = _seedOptions.AdminLastName ?? string.Empty,
+            PassPortNumber = _seedOptions.AdminPassPortNumber ?? string.Empty,
+            SecurityStamp = Guid.NewGuid().ToString(),
+        };
+
+        var result = await _userManager.CreateAsync(admin, _seedOptions.AdminPassword);
+
+        if (!result.Succeeded)
+        {
+            _logger.LogError(
+                "Failed to create initial admin user {UserName}: {Errors}",
+                admin.UserName,
+                string.Join("; ", result.Errors.Select(e => e.Description))
+            );
+            return;
+        }
+
+        await _userManager.AddToRoleAsync(admin, IdentityConstant.Role.Admin);
+
+        await _eventDispatcher.SendAsync(
+            new UserCreated(admin.Id, admin.FirstName + " " + admin.LastName, admin.PassPortNumber)
+        );
+
+        _logger.LogInformation("Initial admin user {UserName} created from configuration.", admin.UserName);
     }
 }
