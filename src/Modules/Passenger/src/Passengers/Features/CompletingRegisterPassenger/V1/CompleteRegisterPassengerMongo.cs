@@ -39,16 +39,23 @@ internal class CompleteRegisterPassengerMongoHandler : ICommandHandler<CompleteR
 
         if (passenger is not null)
         {
+            var update = Builders<PassengerReadModel>.Update
+                .Set(x => x.PassengerId, PassengerId.Of(passengerReadModel.PassengerId))
+                .Set(x => x.Age, passengerReadModel.Age)
+                .Set(x => x.Name, passengerReadModel.Name)
+                .Set(x => x.IsDeleted, passengerReadModel.IsDeleted)
+                .Set(x => x.PassengerType, passengerReadModel.PassengerType)
+                .Set(x => x.PassportNumber, passengerReadModel.PassportNumber);
+
+            // Commands persisted before UserId existed deserialize with Guid.Empty; never erase a known owner.
+            if (passengerReadModel.UserId != Guid.Empty)
+            {
+                update = update.Set(x => x.UserId, passengerReadModel.UserId);
+            }
+
             await _passengerReadDbContext.Passenger.UpdateOneAsync(
                 x => x.PassengerId == PassengerId.Of(passengerReadModel.PassengerId),
-                Builders<PassengerReadModel>.Update
-                    .Set(x => x.PassengerId, PassengerId.Of(passengerReadModel.PassengerId))
-                    .Set(x => x.UserId, passengerReadModel.UserId)
-                    .Set(x => x.Age, passengerReadModel.Age)
-                    .Set(x => x.Name, passengerReadModel.Name)
-                    .Set(x => x.IsDeleted, passengerReadModel.IsDeleted)
-                    .Set(x => x.PassengerType, passengerReadModel.PassengerType)
-                    .Set(x => x.PassportNumber, passengerReadModel.PassportNumber),
+                update,
                 cancellationToken: cancellationToken);
         }
         else

@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using Api;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
+using Grpc.Core;
+using Grpc.Net.Client;
 using Integration.Test.Fakes;
 using Passenger;
 using Passenger.Data;
@@ -104,6 +106,45 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
 
         // Assert
         result.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task should_forbid_non_owner_from_getting_another_passenger_from_grpc_service()
+    {
+        // Arrange
+        var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
+
+        await Fixture.SendAsync(command);
+
+        var client = CreateUserHttpClient(Guid.CreateVersion7());
+        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(
+            GrpcChannel.ForAddress(client.BaseAddress!, new GrpcChannelOptions { HttpClient = client }));
+
+        // Act
+        var act = async () => await passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = command.Id.ToString() });
+
+        // Assert
+        var exception = await act.Should().ThrowAsync<RpcException>();
+        exception.Which.StatusCode.Should().Be(StatusCode.PermissionDenied);
+    }
+
+    [Fact]
+    public async Task should_allow_owner_to_get_their_own_passenger_from_grpc_service()
+    {
+        // Arrange
+        var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
+
+        await Fixture.SendAsync(command);
+
+        var client = CreateUserHttpClient(command.UserId);
+        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(
+            GrpcChannel.ForAddress(client.BaseAddress!, new GrpcChannelOptions { HttpClient = client }));
+
+        // Act
+        var response = await passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = command.Id.ToString() });
+
+        // Assert
+        response.PassengerDto.Id.Should().Be(command.Id.ToString());
     }
 
     private static string Route(Guid passengerId) => $"api/v1/passenger/{passengerId}";
