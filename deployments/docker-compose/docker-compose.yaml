@@ -25,17 +25,16 @@ x-service-environment: &service-environment
   MessageBroker__RabbitMq__Username: ${RABBITMQ_USER:-booking}
   MessageBroker__RabbitMq__Password: ${RABBITMQ_PASSWORD:-booking}
   MongoOptions__ConnectionString: mongodb://mongo:27017
-  ObservabilityOptions__OTLPOptions__OTLPGrpExporterEndpoint: http://otel-collector:4317
+  ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
   ObservabilityOptions__UseAspireOTLPExporter: "false"
   ObservabilityOptions__ZipkinOptions__HttpExporterEndpoint: http://zipkin-all-in-one:9411/api/v2/spans
   ObservabilityOptions__JaegerOptions__OTLPGrpcExporterEndpoint: http://jaeger-all-in-one:4317
   ObservabilityOptions__JaegerOptions__HttpExporterEndpoint: http://jaeger-all-in-one:14268/api/traces
 
 # The aspnet runtime image has no curl, so probes speak HTTP over bash's /dev/tcp (`$$` escapes
-# compose interpolation; the container sees `$status`). The gateway maps /health in every
-# environment and must return 200. The service hosts only map /health in Development, so their
-# probe passes once Kestrel answers HTTP at all, i.e. after migrations/seeding finished and the
-# host started listening.
+# compose interpolation; the container sees `$status`). Every host maps /health/live (process only)
+# and /health/ready (owned databases, broker and gRPC dependencies) in every environment
+# (BuildingBlocks.HealthCheck); compose gates on readiness, which must return 200.
 x-healthcheck-timing: &healthcheck-timing
   interval: 10s
   timeout: 5s
@@ -50,9 +49,9 @@ x-service-healthcheck: &service-healthcheck
     - -c
     - |
       exec 3<>/dev/tcp/127.0.0.1/80
-      printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+      printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
       IFS= read -r status <&3
-      [[ "$$status" == HTTP/1.1\ * ]]
+      [[ "$$status" == *" 200 "* ]]
 
 services:
   #######################################################
@@ -85,7 +84,7 @@ services:
         - -c
         - |
           exec 3<>/dev/tcp/127.0.0.1/80
-          printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
           IFS= read -r status <&3
           [[ "$$status" == *" 200 "* ]]
     depends_on:
