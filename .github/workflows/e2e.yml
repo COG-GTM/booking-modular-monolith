@@ -1,0 +1,61 @@
+# Contract compatibility tests and the cross-service E2E harness (AB-504): the four service hosts and
+# the gateway run as separate processes against Testcontainers (Postgres, Mongo, RabbitMQ, EventStoreDB).
+name: Contracts & Cross-service E2E
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**/*.md", "docs/**"]
+  pull_request:
+    paths-ignore: ["**/*.md", "docs/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Contract compatibility tests
+        run: dotnet test tests/Contracts.Compatibility.Test --logger "trx;LogFileName=contracts.trx" --results-directory test-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: contracts-test-results
+          path: test-results
+
+  cross-service-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Pre-pull infrastructure images
+        run: |
+          for image in postgres:16 mongo:latest rabbitmq:3-management eventstore/eventstore:latest; do
+            docker pull -q "$image" &
+          done
+          wait
+      - name: Build hosts, gateway and harness
+        run: dotnet build tests/Microservices.EndToEnd.Test
+      - name: Cross-service E2E
+        run: dotnet test tests/Microservices.EndToEnd.Test --no-build --logger "trx;LogFileName=e2e.trx" --logger "console;verbosity=normal" --results-directory test-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cross-service-e2e-results
+          path: |
+            test-results
+            tests/Microservices.EndToEnd.Test/bin/**/e2e-logs/*.log
