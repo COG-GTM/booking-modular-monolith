@@ -1,0 +1,214 @@
+# Default values for the booking chart. Environment overlays live in deployments/k8s/environments/.
+# Every value that differs between environments (images, public URL, credentials, replicas) is
+# expected to be overridden there or with --set; the credentials below are local-dev placeholders.
+
+global:
+  # Image = <registry>/<repositoryPrefix><service>:<tag>, e.g. ghcr.io/cog-gtm/booking-flight:latest
+  # (the images published by the per-service CI pipelines, AB-490).
+  imageRegistry: ghcr.io/cog-gtm
+  imageRepositoryPrefix: booking-
+  imageTag: ""                     # defaults to .Chart.AppVersion
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
+  # Public base URL clients use to reach the gateway. It is the token issuer (identity
+  # AuthOptions:IssuerUri) and the Jwt:Authority every service validates `iss` against.
+  publicUrl: http://localhost
+  aspnetEnvironment: docker
+  jwtAudience: booking-modular-monolith
+  # OTLP gRPC endpoint (e.g. http://otel-collector.observability:4317). Empty disables the OTLP exporter.
+  otlpEndpoint: ""
+  # Startup ordering: wait for TCP dependencies before starting a service container.
+  waitForDependencies:
+    enabled: true
+    image: busybox:1.36
+  podSecurityContext: {}
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
+      add: [NET_BIND_SERVICE]     # the images listen on :80/:81
+
+namespace:
+  # Render a Namespace object (for `helm template | kubectl apply`). With `helm install` prefer
+  # `--namespace booking --create-namespace` and leave this false.
+  create: false
+  labels: {}
+
+# ---------------------------------------------------------------------------------------------
+# Shared infrastructure endpoints. With infra.enabled=true they point at the in-chart StatefulSets;
+# for managed services set the hosts/connection strings and infra.enabled=false.
+# ---------------------------------------------------------------------------------------------
+postgres:
+  host: postgres
+  port: 5432
+  sslMode: ""                      # Npgsql "SSL Mode" (e.g. Require / VerifyFull); empty = driver default
+mongo:
+  connectionString: mongodb://mongo:27017
+eventstore:
+  connectionString: esdb://eventstore:2113?tls=false
+rabbitmq:
+  host: rabbitmq
+  port: 5672
+  virtualHost: /
+  username: booking
+  password: booking
+  # Secret with keys `username` and `password`; overrides the two values above.
+  existingSecret: ""
+
+ingress:
+  enabled: true
+  className: nginx
+  host: ""                         # empty = match any host
+  annotations: {}
+  tls: []
+  #  - secretName: booking-tls
+  #    hosts: [booking.example.com]
+
+identity:
+  # IdentityServer signing key shared by every identity replica. The secret must contain a JWK
+  # (RSA, alg RS256) under `key`; it is mounted as /app/tempkey.jwk, which Duende's
+  # AddDeveloperSigningCredential loads instead of generating a per-pod key. Without it identity
+  # is limited to one replica (each pod would sign with its own key). See README for generation.
+  signingKey:
+    existingSecret: ""
+    key: tempkey.jwk
+
+# ---------------------------------------------------------------------------------------------
+# Services. Each gets Deployment, Service (ClusterIP), ConfigMap, Secret and (optionally) HPA.
+# `env` adds/overrides plain env vars; `secretEnv` adds/overrides secret env vars;
+# `existingSecret` replaces the chart-generated Secret entirely.
+# ---------------------------------------------------------------------------------------------
+defaults:
+  replicas: 1
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: "1", memory: 768Mi}
+  hpa:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 75
+  probes:
+    livenessPath: /health/live
+    readinessPath: /health/ready
+    startupFailureThreshold: 60    # x 5s: migrations + seeding run at startup
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+services:
+  gateway:
+    enabled: true
+    serviceName: gateway
+    otelServiceName: gateway
+    hpa: {enabled: true}
+    # The gateway's catch-all `monolith` cluster. No monolith runs in-cluster, so it defaults to
+    # identity; point it at the monolith Service while running the strangler-fig side by side.
+    monolithAddress: http://identity:80
+    # CIDRs allowed to set X-Forwarded-For (the ingress controller pods); the rate limiter
+    # partitions on the forwarded client IP.
+    trustedNetworks: []
+    waitFor: []
+    env: {}
+    secretEnv: {}
+    existingSecret: ""
+
+  identity:
+    enabled: true
+    serviceName: identity
+    otelServiceName: identity-service
+    messageBrokerServiceName: identity
+    database: {name: identity_service, user: identity_service, password: identity_service}
+    persistDatabase: identity_service_persist_message
+    waitFor: [postgres, rabbitmq]
+    env: {}
+    secretEnv: {}
+    existingSecret: ""
+
+  flight:
+    enabled: true
+    serviceName: flight
+    otelServiceName: flight-service
+    messageBrokerServiceName: flight
+    grpc: true
+    database: {name: flight_service, user: flight_service, password: flight_service}
+    persistDatabase: flight_service_persist_message
+    readDatabase: flight_service_read
+    hpa: {enabled: true}
+    waitFor: [postgres, mongo, rabbitmq]
+    env: {}
+    secretEnv: {}
+    existingSecret: ""
+
+  passenger:
+    enabled: true
+    serviceName: passenger
+    otelServiceName: passenger-service
+    messageBrokerServiceName: passenger
+    grpc: true
+    database: {name: passenger_service, user: passenger_service, password: passenger_service}
+    persistDatabase: passenger_service_persist_message
+    readDatabase: passenger_service_read
+    hpa: {enabled: true}
+    waitFor: [postgres, mongo, rabbitmq]
+    env: {}
+    secretEnv: {}
+    existingSecret: ""
+
+  booking:
+    enabled: true
+    serviceName: booking
+    otelServiceName: booking-service
+    messageBrokerServiceName: booking
+    # Booking's write model is EventStoreDB; Postgres only holds its outbox/inbox.
+    database: {name: "", user: booking_service, password: booking_service}
+    persistDatabase: booking_service_persist_message
+    readDatabase: booking_service_read
+    # The ESDB $all subscription + projections are single-consumer (ADR 0496): exactly one
+    # replica may run with background processing, so Booking is pinned to one replica with a
+    # Recreate rollout. The chart refuses replicas > 1 / HPA while this is true.
+    backgroundProcessingEnabled: true
+    # Empty = http://<services.flight|passenger.serviceName>:81; set for services outside the chart.
+    grpcFlightAddress: ""
+    grpcPassengerAddress: ""
+    waitFor: [postgres, mongo, rabbitmq, eventstore]
+    env: {}
+    secretEnv: {}
+    existingSecret: ""
+
+# ---------------------------------------------------------------------------------------------
+# In-chart infrastructure for local/dev clusters (single-replica StatefulSets, no HA/backups).
+# Production should use managed services or dedicated operators and set infra.enabled=false.
+# ---------------------------------------------------------------------------------------------
+infra:
+  enabled: true
+  persistence:
+    enabled: true
+    storageClass: ""               # "" = cluster default (kind: standard / local-path)
+  postgres:
+    image: postgres:16             # postgres 18+ changed the data directory layout
+    adminUser: postgres
+    adminPassword: postgres
+    size: 2Gi
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {memory: 1Gi}
+  mongo:
+    image: mongo:7
+    size: 2Gi
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {memory: 1Gi}
+  rabbitmq:
+    image: rabbitmq:3-management
+    size: 1Gi
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {memory: 1Gi}
+  eventstore:
+    image: eventstore/eventstore:24.10
+    size: 2Gi
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {memory: 1Gi}
