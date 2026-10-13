@@ -46,3 +46,21 @@ scrape_configs:
 #  - job_name: 'tempo'
 #    static_configs:
 #      - targets: [ 'tempo:3200' ]
+
+  # Per-service scrape of the OpenTelemetry Prometheus exporter (`/metrics`, ObservabilityOptions:UsePrometheusExporter).
+  # Targets are the service container names on the compose network (images listen on 80). The same metrics also
+  # arrive through the collector (OTLP -> remote write) with `job` = service.name.
+  - job_name: "services"
+    scrape_interval: 10s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["gateway:80"]
+        labels: { service: "gateway" }
+      - targets: ["identity-service:80"]
+        labels: { service: "identity-service" }
+      - targets: ["flight-service:80"]
+        labels: { service: "flight-service" }
+      - targets: ["passenger-service:80"]
+        labels: { service: "passenger-service" }
+      - targets: ["booking-service:80"]
+        labels: { service: "booking-service" }
