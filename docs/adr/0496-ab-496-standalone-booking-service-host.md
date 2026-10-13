@@ -127,6 +127,13 @@ C4Container
 - **Dashboards / alarms:** OpenTelemetry exporters configured by `ObservabilityOptions`
 - **Rollback plan:** Repoint the gateway Booking cluster back to the monolith and re-enable `Modules:Booking:BackgroundProcessingEnabled` there.
 - **Migration / cut-over plan:** Data migration from the monolith stores is deferred to AB-505.
+- **Scaling:** the EventStoreDB `$all` subscription is a catch-up subscription with one shared checkpoint, not
+  a competing consumer, and `BookingProjection` is check-then-insert. Run exactly one replica with
+  `Modules:Booking:BackgroundProcessingEnabled=true`; any extra replicas serve HTTP only (`false`). A
+  persistent-subscription consumer group with idempotent upserts is a follow-up before scaling the projector.
+- **Probes:** `/alive` (liveness, `live` tag); `/health` (readiness) checks EventStoreDB, Mongo
+  `booking_service_read`, Postgres `booking_service_persist_message`, RabbitMQ (when `TransportType=RabbitMq`)
+  and the Flight/Passenger gRPC dependencies.
 
 ## Policy exceptions requested
 

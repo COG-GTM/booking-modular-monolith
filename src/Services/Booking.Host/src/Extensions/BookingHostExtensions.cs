@@ -54,6 +54,7 @@ public static class BookingHostExtensions
     public static WebApplicationBuilder AddBookingServiceDefaults(this WebApplicationBuilder builder)
     {
         builder.Services.AddCustomHealthCheck();
+        builder.Services.AddBookingReadinessChecks(builder.Configuration);
         builder.AddCustomObservability();
         builder.Services.AddServiceDiscovery();
 

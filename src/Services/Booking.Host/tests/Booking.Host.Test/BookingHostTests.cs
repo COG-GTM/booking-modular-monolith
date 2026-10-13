@@ -30,6 +30,8 @@ public class BookingHostTests : BookingHostTestBase
 
         (await client.GetStringAsync("/")).Should().Be("Booking-Service");
         (await client.GetAsync("/alive")).StatusCode.Should().Be(HttpStatusCode.OK);
+        var health = await client.GetAsync("/health");
+        health.StatusCode.Should().Be(HttpStatusCode.OK, await health.Content.ReadAsStringAsync());
     }
 
     [Fact]
