@@ -59,12 +59,12 @@ public sealed class FlightHostProcess : IAsyncDisposable
             fixtureConfiguration["PostgresOptions:ConnectionString:Flight"]!,
             "flight_service"
         );
-        env["PersistMessageOptions__ConnectionString"] = WithDatabase(
-            fixtureConfiguration["PersistMessageOptions:ConnectionString"]!,
+        env["PersistMessageOptions__ConnectionString__Flight"] = WithDatabase(
+            fixtureConfiguration["PersistMessageOptions:ConnectionString:Flight"]!,
             "flight_service_persist_message"
         );
         env["MongoOptions__ConnectionString"] = fixtureConfiguration["MongoOptions:ConnectionString"];
-        env["MongoOptions__DatabaseName"] = "flight_service_read";
+        env["MongoOptions__Flight__DatabaseName"] = "flight_service_read";
         env["MessageBroker__TransportType"] = "RabbitMq";
         env["MessageBroker__RabbitMq__Host"] = fixtureConfiguration["MessageBroker:RabbitMq:Host"];
         env["MessageBroker__RabbitMq__Port"] = fixtureConfiguration["MessageBroker:RabbitMq:Port"];

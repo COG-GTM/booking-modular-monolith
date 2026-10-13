@@ -3,7 +3,6 @@ using BuildingBlocks.Exception;
 using BuildingBlocks.Jwt;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.OpenApi;
-using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Contracts.Grpc.Flight;
@@ -22,7 +21,6 @@ public static class FlightHostInfrastructureExtensions
         builder.Services.AddJwt();
         builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         builder.Services.AddTransient<AuthHeaderHandler>();
-        builder.AddPersistMessageProcessor();
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddControllers();
