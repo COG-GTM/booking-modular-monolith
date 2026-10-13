@@ -313,13 +313,14 @@ public class IdentityDataSeederTests
             .Should()
             .ContainSingle(m =>
                 m.Contains("Rolling back seeded user 'samh' failed")
-                && m.Contains("reconciled on the next run")
+                && m.Contains("exists without role 'admin'")
+                && m.Contains("must be fixed manually")
                 && m.Contains("user store unavailable")
             );
     }
 
     [Fact]
-    public async Task should_reconcile_role_on_a_later_run_when_rollback_of_failed_role_assignment_left_user_behind()
+    public async Task should_not_touch_stranded_user_on_a_later_run_when_rollback_of_failed_role_assignment_failed()
     {
         await using var harness = await SeederHarness.CreateAsync(
             new IdentitySeedOptions { AdminPassword = AdminPassword }
@@ -333,24 +334,26 @@ public class IdentityDataSeederTests
             .SeedAllAsync();
         var stranded = await harness.UserManager.FindByNameAsync("samh");
         stranded.Should().NotBeNull();
+        harness.Logger.Entries.Clear();
 
         await harness.Seeder.SeedAllAsync();
 
-        var admin = await harness.UserManager.FindByNameAsync("samh");
-        admin!.Id.Should().Be(stranded!.Id);
-        (await harness.UserManager.CheckPasswordAsync(admin, AdminPassword)).Should().BeTrue();
-        (await harness.UserManager.GetRolesAsync(admin)).Should().BeEquivalentTo(IdentityConstant.Role.Admin);
+        var user = await harness.UserManager.FindByNameAsync("samh");
+        user!.Id.Should().Be(stranded!.Id);
+        (await harness.UserManager.GetRolesAsync(user)).Should().BeEmpty();
+        (await harness.Context.Users.CountAsync()).Should().Be(1);
         harness.Events.Should().BeEmpty();
+        harness.Logger.Entries.Should().NotContain(e => e.Level == LogLevel.Error);
     }
 
     [Fact]
-    public async Task should_log_error_and_keep_existing_seeded_user_when_assigning_its_missing_role_fails()
+    public async Task should_not_attempt_role_assignment_on_existing_user_sharing_the_seeded_username()
     {
         await using var harness = await SeederHarness.CreateAsync(
             new IdentitySeedOptions { AdminPassword = AdminPassword }
         );
-        var stranded = InitialData.Users.First();
-        (await harness.UserManager.CreateAsync(stranded, AdminPassword)).Succeeded.Should().BeTrue();
+        var existing = InitialData.Users.First();
+        (await harness.UserManager.CreateAsync(existing, AdminPassword)).Succeeded.Should().BeTrue();
 
         await harness
             .CreateSeeder(
@@ -359,16 +362,11 @@ public class IdentityDataSeederTests
             )
             .SeedAllAsync();
 
-        var admin = await harness.UserManager.FindByNameAsync("samh");
-        admin!.Id.Should().Be(stranded.Id);
-        (await harness.UserManager.GetRolesAsync(admin)).Should().BeEmpty();
+        var user = await harness.UserManager.FindByNameAsync("samh");
+        user!.Id.Should().Be(existing.Id);
+        (await harness.UserManager.GetRolesAsync(user)).Should().BeEmpty();
         harness.Events.Should().BeEmpty();
-        harness
-            .Logger.Entries.Should()
-            .ContainSingle(e => e.Level == LogLevel.Error)
-            .Which.Message.Should()
-            .Contain("Assigning missing role 'admin' to existing seeded user 'samh' failed")
-            .And.Contain("role store unavailable");
+        harness.Logger.Entries.Should().NotContain(e => e.Level == LogLevel.Error);
     }
 
     [Fact]
