@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>MassTransit messaging configuration (InMemory/RabbitMQ transports, consume filters).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.8" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Core\BuildingBlocks.Core.csproj" />
+    <ProjectReference Include="..\PersistMessageProcessor\BuildingBlocks.PersistMessageProcessor.csproj" />
+    <ProjectReference Include="..\Web\BuildingBlocks.Web.csproj" />
+  </ItemGroup>
+</Project>

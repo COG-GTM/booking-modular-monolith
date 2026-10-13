@@ -6,6 +6,19 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- Package metadata/versioning (SemVer). Override per build with -p:Version=x.y.z or -p:VersionSuffix=... -->
+  <PropertyGroup>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <Authors>COG-GTM</Authors>
+    <Company>COG-GTM</Company>
+    <Product>booking-modular-monolith</Product>
+    <RepositoryUrl>https://github.com/COG-GTM/booking-modular-monolith</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/COG-GTM/booking-modular-monolith</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="StyleCop.Analyzers" PrivateAssets="all" Version="1.1.118">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

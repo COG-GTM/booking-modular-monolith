@@ -1,8 +1,4 @@
-using System.Security.Claims;
 using BuildingBlocks.Core.Event;
-using BuildingBlocks.PersistMessageProcessor;
-using BuildingBlocks.Web;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MessageEnvelope = BuildingBlocks.Core.Event.MessageEnvelope;
@@ -11,13 +7,20 @@ namespace BuildingBlocks.Core;
 
 public sealed class EventDispatcher(
     IServiceScopeFactory serviceScopeFactory,
-    IEventMapper eventMapper,
+    IEnumerable<IEventMapper> eventMappers,
     ILogger<EventDispatcher> logger,
-    IPersistMessageProcessor persistMessageProcessor,
-    IHttpContextAccessor httpContextAccessor
+    IIntegrationEventPublisher? integrationEventPublisher = null,
+    IEventHeadersProvider? eventHeadersProvider = null
 )
     : IEventDispatcher
 {
+    private readonly CompositeEventMapper eventMapper = new(eventMappers);
+
+    private IIntegrationEventPublisher Publisher =>
+        integrationEventPublisher
+        ?? throw new InvalidOperationException(
+            $"No {nameof(IIntegrationEventPublisher)} is registered. Register one (e.g. AddPersistMessageProcessor()) to publish integration events and internal commands.");
+
     public async Task SendAsync<T>(IReadOnlyList<T> events, Type type = null,
                                    CancellationToken cancellationToken = default)
         where T : IEvent
@@ -32,7 +35,7 @@ public sealed class EventDispatcher(
             {
                 foreach (var integrationEvent in integrationEvents)
                 {
-                    await persistMessageProcessor.PublishMessageAsync(
+                    await Publisher.PublishAsync(
                         new MessageEnvelope(integrationEvent, SetHeaders()),
                         cancellationToken);
                 }
@@ -61,7 +64,7 @@ public sealed class EventDispatcher(
 
                 foreach (var internalMessage in internalMessages)
                 {
-                    await persistMessageProcessor.AddInternalMessageAsync(internalMessage, cancellationToken);
+                    await Publisher.AddInternalMessageAsync(internalMessage, cancellationToken);
                 }
             }
         }
@@ -143,13 +146,6 @@ public sealed class EventDispatcher(
         }
     }
 
-    private IDictionary<string, object> SetHeaders()
-    {
-        var headers = new Dictionary<string, object>();
-        headers.Add("CorrelationId", httpContextAccessor?.HttpContext?.GetCorrelationId());
-        headers.Add("UserId", httpContextAccessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier));
-        headers.Add("UserName", httpContextAccessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.Name));
-
-        return headers;
-    }
+    private IDictionary<string, object?> SetHeaders() =>
+        eventHeadersProvider?.GetHeaders() ?? new Dictionary<string, object?>();
 }
