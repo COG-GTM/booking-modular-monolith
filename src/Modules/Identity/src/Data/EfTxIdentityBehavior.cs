@@ -14,14 +14,14 @@ where TResponse : notnull
 {
     private readonly ILogger<EfTxIdentityBehavior<TRequest, TResponse>> _logger;
     private readonly IdentityContext _identityContext;
-    private readonly IPersistMessageDbContext _persistMessageDbContext;
-    private readonly IEventDispatcher _eventDispatcher;
+    private readonly IPersistMessageDbContext<IdentityRoot> _persistMessageDbContext;
+    private readonly IEventDispatcher<IdentityRoot> _eventDispatcher;
 
     public EfTxIdentityBehavior(
         ILogger<EfTxIdentityBehavior<TRequest, TResponse>> logger,
         IdentityContext identityContext,
-        IPersistMessageDbContext persistMessageDbContext,
-        IEventDispatcher eventDispatcher
+        IPersistMessageDbContext<IdentityRoot> persistMessageDbContext,
+        IEventDispatcher<IdentityRoot> eventDispatcher
     )
     {
         _logger = logger;

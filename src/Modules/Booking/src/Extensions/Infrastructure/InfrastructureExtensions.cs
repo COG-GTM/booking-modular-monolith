@@ -18,11 +18,15 @@ public static class InfrastructureExtensions
         builder.AddMinimalEndpoints(assemblies: typeof(BookingRoot).Assembly);
         builder.Services.AddValidatorsFromAssembly(typeof(BookingRoot).Assembly);
         builder.Services.AddCustomMapster(typeof(BookingRoot).Assembly);
-        builder.AddMongoDbContext<BookingReadDbContext>();
+        builder.AddMongoDbContext<BookingReadDbContext>(nameof(Booking));
 
         // ref: https://github.com/oskardudycz/EventSourcing.NetCore/tree/main/Sample/EventStoreDB/ECommerce
-        builder.Services.AddEventStore(builder.Configuration, typeof(BookingRoot).Assembly)
-            .AddEventStoreDBSubscriptionToAll();
+        builder.Services.AddEventStore(builder.Configuration, typeof(BookingRoot).Assembly);
+
+        if (builder.Configuration.IsModuleBackgroundProcessingEnabled(nameof(Booking)))
+        {
+            builder.Services.AddEventStoreDBSubscriptionToAll();
+        }
 
         builder.Services.AddGrpcClients();
 

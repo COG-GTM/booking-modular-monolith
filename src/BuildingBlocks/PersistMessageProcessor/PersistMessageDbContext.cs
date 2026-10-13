@@ -8,10 +8,15 @@ namespace BuildingBlocks.PersistMessageProcessor;
 
 public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
 {
-    private readonly ILogger<PersistMessageDbContext>? _logger;
+    private readonly ILogger? _logger;
 
     public PersistMessageDbContext(DbContextOptions<PersistMessageDbContext> options,
         ILogger<PersistMessageDbContext>? logger = null)
+        : this((DbContextOptions)options, logger)
+    {
+    }
+
+    protected PersistMessageDbContext(DbContextOptions options, ILogger? logger = null)
         : base(options)
     {
         _logger = logger;
@@ -84,8 +89,8 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
             data text,
             created timestamp with time zone not null,
             retry_count integer not null,
-            message_status text not null default 'InProgress'::text,
-            delivery_type text not null default 'Outbox'::text,
+            message_status integer not null default 1,
+            delivery_type integer not null default 1,
             version bigint not null,
             constraint pk_persist_message primary key (id)
             )";
@@ -116,4 +121,14 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
             throw new System.Exception("try for find IVersion", ex);
         }
     }
+}
+
+public class PersistMessageDbContext<TModule> : PersistMessageDbContext, IPersistMessageDbContext<TModule>
+    where TModule : class
+{
+    public PersistMessageDbContext(
+        DbContextOptions<PersistMessageDbContext<TModule>> options,
+        ILogger<PersistMessageDbContext<TModule>>? logger = null
+    )
+        : base(options, logger) { }
 }

@@ -5,7 +5,7 @@ using MessageEnvelope = BuildingBlocks.Core.Event.MessageEnvelope;
 
 namespace BuildingBlocks.Core;
 
-public sealed class EventDispatcher(
+public class EventDispatcher(
     IServiceScopeFactory serviceScopeFactory,
     IEnumerable<IEventMapper> eventMappers,
     ILogger<EventDispatcher> logger,
@@ -149,3 +149,15 @@ public sealed class EventDispatcher(
     private IDictionary<string, object?> SetHeaders() =>
         eventHeadersProvider?.GetHeaders() ?? new Dictionary<string, object?>();
 }
+
+// Dispatches through the outbox/inbox store owned by TModule (see AddPersistMessageProcessor<TModule>).
+public sealed class EventDispatcher<TModule>(
+    IServiceScopeFactory serviceScopeFactory,
+    IEnumerable<IEventMapper> eventMappers,
+    ILogger<EventDispatcher> logger,
+    IIntegrationEventPublisher<TModule> integrationEventPublisher,
+    IEventHeadersProvider? eventHeadersProvider = null
+)
+    : EventDispatcher(serviceScopeFactory, eventMappers, logger, integrationEventPublisher, eventHeadersProvider),
+        IEventDispatcher<TModule>
+    where TModule : class;
