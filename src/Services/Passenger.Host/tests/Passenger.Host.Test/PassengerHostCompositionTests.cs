@@ -238,6 +238,7 @@ public class PassengerHostCompositionTests : IDisposable
         {
             ["AppOptions:Name"] = "Passenger-Service",
             ["HealthOptions:Enabled"] = "false",
+            ["HealthOptions:DependencyChecksEnabled"] = "false",
             ["MessageBroker:TransportType"] = nameof(TransportType.InMemory),
             ["MessageBroker:ServiceName"] = "passenger",
             ["MessageBroker:UseInbox"] = "true",

@@ -63,9 +63,10 @@ Mapped in every environment, anonymous:
 Readiness checks registered from configuration: `postgres` (single `PostgresOptions:ConnectionString`) or
 `postgres-<module>` (per-module `PostgresOptions:ConnectionString:<Module>`), `postgres-<module>-persist-message`
 (`PersistMessageOptions:ConnectionString:<Module>`), `mongodb`, `eventstore`, `rabbitmq`
-(`MessageBroker:TransportType=RabbitMq`), plus checks other components add (Booking's `grpc-flight` /
-`grpc-passenger`, MassTransit's bus check). `HealthOptions:DependencyChecksEnabled=false` turns the dependency
-checks off; `HealthOptions:Enabled=true` adds the HealthChecks UI at `/health-ui`. The gRPC health service
+(`MessageBroker:TransportType=RabbitMq`), plus checks other components add (Booking's `flight-grpc` /
+`passenger-grpc`, MassTransit's bus check). `HealthOptions:DependencyChecksEnabled=false` turns the dependency
+checks off — Passenger.Host and Booking.Host set it because they register their own service-owned checks
+(`passenger-*`, `booking-*`); `HealthOptions:Enabled=true` adds the HealthChecks UI at `/health-ui`. The gRPC health service
 (`grpc.health.v1`) on the h2 port reports the same checks.
 
 Compose example:
