@@ -23,10 +23,6 @@ public sealed class BookingHostFixture : TestReadFixture<Program, BookingReadDbC
             .StartAsync(Passenger, PassengerGrpcService.Descriptor.FullName)
             .GetAwaiter()
             .GetResult();
-
-        // Read while Program registers the gRPC clients, before the host is built.
-        Environment.SetEnvironmentVariable("Grpc__FlightAddress", _flightServer.Address);
-        Environment.SetEnvironmentVariable("Grpc__PassengerAddress", _passengerServer.Address);
     }
 
     public FakeFlightGrpcService Flight { get; } = new();
@@ -37,13 +33,15 @@ public sealed class BookingHostFixture : TestReadFixture<Program, BookingReadDbC
 
     public string PassengerAddress => _passengerServer.Address;
 
+    // Applied via UseSetting, so Program sees them when it registers the gRPC clients.
+    protected override IEnumerable<KeyValuePair<string, string?>> AdditionalAppSettings() =>
+        [new("Grpc:FlightAddress", _flightServer.Address), new("Grpc:PassengerAddress", _passengerServer.Address)];
+
     async Task IAsyncLifetime.DisposeAsync()
     {
         await DisposeAsync();
         await _flightServer.DisposeAsync();
         await _passengerServer.DisposeAsync();
-        Environment.SetEnvironmentVariable("Grpc__FlightAddress", null);
-        Environment.SetEnvironmentVariable("Grpc__PassengerAddress", null);
     }
 }
 

@@ -37,8 +37,8 @@ public static class BookingHostExtensions
         builder.Services.AddEventDispatcher();
         builder.Services.AddHttpContextEventHeaders();
 
-        var transportType = builder.Environment.IsEnvironment("test") ? TransportType.InMemory : TransportType.RabbitMq;
-        builder.Services.AddCustomMassTransit(builder.Environment, transportType, typeof(BookingRoot).Assembly);
+        // Transport, queue prefix and inbox come from the "MessageBroker" section; only Booking's consumers.
+        builder.Services.AddCustomMassTransit(builder.Configuration, builder.Environment, typeof(BookingRoot).Assembly);
 
         builder.Services.AddEasyCaching(options =>
         {
