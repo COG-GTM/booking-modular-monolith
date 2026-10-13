@@ -3,6 +3,10 @@ using Projects;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
+// "Services" (default) runs the gateway in front of one host per module, each on its own databases.
+// "Monolith" runs the pre-migration src/Api behind the gateway (e.g. --AppHost:Topology=Monolith).
+var topology = AppHostTopology.Resolve(builder.Configuration);
+
 builder.AddDockerComposeEnvironment("docker-compose");
 
 // 1. Database Services
@@ -10,7 +14,7 @@ var pgUsername = builder.AddParameter("pg-username", "postgres", secret: true);
 var pgPassword = builder.AddParameter("pg-password", "postgres", secret: true);
 
 var postgres = builder.AddPostgres("postgres", pgUsername, pgPassword)
-    .WithImage("postgres:latest")
+    .WithImage("postgres:16")
     .WithEndpoint(
         "tcp",
         e =>
@@ -24,7 +28,7 @@ var postgres = builder.AddPostgres("postgres", pgUsername, pgPassword)
         "-c",
         "wal_level=logical",
         "-c",
-        "max_prepared_transactions=10");
+        "max_prepared_transactions=100");
 
 if (builder.ExecutionContext.IsPublishMode)
 {
@@ -33,14 +37,6 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 
-var flightDb = postgres.AddDatabase("flight");
-var passengerDb = postgres.AddDatabase("passenger");
-var identityDb = postgres.AddDatabase("identity");
-// Each module owns its outbox/inbox database; nothing is shared across modules.
-var flightPersistMessageDb = postgres.AddDatabase("flight-persist-message", "flight_persist_message");
-var passengerPersistMessageDb = postgres.AddDatabase("passenger-persist-message", "passenger_persist_message");
-var identityPersistMessageDb = postgres.AddDatabase("identity-persist-message", "identity_persist_message");
-var bookingPersistMessageDb = postgres.AddDatabase("booking-persist-message", "booking_persist_message");
 
 var mongoUsername = builder.AddParameter("mongo-username", "root", secret: true);
 var mongoPassword = builder.AddParameter("mongo-password", "secret", secret: true);
@@ -233,7 +229,7 @@ if (builder.ExecutionContext.IsPublishMode)
     nodeExporter.WithLifetime(ContainerLifetime.Persistent);
 }
 
-var tempo = builder.AddContainer("tempo", "grafana/tempo")
+var tempo = builder.AddContainer("tempo", "grafana/tempo", "2.6.1")
     .WithBindMount("../../../../deployments/configs/tempo.yaml", "/etc/tempo.yaml", isReadOnly: true)
     .WithArgs("--config.file=/etc/tempo.yaml")
     .WithEndpoint(port: 3200, targetPort: 3200, name: "http", isProxied: true, isExternal: false)
@@ -258,7 +254,8 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 var elasticsearch = builder.AddElasticsearch("elasticsearch")
-    .WithImage("docker.elastic.co/elasticsearch/elasticsearch:8.17.0")
+    .WithImageRegistry("docker.elastic.co")
+    .WithImage("elasticsearch/elasticsearch", "8.17.0")
     .WithEnvironment("discovery.type", "single-node")
     .WithEnvironment("cluster.name", "docker-cluster")
     .WithEnvironment("node.name", "docker-node")
@@ -307,57 +304,159 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
-var api = builder.AddProject<Api>("api")
-    .WithReference(flightPersistMessageDb)
-    .WaitFor(flightPersistMessageDb)
-    .WithReference(passengerPersistMessageDb)
-    .WaitFor(passengerPersistMessageDb)
-    .WithReference(identityPersistMessageDb)
-    .WaitFor(identityPersistMessageDb)
-    .WithReference(bookingPersistMessageDb)
-    .WaitFor(bookingPersistMessageDb)
-    .WithReference(flightDb)
-    .WaitFor(flightDb)
-    .WithReference(passengerDb)
-    .WaitFor(passengerDb)
-    .WithReference(identityDb)
-    .WaitFor(identityDb)
-    .WithReference(mongo)
-    .WaitFor(mongo)
-    .WithReference(eventstore)
-    .WaitFor(eventstore)
-    .WithReference(rabbitmq)
-    .WaitFor(rabbitmq)
-    .WithEnvironment("MessageBroker__TransportType", "RabbitMq")
-    .WithHttpEndpoint(port: 3001, name: "api-http")
-    .WithHttpsEndpoint(port: 3000, name: "api-https");
-
-// Single ingress: every route is forwarded to the monolith until a module is extracted,
-// at which point only the matching cluster destination below needs to be repointed.
-// IdentityServer's issuer and every JWT validator must agree on the same public address,
-// so all of them are derived from the API's HTTPS endpoint instead of hard-coded appsettings.
-var issuer = api.GetEndpoint("api-https");
-api.WithEnvironment("AuthOptions__IssuerUri", issuer).WithEnvironment("Jwt__Authority", issuer);
-
 var gateway = builder
     .AddProject<Gateway>("gateway")
-    .WithReference(api)
-    .WaitFor(api)
-    .WithEnvironment("Jwt__Authority", issuer)
     .WithHttpEndpoint(port: 5000, name: "gateway-http")
     .WithHttpsEndpoint(port: 5001, name: "gateway-https");
 
-// Cluster destinations default to the monolith; an extracted module is repointed with
-// Gateway:Clusters:<cluster> in the AppHost configuration (appsettings / env / user-secrets).
-foreach (var cluster in new[] { "flight", "passenger", "booking", "identity", "monolith" })
+// Every gateway cluster keeps its single destination named "monolith" (see src/Gateway appsettings);
+// only its address changes with the topology. Gateway:Clusters:<cluster> overrides either default.
+var clusterDestinations = topology == AppHostTopology.Monolith
+    ? AddMonolith()
+    : AddServices();
+
+foreach (var (cluster, destination) in clusterDestinations)
 {
     var key = $"ReverseProxy__Clusters__{cluster}__Destinations__monolith__Address";
     var overrideAddress = builder.Configuration[$"Gateway:Clusters:{cluster}"];
 
     if (string.IsNullOrWhiteSpace(overrideAddress))
-        gateway.WithEnvironment(key, api.GetEndpoint("api-http"));
+        gateway.WithEnvironment(key, destination);
     else
         gateway.WithEnvironment(key, overrideAddress);
 }
 
 builder.Build().Run();
+
+Dictionary<string, EndpointReference> AddMonolith()
+{
+    var flightDb = postgres.AddDatabase("flight");
+    var passengerDb = postgres.AddDatabase("passenger");
+    var identityDb = postgres.AddDatabase("identity");
+    // Each module owns its outbox/inbox database; nothing is shared across modules.
+    var flightPersistMessageDb = postgres.AddDatabase("flight-persist-message", "flight_persist_message");
+    var passengerPersistMessageDb = postgres.AddDatabase("passenger-persist-message", "passenger_persist_message");
+    var identityPersistMessageDb = postgres.AddDatabase("identity-persist-message", "identity_persist_message");
+    var bookingPersistMessageDb = postgres.AddDatabase("booking-persist-message", "booking_persist_message");
+
+    var api = builder
+        .AddProject<Api>("api")
+        .WithReference(flightPersistMessageDb)
+        .WaitFor(flightPersistMessageDb)
+        .WithReference(passengerPersistMessageDb)
+        .WaitFor(passengerPersistMessageDb)
+        .WithReference(identityPersistMessageDb)
+        .WaitFor(identityPersistMessageDb)
+        .WithReference(bookingPersistMessageDb)
+        .WaitFor(bookingPersistMessageDb)
+        .WithReference(flightDb)
+        .WaitFor(flightDb)
+        .WithReference(passengerDb)
+        .WaitFor(passengerDb)
+        .WithReference(identityDb)
+        .WaitFor(identityDb)
+        .WithReference(mongo)
+        .WaitFor(mongo)
+        .WithReference(eventstore)
+        .WaitFor(eventstore)
+        .WithReference(rabbitmq)
+        .WaitFor(rabbitmq)
+        .WithEnvironment("MessageBroker__TransportType", "RabbitMq")
+        .WithHttpEndpoint(port: 3001, name: "api-http")
+        .WithHttpsEndpoint(port: 3000, name: "api-https");
+
+    // IdentityServer's issuer and every JWT validator must agree on the same public address,
+    // so all of them are derived from the API's HTTPS endpoint instead of hard-coded appsettings.
+    var issuer = api.GetEndpoint("api-https");
+    api.WithEnvironment("AuthOptions__IssuerUri", issuer).WithEnvironment("Jwt__Authority", issuer);
+
+    gateway.WithReference(api).WaitFor(api).WithEnvironment("Jwt__Authority", issuer);
+
+    var apiHttp = api.GetEndpoint("api-http");
+    return AppHostTopology.Clusters.ToDictionary(cluster => cluster, _ => apiHttp);
+}
+
+Dictionary<string, EndpointReference> AddServices()
+{
+    // Endpoint names are matched case-insensitively ("http" launch-profile / "Http" Kestrel endpoints).
+    const string http = "http";
+    const string grpc = "grpc";
+
+    var identity = AddServiceProject<Identity_Host>("identity", ownsWriteDb: true);
+    var flight = AddServiceProject<Flight_Host>("flight", ownsWriteDb: true, readDb: true);
+    var passenger = AddServiceProject<Passenger_Host>("passenger", ownsWriteDb: true, readDb: true);
+    var booking = AddServiceProject<Booking_Host>("booking", ownsWriteDb: false, readDb: true)
+        .WithReference(eventstore)
+        .WaitFor(eventstore);
+
+    // Identity issues the tokens; it and every validator (services + gateway) agree on its address.
+    var issuer = identity.GetEndpoint(http);
+    identity.WithEnvironment("AuthOptions__IssuerUri", issuer);
+    foreach (var service in new[] { identity, flight, passenger, booking })
+        service.WithEnvironment("Jwt__Authority", issuer);
+
+    // Grpc.Net.Client can't resolve Aspire's "https+http://" scheme, so Booking gets the plain
+    // allocated gRPC (HTTP/2) URLs; the references still publish services__<name>__* for discovery.
+    booking
+        .WithReference(flight)
+        .WithReference(passenger)
+        .WithEnvironment("Grpc__FlightAddress", flight.GetEndpoint(grpc))
+        .WithEnvironment("Grpc__PassengerAddress", passenger.GetEndpoint(grpc))
+        .WaitFor(flight)
+        .WaitFor(passenger);
+
+    gateway.WithEnvironment("Jwt__Authority", issuer);
+    foreach (var service in new[] { identity, flight, passenger, booking })
+        gateway.WithReference(service).WaitFor(service);
+
+    return new()
+    {
+        ["identity"] = identity.GetEndpoint(http),
+        ["flight"] = flight.GetEndpoint(http),
+        ["passenger"] = passenger.GetEndpoint(http),
+        ["booking"] = booking.GetEndpoint(http),
+        // Without the monolith, the only non-module paths left (IdentityServer UI) live in Identity.
+        ["monolith"] = identity.GetEndpoint(http),
+    };
+}
+
+// Each service only sees its own resources: <module>_service (write), <module>_service_persist_message
+// (outbox/inbox), <module>_service_read (Mongo) and the shared RabbitMQ broker. Connection names match
+// what the hosts already resolve (ConnectionStrings:<module>, <module>-persist-message, <module>-mongo).
+// Endpoints come from each host's launch profile or Kestrel:Endpoints config (ADR 0008 ports).
+IResourceBuilder<ProjectResource> AddServiceProject<TProject>(string module, bool ownsWriteDb, bool readDb = false)
+    where TProject : IProjectMetadata, new()
+{
+    var service = builder
+        .AddProject<TProject>(module)
+        .WithHttpHealthCheck("/health")
+        .WithReference(rabbitmq)
+        .WaitFor(rabbitmq)
+        .WithEnvironment("MessageBroker__TransportType", "RabbitMq");
+
+    if (ownsWriteDb)
+    {
+        var writeDb = postgres.AddDatabase($"{module}-service-db", $"{module}_service");
+        service.WithReference(writeDb, module).WaitFor(writeDb);
+    }
+
+    var persistMessageDb = postgres.AddDatabase(
+        $"{module}-service-persist-message",
+        $"{module}_service_persist_message"
+    );
+    service.WithReference(persistMessageDb, $"{module}-persist-message").WaitFor(persistMessageDb);
+
+    if (readDb)
+    {
+        var readDatabaseName = $"{module}_service_read";
+        var readDbResource = mongo.AddDatabase($"{module}-service-read", readDatabaseName);
+        service
+            .WithReference(readDbResource, $"{module}-mongo")
+            .WaitFor(readDbResource)
+            .WithEnvironment($"MongoOptions__{char.ToUpperInvariant(module[0])}{module[1..]}__DatabaseName", readDatabaseName)
+            // Hosts' Mongo health checks read the root fallback key, not ConnectionStrings:<module>-mongo.
+            .WithEnvironment("MongoOptions__ConnectionString", mongo);
+    }
+
+    return service;
+}
