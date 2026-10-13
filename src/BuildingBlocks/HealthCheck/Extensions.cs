@@ -183,28 +183,32 @@ public static class Extensions
                 yield return ($"postgres-{aspireName}", c => c.GetConnectionString(aspireName) ?? c[optionsKey]);
         }
 
-        var persistModules = configuration
-            .GetSection(PersistMessageConnectionKey)
-            .GetChildren()
-            .Select(m => m.Key.Kebaberize())
-            .Concat(
-                configuration
-                    .GetSection("ConnectionStrings")
-                    .GetChildren()
-                    .Where(c => c.Key.EndsWith(PersistMessageSuffix, StringComparison.OrdinalIgnoreCase))
-                    .Select(c => c.Key[..^PersistMessageSuffix.Length].ToLowerInvariant())
-            )
-            .Distinct(StringComparer.OrdinalIgnoreCase);
+        // Aspire name (kebab-case) -> options key with the module's original spelling, as the outbox resolves it.
+        var persistStores = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var module in persistModules)
+        foreach (var module in configuration.GetSection(PersistMessageConnectionKey).GetChildren())
+            persistStores[$"{module.Key}{PersistMessageSuffix}".Kebaberize()] = module.Path;
+
+        foreach (var connection in configuration.GetSection("ConnectionStrings").GetChildren())
         {
-            var aspireName = module + PersistMessageSuffix;
-            var optionsKey = $"{PersistMessageConnectionKey}:{module}";
+            if (connection.Key.EndsWith(PersistMessageSuffix, StringComparison.OrdinalIgnoreCase))
+                persistStores.TryAdd(connection.Key.ToLowerInvariant(), null);
+        }
 
-            if (!string.IsNullOrEmpty(configuration.GetConnectionString(aspireName) ?? configuration[optionsKey]))
-                yield return ($"postgres-{aspireName}", c => c.GetConnectionString(aspireName) ?? c[optionsKey]);
+        foreach (var (aspireName, optionsKey) in persistStores)
+        {
+            if (!string.IsNullOrEmpty(configuration.GetConnectionString(aspireName) ?? ReadOptional(configuration, optionsKey)))
+            {
+                yield return (
+                    $"postgres-{aspireName}",
+                    c => c.GetConnectionString(aspireName) ?? ReadOptional(c, optionsKey)
+                );
+            }
         }
     }
+
+    private static string? ReadOptional(IConfiguration configuration, string? key) =>
+        key is null ? null : configuration[key];
 
     // Same precedence as BuildingBlocks.Mongo: Aspire ConnectionStrings:mongo, then MongoOptions:ConnectionString.
     public static string? GetMongoConnectionString(IConfiguration configuration) =>

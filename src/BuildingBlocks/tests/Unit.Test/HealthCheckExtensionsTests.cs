@@ -192,4 +192,22 @@ public class HealthCheckConnectionResolutionTests
         );
         BuildingBlocks.HealthCheck.Extensions.GetMongoConnectionString(configuration).Should().Be("mongodb://mongo:27017");
     }
+
+    [Fact]
+    public void multiword_outbox_modules_resolve_their_options_key_with_the_original_spelling()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?> { ["PersistMessageOptions:ConnectionString:FlightSchedule"] = "Host=db" }
+            )
+            .Build();
+
+        var connections = BuildingBlocks.HealthCheck.Extensions
+            .GetPostgresConnections(configuration)
+            .ToDictionary(c => c.Name, c => c.Resolve(configuration));
+
+        connections.Should().BeEquivalentTo(
+            new Dictionary<string, string?> { ["postgres-flight-schedule-persist-message"] = "Host=db" }
+        );
+    }
 }
