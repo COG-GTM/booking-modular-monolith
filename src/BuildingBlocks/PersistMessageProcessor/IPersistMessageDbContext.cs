@@ -8,3 +8,7 @@ public interface IPersistMessageDbContext
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task ExecuteTransactionalAsync(CancellationToken cancellationToken = default);
 }
+
+// Outbox/inbox store owned by a single module; TModule is the module's marker type (e.g. FlightRoot).
+public interface IPersistMessageDbContext<TModule> : IPersistMessageDbContext
+    where TModule : class;

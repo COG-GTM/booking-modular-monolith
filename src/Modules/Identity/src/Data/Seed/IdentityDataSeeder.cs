@@ -17,13 +17,13 @@ public class IdentityDataSeeder : IDataSeeder
 {
     private readonly UserManager<User> _userManager;
     private readonly RoleManager<Role> _roleManager;
-    private readonly IEventDispatcher _eventDispatcher;
+    private readonly IEventDispatcher<IdentityRoot> _eventDispatcher;
     private readonly IdentityContext _identityContext;
 
     public IdentityDataSeeder(
         UserManager<User> userManager,
         RoleManager<Role> roleManager,
-        IEventDispatcher eventDispatcher,
+        IEventDispatcher<IdentityRoot> eventDispatcher,
         IdentityContext identityContext
     )
     {

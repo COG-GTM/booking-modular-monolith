@@ -14,14 +14,14 @@ where TResponse : notnull
 {
     private readonly ILogger<EfTxFlightBehavior<TRequest, TResponse>> _logger;
     private readonly FlightDbContext _flightDbContext;
-    private readonly IPersistMessageDbContext _persistMessageDbContext;
-    private readonly IEventDispatcher _eventDispatcher;
+    private readonly IPersistMessageDbContext<FlightRoot> _persistMessageDbContext;
+    private readonly IEventDispatcher<FlightRoot> _eventDispatcher;
 
     public EfTxFlightBehavior(
         ILogger<EfTxFlightBehavior<TRequest, TResponse>> logger,
         FlightDbContext flightDbContext,
-        IPersistMessageDbContext persistMessageDbContext,
-        IEventDispatcher eventDispatcher
+        IPersistMessageDbContext<FlightRoot> persistMessageDbContext,
+        IEventDispatcher<FlightRoot> eventDispatcher
     )
     {
         _logger = logger;

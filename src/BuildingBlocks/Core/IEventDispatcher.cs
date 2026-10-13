@@ -9,3 +9,7 @@ public interface IEventDispatcher
     public Task SendAsync<T>(T @event, Type type = null, CancellationToken cancellationToken = default)
         where T : IEvent;
 }
+
+// Dispatches events through the outbox/inbox store owned by TModule.
+public interface IEventDispatcher<TModule> : IEventDispatcher
+    where TModule : class;
