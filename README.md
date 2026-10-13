@@ -242,7 +242,7 @@ Each module can also run as an independently deployable host under [`src/Service
 - The Aspire AppHost orchestrates the four services plus Postgres, MongoDB, EventStoreDB and RabbitMQ (`aspire run`);
   set `AppHost:IncludeMonolith=true` to run the monolith side by side.
 - `docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d identity-api flight-api passenger-api booking-api`
-  builds the per-service images (`src/Services/*/Dockerfile`) and exposes them on ports 5100, 5200 (+5201 gRPC), 5300 (+5301 gRPC) and 5400.
+  builds the per-service images (`src/Services/*/Dockerfile`) and exposes REST on ports 5100, 5200, 5300 and 5400; the Flight/Passenger gRPC ports (`:81`) stay internal to the compose network. The broker user defaults to `booking`/`booking` (`RABBITMQ_USER`/`RABBITMQ_PASSWORD`).
 - Smoke tests per service (Testcontainers): `dotnet test src/Services/<Module>.Api/tests/<Module>.Api.Test`.
 
 > ### Build

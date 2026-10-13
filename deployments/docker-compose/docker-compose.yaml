@@ -150,6 +150,10 @@ services:
     image: rabbitmq:management
     container_name: rabbitmq
     restart: unless-stopped
+    environment:
+      # the built-in guest account is loopback-only; the service containers connect with this user
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-booking}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-booking}
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -372,6 +376,8 @@ services:
       - 5100:80
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
+      - RabbitMqOptions__UserName=${RABBITMQ_USER:-booking}
+      - RabbitMqOptions__Password=${RABBITMQ_PASSWORD:-booking}
     depends_on:
       - postgres
       - rabbitmq
@@ -387,9 +393,12 @@ services:
     restart: unless-stopped
     ports:
       - 5200:80 # REST
-      - 5201:81 # gRPC (HTTP/2 only)
+    expose:
+      - "81" # gRPC (HTTP/2 only) - reachable by other services on the compose network, not published to the host
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
+      - RabbitMqOptions__UserName=${RABBITMQ_USER:-booking}
+      - RabbitMqOptions__Password=${RABBITMQ_PASSWORD:-booking}
     depends_on:
       - postgres
       - mongo
@@ -407,9 +416,12 @@ services:
     restart: unless-stopped
     ports:
       - 5300:80 # REST
-      - 5301:81 # gRPC (HTTP/2 only)
+    expose:
+      - "81" # gRPC (HTTP/2 only) - reachable by other services on the compose network, not published to the host
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
+      - RabbitMqOptions__UserName=${RABBITMQ_USER:-booking}
+      - RabbitMqOptions__Password=${RABBITMQ_PASSWORD:-booking}
     depends_on:
       - postgres
       - mongo
@@ -429,6 +441,8 @@ services:
       - 5400:80
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
+      - RabbitMqOptions__UserName=${RABBITMQ_USER:-booking}
+      - RabbitMqOptions__Password=${RABBITMQ_PASSWORD:-booking}
     depends_on:
       - postgres
       - mongo
