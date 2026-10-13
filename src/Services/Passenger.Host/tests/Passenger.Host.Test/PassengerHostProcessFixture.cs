@@ -112,11 +112,10 @@ public sealed class PassengerHostProcessFixture : IAsyncLifetime
         yield return ("Kestrel__Endpoints__Grpc__Url", GrpcAddress.ToString());
         yield return ("PostgresOptions__ConnectionString__Passenger", PassengerConnectionString);
         yield return (
-            "PersistMessageOptions__ConnectionString",
+            "PersistMessageOptions__ConnectionString__Passenger",
             WithDatabase(_postgres.GetConnectionString(), PersistMessageDatabase)
         );
         yield return ("MongoOptions__ConnectionString", _mongo.GetConnectionString());
-        yield return ("MongoOptions__DatabaseName", ReadDatabase);
         yield return ("MongoOptions__Passenger__DatabaseName", ReadDatabase);
         yield return ("MessageBroker__TransportType", "RabbitMq");
         yield return ("MessageBroker__ServiceName", "passenger");

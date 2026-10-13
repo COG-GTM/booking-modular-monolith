@@ -30,13 +30,16 @@ public static class PassengerServiceHostExtensions
         builder.Services.AddJwt();
         builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
 
-        builder.AddPersistMessageProcessor();
-
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddAspnetOpenApi();
         builder.Services.AddCustomVersioning();
         builder.Services.AddEventDispatcher();
         builder.Services.AddHttpContextEventHeaders();
+
+        // Single-module host: the unkeyed processor (used by the MassTransit inbox filter) is Passenger's.
+        builder.Services.AddScoped<IPersistMessageProcessor>(sp =>
+            sp.GetRequiredService<IPersistMessageProcessor<PassengerRoot>>()
+        );
 
         builder.Services.AddCustomMassTransit(
             builder.Configuration,
@@ -105,7 +108,11 @@ public static class PassengerServiceHostExtensions
                 tags: [ReadyTag]
             )
             .AddNpgSql(
-                sp => PersistMessageConnectionString(sp.GetRequiredService<IConfiguration>()),
+                sp =>
+                    BuildingBlocks.PersistMessageProcessor.Extensions.GetPersistMessageConnectionString(
+                        sp.GetRequiredService<IConfiguration>(),
+                        nameof(Passenger)
+                    ),
                 name: "passenger-persist-message-postgres",
                 tags: [ReadyTag]
             )
@@ -122,9 +129,4 @@ public static class PassengerServiceHostExtensions
         configuration.GetConnectionString(nameof(Passenger).ToLowerInvariant())
         ?? configuration[$"{nameof(PostgresOptions)}:ConnectionString:{nameof(Passenger)}"]
         ?? throw new InvalidOperationException("Passenger Postgres connection string is not configured.");
-
-    private static string PersistMessageConnectionString(IConfiguration configuration) =>
-        configuration.GetConnectionString("persist-message")
-        ?? configuration[$"{nameof(PersistMessageOptions)}:ConnectionString"]
-        ?? throw new InvalidOperationException("Passenger persist-message connection string is not configured.");
 }

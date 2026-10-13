@@ -96,7 +96,7 @@ public class PassengerHostTests : TestBase<Program, PassengerDbContext, Passenge
             async () =>
             {
                 using var scope = _fixture.ServiceProvider.CreateScope();
-                var processor = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor>();
+                var processor = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor<PassengerRoot>>();
                 return (
                     await processor.GetByFilterAsync(x =>
                         x.DeliveryType == MessageDeliveryType.Inbox && x.MessageStatus == MessageStatus.Processed
