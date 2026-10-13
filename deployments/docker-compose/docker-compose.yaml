@@ -352,6 +352,10 @@ services:
       - ASPNETCORE_HTTP_PORT=3001
       - ASPNETCORE_Kestrel__Certificates__Default__Password=password
       - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      # Supply via shell env or a local (git-ignored) .env file; never commit real values.
+      - AuthOptions__ClientSecret=${AUTH_CLIENT_SECRET:-}
+      - IdentitySeedOptions__AdminPassword=${IDENTITY_SEED_ADMIN_PASSWORD:-}
+      - IdentitySeedOptions__UserPassword=${IDENTITY_SEED_USER_PASSWORD:-}
     networks:
       - booking
 

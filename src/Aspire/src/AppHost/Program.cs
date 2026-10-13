@@ -303,7 +303,15 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
+// Supplied through AppHost user-secrets / Parameters config; never hardcode real values.
+var authClientSecret = builder.AddParameter("auth-client-secret", secret: true);
+var identitySeedAdminPassword = builder.AddParameter("identity-seed-admin-password", secret: true);
+var identitySeedUserPassword = builder.AddParameter("identity-seed-user-password", secret: true);
+
 var api = builder.AddProject<Api>("api")
+    .WithEnvironment("AuthOptions__ClientSecret", authClientSecret)
+    .WithEnvironment("IdentitySeedOptions__AdminPassword", identitySeedAdminPassword)
+    .WithEnvironment("IdentitySeedOptions__UserPassword", identitySeedUserPassword)
     .WithReference(persistMessageDb)
     .WaitFor(persistMessageDb)
     .WithReference(flightDb)
