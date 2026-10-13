@@ -1,4 +1,6 @@
 using System.IO;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Duende.IdentityServer.Configuration;
 using Duende.IdentityServer.Stores;
@@ -154,5 +156,46 @@ public class IdentityServerSigningKeyTests : IDisposable
 
         options.KeyManagement.Enabled.Should().BeTrue();
         options.IssuerUri.Should().Be("http://localhost:5000");
+    }
+
+    // Compose starts the monolith and identity-service together with an empty shared volume: both
+    // find no shared key and race to seed it from their own tempkey.jwk. The loser's File.Copy fails
+    // because the file now exists; it must fall back to the winner's key instead of crashing.
+    [Fact]
+    public async Task hosts_racing_to_seed_the_shared_key_all_start_and_agree_on_the_winner_s_key()
+    {
+        const int hostCount = 8;
+        var contentRoots = Enumerable.Range(0, hostCount).Select(i => Path.Combine(_directory, $"host{i}")).ToList();
+        var ownKids = new List<string>();
+        foreach (var contentRoot in contentRoots)
+        {
+            await using var own = BuildIdentityServer(null, contentRoot);
+            ownKids.Add(await SigningKeyIdOf(own));
+        }
+        ownKids.Should().OnlyHaveUniqueItems("every host starts with its own key");
+        var shared = Path.Combine(_directory, "shared", "tempkey.jwk");
+
+        using var startTogether = new Barrier(hostCount);
+        var hosts = await Task.WhenAll(
+            contentRoots.Select(contentRoot =>
+                Task.Run(() =>
+                {
+                    startTogether.SignalAndWait();
+                    return BuildIdentityServer(shared, contentRoot);
+                })
+            )
+        );
+
+        var sharedKids = new List<string>();
+        foreach (var host in hosts)
+            await using (host)
+                sharedKids.Add(await SigningKeyIdOf(host));
+
+        sharedKids.Distinct().Should().ContainSingle("all hosts must end up signing with the one shared key");
+        ownKids.Should().Contain(sharedKids[0], "the shared key is one of the hosts' pre-existing keys");
+        contentRoots
+            .Select(contentRoot => File.ReadAllText(Path.Combine(contentRoot, "tempkey.jwk")))
+            .Should()
+            .Contain(File.ReadAllText(shared));
     }
 }
