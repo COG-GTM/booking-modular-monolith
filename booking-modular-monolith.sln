@@ -123,6 +123,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{6C1E7A2B
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Contracts.Compatibility.Test", "tests\Contracts.Compatibility.Test\Contracts.Compatibility.Test.csproj", "{3A9F5C2E-7B1D-4E6A-8C4F-2D5E6F7A8B9C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microservices.EndToEnd.Test", "tests\Microservices.EndToEnd.Test\Microservices.EndToEnd.Test.csproj", "{5B2E8D4F-1C6A-4F7B-9E3D-7A8B9C0D1E2F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -190,6 +192,7 @@ Global
 		{5B2D7C61-3F0A-4A8E-9E21-0D9A4E6B4941} = {48C84C58-AE56-4539-952A-21C84B6750B3}
 		{8E3F1A72-6C5B-4D9F-A3E2-1B7C5D8E4942} = {AEEA57EA-9060-4868-9E33-D8CC57640A13}
 		{3A9F5C2E-7B1D-4E6A-8C4F-2D5E6F7A8B9C} = {6C1E7A2B-4D3F-4E5A-9B8C-0D1E2F3A4B5C}
+		{5B2E8D4F-1C6A-4F7B-9E3D-7A8B9C0D1E2F} = {6C1E7A2B-4D3F-4E5A-9B8C-0D1E2F3A4B5C}
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{88F2EEE7-ECA8-4BEC-879E-2758CF1E3C3C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -332,5 +335,9 @@ Global
 		{3A9F5C2E-7B1D-4E6A-8C4F-2D5E6F7A8B9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3A9F5C2E-7B1D-4E6A-8C4F-2D5E6F7A8B9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3A9F5C2E-7B1D-4E6A-8C4F-2D5E6F7A8B9C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B2E8D4F-1C6A-4F7B-9E3D-7A8B9C0D1E2F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B2E8D4F-1C6A-4F7B-9E3D-7A8B9C0D1E2F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B2E8D4F-1C6A-4F7B-9E3D-7A8B9C0D1E2F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B2E8D4F-1C6A-4F7B-9E3D-7A8B9C0D1E2F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
