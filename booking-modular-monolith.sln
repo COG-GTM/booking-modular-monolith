@@ -119,6 +119,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Contracts.Grpc", "src\Contr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unit.Test", "src\Modules\Booking\tests\Unit.Test\Unit.Test.csproj", "{8E3F1A72-6C5B-4D9F-A3E2-1B7C5D8E4942}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Host", "src\Services\Identity.Host\src\Identity.Host.csproj", "{00A542C6-02E1-4E88-854F-EE91E537FE53}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Host.Test", "src\Services\Identity.Host\tests\Identity.Host.Test\Identity.Host.Test.csproj", "{C991ADA8-042D-4A61-A80A-DBA3E664AE2B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -323,5 +327,13 @@ Global
 		{8E3F1A72-6C5B-4D9F-A3E2-1B7C5D8E4942}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8E3F1A72-6C5B-4D9F-A3E2-1B7C5D8E4942}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8E3F1A72-6C5B-4D9F-A3E2-1B7C5D8E4942}.Release|Any CPU.Build.0 = Release|Any CPU
+		{00A542C6-02E1-4E88-854F-EE91E537FE53}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{00A542C6-02E1-4E88-854F-EE91E537FE53}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{00A542C6-02E1-4E88-854F-EE91E537FE53}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{00A542C6-02E1-4E88-854F-EE91E537FE53}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C991ADA8-042D-4A61-A80A-DBA3E664AE2B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C991ADA8-042D-4A61-A80A-DBA3E664AE2B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C991ADA8-042D-4A61-A80A-DBA3E664AE2B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C991ADA8-042D-4A61-A80A-DBA3E664AE2B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
