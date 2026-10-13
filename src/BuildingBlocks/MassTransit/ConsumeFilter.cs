@@ -9,7 +9,9 @@ namespace BuildingBlocks.MassTransit;
 public class ConsumeFilter<T> : IFilter<ConsumeContext<T>>
     where T : class
 {
-    private readonly IPersistMessageProcessor _persistMessageProcessor;
+    private readonly IPersistMessageProcessor? _persistMessageProcessor;
+    private readonly IServiceProvider? _serviceProvider;
+    private readonly InboxStoreResolver? _inboxStoreResolver;
     private readonly ILogger<ConsumeFilter<T>> _logger;
 
     public ConsumeFilter(IPersistMessageProcessor persistMessageProcessor, ILogger<ConsumeFilter<T>> logger)
@@ -18,23 +20,50 @@ public class ConsumeFilter<T> : IFilter<ConsumeContext<T>>
         _logger = logger;
     }
 
+    // Per-module stores: the inbox row goes to the store of the module that owns the receiving endpoint.
+    public ConsumeFilter(
+        IServiceProvider serviceProvider,
+        InboxStoreResolver inboxStoreResolver,
+        ILogger<ConsumeFilter<T>> logger
+    )
+    {
+        _serviceProvider = serviceProvider;
+        _inboxStoreResolver = inboxStoreResolver;
+        _logger = logger;
+    }
+
     public async Task Send(ConsumeContext<T> context, IPipe<ConsumeContext<T>> next)
     {
+        var persistMessageProcessor =
+            _persistMessageProcessor
+            ?? _inboxStoreResolver?.Resolve(_serviceProvider!, context.ReceiveContext.InputAddress);
+
+        if (persistMessageProcessor is null)
+        {
+            _logger.LogWarning(
+                "No inbox store for {InputAddress}; consuming {MessageType} without inbox.",
+                context.ReceiveContext.InputAddress,
+                typeof(T).Name
+            );
+            await next.Send(context);
+            return;
+        }
+
         var envelope = new MessageEnvelope(context.Message, context.Headers.ToDictionary(x => x.Key, x => x.Value));
 
         // Without a broker MessageId there is no stable key to deduplicate on, so only record the delivery.
         if (context.MessageId is not { } messageId)
         {
-            var id = await _persistMessageProcessor.AddReceivedMessageAsync(envelope, context.CancellationToken);
+            var id = await persistMessageProcessor.AddReceivedMessageAsync(envelope, context.CancellationToken);
             await next.Send(context);
-            await _persistMessageProcessor.ProcessInboxAsync(id, context.CancellationToken);
+            await persistMessageProcessor.ProcessInboxAsync(id, context.CancellationToken);
             return;
         }
 
         var inboxId = InboxMessageId.Create(messageId, context.ReceiveContext.InputAddress);
 
         var existing = (
-            await _persistMessageProcessor.GetByFilterAsync(
+            await persistMessageProcessor.GetByFilterAsync(
                 x => x.Id == inboxId && x.DeliveryType == MessageDeliveryType.Inbox,
                 context.CancellationToken
             )
@@ -53,12 +82,12 @@ public class ConsumeFilter<T> : IFilter<ConsumeContext<T>>
 
         if (existing is null)
         {
-            await _persistMessageProcessor.AddReceivedMessageAsync(inboxId, envelope, context.CancellationToken);
+            await persistMessageProcessor.AddReceivedMessageAsync(inboxId, envelope, context.CancellationToken);
         }
 
         await next.Send(context);
 
-        await _persistMessageProcessor.ProcessInboxAsync(inboxId, context.CancellationToken);
+        await persistMessageProcessor.ProcessInboxAsync(inboxId, context.CancellationToken);
     }
 
     public void Probe(ProbeContext context)

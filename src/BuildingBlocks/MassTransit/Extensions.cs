@@ -1,4 +1,5 @@
 using System.Reflection;
+using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Web;
 using MassTransit;
 using Microsoft.AspNetCore.Hosting;
@@ -106,6 +107,13 @@ public static class Extensions
                 CreateEndpointNameFormatter(sp.GetRequiredService<MessageBrokerOptions>())
             )
         );
+
+        var consumerAssemblies = assemblies?.Where(a => a is not null).Distinct().ToArray() ?? [];
+        services.TryAddSingleton(sp => new InboxStoreResolver(
+            consumerAssemblies,
+            sp.GetRequiredService<IEndpointNameFormatter>(),
+            sp.GetServices<PersistMessageStore>()
+        ));
 
         return services;
     }
