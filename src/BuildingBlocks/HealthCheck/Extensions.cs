@@ -1,14 +1,14 @@
-using BuildingBlocks.EFCore;
-using BuildingBlocks.EventStoreDB;
 using BuildingBlocks.MassTransit;
-using BuildingBlocks.Mongo;
 using BuildingBlocks.Web;
+using HealthChecks.UI.Client;
+using Humanizer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Hosting;
 using MongoDB.Driver;
 using RabbitMQ.Client;
 
@@ -16,57 +16,203 @@ namespace BuildingBlocks.HealthCheck;
 
 public static class Extensions
 {
-    private const string HealthEndpointPath = "/health";
-    private const string AlivenessEndpointPath = "/alive";
+    public const string HealthEndpointPath = "/health";
+    public const string LivenessEndpointPath = "/health/live";
+    public const string ReadinessEndpointPath = "/health/ready";
+    public const string AlivenessEndpointPath = "/alive";
 
+    public const string LiveTag = "live";
+    public const string ReadyTag = "ready";
+    public const string SelfCheckName = "self";
+
+    private const string PostgresConnectionKey = "PostgresOptions:ConnectionString";
+    private const string PersistMessageConnectionKey = "PersistMessageOptions:ConnectionString";
+    private const string MongoConnectionKey = "MongoOptions:ConnectionString";
+    private const string EventStoreConnectionKey = "EventStoreOptions:ConnectionString";
+    private const string MongoAspireConnectionName = "mongo";
+    private const string PersistMessageSuffix = "-persist-message";
+
+    private static readonly TimeSpan DependencyTimeout = TimeSpan.FromSeconds(5);
+
+    // Liveness = the process answers ("live" tag). Readiness = every registered check, i.e. self plus
+    // the data stores/broker from configuration and any check other components add (e.g. Booking's gRPC
+    // dependency checks). Check names are fixed from configuration at registration; connection strings
+    // are re-read from the final IConfiguration when a check runs.
     public static IServiceCollection AddCustomHealthCheck(this IServiceCollection services)
     {
-        var healthOptions = services.GetOptions<HealthOptions>(nameof(HealthOptions));
+        var configuration = services.BuildServiceProvider().GetService<IConfiguration>();
+        var healthOptions = configuration?.GetOptions<HealthOptions>(nameof(HealthOptions)) ?? new HealthOptions();
+
+        var healthChecksBuilder = services.AddHealthChecks();
+
+        // Idempotent: hosts and ServiceDefaults may both call this, and duplicate check names throw.
+        if (services.Any(d => d.ServiceType == typeof(CustomHealthCheckMarker)))
+            return services;
+
+        services.AddSingleton<CustomHealthCheckMarker>();
+        healthChecksBuilder.AddCheck(SelfCheckName, () => HealthCheckResult.Healthy(), [LiveTag]);
+
+        if (configuration is not null && healthOptions.DependencyChecksEnabled)
+            healthChecksBuilder.AddDependencyChecks(configuration);
 
         if (healthOptions.Enabled)
         {
-            var appOptions = services.GetOptions<AppOptions>(nameof(AppOptions));
-            var postgresOptions = services.GetOptions<PostgresOptions>(nameof(PostgresOptions));
-            var messageBrokerOptions = services.GetOptions<MessageBrokerOptions>(MessageBrokerOptions.SectionName);
-            var eventStoreOptions = services.GetOptions<EventStoreOptions>(nameof(EventStoreOptions));
-            var mongoOptions = services.GetOptions<MongoOptions>(nameof(MongoOptions));
+            var appOptions = configuration?.GetOptions<AppOptions>(nameof(AppOptions)) ?? new AppOptions();
 
-            var healthChecksBuilder = services.AddHealthChecks()
-                // Add a default liveness check to ensure app is responsive
-                .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
-
-            if (messageBrokerOptions.TransportType == TransportType.RabbitMq)
-            {
-                healthChecksBuilder.AddRabbitMQ(serviceProvider =>
-                    CreateRabbitMqConnectionFactory(serviceProvider).CreateConnectionAsync()
-                );
-            }
-
-            if (!string.IsNullOrEmpty(mongoOptions.ConnectionString))
-            {
-                healthChecksBuilder.AddMongoDb(
-                    clientFactory: _ => new MongoClient(mongoOptions.ConnectionString),
-                    name: "MongoDB-Health",
-                    failureStatus: HealthStatus.Unhealthy,
-                    timeout: TimeSpan.FromSeconds(10));
-            }
-
-            if (!string.IsNullOrEmpty(postgresOptions.ConnectionString))
-                healthChecksBuilder.AddNpgSql(postgresOptions.ConnectionString);
-
-            if (!string.IsNullOrEmpty(eventStoreOptions.ConnectionString))
-                healthChecksBuilder.AddEventStore(eventStoreOptions.ConnectionString);
-
-            services.AddHealthChecksUI(setup =>
-                                       {
-                                           setup.SetEvaluationTimeInSeconds(60); // time in seconds between check
-                                           setup.AddHealthCheckEndpoint($"Self Check - {appOptions.Name}", HealthEndpointPath);
-                                       }).AddInMemoryStorage();
+            services
+                .AddHealthChecksUI(setup =>
+                {
+                    setup.SetEvaluationTimeInSeconds(60);
+                    setup.AddHealthCheckEndpoint($"Self Check - {appOptions.Name}", ReadinessEndpointPath);
+                })
+                .AddInMemoryStorage();
         }
 
-        services.AddHealthChecks().AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
         return services;
     }
+
+    public static WebApplication UseCustomHealthCheck(this WebApplication app)
+    {
+        var healthOptions = app.Configuration.GetOptions<HealthOptions>(nameof(HealthOptions));
+
+        app.MapCustomHealthChecks();
+
+        if (healthOptions.Enabled)
+            app.MapHealthChecksUI(options => options.UIPath = "/health-ui");
+
+        return app;
+    }
+
+    // Probes are mapped in every environment (compose/Kubernetes call them) and bypass authorization.
+    public static IEndpointRouteBuilder MapCustomHealthChecks(this IEndpointRouteBuilder endpoints)
+    {
+        var liveness = new HealthCheckOptions { Predicate = r => r.Tags.Contains(LiveTag) };
+        var readiness = new HealthCheckOptions
+        {
+            Predicate = _ => true,
+            ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse,
+        };
+
+        endpoints.MapHealthChecks(LivenessEndpointPath, liveness).AllowAnonymous();
+        endpoints.MapHealthChecks(ReadinessEndpointPath, readiness).AllowAnonymous();
+
+        // Kept for the Aspire AppHost / existing compose probes.
+        endpoints.MapHealthChecks(HealthEndpointPath).AllowAnonymous();
+        endpoints.MapHealthChecks(AlivenessEndpointPath, liveness).AllowAnonymous();
+
+        return endpoints;
+    }
+
+    public static bool IsHealthEndpoint(PathString path) =>
+        path.StartsWithSegments(HealthEndpointPath, StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments(AlivenessEndpointPath, StringComparison.OrdinalIgnoreCase);
+
+    private static IHealthChecksBuilder AddDependencyChecks(
+        this IHealthChecksBuilder builder,
+        IConfiguration configuration
+    )
+    {
+        string[] readyTags = [ReadyTag];
+
+        foreach (var (name, resolve) in GetPostgresConnections(configuration))
+        {
+            builder.AddNpgSql(
+                sp => resolve(sp.GetRequiredService<IConfiguration>())!,
+                name: name,
+                failureStatus: HealthStatus.Unhealthy,
+                tags: readyTags,
+                timeout: DependencyTimeout
+            );
+        }
+
+        if (!string.IsNullOrEmpty(GetMongoConnectionString(configuration)))
+        {
+            builder.AddMongoDb(
+                clientFactory: sp => new MongoClient(GetMongoConnectionString(sp.GetRequiredService<IConfiguration>())),
+                name: "mongodb",
+                failureStatus: HealthStatus.Unhealthy,
+                tags: readyTags,
+                timeout: DependencyTimeout
+            );
+        }
+
+        if (!string.IsNullOrEmpty(configuration[EventStoreConnectionKey]))
+        {
+            builder.Add(
+                new HealthCheckRegistration(
+                    "eventstore",
+                    sp => new EventStoreDbHealthCheck(() => sp.GetRequiredService<IConfiguration>()[EventStoreConnectionKey]),
+                    HealthStatus.Unhealthy,
+                    readyTags,
+                    DependencyTimeout
+                )
+            );
+        }
+
+        var messageBroker = configuration.GetOptions<MessageBrokerOptions>(MessageBrokerOptions.SectionName);
+        if (messageBroker.TransportType == TransportType.RabbitMq)
+        {
+            builder.AddRabbitMQ(
+                sp => CreateRabbitMqConnectionFactory(sp).CreateConnectionAsync(),
+                name: "rabbitmq",
+                failureStatus: HealthStatus.Unhealthy,
+                tags: readyTags,
+                timeout: DependencyTimeout
+            );
+        }
+
+        return builder;
+    }
+
+    // PostgresOptions:ConnectionString is either a single string (monolith) or one entry per module
+    // (service hosts); every module also has its own outbox/inbox store. Each check resolves the same
+    // connection the module uses: Aspire ConnectionStrings:<module>[-persist-message] first, then the options.
+    public static IEnumerable<(string Name, Func<IConfiguration, string?> Resolve)> GetPostgresConnections(
+        IConfiguration configuration
+    )
+    {
+        if (!string.IsNullOrEmpty(configuration[PostgresConnectionKey]))
+            yield return ("postgres", c => c[PostgresConnectionKey]);
+
+        foreach (var module in configuration.GetSection(PostgresConnectionKey).GetChildren())
+        {
+            var aspireName = module.Key.Kebaberize();
+            var optionsKey = module.Path;
+
+            if (!string.IsNullOrEmpty(configuration.GetConnectionString(aspireName) ?? module.Value))
+                yield return ($"postgres-{aspireName}", c => c.GetConnectionString(aspireName) ?? c[optionsKey]);
+        }
+
+        // Aspire name (kebab-case) -> options key with the module's original spelling, as the outbox resolves it.
+        var persistStores = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var module in configuration.GetSection(PersistMessageConnectionKey).GetChildren())
+            persistStores[$"{module.Key}{PersistMessageSuffix}".Kebaberize()] = module.Path;
+
+        foreach (var connection in configuration.GetSection("ConnectionStrings").GetChildren())
+        {
+            if (connection.Key.EndsWith(PersistMessageSuffix, StringComparison.OrdinalIgnoreCase))
+                persistStores.TryAdd(connection.Key.ToLowerInvariant(), null);
+        }
+
+        foreach (var (aspireName, optionsKey) in persistStores)
+        {
+            if (!string.IsNullOrEmpty(configuration.GetConnectionString(aspireName) ?? ReadOptional(configuration, optionsKey)))
+            {
+                yield return (
+                    $"postgres-{aspireName}",
+                    c => c.GetConnectionString(aspireName) ?? ReadOptional(c, optionsKey)
+                );
+            }
+        }
+    }
+
+    private static string? ReadOptional(IConfiguration configuration, string? key) =>
+        key is null ? null : configuration[key];
+
+    // Same precedence as BuildingBlocks.Mongo: Aspire ConnectionStrings:mongo, then MongoOptions:ConnectionString.
+    public static string? GetMongoConnectionString(IConfiguration configuration) =>
+        configuration.GetConnectionString(MongoAspireConnectionName) ?? configuration[MongoConnectionKey];
 
     // Same precedence as the MassTransit bus: Aspire ConnectionStrings:rabbitmq, then MessageBroker:RabbitMq.
     private static ConnectionFactory CreateRabbitMqConnectionFactory(IServiceProvider serviceProvider)
@@ -94,22 +240,5 @@ public static class Extensions
         };
     }
 
-    public static WebApplication UseCustomHealthCheck(this WebApplication app)
-    {
-        var healthOptions = app.Configuration.GetOptions<HealthOptions>(nameof(HealthOptions));
-
-        if (app.Environment.IsDevelopment())
-        {
-            app.MapHealthChecks(HealthEndpointPath);
-            app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
-            {
-                Predicate = r => r.Tags.Contains("live"),
-            });
-        }
-
-        if (healthOptions.Enabled)
-            app.MapHealthChecksUI(options => options.UIPath = "/health-ui");
-
-        return app;
-    }
+    private sealed class CustomHealthCheckMarker;
 }

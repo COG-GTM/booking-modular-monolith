@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Text.Json;
 using Ardalis.GuardClauses;
@@ -13,6 +14,13 @@ using Microsoft.EntityFrameworkCore;
 
 public class PersistMessageProcessor : IPersistMessageProcessor
 {
+    // Outbox publish spans; listened to by BuildingBlocks.OpenTelemetryCollector.
+    public const string ActivitySourceName = "BuildingBlocks.PersistMessageProcessor";
+    public const string TraceParentHeader = "traceparent";
+    public const string TraceStateHeader = "tracestate";
+
+    private static readonly ActivitySource ActivitySource = new(ActivitySourceName);
+
     private readonly ILogger _logger;
     private readonly IMediator _mediator;
     private readonly IPersistMessageDbContext _persistMessageDbContext;
@@ -148,12 +156,16 @@ public class PersistMessageProcessor : IPersistMessageProcessor
         if (data is not IEvent)
             return false;
 
+        // Re-parent the publish onto the request that wrote the outbox row, so MassTransit's send span
+        // (and the consumers in other services) join that request's distributed trace.
+        using var activity = StartOutboxPublishActivity(message, messageEnvelope);
+
         await _publishEndpoint.Publish(data, context =>
         {
             // Stable MessageId per outbox row so a re-published message is deduplicated by the consumer inbox.
             context.MessageId = message.Id;
 
-            foreach (var header in messageEnvelope.Headers)
+            foreach (var header in messageEnvelope.Headers.Where(h => !IsTraceContextHeader(h.Key)))
                 context.Headers.Set(header.Key, header.Value);
         }, cancellationToken);
 
@@ -204,6 +216,9 @@ public class PersistMessageProcessor : IPersistMessageProcessor
         else
             id = NewId.NextGuid();
 
+        if (deliveryType == MessageDeliveryType.Outbox)
+            CaptureTraceContext(messageEnvelope);
+
         await _persistMessageDbContext.PersistMessage.AddAsync(
             new PersistMessage(
                 id,
@@ -230,6 +245,36 @@ public class PersistMessageProcessor : IPersistMessageProcessor
 
         await _persistMessageDbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public static void CaptureTraceContext(MessageEnvelope messageEnvelope)
+    {
+        var current = Activity.Current;
+
+        if (current?.Id is null || messageEnvelope.Headers.IsReadOnly || messageEnvelope.Headers.ContainsKey(TraceParentHeader))
+            return;
+
+        messageEnvelope.Headers[TraceParentHeader] = current.Id;
+
+        if (!string.IsNullOrEmpty(current.TraceStateString))
+            messageEnvelope.Headers[TraceStateHeader] = current.TraceStateString;
+    }
+
+    public static Activity? StartOutboxPublishActivity(PersistMessage message, MessageEnvelope messageEnvelope)
+    {
+        messageEnvelope.Headers.TryGetValue(TraceParentHeader, out var traceParent);
+        messageEnvelope.Headers.TryGetValue(TraceStateHeader, out var traceState);
+
+        ActivityContext.TryParse(traceParent?.ToString(), traceState?.ToString(), out var parentContext);
+
+        var activity = ActivitySource.StartActivity($"outbox publish {message.DataType}", ActivityKind.Internal, parentContext);
+        activity?.SetTag("messaging.message.id", message.Id.ToString());
+
+        return activity;
+    }
+
+    private static bool IsTraceContextHeader(string key) =>
+        key.Equals(TraceParentHeader, StringComparison.OrdinalIgnoreCase)
+        || key.Equals(TraceStateHeader, StringComparison.OrdinalIgnoreCase);
 }
 
 public class PersistMessageProcessor<TModule> : PersistMessageProcessor, IPersistMessageProcessor<TModule>
