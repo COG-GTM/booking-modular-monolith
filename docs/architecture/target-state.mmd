@@ -1,0 +1,41 @@
+flowchart LR
+    client(["API clients"])
+
+    subgraph edge["Ingress"]
+        gw["Gateway (YARP)<br/>src/Gateway :5000"]
+    end
+
+    subgraph services["Services (one per module)"]
+        idn["Identity service<br/>:5100"]
+        flt["Flight service<br/>:5200 / gRPC :5201"]
+        pas["Passenger service<br/>:5300 / gRPC :5301"]
+        bkg["Booking service<br/>:5400"]
+    end
+
+    mq{{"RabbitMQ<br/>MassTransit, per-service queues"}}
+
+    subgraph data["Per-service data (no cross-service access)"]
+        idnDb[("Postgres<br/>identity_service<br/>identity_service_persist_message")]
+        fltDb[("Postgres flight_service<br/>flight_service_persist_message<br/>Mongo flight_service_read")]
+        pasDb[("Postgres passenger_service<br/>passenger_service_persist_message<br/>Mongo passenger_service_read")]
+        bkgDb[("EventStoreDB<br/>Postgres booking_service_persist_message<br/>Mongo booking_service_read")]
+    end
+
+    client -->|HTTPS + JWT| gw
+    gw -->|"/api/{v}/identity, /connect"| idn
+    gw -->|"/api/{v}/flight"| flt
+    gw -->|"/api/{v}/passenger"| pas
+    gw -->|"/api/{v}/booking"| bkg
+
+    bkg -->|"gRPC h2 (Grpc:FlightAddress)"| flt
+    bkg -->|"gRPC h2 (Grpc:PassengerAddress)"| pas
+
+    idn -.->|"UserCreated (outbox)"| mq
+    flt -.->|flight/seat events| mq
+    pas <-.->|"consumes UserCreated (inbox) /<br/>publishes Passenger* events"| mq
+    bkg -.->|BookingCreated| mq
+
+    idn --- idnDb
+    flt --- fltDb
+    pas --- pasDb
+    bkg --- bkgDb
