@@ -30,17 +30,7 @@ public sealed class CrossServiceTests(MicroservicesFixture fixture)
         register.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var passengerId = await WaitForPassengerAsync(user.PassportNumber);
-        // GET reads Passenger's Mongo read model, which is projected asynchronously after the write.
-        var passengerJson = string.Empty;
-        await WaitUntilAsync(
-            async () =>
-            {
-                using var passenger = await client.GetAsync($"/api/v1.0/passenger/{passengerId}");
-                passengerJson = await passenger.Content.ReadAsStringAsync();
-                return passenger.StatusCode == HttpStatusCode.OK;
-            },
-            $"passenger {passengerId} read model via gateway"
-        );
+        var passengerJson = await WaitForPassengerReadModelAsync(client, passengerId);
         using var body = JsonDocument.Parse(passengerJson);
         body.RootElement.GetProperty("passengerDto")
             .GetProperty("passportNumber")
@@ -70,6 +60,8 @@ public sealed class CrossServiceTests(MicroservicesFixture fixture)
         }
 
         var passengerId = await WaitForPassengerAsync(user.PassportNumber);
+        // Booking resolves the passenger over gRPC from the same read model.
+        await WaitForPassengerReadModelAsync(client, passengerId);
         var seatsBefore = await AvailableSeatsAsync(client);
         seatsBefore.Should().BeGreaterThan(0);
 
@@ -154,6 +146,22 @@ public sealed class CrossServiceTests(MicroservicesFixture fixture)
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         return body.RootElement.GetProperty("seatDtos").GetArrayLength();
+    }
+
+    // GET reads Passenger's Mongo read model, which is projected asynchronously after the write.
+    private async Task<string> WaitForPassengerReadModelAsync(HttpClient client, Guid passengerId)
+    {
+        var json = string.Empty;
+        await WaitUntilAsync(
+            async () =>
+            {
+                using var passenger = await client.GetAsync($"/api/v1.0/passenger/{passengerId}");
+                json = await passenger.Content.ReadAsStringAsync();
+                return passenger.StatusCode == HttpStatusCode.OK;
+            },
+            $"passenger {passengerId} read model via gateway"
+        );
+        return json;
     }
 
     private async Task<string> WaitForBookingEventAsync(string description)
