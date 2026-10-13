@@ -17,7 +17,8 @@ public static class IdentityServerExtensions
         builder.Services.AddValidateOptions<AuthOptions>();
         var authOptions = builder.Services.GetOptions<AuthOptions>(nameof(AuthOptions));
 
-        builder.Services.AddIdentity<User, Role>(config =>
+        builder
+            .Services.AddIdentity<User, Role>(config =>
             {
                 config.Password.RequiredLength = 6;
                 config.Password.RequireDigit = false;
@@ -27,7 +28,8 @@ public static class IdentityServerExtensions
             .AddEntityFrameworkStores<IdentityContext>()
             .AddDefaultTokenProviders();
 
-        var identityServerBuilder = builder.Services.AddIdentityServer(options =>
+        var identityServerBuilder = builder
+            .Services.AddIdentityServer(options =>
             {
                 options.Events.RaiseErrorEvents = true;
                 options.Events.RaiseInformationEvents = true;
@@ -38,27 +40,26 @@ public static class IdentityServerExtensions
             .AddInMemoryIdentityResources(Config.IdentityResources)
             .AddInMemoryApiResources(Config.ApiResources)
             .AddInMemoryApiScopes(Config.ApiScopes)
-            .AddInMemoryClients(Config.Clients)
-            .AddAspNetIdentity<User>()
-            .AddResourceOwnerValidator<UserValidator>();
+            .AddInMemoryClients(Config.GetClients(authOptions))
+            .AddAspNetIdentity<User>();
 
         //ref: https://documentation.openiddict.com/configuration/encryption-and-signing-credentials.html
         identityServerBuilder.AddDeveloperSigningCredential();
 
         builder.Services.ConfigureApplicationCookie(options =>
-                                                    {
-                                                        options.Events.OnRedirectToLogin = context =>
-                                                        {
-                                                            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                                                            return Task.CompletedTask;
-                                                        };
+        {
+            options.Events.OnRedirectToLogin = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return Task.CompletedTask;
+            };
 
-                                                        options.Events.OnRedirectToAccessDenied = context =>
-                                                        {
-                                                            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                                                            return Task.CompletedTask;
-                                                        };
-                                                    });
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return Task.CompletedTask;
+            };
+        });
 
         return builder;
     }

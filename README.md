@@ -247,6 +247,21 @@ For checking `API documentation`, navigate to `/swagger` for `Swagger OpenAPI` o
 
 As part of API testing, I created the [booking.rest](./booking.rest) file which can be run with the [REST Client](https://github.com/Huachao/vscode-restclient) `VSCode plugin`.
 
+> ### Identity clients
+
+The `Identity` module does not ship any OAuth client. Clients are registered through the `AuthOptions:Clients` configuration section, and client secrets must come from environment variables, [user secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets) or a secret store – never from source control. Only the `client_credentials` (machine-to-machine) and `authorization_code` (interactive login, PKCE enforced) grants are supported; the deprecated resource-owner-password grant is not available.
+
+```bash
+cd src/Api/src
+dotnet user-secrets init
+dotnet user-secrets set "AuthOptions:Clients:0:ClientId" "booking-api-client"
+dotnet user-secrets set "AuthOptions:Clients:0:GrantType" "client_credentials"
+dotnet user-secrets set "AuthOptions:Clients:0:ClientSecret" "$(openssl rand -base64 48)"
+dotnet user-secrets set "AuthOptions:Clients:0:AllowedScopes:0" "booking-modular-monolith"
+```
+
+The same keys can be supplied as environment variables (`AuthOptions__Clients__0__ClientSecret`, ...). Secrets must be at least 32 characters long, and a client may only request scopes that are defined in `Config.ApiScopes` / `Config.IdentityResources`; the application refuses to start otherwise.
+
 # Support
 
 If you like my work, feel free to:
