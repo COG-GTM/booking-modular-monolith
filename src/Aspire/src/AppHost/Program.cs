@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Configuration;
 using System.Net.Sockets;
+using Microsoft.Extensions.Configuration;
 using Projects;
 
 var builder = DistributedApplication.CreateBuilder(args);
@@ -400,12 +400,13 @@ builder
     .WaitFor(rabbitmq)
     .WithEnvironment("Jwt__Authority", issuer)
     .WaitFor(identityApi)
-    // gRPC client addresses resolve through Aspire service discovery (services__flight-api__https__0 etc.).
+    // Grpc.Net.Client resolves addresses itself (no "https+http" scheme support), so the gRPC targets are the
+    // Aspire-managed https endpoints of the Flight/Passenger hosts rather than service-discovery URIs.
     .WithReference(flightApi)
-    .WithEnvironment("Grpc__FlightAddress", "https+http://flight-api")
+    .WithEnvironment("Grpc__FlightAddress", flightApi.GetEndpoint("https"))
     .WaitFor(flightApi)
     .WithReference(passengerApi)
-    .WithEnvironment("Grpc__PassengerAddress", "https+http://passenger-api")
+    .WithEnvironment("Grpc__PassengerAddress", passengerApi.GetEndpoint("https"))
     .WaitFor(passengerApi);
 
 builder.Build().Run();
