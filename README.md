@@ -204,6 +204,25 @@ dotnet dev-certs https --trust
 ```
 
 
+> ### Config Identity Secrets
+
+The Identity module no longer ships with built-in credentials. Before running the app, provide the following values through a managed secret store (environment variables, `dotnet user-secrets`, Aspire parameters, a vault, ...). Never commit them to source control.
+
+| Setting | Purpose |
+|---|---|
+| `AuthOptions__ClientSecret` | Secret of the IdentityServer client (`AuthOptions__ClientId`, default `client`) used by the password grant on `/connect/token`. When unset, no client is registered and every token request is rejected. |
+| `IdentitySeedOptions__AdminPassword` | Initial password of the seeded `Admin` user (`samh`). When unset, the admin user is not seeded. |
+| `IdentitySeedOptions__UserPassword` | Initial password of the seeded `User` user (`samh2`). When unset, this user is not seeded. |
+
+For example, with `dotnet user-secrets` in the `src/Api/src` folder:
+
+```bash
+dotnet user-secrets set "AuthOptions:ClientSecret" "<strong random secret>"
+dotnet user-secrets set "IdentitySeedOptions:AdminPassword" "<strong random password>"
+```
+
+For `docker-compose`, export `AUTH_CLIENT_SECRET`, `IDENTITY_SEED_ADMIN_PASSWORD` and `IDENTITY_SEED_USER_PASSWORD` in your shell (or a local, git-ignored `.env` file) before `docker-compose up`. For `Aspire`, set the `auth-client-secret`, `identity-seed-admin-password` and `identity-seed-user-password` parameters in the AppHost user-secrets.
+
 > ### Aspire
 
 To run the application using the `Aspire App Host`, execute the following command from the solution root:

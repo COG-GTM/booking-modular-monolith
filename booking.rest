@@ -1,6 +1,13 @@
 
 @booking-modular-monolith-api=https://localhost:3000  
 
+# Supply the same values you configured for the API (AuthOptions__ClientSecret and
+# IdentitySeedOptions__AdminPassword). Never commit real values.
+@clientId = client
+@clientSecret = <AuthOptions__ClientSecret>
+@adminUsername = samh
+@adminPassword = <IdentitySeedOptions__AdminPassword>
+
 @contentType = application/json
 @flightid = "3c5c0000-97c6-fc34-2eb9-08db322230c9"
 @passengerId = "8c9c0000-97c6-fc34-2eb9-66db322230c9"
@@ -13,10 +20,10 @@ POST {{booking-modular-monolith-api}}/connect/token
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=password
-&client_id=client
-&client_secret=secret
-&username=samh
-&password=Admin@123456
+&client_id={{clientId}}
+&client_secret={{clientSecret}}
+&username={{adminUsername}}
+&password={{adminPassword}}
 &scope=booking-modular-monolith role
 ###
 

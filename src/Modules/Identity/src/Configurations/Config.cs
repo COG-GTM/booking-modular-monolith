@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Duende.IdentityServer;
 using Duende.IdentityServer.Models;
 using Identity.Identity.Constants;
@@ -53,16 +55,22 @@ public static class Config
             },
         };
 
-    public static IEnumerable<Client> Clients =>
-        new List<Client>
+    public static IEnumerable<Client> GetClients(AuthOptions authOptions)
+    {
+        if (authOptions is null || !authOptions.HasClientCredentials)
+        {
+            return Array.Empty<Client>();
+        }
+
+        return new List<Client>
         {
             new()
             {
-                ClientId = "client",
+                ClientId = authOptions.ClientId,
                 AllowedGrantTypes = GrantTypes.ResourceOwnerPassword,
                 ClientSecrets =
                 {
-                    new Secret("secret".Sha256())
+                    new Secret(authOptions.ClientSecret.Sha256())
                 },
                 AllowedScopes =
                 {
@@ -80,4 +88,5 @@ public static class Config
                 AlwaysIncludeUserClaimsInIdToken = true // Include claims in ID token
             }
         };
+    }
 }

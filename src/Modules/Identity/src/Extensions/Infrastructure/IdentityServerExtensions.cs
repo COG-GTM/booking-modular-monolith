@@ -38,7 +38,7 @@ public static class IdentityServerExtensions
             .AddInMemoryIdentityResources(Config.IdentityResources)
             .AddInMemoryApiResources(Config.ApiResources)
             .AddInMemoryApiScopes(Config.ApiScopes)
-            .AddInMemoryClients(Config.Clients)
+            .AddInMemoryClients(Config.GetClients(authOptions))
             .AddAspNetIdentity<User>()
             .AddResourceOwnerValidator<UserValidator>();
 
