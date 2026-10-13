@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using BookingFlight;
+using Contracts.Grpc.Flight;
 
 namespace Integration.Test.Fakes;
 
