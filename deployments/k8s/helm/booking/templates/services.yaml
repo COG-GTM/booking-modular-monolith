@@ -10,6 +10,9 @@ Only the gateway is exposed externally, through ingress.yaml.
 {{- $ctx := dict "root" $root "name" $s.serviceName "svc" $s }}
 {{- $secretName := default (printf "%s-secrets" $s.serviceName) $s.existingSecret }}
 {{- $replicas := int $s.replicas }}
+{{- if and (eq $name "booking") (or (hasKey $s.env "Modules__Booking__BackgroundProcessingEnabled") (hasKey $s.secretEnv "Modules__Booking__BackgroundProcessingEnabled")) }}
+{{- fail "services.booking: set backgroundProcessingEnabled instead of overriding Modules__Booking__BackgroundProcessingEnabled in env/secretEnv (the replica guard relies on it)" }}
+{{- end }}
 {{- if and (eq $name "booking") $s.backgroundProcessingEnabled (or (gt $replicas 1) $s.hpa.enabled) }}
 {{- fail "services.booking: replicas must be 1 and hpa disabled while backgroundProcessingEnabled=true (single ESDB subscription consumer, ADR 0496)" }}
 {{- end }}

@@ -26,6 +26,7 @@ app.kubernetes.io/instance: {{ .root.Release.Name }}
 
 {{- define "booking.pgConnectionString" -}}
 {{- printf "Server=%s;Port=%v;Database=%s;User Id=%s;Password=%s" .root.Values.postgres.host .root.Values.postgres.port .database .user .password -}}
+{{- with .root.Values.postgres.sslMode }};SSL Mode={{ . }}{{ end -}}
 {{- end }}
 
 {{/* Pascal-case module name used in config keys (flight -> Flight). */}}
@@ -80,8 +81,8 @@ TrustedProxyOptions__KnownNetworks__{{ $i }}: {{ $n | quote }}
 AuthOptions__IssuerUri: {{ $g.publicUrl | quote }}
 {{- end }}
 {{- if eq .name "booking" }}
-Grpc__FlightAddress: {{ $s.grpcFlightAddress | quote }}
-Grpc__PassengerAddress: {{ $s.grpcPassengerAddress | quote }}
+Grpc__FlightAddress: {{ default (printf "http://%s:81" .root.Values.services.flight.serviceName) $s.grpcFlightAddress | quote }}
+Grpc__PassengerAddress: {{ default (printf "http://%s:81" .root.Values.services.passenger.serviceName) $s.grpcPassengerAddress | quote }}
 Modules__Booking__BackgroundProcessingEnabled: {{ $s.backgroundProcessingEnabled | quote }}
 {{- end }}
 {{- range $k, $v := $s.env }}

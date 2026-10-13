@@ -63,6 +63,11 @@ jobs:
           ! helm template booking "$CHART" --set services.booking.hpa.enabled=true 2>/dev/null
           helm template booking "$CHART" --set services.booking.replicas=2 \
             --set services.booking.backgroundProcessingEnabled=false >/dev/null
+          ! helm template booking "$CHART" --set services.booking.backgroundProcessingEnabled=false \
+            --set services.booking.replicas=2 \
+            --set-string services.booking.env.Modules__Booking__BackgroundProcessingEnabled=true 2>/dev/null
+          # Postgres init SQL only accepts plain identifiers.
+          ! helm template booking "$CHART" --set 'services.flight.database.user=x;DROP' 2>/dev/null
           # Identity replicas must share one signing key.
           ! helm template booking "$CHART" --set services.identity.replicas=2 2>/dev/null
           helm template booking "$CHART" --set services.identity.replicas=2 \

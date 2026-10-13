@@ -81,3 +81,16 @@ flight + seat → create booking (Booking → Flight/Passenger gRPC) → seat re
 
 CI (`.github/workflows/k8s-manifests.yml`) runs `helm lint`, renders the chart with every overlay
 through `kubeconform`, checks the replica guards and shellchecks the smoke script.
+
+## Operational notes
+
+- **Externally managed Secrets** (`existingSecret`) are read through `envFrom`, which is resolved at
+  container start; the chart's `checksum/*` annotations only cover chart-generated values. After
+  rotating an external Secret, restart the Deployment (`kubectl rollout restart deploy/<svc>`), or
+  run a reloader (e.g. stakater/Reloader) / bump `services.<name>.podAnnotations`.
+- **In-chart infra is local-only.** Its credentials are well-known placeholders, ingress is plain
+  HTTP and RabbitMQ/Postgres credentials are bootstrap-only (applied on an empty volume; changing
+  `rabbitmq.password` or a `database.password` later does not update the persisted user). Use
+  `environments/production.yaml` (managed stores, `existingSecret`s, TLS ingress,
+  `postgres.sslMode: VerifyFull`) for anything shared.
+- Database names/users must be plain lower-case Postgres identifiers (validated at render time).

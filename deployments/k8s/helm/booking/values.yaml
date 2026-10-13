@@ -41,6 +41,7 @@ namespace:
 postgres:
   host: postgres
   port: 5432
+  sslMode: ""                      # Npgsql "SSL Mode" (e.g. Require / VerifyFull); empty = driver default
 mongo:
   connectionString: mongodb://mongo:27017
 eventstore:
@@ -168,8 +169,9 @@ services:
     # replica may run with background processing, so Booking is pinned to one replica with a
     # Recreate rollout. The chart refuses replicas > 1 / HPA while this is true.
     backgroundProcessingEnabled: true
-    grpcFlightAddress: http://flight:81
-    grpcPassengerAddress: http://passenger:81
+    # Empty = http://<services.flight|passenger.serviceName>:81; set for services outside the chart.
+    grpcFlightAddress: ""
+    grpcPassengerAddress: ""
     waitFor: [postgres, mongo, rabbitmq, eventstore]
     env: {}
     secretEnv: {}

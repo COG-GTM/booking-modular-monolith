@@ -21,7 +21,12 @@ stringData:
     {{- range $name := list "identity" "flight" "passenger" "booking" }}
     {{- $s := index $root.Values.services $name }}
     {{- if $s.enabled }}
-    CREATE ROLE {{ $s.database.user }} LOGIN PASSWORD {{ squote $s.database.password }};
+    {{- range $id := compact (list $s.database.user $s.database.name $s.persistDatabase) }}
+    {{- if not (regexMatch "^[a-z_][a-z0-9_]{0,62}$" $id) }}
+    {{- fail (printf "services.%s: %q is not a plain lower-case Postgres identifier" $name $id) }}
+    {{- end }}
+    {{- end }}
+    CREATE ROLE {{ $s.database.user }} LOGIN PASSWORD '{{ replace "'" "''" $s.database.password }}';
     {{- range $db := compact (list $s.database.name $s.persistDatabase) }}
     CREATE DATABASE {{ $db }} OWNER {{ $s.database.user }};
     REVOKE CONNECT ON DATABASE {{ $db }} FROM PUBLIC;

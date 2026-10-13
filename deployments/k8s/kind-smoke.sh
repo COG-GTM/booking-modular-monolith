@@ -22,6 +22,9 @@ NAMESPACE="${NAMESPACE:-booking}"
 RELEASE="${RELEASE:-booking}"
 BUILD_CONTEXT="${BUILD_CONTEXT:-$REPO_ROOT}"
 TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-300}"
+# Probe paths (AB-495). For images built before AB-495: LIVE_PATH=/alive READY_PATH=/health.
+LIVE_PATH="${LIVE_PATH:-/health/live}"
+READY_PATH="${READY_PATH:-/health/ready}"
 INGRESS_NGINX_VERSION="controller-v1.11.3"
 METRICS_SERVER_VERSION="v0.7.2"
 GATEWAY_URL="http://localhost:$KIND_HTTP_PORT"
@@ -123,6 +126,7 @@ helm --kube-context "kind-$KIND_CLUSTER" upgrade --install "$RELEASE" "$SCRIPT_D
   --namespace "$NAMESPACE" --create-namespace \
   -f "$SCRIPT_DIR/environments/kind.yaml" \
   --set global.publicUrl="$GATEWAY_URL" \
+  --set defaults.probes.livenessPath="$LIVE_PATH" --set defaults.probes.readinessPath="$READY_PATH" \
   --wait --timeout "$((TIMEOUT_SECONDS * 3))s"
 
 step "pods / services / ingress / hpa"
@@ -130,7 +134,7 @@ kc -n "$NAMESPACE" wait --for=condition=Ready pod --all --timeout="${TIMEOUT_SEC
 kc -n "$NAMESPACE" get pods -o wide
 kc -n "$NAMESPACE" get svc,ingress,hpa
 
-step "in-cluster DNS + REST (/health/ready on :80) + gRPC port (:81) from a test pod"
+step "in-cluster DNS + REST ($READY_PATH on :80) + gRPC port (:81) from a test pod"
 # shellcheck disable=SC2016 # expanded by the test pod's shell
 kc -n "$NAMESPACE" run dns-check --rm -i --restart=Never --image=mirror.gcr.io/library/busybox:1.36 \
   --quiet -- sh -c '
@@ -141,12 +145,12 @@ kc -n "$NAMESPACE" run dns-check --rm -i --restart=Never --image=mirror.gcr.io/l
       echo "$svc.$1.svc.cluster.local -> $addr"
     done
     for svc in gateway identity flight passenger booking; do
-      echo "GET http://$svc/health/ready -> $(wget -qO- "http://$svc/health/ready")"
+      echo "GET http://$svc$2 -> $(wget -qO- "http://$svc$2")"
     done
-    for svc in flight passenger; do nc -z -w 3 "$svc" 81 && echo "tcp $svc:81 (grpc) open"; done' _ "$NAMESPACE"
+    for svc in flight passenger; do nc -z -w 3 "$svc" 81 && echo "tcp $svc:81 (grpc) open"; done' _ "$NAMESPACE" "$READY_PATH"
 
-step "gateway via ingress ($GATEWAY_URL/health/ready)"
-eventually 200 GET "$GATEWAY_URL/health/ready"
+step "gateway via ingress ($GATEWAY_URL$READY_PATH)"
+eventually 200 GET "$GATEWAY_URL$READY_PATH"
 
 suffix="$(date +%s)$RANDOM"
 passport="P${suffix: -9}"
