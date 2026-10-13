@@ -31,7 +31,7 @@ services:
     <<: *cutover-signing-key
     entrypoint: ["dotnet", "/app/Api.dll"]
     ports:
-      - "${MONOLITH_HOST_PORT:-3001}:80"
+      - "127.0.0.1:${MONOLITH_HOST_PORT:-3001}:80"
     environment:
       ASPNETCORE_ENVIRONMENT: docker
       ASPNETCORE_CONTENTROOT: /app
@@ -97,6 +97,9 @@ services:
       ReverseProxy__Clusters__passenger__Destinations__monolith__Address: ${GATEWAY_PASSENGER_UPSTREAM:-http://booking_modular_monolith:80}
       ReverseProxy__Clusters__booking__Destinations__monolith__Address: ${GATEWAY_BOOKING_UPSTREAM:-http://booking_modular_monolith:80}
       ReverseProxy__Clusters__monolith__Destinations__monolith__Address: ${GATEWAY_FALLBACK_UPSTREAM:-http://booking_modular_monolith:80}
+      # The split topology rewrites the fallback routes to a 404 path; with a monolith they proxy to it.
+      ReverseProxy__Routes__api-fallback__Transforms__0__PathSet: !reset null
+      ReverseProxy__Routes__monolith-fallback__Transforms__0__PathSet: !reset null
     depends_on:
       booking_modular_monolith:
         condition: service_healthy
