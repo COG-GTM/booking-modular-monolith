@@ -102,6 +102,12 @@ flip() {
   if [[ -n "${in_progress}" && "${in_progress}" != "${to}" ]]; then
     die "${m} is frozen mid-flip to ${in_progress}; resume with: $0 ${m} ${in_progress}"
   fi
+  # One flip at a time: a pending flight/passenger flip also holds booking's route.
+  local other
+  for other in identity flight passenger booking; do
+    [[ "${other}" != "$m" && -n "$(state_get "FLIP_$(upper "${other}")_IN_PROGRESS")" ]] &&
+      die "${other} is mid-flip; finish it first: $0 ${other} $(state_get "FLIP_$(upper "${other}")_IN_PROGRESS")"
+  done
 
   # An in-progress flip is resumed even if its route is already saved: the gateway may not have
   # applied it (or booking's restored route) yet.
@@ -183,7 +189,7 @@ flip() {
       state_set GATEWAY_BOOKING_UPSTREAM "${held}"
     fi
     apply gateway
-    state_set FLIP_BOOKING_HELD_UPSTREAM ""
+    [[ "$m" == flight || "$m" == passenger ]] && state_set FLIP_BOOKING_HELD_UPSTREAM ""
     state_set "FLIP_${U}_STAGE" ""
     state_set "FLIP_${U}_IN_PROGRESS" ""
   fi
