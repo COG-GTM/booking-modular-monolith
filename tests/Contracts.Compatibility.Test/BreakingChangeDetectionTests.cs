@@ -263,6 +263,26 @@ public class BreakingChangeDetectionTests
         CompareUserCreated(typeof(Defaulted.UserCreated)).Should().BeEmpty();
 
     [Fact]
+    public void default_on_a_constructor_the_serializer_does_not_use_is_ignored() =>
+        CompareUserCreated(typeof(UnusedDefault.UserCreated))
+            .Should()
+            .ContainSingle(v => v.Contains("property Country added as required"));
+
+    [Fact]
+    public void removing_the_default_of_an_accepted_member_is_breaking()
+    {
+        var baseline = ContractSnapshots.ForMessages(ContractSnapshots.MessagesAssembly);
+        baseline.Messages[UserCreatedName] = ContractSnapshots.ForMessage(typeof(Defaulted.UserCreated));
+        var current = Baselines.Clone(baseline);
+        current.Messages[UserCreatedName].Properties["Country"].HasDefault = null;
+
+        CompatibilityRules
+            .Compare(baseline, current)
+            .Should()
+            .ContainSingle(v => v.Contains("property Country lost its default"));
+    }
+
+    [Fact]
     public void nested_versioned_proto_baselines_are_enumerated()
     {
         var root = Directory.CreateTempSubdirectory().FullName;

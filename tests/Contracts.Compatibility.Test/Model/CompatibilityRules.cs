@@ -45,6 +45,11 @@ public static class CompatibilityRules
                 {
                     violations.Add($"message {name}: property {propertyName} became required");
                 }
+
+                if (property.HasDefault == true && !currentProperty.Nullable && currentProperty.HasDefault != true)
+                {
+                    violations.Add($"message {name}: property {propertyName} lost its default");
+                }
             }
 
             foreach (var (propertyName, property) in now.Properties)

@@ -110,15 +110,25 @@ public static class ContractSnapshots
         return snapshot;
     }
 
+    // Mirrors System.Text.Json: [JsonConstructor], else a public parameterless constructor, else the only public one.
+    private static ConstructorInfo? DeserializationConstructor(Type type)
+    {
+        var constructors = type.GetConstructors();
+        return constructors.FirstOrDefault(ctor =>
+                ctor.IsDefined(typeof(System.Text.Json.Serialization.JsonConstructorAttribute))
+            )
+            ?? (
+                constructors.Any(ctor => ctor.GetParameters().Length == 0) ? null
+                : constructors.Length == 1 ? constructors[0]
+                : null
+            );
+    }
+
     public static MessageContract ForMessage(Type type)
     {
         var nullability = new NullabilityInfoContext();
         var contract = new MessageContract { Urn = MessageUrn.ForTypeString(type) };
-        var parameters =
-            type.GetConstructors()
-                .OrderByDescending(ctor => ctor.GetParameters().Length)
-                .FirstOrDefault()
-                ?.GetParameters() ?? [];
+        var parameters = DeserializationConstructor(type)?.GetParameters() ?? [];
         foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
         {
             if (property.GetMethod is not { IsPublic: true } || property.GetIndexParameters().Length > 0)
