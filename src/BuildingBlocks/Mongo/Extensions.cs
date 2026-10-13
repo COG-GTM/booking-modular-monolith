@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Humanizer;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
 namespace BuildingBlocks.Mongo
@@ -56,10 +57,10 @@ namespace BuildingBlocks.Mongo
                 return ActivatorUtilities.CreateInstance<TContext>(sp, Options.Create(moduleOptions));
             });
 
-            services.AddScoped<IMongoDbContext>(sp => sp.GetRequiredService<TContext>());
-
-            services.AddTransient(typeof(IMongoRepository<,>), typeof(MongoRepository<,>));
-            services.AddTransient(typeof(IMongoUnitOfWork<>), typeof(MongoUnitOfWork<>));
+            // No unqualified IMongoDbContext / IMongoRepository<,> here: with several modules in one
+            // process they would bind to whichever module registered last. Inject TContext or
+            // IMongoUnitOfWork<TContext> instead.
+            services.TryAddTransient(typeof(IMongoUnitOfWork<>), typeof(MongoUnitOfWork<>));
 
             return services;
         }

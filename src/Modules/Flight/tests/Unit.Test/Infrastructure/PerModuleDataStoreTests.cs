@@ -172,6 +172,11 @@ public class PerModuleDataStoreTests
         Assert.Equal("passenger_service_read", passenger.Database.DatabaseNamespace.DatabaseName);
         Assert.Equal("localhost", flight.MongoClient.Settings.Server.Host);
         Assert.Equal("passenger-mongo", passenger.MongoClient.Settings.Server.Host);
+
+        // An unqualified context/repository would silently bind to the last registered module.
+        Assert.DoesNotContain(builder.Services, d => d.ServiceType == typeof(IMongoDbContext));
+        Assert.DoesNotContain(builder.Services, d => d.ServiceType == typeof(IMongoRepository<,>));
+        Assert.Same(flight, scope.ServiceProvider.GetRequiredService<IMongoUnitOfWork<FlightRead>>().Context);
     }
 
     [Fact]
