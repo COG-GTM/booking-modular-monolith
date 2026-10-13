@@ -20,9 +20,14 @@ public class ConsumeFilter<T> : IFilter<ConsumeContext<T>>
 
     public async Task Send(ConsumeContext<T> context, IPipe<ConsumeContext<T>> next)
     {
+        var envelope = new MessageEnvelope(context.Message, context.Headers.ToDictionary(x => x.Key, x => x.Value));
+
+        // Without a broker MessageId there is no stable key to deduplicate on, so only record the delivery.
         if (context.MessageId is not { } messageId)
         {
+            var id = await _persistMessageProcessor.AddReceivedMessageAsync(envelope, context.CancellationToken);
             await next.Send(context);
+            await _persistMessageProcessor.ProcessInboxAsync(id, context.CancellationToken);
             return;
         }
 
@@ -48,11 +53,7 @@ public class ConsumeFilter<T> : IFilter<ConsumeContext<T>>
 
         if (existing is null)
         {
-            await _persistMessageProcessor.AddReceivedMessageAsync(
-                inboxId,
-                new MessageEnvelope(context.Message, context.Headers.ToDictionary(x => x.Key, x => x.Value)),
-                context.CancellationToken
-            );
+            await _persistMessageProcessor.AddReceivedMessageAsync(inboxId, envelope, context.CancellationToken);
         }
 
         await next.Send(context);
