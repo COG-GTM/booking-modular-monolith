@@ -114,9 +114,8 @@ public static class ContractSnapshots
     private static ConstructorInfo? DeserializationConstructor(Type type)
     {
         var constructors = type.GetConstructors();
-        return constructors.FirstOrDefault(ctor =>
-                ctor.IsDefined(typeof(System.Text.Json.Serialization.JsonConstructorAttribute))
-            )
+        return type.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .FirstOrDefault(ctor => ctor.IsDefined(typeof(System.Text.Json.Serialization.JsonConstructorAttribute)))
             ?? (
                 constructors.Any(ctor => ctor.GetParameters().Length == 0) ? null
                 : constructors.Length == 1 ? constructors[0]
@@ -124,11 +123,29 @@ public static class ContractSnapshots
             );
     }
 
+    private static bool HasInitializer(PropertyInfo property, object? prototype)
+    {
+        if (prototype is null || property.SetMethod is null)
+        {
+            return false;
+        }
+
+        var value = property.GetValue(prototype);
+        return value is not null
+            && (!property.PropertyType.IsValueType || !value.Equals(Activator.CreateInstance(property.PropertyType)));
+    }
+
     public static MessageContract ForMessage(Type type)
     {
         var nullability = new NullabilityInfoContext();
         var contract = new MessageContract { Urn = MessageUrn.ForTypeString(type) };
-        var parameters = DeserializationConstructor(type)?.GetParameters() ?? [];
+        var constructor = DeserializationConstructor(type);
+        var parameters = constructor?.GetParameters() ?? [];
+        // Parameterless deserialization keeps property initializers for members missing from the payload.
+        var prototype =
+            constructor is null && type.GetConstructor(Type.EmptyTypes) is { } parameterless
+                ? parameterless.Invoke(null)
+                : null;
         foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
         {
             if (property.GetMethod is not { IsPublic: true } || property.GetIndexParameters().Length > 0)
@@ -142,12 +159,13 @@ public static class ContractSnapshots
                 Nullable =
                     System.Nullable.GetUnderlyingType(property.PropertyType) is not null
                     || nullability.Create(property).ReadState == NullabilityState.Nullable,
-                HasDefault = parameters.Any(parameter =>
-                    parameter.HasDefaultValue
-                    && string.Equals(parameter.Name, property.Name, StringComparison.OrdinalIgnoreCase)
-                )
-                    ? true
-                    : null,
+                HasDefault =
+                    parameters.Any(parameter =>
+                        parameter.HasDefaultValue
+                        && string.Equals(parameter.Name, property.Name, StringComparison.OrdinalIgnoreCase)
+                    ) || HasInitializer(property, prototype)
+                        ? true
+                        : null,
             };
         }
 

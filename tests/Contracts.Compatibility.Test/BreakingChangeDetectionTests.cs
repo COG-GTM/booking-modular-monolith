@@ -268,6 +268,12 @@ public class BreakingChangeDetectionTests
             .Should()
             .ContainSingle(v => v.Contains("property Country added as required"));
 
+    [Theory]
+    [InlineData(typeof(InitializerDefault.UserCreated))]
+    [InlineData(typeof(PrivateJsonConstructor.UserCreated))]
+    public void defaults_from_initializers_or_a_private_json_constructor_are_recognised(Type modified) =>
+        CompareUserCreated(modified).Should().BeEmpty();
+
     [Fact]
     public void removing_the_default_of_an_accepted_member_is_breaking()
     {
