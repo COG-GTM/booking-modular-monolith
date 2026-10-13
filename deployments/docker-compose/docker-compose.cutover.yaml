@@ -2,25 +2,22 @@
 # Adds the legacy monolith (src/Api) to the multi-service topology and makes each gateway cluster
 # switchable between the monolith and its standalone service:
 #
-#   docker compose -f docker-compose.services.yaml -f docker-compose.cutover.yaml up -d --build
+#   docker compose -f docker-compose.services.yaml -f docker-compose.phase-a.yaml \
+#                  -f docker-compose.cutover.yaml up -d --build
 #   deployments/scripts/route-flip.sh flight monolith      # or: service
 #
 # route-flip.sh keeps the chosen upstream per cluster in this directory's `.env` (git-ignored), which
 # docker compose loads automatically, and recreates only the gateway. Defaults below = every cluster
 # on its service (fully cut over).
 #
-# Token continuity: both Identity hosts (identity-service and the monolith) sign with the same key,
-# stored on the shared `identity-signing-keys` volume, so tokens issued before a flip stay valid
-# after it in either direction. The first host to start seeds the volume with the key it was already
-# using. This is the developer credential for the local rehearsal only: in production mount one
-# secret/KMS-backed credential into both deployments; never a plain volume.
+# Token continuity: the monolith mounts the same `identity-signing-keys` volume as identity-service
+# (docker-compose.phase-a.yaml) and signs with the same key, so tokens issued before a flip stay valid
+# after it in either direction.
 #
-# Data ownership in this overlay = runbook Phase A for every context: each service uses the
-# monolith's module store (identity/passenger/booking do by default; flight-service is pointed at
-# flight_modular_monolith below) and the monolith turns its background processing off for all of
-# them (ADR 0013): exactly one processor per store, flips are lossless in both directions, and the
+# Data ownership: Phase A for every context (docker-compose.phase-a.yaml) — the services use the
+# monolith's module stores and the monolith turns its background processing off for all of them
+# (ADR 0013): exactly one processor per store, flips are lossless in both directions, and the
 # monolith's own Booking -> Flight/Passenger gRPC calls read the same rows the services serve.
-# Separating the data (Phase B, runbook section 4) happens per context after burn-in.
 
 services:
   booking_modular_monolith:
@@ -84,18 +81,6 @@ services:
     networks:
       - infrastructure
 
-  identity-service:
-    environment:
-      AuthOptions__SigningKeyPath: /keys/identity/tempkey.jwk
-    volumes:
-      - identity-signing-keys:/keys/identity
-
-  flight-service:
-    environment:
-      # Phase A: serve the monolith's Flight store (default is the service's own flight_service DBs).
-      PostgresOptions__ConnectionString__Flight: Server=postgres;Port=5432;Database=flight_modular_monolith;User Id=flight;Password=flight;Include Error Detail=true
-      MongoOptions__Flight__DatabaseName: flight_modular_monolith_read
-
   gateway:
     environment:
       # Diagnostic header naming the destination that served each response; the gateway only adds
@@ -109,6 +94,3 @@ services:
     depends_on:
       booking_modular_monolith:
         condition: service_healthy
-
-volumes:
-  identity-signing-keys:

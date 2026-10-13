@@ -28,7 +28,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_DIR="$(cd "$SCRIPT_DIR/../docker-compose" && pwd)"
 STATE_FILE="${ROUTE_FLIP_STATE_FILE:-$COMPOSE_DIR/.env}"
-COMPOSE_FILES=(-f "$COMPOSE_DIR/docker-compose.services.yaml" -f "$COMPOSE_DIR/docker-compose.cutover.yaml")
+COMPOSE_FILES=(-f "$COMPOSE_DIR/docker-compose.services.yaml" -f "$COMPOSE_DIR/docker-compose.phase-a.yaml" -f "$COMPOSE_DIR/docker-compose.cutover.yaml")
 # Extra compose files (colon-separated), e.g. a local override that remaps busy host ports.
 IFS=: read -ra _extra <<<"${EXTRA_COMPOSE_FILES:-}"
 for _f in "${_extra[@]}"; do COMPOSE_FILES+=(-f "$_f"); done

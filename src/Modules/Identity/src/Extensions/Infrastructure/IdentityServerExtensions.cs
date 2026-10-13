@@ -84,6 +84,13 @@ public static class IdentityServerExtensions
             return;
 
         Directory.CreateDirectory(Path.GetDirectoryName(sharedKeyFile)!);
-        File.Copy(currentKeyFile, sharedKeyFile);
+        try
+        {
+            File.Copy(currentKeyFile, sharedKeyFile);
+        }
+        catch (IOException) when (File.Exists(sharedKeyFile))
+        {
+            // Another host seeded the shared file first; use that one.
+        }
     }
 }

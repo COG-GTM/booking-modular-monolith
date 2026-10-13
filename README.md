@@ -300,11 +300,11 @@ or in `appsettings.<Environment>.json`:
 
 Under Aspire the AppHost injects each standalone service's endpoint into its cluster (or the API endpoint into every cluster with `AppHost:Topology=Monolith`), so repoint there through the AppHost configuration instead (`Gateway:Clusters:<cluster>` in `src/Aspire/src/AppHost/appsettings*.json`, user-secrets or `Gateway__Clusters__flight=http://flight-service:80`).
 
-To flip one context with a dry-run option and a post-flip health/smoke check (docker compose or `--target k8s`), and to roll it back, use `deployments/scripts/route-flip.sh`; `docker-compose.cutover.yaml` adds the monolith to the multi-service topology so both are reachable from the gateway:
+To flip one context with a dry-run option and a post-flip health/smoke check (docker compose or `--target k8s`), and to roll it back, use `deployments/scripts/route-flip.sh`; `docker-compose.cutover.yaml` adds the monolith to the multi-service topology so both are reachable from the gateway, and `docker-compose.phase-a.yaml` keeps each service on the monolith's store / shared signing key until its data has been separated:
 
 ```bash
 export SMOKE_USERNAME=samh SMOKE_PASSWORD='Admin@123456' SMOKE_CLIENT_ID=client SMOKE_CLIENT_SECRET=secret  # local dev seed, used by the smoke check
-docker compose -f deployments/docker-compose/docker-compose.services.yaml -f deployments/docker-compose/docker-compose.cutover.yaml up -d --build --wait gateway
+docker compose -f deployments/docker-compose/docker-compose.services.yaml -f deployments/docker-compose/docker-compose.phase-a.yaml -f deployments/docker-compose/docker-compose.cutover.yaml up -d --build --wait gateway
 deployments/scripts/route-flip.sh flight monolith --dry-run
 deployments/scripts/route-flip.sh flight monolith     # rollback target
 deployments/scripts/route-flip.sh flight service

@@ -11,6 +11,7 @@
 #
 # Prerequisite: the cut-over topology is running, e.g.
 #   docker compose -f deployments/docker-compose/docker-compose.services.yaml \
+#                  -f deployments/docker-compose/docker-compose.phase-a.yaml \
 #                  -f deployments/docker-compose/docker-compose.cutover.yaml up -d --build --wait
 # and SMOKE_USERNAME / SMOKE_PASSWORD / SMOKE_CLIENT_ID / SMOKE_CLIENT_SECRET are exported
 # (route-flip.sh uses the same variables; local dev values are in docs/migration/cutover-runbook.md).
@@ -20,7 +21,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_DIR="$(cd "$SCRIPT_DIR/../docker-compose" && pwd)"
-COMPOSE=(docker compose -f "$COMPOSE_DIR/docker-compose.services.yaml" -f "$COMPOSE_DIR/docker-compose.cutover.yaml")
+COMPOSE=(docker compose -f "$COMPOSE_DIR/docker-compose.services.yaml" -f "$COMPOSE_DIR/docker-compose.phase-a.yaml" -f "$COMPOSE_DIR/docker-compose.cutover.yaml")
 # Extra compose files (colon-separated), e.g. a local override that remaps busy host ports.
 IFS=: read -ra _extra <<<"${EXTRA_COMPOSE_FILES:-}"
 for _f in "${_extra[@]}"; do COMPOSE+=(-f "$_f"); done

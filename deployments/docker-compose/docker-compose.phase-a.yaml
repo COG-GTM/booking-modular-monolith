@@ -1,0 +1,31 @@
+# Phase A data/key configuration of the strangler-fig cut-over (AB-248, docs/migration/cutover-runbook.md §4).
+# Deliberately separate from docker-compose.cutover.yaml (which adds the monolith host and the
+# switchable gateway clusters) because it must OUTLIVE the monolith: after decommission-monolith.sh
+# the deployment is `docker-compose.services.yaml` + this file, until Phase B has moved a context to
+# its own store / production key store, at which point its override is removed from here.
+#
+#   docker compose -f docker-compose.services.yaml -f docker-compose.phase-a.yaml [-f docker-compose.cutover.yaml] up -d
+#
+# - flight-service serves the monolith's Flight store instead of its own flight_service databases,
+#   so Flight data is one data set while the monolith's Booking module still reads Flight over its
+#   in-process gRPC. Phase B for Flight follows the Booking flip.
+# - identity-service signs with the key file on the `identity-signing-keys` volume (the monolith in
+#   the cut-over overlay mounts the same volume), so tokens survive flips, rollbacks and container
+#   recreation. The first host to start seeds the file from the key it was already using. This is
+#   the developer credential for the local rehearsal only: in production mount one secret/KMS-backed
+#   credential into both deployments; never a plain volume.
+
+services:
+  flight-service:
+    environment:
+      PostgresOptions__ConnectionString__Flight: Server=postgres;Port=5432;Database=flight_modular_monolith;User Id=flight;Password=flight;Include Error Detail=true
+      MongoOptions__Flight__DatabaseName: flight_modular_monolith_read
+
+  identity-service:
+    environment:
+      AuthOptions__SigningKeyPath: /keys/identity/tempkey.jwk
+    volumes:
+      - identity-signing-keys:/keys/identity
+
+volumes:
+  identity-signing-keys:

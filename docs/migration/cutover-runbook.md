@@ -10,7 +10,9 @@
   [ADR 0015](../adr/0015-aspire-apphost-multi-service-topology.md) (Aspire)
 - **Tooling:** [`deployments/scripts/route-flip.sh`](../../deployments/scripts/route-flip.sh),
   [`deployments/scripts/validate-rollback.sh`](../../deployments/scripts/validate-rollback.sh),
-  [`docker-compose.cutover.yaml`](../../deployments/docker-compose/docker-compose.cutover.yaml)
+  [`deployments/scripts/decommission-monolith.sh`](../../deployments/scripts/decommission-monolith.sh),
+  [`docker-compose.cutover.yaml`](../../deployments/docker-compose/docker-compose.cutover.yaml),
+  [`docker-compose.phase-a.yaml`](../../deployments/docker-compose/docker-compose.phase-a.yaml)
 
 This runbook moves client traffic from the modular monolith (`src/Api`) to the standalone services
 one bounded context at a time, behind the YARP gateway (`src/Gateway`, port 5000). Every step is a
@@ -37,7 +39,7 @@ monolith keep running. Under Aspire, use `Gateway__Clusters__<ctx>` on the AppHo
 `route-flip.sh` wraps this:
 
 ```bash
-# Compose (topology = docker-compose.services.yaml + docker-compose.cutover.yaml)
+# Compose (topology = docker-compose.services.yaml + docker-compose.phase-a.yaml + docker-compose.cutover.yaml)
 deployments/scripts/route-flip.sh flight service --dry-run   # show the change only
 deployments/scripts/route-flip.sh flight service             # flip, then health + smoke check
 deployments/scripts/route-flip.sh flight monolith            # rollback
@@ -118,7 +120,7 @@ Two-phase approach for every context:
 module database (same EF Core migrations: both hosts compose the same `src/Modules/<Module>`
 project) and the monolith's background processing for that module is switched off. A route flip
 in either direction then moves no data and loses no writes; rollback is instant. Identity,
-Passenger and Booking are already configured this way, and `docker-compose.cutover.yaml` does the
+Passenger and Booking are already configured this way, and `docker-compose.phase-a.yaml` does the
 same for Flight (`PostgresOptions__ConnectionString__Flight`, `MongoOptions__Flight__DatabaseName`
 → `flight_modular_monolith` / `flight_modular_monolith_read`, monolith Flight background processing
 off). This matters beyond the flipped route itself: while Booking is still served by the monolith,
@@ -129,7 +131,10 @@ moved would make new flights invisible to monolith bookings. Do Phase B for Flig
 Booking flip, or re-point the monolith's `Services__flight__http__0` at `flight-service:81` together
 with the Flight flip (and back on rollback).
 
-**Phase B – separate the data (after burn-in, per context).** Done in a short write freeze, after
+**Phase B – separate the data (after burn-in, per context).** The target is the service's own,
+never-used database (during Phase A the service writes to the shared store, so nothing written through
+the service is lost by the copy); never restore over a database that has served traffic. Done in a
+short write freeze, after
 the route has been on the service long enough that rolling back to the monolith is no longer
 planned:
 
@@ -243,6 +248,7 @@ and request log lines appearing only in the expected container):
 ```bash
 export SMOKE_USERNAME=samh SMOKE_PASSWORD='Admin@123456' SMOKE_CLIENT_ID=client SMOKE_CLIENT_SECRET=secret  # local dev seed
 docker compose -f deployments/docker-compose/docker-compose.services.yaml \
+               -f deployments/docker-compose/docker-compose.phase-a.yaml \
                -f deployments/docker-compose/docker-compose.cutover.yaml up -d --build --wait gateway
 deployments/scripts/validate-rollback.sh flight     # monolith -> service -> monolith
 deployments/scripts/validate-rollback.sh identity   # same, plus: both hosts publish the same JWKS kids
@@ -251,8 +257,10 @@ deployments/scripts/validate-rollback.sh identity   # same, plus: both hosts pub
 `docker-compose.cutover.yaml` adds the monolith to the multi-service topology (same `infrastructure`
 network, so the two compose projects never both start the fixed-name infrastructure containers),
 makes every gateway cluster switchable through `GATEWAY_<CTX>_UPSTREAM` (written to the git-ignored
-`.env` by `route-flip.sh`), shares the Identity signing key between both Identity hosts and enables
-`X-Gateway-Upstream` for authenticated callers. If host ports are taken on your machine, add a local
+`.env` by `route-flip.sh`), mounts the shared Identity key into the monolith and enables
+`X-Gateway-Upstream` for authenticated callers. `docker-compose.phase-a.yaml` holds the Phase A data
+and key configuration (flight-service on the monolith's Flight store, identity-service on the shared
+signing key) and is kept after the monolith is gone, until Phase B retires each override. If host ports are taken on your machine, add a local
 override with `EXTRA_COMPOSE_FILES=/path/override.yaml` (all scripts honour it). Output from the
 AB-248 run is in the PR description.
 
@@ -269,12 +277,17 @@ prove silence — after a recent gateway recreate use the aggregated log store i
 (Loki: `{container="gateway"} |= "Proxying to http://booking_modular_monolith"` over the period) —
 and the log must be readable and contain zero `Proxying to http://booking_modular_monolith` lines
 (`--check-only` to just report). It then stops and removes the monolith host and, on compose,
-**recreates the gateway from `docker-compose.services.yaml` alone**, dropping the cut-over overlay
-(no monolith dependency, clusters fixed to the services); `--target k8s` scales the monolith
+**recreates the gateway from `docker-compose.services.yaml` + `docker-compose.phase-a.yaml`**,
+dropping the cut-over overlay (no monolith dependency, clusters fixed to the services) but keeping
+the Phase A file, so flight-service stays on the shared Flight store and identity-service on the
+shared signing key — a redeploy without the Phase A file would silently move Flight back to the empty
+`flight_service` databases and give identity-service a fresh key; `--target k8s` scales the monolith
 deployment to 0. Finally it proves the gateway serves all four contexts with the monolith gone: one
 authenticated request per context must succeed and the gateway log must show it proxied to the
-service and nothing proxied to the monolith. From then on deploy with `docker-compose.services.yaml`
-only — the overlay would start the monolith again. The host can still be started by hand until
+service and nothing proxied to the monolith. From then on deploy with `docker-compose.services.yaml` +
+`docker-compose.phase-a.yaml` — the cut-over overlay would start the monolith again. Remove a
+context's override from the Phase A file as part of its Phase B (Flight: after the copy and repoint;
+Identity: when it moves to the production key store). The host can still be started by hand until
 Step 2 lands; keep the image and database backups for the retention period.
 
 ```bash
@@ -287,7 +300,7 @@ deployments/scripts/decommission-monolith.sh              # or: --target k8s --n
 **Gateway**
 - [ ] Remove the `monolith` cluster and the `api-fallback` / `monolith-fallback` routes from `src/Gateway/src/appsettings.json` and `appsettings.docker.json`; unknown paths then 404 at the gateway. Update `GatewayRouteConfigTests` (`every_cluster_initially_targets_the_monolith`) and `GatewayIngressTests`.
 - [ ] Set each cluster's default destination to its service and rename the destination key from `monolith` to `primary` (update `route-flip.sh`, the compose files, Aspire and README together).
-- [ ] Delete `deployments/docker-compose/docker-compose.cutover.yaml`, `deployments/scripts/validate-rollback.sh` and `deployments/scripts/decommission-monolith.sh`; keep `route-flip.sh` only if a rollback target still exists. Remove `AuthOptions:SigningKeyPath` from identity-service only after it has moved to a production key store.
+- [ ] Delete `deployments/docker-compose/docker-compose.cutover.yaml`, `deployments/scripts/validate-rollback.sh` and `deployments/scripts/decommission-monolith.sh`; keep `route-flip.sh` only if a rollback target still exists. Delete `docker-compose.phase-a.yaml` once every override in it has been retired by Phase B (Flight on its own store; identity-service on a production key store).
 
 **Monolith host and modules**
 - [ ] Delete `src/Api` (host, `Dockerfile`, `appsettings*.json`, `tempkey.jwk`, `Extensions/SharedInfrastructureExtensions.cs` module composition) and remove `Api` from `booking-modular-monolith.sln`.

@@ -41,8 +41,8 @@ two token issuers; `X-Gateway-Upstream` restricted to authenticated callers). Th
    authenticated smoke request that fails unless `X-Gateway-Upstream` names the expected destination.
    **Rollback is the same command with `monolith`.**
 3. **Two-phase data move:** flip routes while the service still uses the monolith's module store (instant, lossless
-   rollback; ADR 0013 switch keeps exactly one background processor) — the cut-over overlay configures all four
-   contexts this way, Flight included, because the monolith's Booking module reads Flight over its in-process gRPC
+   rollback; ADR 0013 switch keeps exactly one background processor) — `docker-compose.phase-a.yaml` configures all
+   four contexts this way, Flight included, because the monolith's Booking module reads Flight over its in-process gRPC
    and must see the rows flight-service writes — then separate data per context after burn-in (Flight only after
    Booking has moved), draining the outbox/inbox first and copying in a write freeze.
 4. **Observability for the window:** opt-in `X-Gateway-Upstream` response header (`UpstreamHeaderOptions:Enabled`,
@@ -54,18 +54,20 @@ two token issuers; `X-Gateway-Upstream` restricted to authenticated callers). Th
 6. **Decommission** in two steps: `deployments/scripts/decommission-monolith.sh` removes the running monolith host
    once every cluster is on its service and a gateway log covering the whole quiet period shows nothing proxied to
    the monolith (fails closed if the log is unavailable or too young), recreates the gateway without the cut-over
-   overlay so a redeploy cannot restart the monolith, then verifies all four contexts through the gateway without it; deleting `src/Api`, its CI/compose/Aspire wiring
+   overlay but with the Phase A file (so a redeploy cannot restart the monolith and does not move Flight/Identity off
+   their shared store/key before Phase B), then verifies all four contexts through the gateway without it; deleting `src/Api`, its CI/compose/Aspire wiring
    and the gateway `monolith` cluster follows as the checklist in `docs/migration/cutover-runbook.md`, after
    production burn-in. The code removal is not done in AB-248.
 
 ## Consequences
 
 - Each flip is reversible in one gateway restart; rehearsed locally with `deployments/scripts/validate-rollback.sh`
-  against `docker-compose.services.yaml` + `docker-compose.cutover.yaml`.
+  against `docker-compose.services.yaml` + `docker-compose.phase-a.yaml` + `docker-compose.cutover.yaml`.
 - The monolith must keep running (and stay deployable) until decommission; the cut-over overlay runs it with Flight
   background processing on and Identity/Passenger/Booking off.
 - flight-service's default configuration (own `flight_service` databases) must not be used while the monolith still
-  serves Booking; the overlay overrides it to the shared store, and Phase B for Flight follows the Booking flip.
+  serves Booking; `docker-compose.phase-a.yaml` overrides it to the shared store and stays in the deployment after
+  decommission until Phase B for Flight (which follows the Booking flip) and the Identity key-store move retire it.
 - Identity rollback requires both identity processes to share signing keys; enforced by `AuthOptions:SigningKeyPath`
   in the cut-over overlay and checked by `validate-rollback.sh identity` (pre-flight 3.3).
 - YARP's built-in load balancers are not weighted, so weighted canaries use repeated destinations or a custom policy;

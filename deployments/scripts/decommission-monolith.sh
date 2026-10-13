@@ -12,10 +12,12 @@
 #       or wait; the log query itself must succeed;
 #    c. that log shows zero requests proxied to the monolith cluster.
 # 2. Removes the monolith host. compose: stop + rm booking_modular_monolith, then the gateway is
-#    recreated from docker-compose.services.yaml ALONE, i.e. without the cut-over overlay, so a later
-#    plain `docker compose -f docker-compose.services.yaml up -d` cannot bring the monolith back
-#    (from now on deploy without docker-compose.cutover.yaml). k8s: scales the monolith deployment
-#    to 0 (remove it and the gateway's monolith cluster env from the manifests next).
+#    recreated from docker-compose.services.yaml + docker-compose.phase-a.yaml, i.e. WITHOUT the
+#    cut-over overlay, so a later `docker compose -f docker-compose.services.yaml -f docker-compose.phase-a.yaml up -d`
+#    cannot bring the monolith back — and WITH the Phase A file, which keeps flight-service on the
+#    shared Flight store and identity-service on the shared signing key until Phase B is done per
+#    context. k8s: scales the monolith deployment to 0 (remove it and the gateway's monolith cluster
+#    env from the manifests next).
 # 3. Verifies, with the monolith gone, that the gateway serves all four contexts: one authenticated
 #    request per context through the gateway must succeed and the gateway log must show it proxied
 #    to the service, with nothing proxied to the monolith.
@@ -26,10 +28,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_DIR="$(cd "$SCRIPT_DIR/../docker-compose" && pwd)"
-SERVICES_ONLY=(docker compose -f "$COMPOSE_DIR/docker-compose.services.yaml")
-COMPOSE=("${SERVICES_ONLY[@]}" -f "$COMPOSE_DIR/docker-compose.cutover.yaml")
+# After the monolith is gone the deployment is services + phase-a (never the cut-over overlay again).
+POST_DECOMMISSION=(docker compose -f "$COMPOSE_DIR/docker-compose.services.yaml" -f "$COMPOSE_DIR/docker-compose.phase-a.yaml")
+COMPOSE=("${POST_DECOMMISSION[@]}" -f "$COMPOSE_DIR/docker-compose.cutover.yaml")
 IFS=: read -ra _extra <<<"${EXTRA_COMPOSE_FILES:-}"
-for _f in "${_extra[@]}"; do COMPOSE+=(-f "$_f"); SERVICES_ONLY+=(-f "$_f"); done
+for _f in "${_extra[@]}"; do COMPOSE+=(-f "$_f"); POST_DECOMMISSION+=(-f "$_f"); done
 CONTEXTS=(identity flight passenger booking)
 MONOLITH=booking_modular_monolith
 MONOLITH_DEPLOYMENT="${MONOLITH_DEPLOYMENT:-booking-modular-monolith}"
@@ -52,9 +55,11 @@ while (($#)); do
   esac
 done
 [[ "$TARGET" == compose || "$TARGET" == k8s ]] || { echo "--target must be compose or k8s" >&2; exit 2; }
-for v in SMOKE_USERNAME SMOKE_PASSWORD SMOKE_CLIENT_ID SMOKE_CLIENT_SECRET; do
-  [[ -n "${!v:-}" ]] || { echo "$v must be set (smoke credentials, see the runbook)" >&2; exit 2; }
-done
+if ! $CHECK_ONLY; then
+  for v in SMOKE_USERNAME SMOKE_PASSWORD SMOKE_CLIENT_ID SMOKE_CLIENT_SECRET; do
+    [[ -n "${!v:-}" ]] || { echo "$v must be set (smoke credentials, see the runbook)" >&2; exit 2; }
+  done
+fi
 
 section() { printf '\n=== %s ===\n' "$*"; }
 fail() { echo "FAIL: $*" >&2; exit 1; }
@@ -122,8 +127,9 @@ else
   "${COMPOSE[@]}" stop "$MONOLITH"
   "${COMPOSE[@]}" rm -f "$MONOLITH"
   # Gateway without the cut-over overlay: no monolith dependency, clusters fixed to the services.
-  "${SERVICES_ONLY[@]}" up -d --no-deps --wait gateway
-  "${SERVICES_ONLY[@]}" ps --format '{{.Name}} {{.Status}}'
+  # The Phase A file stays, so flight-service / identity-service keep their shared store and key.
+  "${POST_DECOMMISSION[@]}" up -d --no-deps --wait gateway
+  "${POST_DECOMMISSION[@]}" ps --format '{{.Name}} {{.Status}}'
 fi
 
 section "verify: gateway serves every context from its service with the monolith gone"
@@ -149,7 +155,7 @@ sleep 2
 if [[ "$TARGET" == k8s ]]; then
   kubectl_ns logs deploy/gateway --all-containers --since-time="$since" >"$TMP/verify.log" 2>/dev/null || fail "could not read the gateway log"
 else
-  docker logs --since "$since" "$("${SERVICES_ONLY[@]}" ps -q gateway)" >"$TMP/verify.log" 2>&1 || fail "could not read the gateway log"
+  docker logs --since "$since" "$("${POST_DECOMMISSION[@]}" ps -q gateway)" >"$TMP/verify.log" 2>&1 || fail "could not read the gateway log"
 fi
 grep -E "Proxying to" "$TMP/verify.log" | sed -E 's/^.*Proxying to (http:\/\/[^/]+).*$/\1/' | sort | uniq -c
 for ctx in "${CONTEXTS[@]}"; do
@@ -160,4 +166,5 @@ if grep -q "Proxying to http://${MONOLITH}" "$TMP/verify.log"; then echo "FAIL: 
 section "result"
 ((FAILURES == 0)) || fail "$FAILURES check(s) failed after removing the monolith host; start it again with: ${COMPOSE[*]} up -d $MONOLITH"
 echo "PASS: monolith host removed; the gateway serves identity, flight, passenger and booking from the services."
-echo "From now on deploy with docker-compose.services.yaml only. Next: the code-removal checklist in docs/migration/cutover-runbook.md §8."
+echo "From now on deploy with: ${POST_DECOMMISSION[*]} up -d   (never docker-compose.cutover.yaml again)."
+echo "Next: Phase B per context (runbook §4), then the code-removal checklist in docs/migration/cutover-runbook.md §8."
