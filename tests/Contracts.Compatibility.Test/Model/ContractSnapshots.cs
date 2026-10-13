@@ -63,6 +63,9 @@ public sealed class ProtoField
     public string TypeName { get; set; } = string.Empty;
     public string Label { get; set; } = string.Empty;
     public string? Oneof { get; set; }
+
+    // proto3 `optional` (explicit presence); null when absent so existing baselines stay unchanged.
+    public bool? Optional { get; set; }
 }
 
 public sealed class ProtoEnum
@@ -210,6 +213,7 @@ public static class ContractSnapshots
                 TypeName = field.TypeName,
                 Label = field.Label.ToString(),
                 Oneof = field.HasOneofIndex && !field.Proto3Optional ? message.OneofDecl[field.OneofIndex].Name : null,
+                Optional = field.Proto3Optional ? true : null,
             };
         }
 

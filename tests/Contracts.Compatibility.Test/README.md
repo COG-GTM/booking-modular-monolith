@@ -5,9 +5,9 @@ changes that would break an independently deployed producer or consumer (ADR 000
 
 | Check | Files | Fails when |
 |---|---|---|
-| Message schema | `Baselines/messages/contracts.messages.json` | an `IIntegrationEvent` is removed/renamed, its MassTransit URN (namespace/type name) changes, or a property is removed, renamed, retyped or becomes nullable |
+| Message schema | `Baselines/messages/contracts.messages.json` | an `IIntegrationEvent` is removed/renamed, its MassTransit URN (namespace/type name) changes, a property is removed, renamed, retyped, becomes nullable or becomes required, or a new property is not nullable |
 | Golden payloads | `Baselines/messages/samples/*.json` | a payload serialized from the baseline contract no longer round-trips into the current type |
-| Proto schema (descriptor-based `buf breaking`) | `Baselines/grpc/*.json` | a package, `csharp_namespace`, service, rpc, message or enum is removed/renamed; an rpc's request/response/streaming changes; a field is removed without reserving its number and name, renamed, renumbered, retyped, changes cardinality or oneof; a reserved number/name is reused; an enum value is removed or renumbered |
+| Proto schema (descriptor-based `buf breaking`) | `Baselines/grpc/*.json` | a package, `csharp_namespace`, service, rpc, message or enum is removed/renamed; an rpc's request/response/streaming changes; a field is removed (even when its number and name are reserved), renamed, renumbered, retyped, or changes cardinality, oneof or proto3 `optional` presence; a reserved number/name is reused; an enum value is removed or renumbered. Versioned files (`Protos/v2/flight.proto`) get their own baseline (`grpc/v2/flight.json`) |
 | Consumer pacts | `Pacts/grpc/*.json`, `Pacts/messages/*.json` | a provider drops or changes an rpc/field/property a consumer declared it reads, or a module adds an `IConsumer<T>` for a shared contract without a pact |
 | Negative runs | `BreakingChangeDetectionTests.cs` | the rules above stop detecting known-breaking edits applied to the real descriptors/types |
 

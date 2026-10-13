@@ -39,6 +39,22 @@ public static class CompatibilityRules
                 {
                     violations.Add($"message {name}: property {propertyName} became nullable");
                 }
+
+                // Producers on the older contract can still omit it.
+                if (property.Nullable && !currentProperty.Nullable)
+                {
+                    violations.Add($"message {name}: property {propertyName} became required");
+                }
+            }
+
+            foreach (var (propertyName, property) in now.Properties)
+            {
+                if (!previous.Properties.ContainsKey(propertyName) && !property.Nullable)
+                {
+                    violations.Add(
+                        $"message {name}: property {propertyName} added as required (new members must be nullable)"
+                    );
+                }
             }
         }
 
@@ -116,13 +132,8 @@ public static class CompatibilityRules
                 var label = $"{file}: field {messageName}.{field.Name} = {number}";
                 if (!currentMessage.Fields.TryGetValue(number, out var currentField))
                 {
-                    var reserved =
-                        currentMessage.ReservedNames.Contains(field.Name)
-                        && currentMessage.ReservedRanges.Exists(range => range.Contains(number));
-                    if (!reserved)
-                    {
-                        violations.Add($"{label}: removed without reserving its number and name");
-                    }
+                    // Reserving the tag only prevents reuse; clients that still read the field get a default.
+                    violations.Add($"{label}: removed (breaking even when reserved; publish a new version instead)");
 
                     continue;
                 }
@@ -152,6 +163,11 @@ public static class CompatibilityRules
                 if (!string.Equals(field.Oneof, currentField.Oneof, StringComparison.Ordinal))
                 {
                     violations.Add($"{label}: moved into or out of a oneof");
+                }
+
+                if ((field.Optional ?? false) != (currentField.Optional ?? false))
+                {
+                    violations.Add($"{label}: explicit presence (proto3 optional) changed");
                 }
             }
 
@@ -194,15 +210,9 @@ public static class CompatibilityRules
                     continue;
                 }
 
-                var reserved =
-                    currentEnum.ReservedNames.Contains(valueName)
-                    && currentEnum.ReservedRanges.Exists(range => range.Contains(number));
-                if (!reserved)
-                {
-                    violations.Add(
-                        $"{file}: enum value {enumName}.{valueName} = {number} removed without reserving its number and name"
-                    );
-                }
+                violations.Add(
+                    $"{file}: enum value {enumName}.{valueName} = {number} removed (breaking even when reserved)"
+                );
             }
         }
 

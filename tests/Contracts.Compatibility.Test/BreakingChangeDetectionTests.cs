@@ -68,7 +68,7 @@ public class BreakingChangeDetectionTests
             .ContainSingle(v => v.Contains("FlightResponse.Price = 11") && v.Contains("removed"));
 
     [Fact]
-    public void removing_a_field_and_reserving_its_number_and_name_is_compatible() =>
+    public void removing_a_field_is_breaking_even_when_its_number_and_name_are_reserved() =>
         CompareFlight(file =>
             {
                 var message = Message(file, "FlightResponse");
@@ -77,7 +77,31 @@ public class BreakingChangeDetectionTests
                 message.ReservedRange.Add(new DescriptorProto.Types.ReservedRange { Start = 11, End = 12 });
             })
             .Should()
-            .BeEmpty();
+            .ContainSingle(v => v.Contains("FlightResponse.Price = 11") && v.Contains("removed"));
+
+    [Fact]
+    public void changing_proto3_optional_presence_is_breaking()
+    {
+        var optional = Flight();
+        var message = Message(optional, "FlightResponse");
+        message.OneofDecl.Add(new OneofDescriptorProto { Name = "_Price" });
+        var price = Field(optional, "FlightResponse", "Price");
+        price.Proto3Optional = true;
+        price.OneofIndex = message.OneofDecl.Count - 1;
+
+        CompatibilityRules
+            .Compare(ContractSnapshots.ForProto(optional), FlightBaseline())
+            .Should()
+            .ContainSingle(v => v.Contains("FlightResponse.Price = 11") && v.Contains("presence"));
+    }
+
+    [Fact]
+    public void versioned_proto_files_get_their_own_baseline() =>
+        Baselines
+            .ProtoFile("v2/flight.proto")
+            .Should()
+            .Be("grpc/v2/flight.json")
+            .And.NotBe(Baselines.ProtoFile("flight.proto"));
 
     [Fact]
     public void changing_a_field_type_is_breaking() =>
@@ -202,8 +226,11 @@ public class BreakingChangeDetectionTests
         message.ReservedRange.Add(new DescriptorProto.Types.ReservedRange { Start = 2, End = 3 });
         var provider = ContractSnapshots.ForProto(file);
 
-        // Compatible per the schema rules (number reserved), but a live consumer still reads it.
-        CompatibilityRules.Compare(FlightBaseline(), provider).Should().BeEmpty();
+        // The pact names the consumer that breaks, on top of the schema rule.
+        CompatibilityRules
+            .Compare(FlightBaseline(), provider)
+            .Should()
+            .ContainSingle(v => v.Contains("SeatNumber = 2"));
         Pacts
             .Verify(Pacts.Read<GrpcPact>("grpc/booking-to-flight.json"), provider)
             .Should()
@@ -225,10 +252,24 @@ public class BreakingChangeDetectionTests
     public void removing_renaming_or_retyping_an_integration_event_member_is_breaking() =>
         CompareUserCreated(typeof(Breaking.UserCreated))
             .Should()
-            .HaveCount(3)
+            .HaveCount(4)
             .And.Contain(v => v.Contains("property PassportNumber removed or renamed"))
             .And.Contain(v => v.Contains("property Id type changed from System.Guid to System.String"))
-            .And.Contain(v => v.Contains("property Name became nullable"));
+            .And.Contain(v => v.Contains("property Name became nullable"))
+            .And.Contain(v => v.Contains("property Passport added as required"));
+
+    [Fact]
+    public void making_an_optional_integration_event_member_required_is_breaking()
+    {
+        var current = ContractSnapshots.ForMessages(ContractSnapshots.MessagesAssembly);
+        var baseline = Baselines.Clone(current);
+        baseline.Messages[UserCreatedName].Properties["Name"].Nullable = true;
+
+        CompatibilityRules
+            .Compare(baseline, current)
+            .Should()
+            .ContainSingle(v => v.Contains("property Name became required"));
+    }
 
     [Fact]
     public void moving_an_integration_event_to_another_namespace_changes_its_urn()

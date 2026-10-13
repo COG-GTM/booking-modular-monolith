@@ -23,7 +23,7 @@ public static class Baselines
     public static string OutputDirectory => Path.Combine(AppContext.BaseDirectory, "Baselines");
 
     public static string ProtoFile(string protoFileName) =>
-        $"grpc/{Path.GetFileNameWithoutExtension(protoFileName)}.json";
+        $"grpc/{Path.ChangeExtension(protoFileName.Replace('\\', '/'), null)}.json";
 
     public static string SampleFile(Type messageType) => $"messages/samples/{messageType.Name}.json";
 
