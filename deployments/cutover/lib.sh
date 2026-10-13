@@ -147,8 +147,9 @@ PROBE_USERNAME="${PROBE_USERNAME:-samh}"
 PROBE_PASSWORD="${PROBE_PASSWORD:-Admin@123456}"
 gateway_token() {
   curl -fsS -X POST "${GATEWAY_URL}/connect/token" \
-    -d grant_type=password -d client_id="${PROBE_CLIENT_ID}" -d client_secret="${PROBE_CLIENT_SECRET}" \
-    -d username="${PROBE_USERNAME}" -d password="${PROBE_PASSWORD}" \
+    -d grant_type=password --data-urlencode "client_id=${PROBE_CLIENT_ID}" \
+    --data-urlencode "client_secret=${PROBE_CLIENT_SECRET}" \
+    --data-urlencode "username=${PROBE_USERNAME}" --data-urlencode "password=${PROBE_PASSWORD}" \
     --data-urlencode 'scope=booking-modular-monolith role' | jq -r .access_token
 }
 

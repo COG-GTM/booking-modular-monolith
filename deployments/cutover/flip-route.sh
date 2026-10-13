@@ -103,7 +103,9 @@ flip() {
     die "${m} is frozen mid-flip to ${in_progress}; resume with: $0 ${m} ${in_progress}"
   fi
 
-  if [[ "${current}" == "${to}" ]]; then
+  # An in-progress flip is resumed even if its route is already saved: the gateway may not have
+  # applied it (or booking's restored route) yet.
+  if [[ "${current}" == "${to}" && -z "${in_progress}" ]]; then
     log "${m} already routed to ${to}; verifying"
   else
     check_order "$m" "$to"
@@ -120,10 +122,12 @@ flip() {
     state_set "GATEWAY_${U}_UPSTREAM" "${FROZEN_UPSTREAM}"
     # Booking reserves seats/reads passengers over gRPC, bypassing the moving context's frozen cluster,
     # so its writes are frozen too until the move is complete.
-    if [[ ("$m" == flight || "$m" == passenger) && -z "$(state_get FLIP_BOOKING_HELD_UPSTREAM)" ]]; then
-      local held
-      held="$(state_get GATEWAY_BOOKING_UPSTREAM)"
-      state_set FLIP_BOOKING_HELD_UPSTREAM "${held:-default}"
+    if [[ "$m" == flight || "$m" == passenger ]]; then
+      if [[ -z "$(state_get FLIP_BOOKING_HELD_UPSTREAM)" ]]; then
+        local held
+        held="$(state_get GATEWAY_BOOKING_UPSTREAM)"
+        state_set FLIP_BOOKING_HELD_UPSTREAM "${held:-default}"
+      fi
       state_set GATEWAY_BOOKING_UPSTREAM "${FROZEN_UPSTREAM}"
     fi
     apply gateway
@@ -177,9 +181,9 @@ flip() {
       held="$(state_get FLIP_BOOKING_HELD_UPSTREAM)"
       [[ "${held}" == default ]] && held=""
       state_set GATEWAY_BOOKING_UPSTREAM "${held}"
-      state_set FLIP_BOOKING_HELD_UPSTREAM ""
     fi
     apply gateway
+    state_set FLIP_BOOKING_HELD_UPSTREAM ""
     state_set "FLIP_${U}_STAGE" ""
     state_set "FLIP_${U}_IN_PROGRESS" ""
   fi
