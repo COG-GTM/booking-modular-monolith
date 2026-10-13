@@ -1,0 +1,47 @@
+# Example production overrides: published images, managed Postgres/MongoDB/RabbitMQ/EventStoreDB,
+# credentials from pre-created Secrets (External Secrets / Sealed Secrets / CSI), TLS ingress.
+# Every `existingSecret` must provide the same env keys the chart would generate (see README).
+global:
+  imageRegistry: ghcr.io/cog-gtm
+  imageTag: "1.0.0"
+  publicUrl: https://booking.example.com
+  otlpEndpoint: http://otel-collector.observability:4317
+infra:
+  enabled: false
+postgres:
+  host: booking-postgres.example.internal
+mongo:
+  connectionString: mongodb://booking-mongo.example.internal:27017
+eventstore:
+  connectionString: esdb://booking-eventstore.example.internal:2113?tls=true
+rabbitmq:
+  host: booking-rabbitmq.example.internal
+  existingSecret: booking-rabbitmq
+ingress:
+  host: booking.example.com
+  tls:
+    - secretName: booking-tls
+      hosts: [booking.example.com]
+identity:
+  signingKey:
+    existingSecret: booking-identity-signing-key
+defaults:
+  resources:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {cpu: "2", memory: 1Gi}
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+services:
+  gateway:
+    trustedNetworks: [10.0.0.0/8]
+  identity:
+    existingSecret: booking-identity-secrets
+  flight:
+    existingSecret: booking-flight-secrets
+  passenger:
+    existingSecret: booking-passenger-secrets
+  booking:
+    existingSecret: booking-booking-secrets
+    hpa: {enabled: false}

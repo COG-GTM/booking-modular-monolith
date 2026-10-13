@@ -1,0 +1,181 @@
+{{- /*
+Single-replica infrastructure for local/dev clusters (infra.enabled). Production: managed services.
+*/ -}}
+{{- if .Values.infra.enabled }}
+{{- $root := . -}}
+{{- $i := .Values.infra -}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-credentials
+  labels:
+    {{- include "booking.labels" (dict "root" $root "name" "postgres") | nindent 4 }}
+type: Opaque
+stringData:
+  POSTGRES_USER: {{ $i.postgres.adminUser | quote }}
+  POSTGRES_PASSWORD: {{ $i.postgres.adminPassword | quote }}
+  # Runs once, on first start of an empty data volume: one role per service owning only its own
+  # databases (write DB + outbox/inbox DB); CONNECT revoked from PUBLIC.
+  01-service-databases.sql: |
+    {{- range $name := list "identity" "flight" "passenger" "booking" }}
+    {{- $s := index $root.Values.services $name }}
+    {{- if $s.enabled }}
+    CREATE ROLE {{ $s.database.user }} LOGIN PASSWORD {{ squote $s.database.password }};
+    {{- range $db := compact (list $s.database.name $s.persistDatabase) }}
+    CREATE DATABASE {{ $db }} OWNER {{ $s.database.user }};
+    REVOKE CONNECT ON DATABASE {{ $db }} FROM PUBLIC;
+    {{- end }}
+    {{- end }}
+    {{- end }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rabbitmq-credentials
+  labels:
+    {{- include "booking.labels" (dict "root" $root "name" "rabbitmq") | nindent 4 }}
+type: Opaque
+stringData:
+  # `guest` may only connect from loopback, so the broker gets a real user.
+  RABBITMQ_DEFAULT_USER: {{ .Values.rabbitmq.username | quote }}
+  RABBITMQ_DEFAULT_PASS: {{ .Values.rabbitmq.password | quote }}
+{{- $components := list
+  (dict "name" "postgres" "port" 5432 "portName" "postgres" "mountPath" "/var/lib/postgresql/data" "cfg" $i.postgres)
+  (dict "name" "mongo" "port" 27017 "portName" "mongo" "mountPath" "/data/db" "cfg" $i.mongo)
+  (dict "name" "rabbitmq" "port" 5672 "portName" "amqp" "mountPath" "/var/lib/rabbitmq" "cfg" $i.rabbitmq)
+  (dict "name" "eventstore" "port" 2113 "portName" "http" "mountPath" "/var/lib/eventstore" "cfg" $i.eventstore)
+}}
+{{- range $c := $components }}
+{{- $ctx := dict "root" $root "name" $c.name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $c.name }}
+  labels:
+    {{- include "booking.labels" $ctx | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "booking.selectorLabels" $ctx | nindent 4 }}
+  ports:
+    - name: {{ $c.portName }}
+      port: {{ $c.port }}
+      targetPort: {{ $c.portName }}
+    {{- if eq $c.name "rabbitmq" }}
+    - name: management
+      port: 15672
+      targetPort: management
+    {{- end }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $c.name }}
+  labels:
+    {{- include "booking.labels" $ctx | nindent 4 }}
+spec:
+  serviceName: {{ $c.name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "booking.selectorLabels" $ctx | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "booking.labels" $ctx | nindent 8 }}
+    spec:
+      enableServiceLinks: false
+      {{- if eq $c.name "eventstore" }}
+      # The image runs as uid 1000; the other images start as root and chown their data dir.
+      securityContext:
+        fsGroup: 1000
+      {{- end }}
+      containers:
+        - name: {{ $c.name }}
+          image: {{ $c.cfg.image }}
+          imagePullPolicy: {{ $root.Values.global.imagePullPolicy }}
+          {{- if eq $c.name "postgres" }}
+          # Flight's TransactionScope (outbox + write DB) needs prepared transactions.
+          args: ["-c", "max_prepared_transactions=100", "-c", "wal_level=logical"]
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          envFrom:
+            - secretRef:
+                name: postgres-credentials
+          {{- else if eq $c.name "rabbitmq" }}
+          envFrom:
+            - secretRef:
+                name: rabbitmq-credentials
+          {{- else if eq $c.name "eventstore" }}
+          env:
+            - {name: EVENTSTORE_CLUSTER_SIZE, value: "1"}
+            - {name: EVENTSTORE_RUN_PROJECTIONS, value: All}
+            - {name: EVENTSTORE_START_STANDARD_PROJECTIONS, value: "true"}
+            - {name: EVENTSTORE_HTTP_PORT, value: "2113"}
+            - {name: EVENTSTORE_INSECURE, value: "true"}
+            - {name: EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP, value: "true"}
+          {{- end }}
+          ports:
+            - name: {{ $c.portName }}
+              containerPort: {{ $c.port }}
+            {{- if eq $c.name "rabbitmq" }}
+            - name: management
+              containerPort: 15672
+            {{- end }}
+          readinessProbe:
+            {{- if eq $c.name "postgres" }}
+            exec: {command: [sh, -c, "pg_isready -U \"$POSTGRES_USER\" -h 127.0.0.1"]}
+            {{- else if eq $c.name "mongo" }}
+            exec: {command: [mongosh, --quiet, --eval, "db.adminCommand('ping').ok"]}
+            timeoutSeconds: 5
+            {{- else if eq $c.name "rabbitmq" }}
+            exec: {command: [rabbitmq-diagnostics, -q, check_port_connectivity]}
+            timeoutSeconds: 10
+            {{- else }}
+            httpGet: {path: /health/live, port: http}
+            {{- end }}
+            periodSeconds: 5
+            failureThreshold: 60
+          resources:
+            {{- toYaml $c.cfg.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ $c.mountPath }}
+            {{- if eq $c.name "postgres" }}
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d/01-service-databases.sql
+              subPath: 01-service-databases.sql
+              readOnly: true
+            {{- end }}
+      {{- if or (eq $c.name "postgres") (not $i.persistence.enabled) }}
+      volumes:
+        {{- if eq $c.name "postgres" }}
+        - name: init
+          secret:
+            secretName: postgres-credentials
+            items:
+              - {key: 01-service-databases.sql, path: 01-service-databases.sql}
+        {{- end }}
+        {{- if not $i.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+      {{- end }}
+  {{- if $i.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with $i.persistence.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $c.cfg.size }}
+  {{- end }}
+{{- end }}
+{{- end }}

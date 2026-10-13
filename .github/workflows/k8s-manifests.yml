@@ -1,0 +1,72 @@
+# Static checks for the Kubernetes/Helm deployment (deployments/k8s, AB-491): helm lint, render the
+# chart with every environment overlay and validate the output against the Kubernetes schemas
+# (kubeconform), assert the chart's safety guards, and shellcheck the kind smoke script.
+# The full kind deployment + booking flow is `deployments/k8s/kind-smoke.sh` (run locally).
+name: K8s manifests
+
+on:
+  pull_request:
+    paths:
+      - deployments/k8s/**
+      - .github/workflows/k8s-manifests.yml
+  push:
+    branches: [main]
+    paths:
+      - deployments/k8s/**
+      - .github/workflows/k8s-manifests.yml
+
+permissions:
+  contents: read
+
+env:
+  CHART: deployments/k8s/helm/booking
+  KUBECONFORM_VERSION: v0.6.7
+  KUBERNETES_VERSION: 1.31.0
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+
+      - name: Install kubeconform
+        run: |
+          curl -sSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            | tar -xz -C /usr/local/bin kubeconform
+          kubeconform -v
+
+      - name: helm lint
+        run: |
+          helm lint "$CHART" --strict
+          for env in deployments/k8s/environments/*.yaml; do
+            helm lint "$CHART" --strict -f "$env"
+          done
+
+      - name: helm template | kubeconform
+        run: |
+          for values in "" deployments/k8s/environments/*.yaml; do
+            echo "::group::values=${values:-defaults}"
+            helm template booking "$CHART" --namespace booking ${values:+-f "$values"} \
+              | kubeconform -strict -summary -kubernetes-version "$KUBERNETES_VERSION"
+            echo "::endgroup::"
+          done
+
+      - name: Chart guards
+        run: |
+          # Booking's ESDB subscription is single-consumer: >1 replica / HPA must be rejected.
+          ! helm template booking "$CHART" --set services.booking.replicas=2 2>/dev/null
+          ! helm template booking "$CHART" --set services.booking.hpa.enabled=true 2>/dev/null
+          helm template booking "$CHART" --set services.booking.replicas=2 \
+            --set services.booking.backgroundProcessingEnabled=false >/dev/null
+          # Identity replicas must share one signing key.
+          ! helm template booking "$CHART" --set services.identity.replicas=2 2>/dev/null
+          helm template booking "$CHART" --set services.identity.replicas=2 \
+            --set identity.signingKey.existingSecret=signing-key >/dev/null
+
+      - name: shellcheck
+        run: shellcheck deployments/k8s/kind-smoke.sh

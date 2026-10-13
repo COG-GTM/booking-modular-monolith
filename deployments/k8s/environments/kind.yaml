@@ -1,0 +1,24 @@
+# Local kind cluster (deployments/k8s/kind-smoke.sh): locally built images loaded with
+# `kind load docker-image`, in-chart infra, ingress-nginx published on localhost:8080.
+global:
+  imageRegistry: ""
+  imageTag: dev
+  imagePullPolicy: IfNotPresent    # booking-*:dev are kind-loaded; infra pulls from the mirror
+  publicUrl: http://localhost:8080
+  waitForDependencies:
+    image: mirror.gcr.io/library/busybox:1.36
+namespace:
+  create: false
+# Third-party images via mirror.gcr.io (Docker Hub's pull-through cache): no anonymous rate limit.
+infra:
+  enabled: true
+  postgres: {image: mirror.gcr.io/library/postgres:16}
+  mongo: {image: mirror.gcr.io/library/mongo:7}
+  rabbitmq: {image: mirror.gcr.io/library/rabbitmq:3-management}
+  eventstore: {image: mirror.gcr.io/eventstore/eventstore:24.10}
+defaults:
+  resources:
+    requests: {cpu: 50m, memory: 192Mi}
+    limits: {cpu: "1", memory: 768Mi}
+  hpa:
+    maxReplicas: 2

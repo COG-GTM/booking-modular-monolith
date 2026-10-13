@@ -1,0 +1,16 @@
+# Local kind cluster for the booking chart: one node labelled for ingress-nginx's kind provider,
+# with the ingress controller's :80 published on the host (KIND_HTTP_PORT, default 8080).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 8080
+        protocol: TCP
