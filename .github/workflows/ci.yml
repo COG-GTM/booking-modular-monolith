@@ -80,6 +80,54 @@ jobs:
           service-name: 'Booking'
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build and Test Identity Service Host
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-identity-service-step
+        with:
+          project-path: 'src/Services/Identity.Api/src/'
+          tests-path: 'src/Services/Identity.Api/tests/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'Identity.Api'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Test Flight Service Host
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-flight-service-step
+        with:
+          project-path: 'src/Services/Flight.Api/src/'
+          tests-path: 'src/Services/Flight.Api/tests/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'Flight.Api'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Test Passenger Service Host
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-passenger-service-step
+        with:
+          project-path: 'src/Services/Passenger.Api/src/'
+          tests-path: 'src/Services/Passenger.Api/tests/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'Passenger.Api'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Test Booking Service Host
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-booking-service-step
+        with:
+          project-path: 'src/Services/Booking.Api/src/'
+          tests-path: 'src/Services/Booking.Api/tests/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'Booking.Api'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update Release Drafter
         if: ${{ github.ref == 'refs/heads/main' && success() }}
         id: last_release
