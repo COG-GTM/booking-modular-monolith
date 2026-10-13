@@ -72,9 +72,11 @@ services:
       ReverseProxy__Clusters__flight__Destinations__monolith__Address: http://flight-service:80
       ReverseProxy__Clusters__passenger__Destinations__monolith__Address: http://passenger-service:80
       ReverseProxy__Clusters__booking__Destinations__monolith__Address: http://booking-service:80
-      # No monolith in this topology: send the api-/monolith-fallback routes to a live host so
-      # unmatched paths get a 404 instead of a 502.
+      # No monolith in this topology: the api-/monolith-fallback routes are rewritten to a path no
+      # service maps, so unmatched requests get a 404 (not a 502 or an Identity page).
       ReverseProxy__Clusters__monolith__Destinations__monolith__Address: http://identity-service:80
+      ReverseProxy__Routes__api-fallback__Transforms__0__PathSet: /__gateway/unmatched
+      ReverseProxy__Routes__monolith-fallback__Transforms__0__PathSet: /__gateway/unmatched
     healthcheck:
       <<: *healthcheck-timing
       test:
