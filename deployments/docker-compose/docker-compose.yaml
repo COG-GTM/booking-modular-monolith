@@ -1,396 +1,234 @@
-name: booking-modular-monolith
+# Multi-service topology (AB-503): YARP gateway + Identity, Flight, Passenger and Booking services
+# + shared infrastructure and observability (docker-compose.infrastructure.yaml).
+# Run from the repository root:
+#   docker compose -f deployments/docker-compose/docker-compose.yaml up -d --build
+#   deployments/docker-compose/smoke-test.sh
+# The unchanged monolith topology lives in docker-compose.monolith.yaml; the two cannot run at the
+# same time (same infrastructure container names and host ports).
+#
+# Tokens are issued by identity-service with the gateway's public URL as issuer (PUBLIC_GATEWAY_URL);
+# every host validates `iss` against it but fetches discovery/JWKS from identity-service directly.
+# Each service owns its databases (init/postgres/01-service-databases.sql creates them, with one
+# role per service, on the first start of an empty postgres volume).
+name: booking-microservices
+
+include:
+  - docker-compose.infrastructure.yaml
+
+x-service-environment: &service-environment
+  ASPNETCORE_ENVIRONMENT: docker
+  Jwt__Authority: ${PUBLIC_GATEWAY_URL:-http://localhost:5000}
+  Jwt__MetadataAddress: http://identity-service/.well-known/openid-configuration
+  MessageBroker__TransportType: RabbitMq
+  MessageBroker__RabbitMq__Host: rabbitmq
+  MessageBroker__RabbitMq__Port: "5672"
+  MessageBroker__RabbitMq__Username: ${RABBITMQ_USER:-booking}
+  MessageBroker__RabbitMq__Password: ${RABBITMQ_PASSWORD:-booking}
+  MongoOptions__ConnectionString: mongodb://mongo:27017
+  ObservabilityOptions__OTLPOptions__OTLPGrpExporterEndpoint: http://otel-collector:4317
+  ObservabilityOptions__UseAspireOTLPExporter: "false"
+  ObservabilityOptions__ZipkinOptions__HttpExporterEndpoint: http://zipkin-all-in-one:9411/api/v2/spans
+  ObservabilityOptions__JaegerOptions__OTLPGrpcExporterEndpoint: http://jaeger-all-in-one:4317
+  ObservabilityOptions__JaegerOptions__HttpExporterEndpoint: http://jaeger-all-in-one:14268/api/traces
+
+# The aspnet runtime image has no curl, so probes speak HTTP over bash's /dev/tcp (`$$` escapes
+# compose interpolation; the container sees `$status`). The gateway maps /health in every
+# environment and must return 200. The service hosts only map /health in Development, so their
+# probe passes once Kestrel answers HTTP at all, i.e. after migrations/seeding finished and the
+# host started listening.
+x-healthcheck-timing: &healthcheck-timing
+  interval: 10s
+  timeout: 5s
+  retries: 18
+  start_period: 30s
+
+x-service-healthcheck: &service-healthcheck
+  <<: *healthcheck-timing
+  test:
+    - CMD
+    - bash
+    - -c
+    - |
+      exec 3<>/dev/tcp/127.0.0.1/80
+      printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+      IFS= read -r status <&3
+      [[ "$$status" == HTTP/1.1\ * ]]
 
 services:
-  
   #######################################################
-  #  EventStoreDB
-  #######################################################
-  eventstore:
-      container_name: eventstore
-      image: eventstore/eventstore:latest
-      restart: unless-stopped
-      environment:
-         - EVENTSTORE_CLUSTER_SIZE=1
-         - EVENTSTORE_RUN_PROJECTIONS=All
-         - EVENTSTORE_START_STANDARD_PROJECTIONS=True
-         - EVENTSTORE_HTTP_PORT=2113
-         - EVENTSTORE_INSECURE=True
-         - EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP=True
-      ports:
-          - "2113:2113"
-      networks:
-          - booking   
-
-  #######################################################
-  #  postgres
-  #######################################################
-  postgres:
-    image: postgres:latest
-    container_name: postgres
-    restart: unless-stopped
-    ports:
-      - '5432:5432'
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    command:
-      - "postgres"
-      - "-c"
-      - "wal_level=logical"
-      - "-c"
-      - "max_prepared_transactions=10"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./init/postgres:/docker-entrypoint-initdb.d:ro
-    networks:
-      - booking
-
-  #######################################################
-  #  Mongo
-  #######################################################
-  mongo:
-    image: mongo:latest
-    container_name: mongo
-    restart: unless-stopped
-    # environment:
-    #   - MONGO_INITDB_ROOT_USERNAME=root
-    #   - MONGO_INITDB_ROOT_PASSWORD=secret
-    ports:
-      - 27017:27017
-    networks:
-      - booking
-
-  #######################################################
-  #  jaeger 
-  # https://www.jaegertracing.io/docs/1.64/deployment/
-  # https://www.jaegertracing.io/docs/1.6/deployment/
-  #######################################################     
-  jaeger-all-in-one:
-    image: jaegertracing/all-in-one:latest
-    container_name: jaeger-all-in-one
-    restart: unless-stopped
-    ports:
-      - "6831:6831/udp" # UDP port for Jaeger agent
-      - "16686:16686" # endpoints and Jaeger UI
-      - "14268:14268" # HTTP port for accept trace spans directly from clients 
-      - "14317:4317" # OTLP gRPC receiver for jaeger
-      - "14318:4318" # OTLP http receiver for jaeger
-      # - "9411" # Accepts Zipkin spans - /api/v2/spans
-    networks:
-      - booking
-
-  #######################################################
-  #  zipkin 
-  # https://zipkin.io/pages/quickstart
-  #######################################################  
-  zipkin-all-in-one:
-    image: openzipkin/zipkin:latest
-    container_name: zipkin-all-in-one
-    restart: unless-stopped
-    ports:
-      - "9411:9411"
-    networks:
-      - booking
-
-  #######################################################
-  #  prometheus
-  # https://prometheus.io/docs/introduction/first_steps/
-  # https://prometheus.io/docs/prometheus/3.1/installation/
-  # https://grafana.com/docs/grafana-cloud/send-data/metrics/metrics-prometheus/prometheus-config-examples/docker-compose-linux/
-  #######################################################  
-  prometheus:
-    image: prom/prometheus:latest
-    restart: unless-stopped
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./../configs/prometheus.yaml:/etc/prometheus/prometheus.yml
-    # to passe one flag, such as "--log.level=debug" or "--web.enable-remote-write-receiver", we need to override the whole command, as we can't just pass one extra argument
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
-      - "--web.console.templates=/usr/share/prometheus/consoles"
-      # need this for the OpenTelemetry collector to be able to put metrics into Prometheus
-      - "--web.enable-remote-write-receiver"
-    #   - "--log.level=debug"
-    networks:
-      - booking
-
-  #######################################################
-  #  otel-collector 
-  # https://opentelemetry.io/docs/collector/installation/
-  # https://github.com/open-telemetry/opentelemetry-collector
-  # https://github.com/open-telemetry/opentelemetry-collector-contrib
-  # we can use none contrib docker `otel/opentelemetry-collector` version from `https://github.com/open-telemetry/opentelemetry-collector` repository but,
-  # if we need more components like `elasticsearch` we should use `otel/opentelemetry-collector-contrib` image of `https://github.com/open-telemetry/opentelemetry-collector-contrib` repository.  
-  #######################################################  
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
-    container_name: otel-collector
-    restart: unless-stopped
-    command: ["--config=/etc/otelcol-contrib/config.yaml"]
-    volumes:
-      - ./../configs/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml
-    ports:
-      - "11888:1888" # pprof extension
-      - "8888:8888" # Prometheus metrics exposed by the Collector
-      - "8889:8889" # Prometheus exporter metrics
-      - "13133:13133" # health_check extension
-      - "4317:4317" # OTLP gRPC receiver
-      - "4318:4318" # OTLP http receiver
-      - "55679:55679" # zpages extension
-    networks:
-      - booking
-
-  #######################################################
-  #  rabbitmq
-  #######################################################
-  rabbitmq:
-    image: rabbitmq:management
-    container_name: rabbitmq
-    restart: unless-stopped
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    # volumes:
-    #   - rabbitmq:/var/lib/rabbitmq
-    networks:
-      - booking
-
-  #######################################################
-  #  Redis
-  #######################################################
-  redis:
-    image: redis
-    container_name: redis
-    restart: unless-stopped
-    ports:
-      - 6379:6379    
-    networks:
-      - booking
-
-  #######################################################
-  # node-exporter
-  # https://prometheus.io/docs/guides/node-exporter/
-  # https://grafana.com/docs/grafana-cloud/send-data/metrics/metrics-prometheus/prometheus-config-examples/docker-compose-linux/
-  #######################################################     
-  node-exporter:
-    image: prom/node-exporter:latest
-    container_name: node-exporter
-    restart: unless-stopped
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
-      - '--path.sysfs=/host/sys'
-    ports:
-       - "9101:9100"
-    networks:
-      - booking
-
-  #######################################################
-  #  grafana
-  # https://grafana.com/docs/grafana/latest/administration/provisioning/
-  # https://grafana.com/docs/grafana/latest/setup-grafana/installation/docker/
-  # https://grafana.com/docs/grafana/latest/setup-grafana/configure-docker/
-  # https://github.com/grafana/intro-to-mltp/blob/main/grafana/provisioning/datasources/datasources.yaml
-  #######################################################   
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    restart: unless-stopped
-    environment:
-      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
-      #      - GF_AUTH_ANONYMOUS_ENABLED=true
-      #      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-      #      - GF_AUTH_DISABLE_LOGIN_FORM=true
-    depends_on:
-      - prometheus
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./../configs/grafana/provisioning:/etc/grafana/provisioning
-      - ./../configs/grafana/dashboards:/var/lib/grafana/dashboards
-    networks:
-      - booking
-
-  #######################################################
-  # tempo
-  # https://github.com/grafana/tempo/blob/main/example/docker-compose/otel-collector/docker-compose.yaml
-  # https://github.com/grafana/tempo/blob/main/example/docker-compose/shared
-  # https://github.com/grafana/tempo/blob/main/example/docker-compose/local
-  # https://github.com/grafana/tempo/tree/main/example/docker-compose
-  #######################################################     
-  tempo:
-    image: grafana/tempo:latest
-    container_name: tempo
-    restart: unless-stopped
-    command: [ "-config.file=/etc/tempo.yaml" ]
-    volumes:
-      - ./../configs/tempo.yaml:/etc/tempo.yaml
-    ports:
-      - "3200" # tempo
-      - "24317:4317" # otlp grpc
-      - "24318:4318" # otlp http
-    networks:
-      - booking
-
-  #######################################################
-  # loki
-  # https://grafana.com/docs/opentelemetry/collector/send-logs-to-loki/
-  # https://github.com/grafana/loki/blob/main/production/docker-compose.yaml
-  # https://github.com/grafana/loki/blob/main/examples/getting-started/docker-compose.yaml
-  #######################################################
-  loki:
-    image: grafana/loki:latest
-    hostname: loki
-    container_name: loki
-    ports:
-      - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-    volumes:
-      - ./../configs/loki-config.yaml:/etc/loki/local-config.yaml
-    networks:
-      - booking
-
-  #######################################################
-  # elasticsearch
-  # https://www.elastic.co/guide/en/elasticsearch/reference/7.17/docker.html#docker-compose-file
-  #######################################################
-  elasticsearch:
-    container_name: elasticsearch
-    restart: unless-stopped
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
-    environment:
-      - discovery.type=single-node
-      - cluster.name=docker-cluster
-      - node.name=docker-node
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - xpack.security.enabled=false
-      - xpack.security.http.ssl.enabled=false
-      - xpack.security.transport.ssl.enabled=false
-      - network.host=0.0.0.0
-      - http.port=9200
-      - transport.host=localhost
-      - bootstrap.memory_lock=true
-      - cluster.routing.allocation.disk.threshold_enabled=false
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    volumes:
-      - elastic-data:/usr/share/elasticsearch/data
-    ports:
-      - ${ELASTIC_HOST_PORT:-9200}:${ELASTIC_PORT:-9200}
-      - 9300:9300
-    networks:
-      - booking
-
-  #######################################################
-  # kibana
-  # https://www.elastic.co/guide/en/kibana/current/docker.html
-  #######################################################
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.17.0
-    container_name: kibana
-    restart: unless-stopped
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    ports:
-      - ${KIBANA_HOST_PORT:-5601}:${KIBANA_PORT:-5601}
-    depends_on:
-      - elasticsearch
-    networks:
-      - booking
-      
-  #######################################################
-  # cadvisor
-  #######################################################
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    container_name: cadvisor
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    devices:
-      - /dev/kmsg
-    networks:
-      - booking
-
-  #######################################################
-  #  booking-modular-monolith
-  #######################################################
-  booking_modular_monolith:
-    image: booking-modular-monolith
-    build:
-      args:
-        Version: "1"
-      context: ../../
-      dockerfile: src/Api/Dockerfile
-    container_name: booking_modular_monolith
-    ports:
-      - 3001:80
-      - 3000:443
-    volumes:
-      - ~/.aspnet/https:/https:ro
-    environment:
-      - ASPNETCORE_ENVIRONMENT=docker
-      - ASPNETCORE_URLS=https://+;http://+
-      - Kestrel__Endpoints__Https__Url=https://+:443
-      - ASPNETCORE_HTTPS_PORT=3000
-      - ASPNETCORE_HTTP_PORT=3001
-      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
-      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
-      - Jwt__MetadataAddress=http://localhost:80/.well-known/openid-configuration
-    networks:
-      - booking
-
-  #######################################################
-  #  Gateway (single ingress, YARP)
+  #  Gateway (single ingress, YARP) -> services
   #######################################################
   gateway:
     image: booking-gateway
     build:
-      args:
-        Version: "1"
       context: ../../
       dockerfile: src/Gateway/Dockerfile
     container_name: gateway
     ports:
-      - 5000:80
-      - 5001:443
-    volumes:
-      - ~/.aspnet/https:/https:ro
+      - "5000:80"
     environment:
-      - ASPNETCORE_ENVIRONMENT=docker
-      - ASPNETCORE_URLS=https://+;http://+
-      - ASPNETCORE_HTTPS_PORT=5001
-      - ASPNETCORE_HTTP_PORT=5000
-      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
-      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      <<: *service-environment
+      ReverseProxy__Clusters__identity__Destinations__monolith__Address: http://identity-service:80
+      ReverseProxy__Clusters__flight__Destinations__monolith__Address: http://flight-service:80
+      ReverseProxy__Clusters__passenger__Destinations__monolith__Address: http://passenger-service:80
+      ReverseProxy__Clusters__booking__Destinations__monolith__Address: http://booking-service:80
+      # No monolith in this topology: the api-/monolith-fallback routes are rewritten to a path no
+      # service maps, so unmatched requests get a 404 (not a 502 or an Identity page).
+      ReverseProxy__Clusters__monolith__Destinations__monolith__Address: http://identity-service:80
+      ReverseProxy__Routes__api-fallback__Transforms__0__PathSet: /__gateway/unmatched
+      ReverseProxy__Routes__monolith-fallback__Transforms__0__PathSet: /__gateway/unmatched
+    healthcheck:
+      <<: *healthcheck-timing
+      test:
+        - CMD
+        - bash
+        - -c
+        - |
+          exec 3<>/dev/tcp/127.0.0.1/80
+          printf 'GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          IFS= read -r status <&3
+          [[ "$$status" == *" 200 "* ]]
     depends_on:
-      - booking_modular_monolith
+      identity-service:
+        condition: service_healthy
+      flight-service:
+        condition: service_healthy
+      passenger-service:
+        condition: service_healthy
+      booking-service:
+        condition: service_healthy
     networks:
-      - booking
+      - infrastructure
 
-networks:
-  booking:
-    name: booking
-    driver: bridge
+  #######################################################
+  #  Identity service
+  #######################################################
+  identity-service:
+    image: booking-identity
+    build:
+      context: ../../
+      dockerfile: src/Services/Identity.Host/Dockerfile
+    container_name: identity-service
+    # Service ports are published on loopback for debugging only; clients go through the gateway.
+    ports:
+      - "127.0.0.1:5100:80"
+    environment:
+      <<: *service-environment
+      AuthOptions__IssuerUri: ${PUBLIC_GATEWAY_URL:-http://localhost:5000}
+      # Accept the same `booking-modular-monolith` access tokens as the other services and the
+      # monolith, so existing clients keep working when the gateway is repointed.
+      PostgresOptions__ConnectionString__Identity: Server=postgres;Port=5432;Database=identity_service;User Id=identity_service;Password=identity_service
+      PersistMessageOptions__ConnectionString__Identity: Server=postgres;Port=5432;Database=identity_service_persist_message;User Id=identity_service;Password=identity_service
+      MessageBroker__ServiceName: identity
+    healthcheck: *service-healthcheck
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      infrastructure:
+        aliases: [identity]
 
-volumes:
-  elastic-data:
-  postgres-data:
+  #######################################################
+  #  Flight service (HTTP :80, gRPC h2c :81)
+  #######################################################
+  flight-service:
+    image: booking-flight
+    build:
+      context: ../../
+      dockerfile: src/Services/Flight.Host/Dockerfile
+    container_name: flight-service
+    ports:
+      - "127.0.0.1:5200:80"
+      - "127.0.0.1:5201:81"
+    environment:
+      <<: *service-environment
+      PostgresOptions__ConnectionString__Flight: Server=postgres;Port=5432;Database=flight_service;User Id=flight_service;Password=flight_service
+      PersistMessageOptions__ConnectionString__Flight: Server=postgres;Port=5432;Database=flight_service_persist_message;User Id=flight_service;Password=flight_service
+      MongoOptions__Flight__DatabaseName: flight_service_read
+      MessageBroker__ServiceName: flight
+    healthcheck: *service-healthcheck
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identity-service:
+        condition: service_healthy
+    networks:
+      infrastructure:
+        aliases: [flight]
+
+  #######################################################
+  #  Passenger service (HTTP :80, gRPC h2c :81)
+  #######################################################
+  passenger-service:
+    image: booking-passenger
+    build:
+      context: ../../
+      dockerfile: src/Services/Passenger.Host/Dockerfile
+    container_name: passenger-service
+    ports:
+      - "127.0.0.1:5300:80"
+      - "127.0.0.1:5301:81"
+    environment:
+      <<: *service-environment
+      PostgresOptions__ConnectionString__Passenger: Server=postgres;Port=5432;Database=passenger_service;User Id=passenger_service;Password=passenger_service
+      PersistMessageOptions__ConnectionString__Passenger: Server=postgres;Port=5432;Database=passenger_service_persist_message;User Id=passenger_service;Password=passenger_service
+      MongoOptions__Passenger__DatabaseName: passenger_service_read
+      MessageBroker__ServiceName: passenger
+    healthcheck: *service-healthcheck
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identity-service:
+        condition: service_healthy
+    networks:
+      infrastructure:
+        aliases: [passenger]
+
+  #######################################################
+  #  Booking service (calls Flight/Passenger over gRPC)
+  #######################################################
+  booking-service:
+    image: booking-booking
+    build:
+      context: ../../
+      dockerfile: src/Services/Booking.Host/Dockerfile
+    container_name: booking-service
+    ports:
+      - "127.0.0.1:5400:80"
+    environment:
+      <<: *service-environment
+      EventStoreOptions__ConnectionString: esdb://eventstore:2113?tls=false
+      PersistMessageOptions__ConnectionString__Booking: Server=postgres;Port=5432;Database=booking_service_persist_message;User Id=booking_service;Password=booking_service
+      MongoOptions__Booking__DatabaseName: booking_service_read
+      MessageBroker__ServiceName: booking
+      Grpc__FlightAddress: http://flight:81
+      Grpc__PassengerAddress: http://passenger:81
+    healthcheck: *service-healthcheck
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eventstore:
+        condition: service_healthy
+      identity-service:
+        condition: service_healthy
+      flight-service:
+        condition: service_healthy
+      passenger-service:
+        condition: service_healthy
+    networks:
+      infrastructure:
+        aliases: [booking]

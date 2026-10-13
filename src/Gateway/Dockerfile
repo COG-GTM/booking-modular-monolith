@@ -8,7 +8,8 @@ COPY global.json .
 COPY Directory.Build.props .
 COPY nuget.config .
 
-# Copy project files first (better Docker layer caching)
+# Copy project files first (better Docker layer caching). ServiceDefaults references the BuildingBlocks
+# aggregate, so every BuildingBlocks project and Contracts.Messages must be present for restore.
 COPY src/BuildingBlocks/BuildingBlocks.csproj src/BuildingBlocks/Directory.Build.props src/BuildingBlocks/
 COPY src/BuildingBlocks/Core/BuildingBlocks.Core.csproj src/BuildingBlocks/Core/
 COPY src/BuildingBlocks/EFCore/BuildingBlocks.EFCore.csproj src/BuildingBlocks/EFCore/
@@ -30,11 +31,11 @@ COPY src/Gateway/src/Gateway.csproj src/Gateway/src/
 # Restore packages
 RUN dotnet restore src/Gateway/src/Gateway.csproj
 
-# Copy everything else
+# Copy only the sources the gateway needs
 COPY src/BuildingBlocks ./src/BuildingBlocks
-COPY src/Contracts ./src/Contracts
+COPY src/Contracts/Contracts.Messages ./src/Contracts/Contracts.Messages
 COPY src/Aspire/src/ServiceDefaults ./src/Aspire/src/ServiceDefaults
-COPY src/Gateway ./src/Gateway
+COPY src/Gateway/src ./src/Gateway/src
 
 # Build
 RUN dotnet build src/Gateway/src/Gateway.csproj -c Release --no-restore
