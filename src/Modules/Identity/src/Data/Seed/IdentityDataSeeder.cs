@@ -109,13 +109,10 @@ public class IdentityDataSeeder : IDataSeeder
         var existing = await _userManager.FindByNameAsync(user.UserName!);
         if (existing != null)
         {
-            // Only an account carrying the seeded id was created by this seeder; a self-registered
-            // account that merely shares the username must never be promoted.
-            if (existing.Id == user.Id)
-            {
-                await EnsureRole(existing, role);
-            }
-            else
+            // Existing accounts are never modified by the seeder (no role or password changes),
+            // so a revoked role stays revoked and an unrelated account sharing the username can
+            // never be promoted.
+            if (existing.Id != user.Id)
             {
                 _logger.LogWarning(
                     "Skipping seed of {Role} user '{UserName}' because an unrelated account already uses that username.",
@@ -127,10 +124,15 @@ public class IdentityDataSeeder : IDataSeeder
             return;
         }
 
+        // User creation and role assignment are committed together so a failure leaves no
+        // half-seeded account behind and the next run retries the whole seed.
+        await using var transaction = await _identityContext.Database.BeginTransactionAsync();
+
         var result = await _userManager.CreateAsync(user, password);
 
         if (!result.Succeeded)
         {
+            await transaction.RollbackAsync();
             _logger.LogError(
                 "Seeding {Role} user '{UserName}' failed: {Errors}",
                 role,
@@ -144,46 +146,20 @@ public class IdentityDataSeeder : IDataSeeder
 
         if (!roleResult.Succeeded)
         {
+            await transaction.RollbackAsync();
             _logger.LogError(
-                "Assigning role '{Role}' to seeded user '{UserName}' failed, rolling back the user so the next run can retry: {Errors}",
+                "Assigning role '{Role}' to seeded user '{UserName}' failed; the user was not created and will be retried on the next run: {Errors}",
                 role,
                 user.UserName,
                 string.Join("; ", roleResult.Errors.Select(e => e.Description))
             );
-            var deleteResult = await _userManager.DeleteAsync(user);
-            if (!deleteResult.Succeeded)
-            {
-                _logger.LogError(
-                    "Rolling back seeded user '{UserName}' failed; role '{Role}' will be reconciled on the next run: {Errors}",
-                    user.UserName,
-                    role,
-                    string.Join("; ", deleteResult.Errors.Select(e => e.Description))
-                );
-            }
             return;
         }
+
+        await transaction.CommitAsync();
 
         await _eventDispatcher.SendAsync(
             new UserCreated(user.Id, user.FirstName + " " + user.LastName, user.PassPortNumber)
         );
-    }
-
-    private async Task EnsureRole(User user, string role)
-    {
-        if (await _userManager.IsInRoleAsync(user, role))
-        {
-            return;
-        }
-
-        var result = await _userManager.AddToRoleAsync(user, role);
-        if (!result.Succeeded)
-        {
-            _logger.LogError(
-                "Assigning missing role '{Role}' to existing seeded user '{UserName}' failed: {Errors}",
-                role,
-                user.UserName,
-                string.Join("; ", result.Errors.Select(e => e.Description))
-            );
-        }
     }
 }
