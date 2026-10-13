@@ -42,8 +42,8 @@ public class BookingHostTests : BookingHostTestBase
         services.GetRequiredService<PassengerGrpcService.PassengerGrpcServiceClient>().Should().NotBeNull();
         services.GetRequiredService<IEventStoreDBRepository<BookingAggregate>>().Should().NotBeNull();
         services.GetRequiredService<BookingReadDbContext>().Should().NotBeNull();
-        services.GetRequiredService<IEventDispatcher>().Should().NotBeNull();
-        services.GetRequiredService<IPersistMessageProcessor>().Should().NotBeNull();
+        services.GetRequiredService<IEventDispatcher<BookingRoot>>().Should().NotBeNull();
+        services.GetRequiredService<IPersistMessageProcessor<BookingRoot>>().Should().NotBeNull();
         services.GetServices<IEventMapper>().Should().ContainSingle(m => m is BookingEventMapper);
 
         var configuration = services.GetRequiredService<IConfiguration>();

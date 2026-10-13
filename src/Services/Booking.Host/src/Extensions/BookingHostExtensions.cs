@@ -18,6 +18,7 @@ public static class BookingHostExtensions
 {
     public const string HealthEndpointPath = "/health";
     public const string AlivenessEndpointPath = "/alive";
+    public const string BookingModuleName = "Booking";
 
     public static WebApplicationBuilder AddBookingHostInfrastructure(this WebApplicationBuilder builder)
     {
@@ -28,7 +29,7 @@ public static class BookingHostExtensions
         builder.Services.AddTransient<AuthHeaderHandler>();
 
         // Booking's own outbox/inbox store (booking_service_persist_message).
-        builder.AddPersistMessageProcessor();
+        builder.AddPersistMessageProcessor<BookingRoot>(BookingModuleName);
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddAspnetOpenApi();
