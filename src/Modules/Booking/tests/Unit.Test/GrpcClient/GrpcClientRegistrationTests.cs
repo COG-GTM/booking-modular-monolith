@@ -43,6 +43,20 @@ public class GrpcClientRegistrationTests
     }
 
     [Fact]
+    public async Task non_idempotent_reserve_seat_is_not_retried()
+    {
+        await using var server = await GrpcTestServer.StartAsync();
+        await using var provider = BuildProvider(server.Address);
+
+        var client = provider.GetRequiredService<FlightGrpcService.FlightGrpcServiceClient>();
+        var act = async () =>
+            await client.ReserveSeatAsync(new ReserveSeatRequest { FlightId = "1", SeatNumber = "1A" });
+
+        (await act.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.Unavailable);
+        server.State.ReserveSeatCalls.Should().Be(1);
+    }
+
+    [Fact]
     public async Task configured_deadline_is_sent_and_enforced()
     {
         await using var server = await GrpcTestServer.StartAsync();

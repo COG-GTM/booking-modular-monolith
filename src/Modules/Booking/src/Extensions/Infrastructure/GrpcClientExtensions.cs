@@ -1,3 +1,4 @@
+using System.Globalization;
 using Booking.Configuration;
 using Booking.GrpcClient;
 using BuildingBlocks.Web;
@@ -30,15 +31,19 @@ public static class GrpcClientExtensions
 
         services.AddServiceDiscovery();
 
+        // Only read-only RPCs are retried; ReserveSeat is not idempotent, so a retry after a lost
+        // response could reserve twice.
         services.AddResilientGrpcClient<FlightGrpcService.FlightGrpcServiceClient>(
             FlightClientName,
             flightAddress,
-            grpcOptions
+            grpcOptions,
+            RetryableMethods(FlightGrpcService.Descriptor.FullName, "GetById", "GetAvailableSeats")
         );
         services.AddResilientGrpcClient<PassengerGrpcService.PassengerGrpcServiceClient>(
             PassengerClientName,
             passengerAddress,
-            grpcOptions
+            grpcOptions,
+            RetryableMethods(PassengerGrpcService.Descriptor.FullName, "GetById")
         );
 
         if (grpcOptions.HealthChecksEnabled)
@@ -71,7 +76,12 @@ public static class GrpcClientExtensions
     )
     {
         var healthClientName = $"{name}-health";
-        builder.Services.AddResilientGrpcClient<Health.HealthClient>(healthClientName, address, options);
+        builder.Services.AddResilientGrpcClient<Health.HealthClient>(
+            healthClientName,
+            address,
+            options,
+            RetryableMethods(Health.Descriptor.FullName, "Check")
+        );
 
         return builder.Add(
             new HealthCheckRegistration(
@@ -95,13 +105,14 @@ public static class GrpcClientExtensions
         this IServiceCollection services,
         string name,
         Uri address,
-        GrpcOptions options
+        GrpcOptions options,
+        IReadOnlyCollection<MethodName> retryableMethods
     )
         where TClient : class
     {
         var builder = services
             .AddGrpcClient<TClient>(name, o => o.Address = address)
-            .ConfigureChannel(channel => channel.ServiceConfig = CreateServiceConfig(options))
+            .ConfigureChannel(channel => channel.ServiceConfig = CreateServiceConfig(options, retryableMethods))
             .ConfigurePrimaryHttpMessageHandler(() => CreatePrimaryHandler(options))
             .AddInterceptor(() => new GrpcDeadlineInterceptor(options.Deadline));
 
@@ -110,31 +121,60 @@ public static class GrpcClientExtensions
 #pragma warning restore EXTEXP0001
         builder.AddResilienceHandler(
             $"grpc-{name}",
-            pipeline => pipeline.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions())
+            pipeline =>
+                pipeline.AddCircuitBreaker(
+                    new HttpCircuitBreakerStrategyOptions
+                    {
+                        ShouldHandle = args => ValueTask.FromResult(IsGrpcTransient(args.Outcome)),
+                    }
+                )
         );
         builder.AddServiceDiscovery();
 
         return builder;
     }
 
-    private static ServiceConfig CreateServiceConfig(GrpcOptions options)
-    {
-        var methodConfig = new MethodConfig { Names = { MethodName.Default } };
+    private static MethodName[] RetryableMethods(string service, params string[] methods) =>
+        methods.Select(method => new MethodName { Service = service, Method = method }).ToArray();
 
-        if (options.MaxAttempts > 1)
+    private static ServiceConfig CreateServiceConfig(
+        GrpcOptions options,
+        IReadOnlyCollection<MethodName> retryableMethods
+    )
+    {
+        var serviceConfig = new ServiceConfig();
+
+        if (options.MaxAttempts > 1 && retryableMethods.Count > 0)
         {
-            methodConfig.RetryPolicy = new RetryPolicy
+            var methodConfig = new MethodConfig
             {
-                MaxAttempts = options.MaxAttempts,
-                InitialBackoff = options.InitialBackoff,
-                MaxBackoff = options.MaxBackoff,
-                BackoffMultiplier = 2,
-                RetryableStatusCodes = { StatusCode.Unavailable },
+                RetryPolicy = new RetryPolicy
+                {
+                    MaxAttempts = options.MaxAttempts,
+                    InitialBackoff = options.InitialBackoff,
+                    MaxBackoff = options.MaxBackoff,
+                    BackoffMultiplier = 2,
+                    RetryableStatusCodes = { StatusCode.Unavailable },
+                },
             };
+            foreach (var method in retryableMethods)
+            {
+                methodConfig.Names.Add(method);
+            }
+
+            serviceConfig.MethodConfigs.Add(methodConfig);
         }
 
-        return new ServiceConfig { MethodConfigs = { methodConfig } };
+        return serviceConfig;
     }
+
+    // Transport failures plus trailers-only gRPC Unavailable responses (HTTP 200 with grpc-status 14).
+    private static bool IsGrpcTransient(Outcome<HttpResponseMessage> outcome) =>
+        HttpClientResiliencePredicates.IsTransient(outcome)
+        || (
+            outcome.Result?.Headers.TryGetValues("grpc-status", out var values) == true
+            && values.Contains(((int)StatusCode.Unavailable).ToString(CultureInfo.InvariantCulture))
+        );
 
     private static SocketsHttpHandler CreatePrimaryHandler(GrpcOptions options)
     {

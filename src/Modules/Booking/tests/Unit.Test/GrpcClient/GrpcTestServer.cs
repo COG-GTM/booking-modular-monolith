@@ -116,6 +116,12 @@ public class FakeFlightState
     public DateTime? LastDeadline { get; set; }
 
     public int NextCall() => Interlocked.Increment(ref _getByIdCalls);
+
+    private int _reserveSeatCalls;
+
+    public int ReserveSeatCalls => _reserveSeatCalls;
+
+    public int NextReserveSeatCall() => Interlocked.Increment(ref _reserveSeatCalls);
 }
 
 public class FakeFlightService(FakeFlightState state) : FlightGrpcService.FlightGrpcServiceBase
@@ -139,6 +145,12 @@ public class FakeFlightService(FakeFlightState state) : FlightGrpcService.Flight
         {
             FlightDto = new FlightResponse { Id = request.Id, FlightNumber = "TEST-1" },
         };
+    }
+
+    public override Task<ReserveSeatResult> ReserveSeat(ReserveSeatRequest request, ServerCallContext context)
+    {
+        state.NextReserveSeatCall();
+        throw new RpcException(new Status(StatusCode.Unavailable, "response lost"));
     }
 }
 
