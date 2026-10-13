@@ -111,7 +111,6 @@ services:
       AuthOptions__IssuerUri: ${PUBLIC_GATEWAY_URL:-http://localhost:5000}
       # Accept the same `booking-modular-monolith` access tokens as the other services and the
       # monolith, so existing clients keep working when the gateway is repointed.
-      Jwt__Audience: booking-modular-monolith
       PostgresOptions__ConnectionString__Identity: Server=postgres;Port=5432;Database=identity_service;User Id=identity_service;Password=identity_service
       PersistMessageOptions__ConnectionString__Identity: Server=postgres;Port=5432;Database=identity_service_persist_message;User Id=identity_service;Password=identity_service
       MessageBroker__ServiceName: identity

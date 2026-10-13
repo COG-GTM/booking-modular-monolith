@@ -34,8 +34,8 @@ infrastructure.
 - Tokens are issued by Identity with the gateway's public URL as issuer
   (`AuthOptions__IssuerUri`/`Jwt__Authority` = `PUBLIC_GATEWAY_URL`, default
   `http://localhost:5000`); every host fetches discovery/JWKS from `identity-service` over the
-  internal network (`Jwt__MetadataAddress`). Identity's audience is set to
-  `booking-modular-monolith` so clients keep using the same access token they use with the monolith.
+  internal network (`Jwt__MetadataAddress`). All services accept the `booking-modular-monolith`
+  audience, so clients keep using the same access token they use with the monolith.
 - Start-up ordering uses `depends_on: condition: service_healthy`: infrastructure healthchecks
   (pg_isready, mongosh ping, rabbitmq-diagnostics, EventStoreDB's built-in check), service probes
   over bash `/dev/tcp`, and a strict `/health` = 200 probe on the gateway.
@@ -72,8 +72,6 @@ availability/RPO targets belong to the Helm/Kubernetes deployment (AB-491).
   simpler.
 - **Exposing every service through its own TLS endpoint**: requires certificates in every image
   and does not reflect how the services are deployed behind the gateway/ingress (AB-491).
-- **Keeping Identity's `identity-api` audience**: would force clients to request a second scope
-  just because the gateway now routes `/identity` to a different process.
 
 ## Consequences / operational and security notes
 
