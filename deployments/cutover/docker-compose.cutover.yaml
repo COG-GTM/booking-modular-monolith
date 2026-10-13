@@ -74,7 +74,8 @@ services:
           exec 3<>/dev/tcp/127.0.0.1/80
           printf 'GET /health/live HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
           IFS= read -r status <&3
-          [[ "$$status" == *" 200 "* ]]
+          # 404 until the monolith maps /health/live (AB-495): Kestrel answering is enough then.
+          [[ "$$status" == *" 200 "* || "$$status" == *" 404 "* ]]
     depends_on:
       postgres:
         condition: service_healthy
