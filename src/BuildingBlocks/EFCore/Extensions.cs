@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Reflection;
 using BuildingBlocks.Core.Model;
 using BuildingBlocks.Web;
 using Humanizer;
@@ -9,6 +10,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace BuildingBlocks.EFCore;
@@ -36,7 +38,11 @@ public static class Extensions
 
                 if (string.IsNullOrEmpty(connectionString))
                 {
-                    throw new ArgumentException($"Connection string '{connectionName}' not found.");
+                    throw new ArgumentException(
+                        $"Connection string '{connectionName}' not found. Set "
+                            + $"'PostgresOptions:ConnectionString:{connectionName}' or "
+                            + $"'ConnectionStrings:{connectionName.Kebaberize()}'."
+                    );
                 }
 
                 options
@@ -53,7 +59,7 @@ public static class Extensions
             }
         );
 
-        builder.Services.AddScoped<ISeedManager, SeedManager>();
+        builder.Services.TryAddScoped<ISeedManager, SeedManager>();
         builder.Services.AddScoped<IDbContext>(sp => sp.GetRequiredService<TContext>());
 
         return builder.Services;
@@ -64,7 +70,8 @@ public static class Extensions
     {
         MigrateAsync<TContext>(app.ApplicationServices).GetAwaiter().GetResult();
 
-        SeedAsync(app.ApplicationServices).GetAwaiter().GetResult();
+        // Only the seeders that live in the module owning TContext, so each module seeds independently.
+        SeedAsync(app.ApplicationServices, typeof(TContext).Assembly).GetAwaiter().GetResult();
 
         return app;
     }
@@ -141,12 +148,12 @@ public static class Extensions
         }
     }
 
-    private static async Task SeedAsync(IServiceProvider serviceProvider)
+    private static async Task SeedAsync(IServiceProvider serviceProvider, Assembly moduleAssembly)
     {
         await using var scope = serviceProvider.CreateAsyncScope();
 
         var seedersManager = scope.ServiceProvider.GetRequiredService<ISeedManager>();
 
-        await seedersManager.ExecuteSeedAsync();
+        await seedersManager.ExecuteSeedAsync(moduleAssembly);
     }
 }

@@ -1,3 +1,4 @@
+using System.Reflection;
 using Booking;
 using Booking.Extensions.Infrastructure;
 using BuildingBlocks.Core;
@@ -31,22 +32,22 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddJwt();
         builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         builder.Services.AddTransient<AuthHeaderHandler>();
-        builder.AddPersistMessageProcessor();
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddControllers();
         builder.Services.AddAspnetOpenApi();
         builder.Services.AddCustomVersioning();
         builder.Services.AddEventDispatcher();
+
+        // Booking keeps a minimal BuildingBlocks surface (no EF Core / PersistMessageProcessor reference),
+        // so its module-owned outbox/inbox store is wired by the host that composes it.
+        builder.AddPersistMessageProcessor<BookingRoot>(nameof(Booking));
         builder.Services.AddHttpContextEventHeaders();
 
         builder.Services.AddCustomMassTransit(
             builder.Configuration,
             builder.Environment,
-            typeof(FlightRoot).Assembly,
-            typeof(IdentityRoot).Assembly,
-            typeof(PassengerRoot).Assembly,
-            typeof(BookingRoot).Assembly
+            GetMessagingAssemblies(builder.Configuration)
         );
 
         builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);
@@ -76,6 +77,26 @@ public static class SharedInfrastructureExtensions
 
 
         return builder;
+    }
+
+    // Consumers of a module whose background processing is switched off (its service host owns them)
+    // are not registered in the monolith.
+    private static Assembly[] GetMessagingAssemblies(IConfiguration configuration)
+    {
+        var moduleAssemblies = new Dictionary<string, Assembly>
+        {
+            [nameof(Flight)] = typeof(FlightRoot).Assembly,
+            [nameof(Identity)] = typeof(IdentityRoot).Assembly,
+            [nameof(Passenger)] = typeof(PassengerRoot).Assembly,
+            [nameof(Booking)] = typeof(BookingRoot).Assembly,
+        };
+
+        var disabledAssemblies = moduleAssemblies
+            .Where(module => !configuration.IsModuleBackgroundProcessingEnabled(module.Key))
+            .Select(module => module.Value)
+            .ToHashSet();
+
+        return AppDomain.CurrentDomain.GetAssemblies().Where(a => !disabledAssemblies.Contains(a)).ToArray();
     }
 
     public static WebApplication UserSharedInfrastructure(this WebApplication app)

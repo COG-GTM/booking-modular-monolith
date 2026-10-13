@@ -36,7 +36,11 @@ if (builder.ExecutionContext.IsPublishMode)
 var flightDb = postgres.AddDatabase("flight");
 var passengerDb = postgres.AddDatabase("passenger");
 var identityDb = postgres.AddDatabase("identity");
-var persistMessageDb = postgres.AddDatabase("persist-message");
+// Each module owns its outbox/inbox database; nothing is shared across modules.
+var flightPersistMessageDb = postgres.AddDatabase("flight-persist-message", "flight_persist_message");
+var passengerPersistMessageDb = postgres.AddDatabase("passenger-persist-message", "passenger_persist_message");
+var identityPersistMessageDb = postgres.AddDatabase("identity-persist-message", "identity_persist_message");
+var bookingPersistMessageDb = postgres.AddDatabase("booking-persist-message", "booking_persist_message");
 
 var mongoUsername = builder.AddParameter("mongo-username", "root", secret: true);
 var mongoPassword = builder.AddParameter("mongo-password", "secret", secret: true);
@@ -304,8 +308,14 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 var api = builder.AddProject<Api>("api")
-    .WithReference(persistMessageDb)
-    .WaitFor(persistMessageDb)
+    .WithReference(flightPersistMessageDb)
+    .WaitFor(flightPersistMessageDb)
+    .WithReference(passengerPersistMessageDb)
+    .WaitFor(passengerPersistMessageDb)
+    .WithReference(identityPersistMessageDb)
+    .WaitFor(identityPersistMessageDb)
+    .WithReference(bookingPersistMessageDb)
+    .WaitFor(bookingPersistMessageDb)
     .WithReference(flightDb)
     .WaitFor(flightDb)
     .WithReference(passengerDb)

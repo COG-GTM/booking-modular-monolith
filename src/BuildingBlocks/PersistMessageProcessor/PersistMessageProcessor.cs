@@ -13,12 +13,12 @@ using Microsoft.EntityFrameworkCore;
 
 public class PersistMessageProcessor : IPersistMessageProcessor
 {
-    private readonly ILogger<PersistMessageProcessor> _logger;
+    private readonly ILogger _logger;
     private readonly IMediator _mediator;
     private readonly IPersistMessageDbContext _persistMessageDbContext;
     private readonly IPublishEndpoint _publishEndpoint;
     public PersistMessageProcessor(
-        ILogger<PersistMessageProcessor> logger,
+        ILogger logger,
         IMediator mediator,
         IPersistMessageDbContext persistMessageDbContext,
         IPublishEndpoint publishEndpoint)
@@ -230,4 +230,16 @@ public class PersistMessageProcessor : IPersistMessageProcessor
 
         await _persistMessageDbContext.SaveChangesAsync(cancellationToken);
     }
+}
+
+public class PersistMessageProcessor<TModule> : PersistMessageProcessor, IPersistMessageProcessor<TModule>
+    where TModule : class
+{
+    public PersistMessageProcessor(
+        ILogger<PersistMessageProcessor<TModule>> logger,
+        IMediator mediator,
+        IPersistMessageDbContext<TModule> persistMessageDbContext,
+        IPublishEndpoint publishEndpoint
+    )
+        : base(logger, mediator, persistMessageDbContext, publishEndpoint) { }
 }
