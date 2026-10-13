@@ -30,11 +30,14 @@ CTX="${1:-flight}"
 REQUESTS="${REQUESTS:-5}"
 
 case "$CTX" in
-  identity) SERVICE=identity-service SERVICE_UPSTREAM=identity-service:80 PATH_UNDER_TEST=/.well-known/openid-configuration ;;
+  # Not the discovery document: the other hosts' JWT validators fetch that from identity-service directly,
+  # which would show up in its request log. register-user with an empty body is a 400 from the module.
+  identity) SERVICE=identity-service SERVICE_UPSTREAM=identity-service:80 PATH_UNDER_TEST=/api/v1/identity/register-user METHOD=POST ;;
   flight) SERVICE=flight-service SERVICE_UPSTREAM=flight-service:80 PATH_UNDER_TEST=/api/v1/flight/get-available-flights ;;
   passenger) SERVICE=passenger-service SERVICE_UPSTREAM=passenger-service:5102 PATH_UNDER_TEST=/api/v1/passenger/00000000-0000-0000-0000-000000000000 ;;
-  *) echo "only identity, flight or passenger are supported (GET endpoints)" >&2; exit 2 ;;
+  *) echo "only identity, flight or passenger are supported" >&2; exit 2 ;;
 esac
+METHOD="${METHOD:-GET}"
 MONOLITH=booking_modular_monolith
 MONOLITH_URL="${MONOLITH_URL:-http://localhost:3001}"
 IDENTITY_SERVICE_URL="${IDENTITY_SERVICE_URL:-http://localhost:5103}"
@@ -71,15 +74,17 @@ probe() {
   since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   sleep 1
   tok="$(token)"
-  section "$REQUESTS x GET $GATEWAY_URL$PATH_UNDER_TEST (expect upstream $expected_upstream)"
+  section "$REQUESTS x $METHOD $GATEWAY_URL$PATH_UNDER_TEST (expect upstream $expected_upstream)"
+  local body=()
+  [[ "$METHOD" == POST ]] && body=(-H 'Content-Type: application/json' -d '{}')
   for ((i = 1; i <= REQUESTS; i++)); do
-    code="$(curl -s -o /tmp/validate-body.$$ -D /tmp/validate-headers.$$ -w '%{http_code}' \
+    code="$(curl -s -o /tmp/validate-body.$$ -D /tmp/validate-headers.$$ -w '%{http_code}' -X "$METHOD" "${body[@]}" \
       -H "Authorization: Bearer $tok" "$GATEWAY_URL$PATH_UNDER_TEST")"
     hdr="$(grep -i '^X-Gateway-Upstream:' /tmp/validate-headers.$$ | cut -d: -f2- | tr -d ' \r')"
     printf 'request %d: HTTP %s  X-Gateway-Upstream: %s  X-Trace-Id: %s  body: %.80s\n' "$i" "$code" "$hdr" \
       "$(grep -i '^X-Trace-Id:' /tmp/validate-headers.$$ | cut -d: -f2- | tr -d ' \r')" "$(tr -d '\n' </tmp/validate-body.$$)"
-    if [[ "$code" != 200 && "$code" != 404 ]] || [[ "$hdr" != "$expected_upstream" ]]; then
-      echo "FAIL: expected 200/404 from $expected_upstream" >&2
+    if [[ ! "$code" =~ ^(200|400|404)$ ]] || [[ "$hdr" != "$expected_upstream" ]]; then
+      echo "FAIL: expected 200/400/404 from $expected_upstream" >&2
       FAILURES=$((FAILURES + 1))
     fi
   done
