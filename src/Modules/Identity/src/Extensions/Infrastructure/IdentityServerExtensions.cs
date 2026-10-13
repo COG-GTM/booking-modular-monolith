@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using BuildingBlocks.Web;
 using Identity.Data;
 using Identity.Identity.Models;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Identity.Extensions.Infrastructure;
 
@@ -17,7 +19,8 @@ public static class IdentityServerExtensions
         builder.Services.AddValidateOptions<AuthOptions>();
         var authOptions = builder.Services.GetOptions<AuthOptions>(nameof(AuthOptions));
 
-        builder.Services.AddIdentity<User, Role>(config =>
+        builder
+            .Services.AddIdentity<User, Role>(config =>
             {
                 config.Password.RequiredLength = 6;
                 config.Password.RequireDigit = false;
@@ -27,7 +30,8 @@ public static class IdentityServerExtensions
             .AddEntityFrameworkStores<IdentityContext>()
             .AddDefaultTokenProviders();
 
-        var identityServerBuilder = builder.Services.AddIdentityServer(options =>
+        var identityServerBuilder = builder
+            .Services.AddIdentityServer(options =>
             {
                 options.Events.RaiseErrorEvents = true;
                 options.Events.RaiseInformationEvents = true;
@@ -42,24 +46,55 @@ public static class IdentityServerExtensions
             .AddAspNetIdentity<User>()
             .AddResourceOwnerValidator<UserValidator>();
 
-        //ref: https://documentation.openiddict.com/configuration/encryption-and-signing-credentials.html
-        identityServerBuilder.AddDeveloperSigningCredential();
+        identityServerBuilder.AddConfiguredSigningCredential(builder.Environment, authOptions);
 
         builder.Services.ConfigureApplicationCookie(options =>
-                                                    {
-                                                        options.Events.OnRedirectToLogin = context =>
-                                                        {
-                                                            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                                                            return Task.CompletedTask;
-                                                        };
+        {
+            options.Events.OnRedirectToLogin = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return Task.CompletedTask;
+            };
 
-                                                        options.Events.OnRedirectToAccessDenied = context =>
-                                                        {
-                                                            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                                                            return Task.CompletedTask;
-                                                        };
-                                                    });
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return Task.CompletedTask;
+            };
+        });
 
         return builder;
+    }
+
+    private static IIdentityServerBuilder AddConfiguredSigningCredential(
+        this IIdentityServerBuilder identityServerBuilder,
+        IHostEnvironment environment,
+        AuthOptions authOptions
+    )
+    {
+        var certificateOptions = authOptions.SigningCertificate;
+
+        if (!string.IsNullOrWhiteSpace(certificateOptions?.Path))
+        {
+            var certificate = X509CertificateLoader.LoadPkcs12FromFile(
+                certificateOptions.Path,
+                certificateOptions.Password,
+                X509KeyStorageFlags.EphemeralKeySet
+            );
+
+            return identityServerBuilder.AddSigningCredential(certificate);
+        }
+
+        if (environment.IsDevelopment() || environment.IsEnvironment("test"))
+        {
+            // Ephemeral in-memory key only: never persist a developer key to disk, so it can't be committed.
+            return identityServerBuilder.AddDeveloperSigningCredential(persistKey: false);
+        }
+
+        throw new InvalidOperationException(
+            $"No token signing credential is configured for environment '{environment.EnvironmentName}'. "
+                + $"Set '{nameof(AuthOptions)}:{nameof(AuthOptions.SigningCertificate)}:{nameof(SigningCertificateOptions.Path)}' "
+                + $"(and '{nameof(SigningCertificateOptions.Password)}') to a PKCS#12 certificate holding the RSA signing key."
+        );
     }
 }
