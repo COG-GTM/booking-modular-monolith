@@ -204,6 +204,17 @@ dotnet dev-certs https --trust
 ```
 
 
+> ### Config Token Signing Credential
+
+`IdentityServer` signs access tokens with the certificate configured in the `AuthOptions:SigningCertificate` section (a PKCS#12/`.pfx` file holding an RSA key). Set it through configuration or environment variables, and keep the file and password out of source control:
+
+```bash
+export AuthOptions__SigningCertificate__Path=/path/to/signing.pfx
+export AuthOptions__SigningCertificate__Password=$CREDENTIAL_PLACEHOLDER$
+```
+
+For `Development` and `test` environments, if no certificate is configured, an ephemeral in-memory key is generated on each start (tokens are invalidated on restart). In any other environment the application refuses to start without a configured signing certificate.
+
 > ### Aspire
 
 To run the application using the `Aspire App Host`, execute the following command from the solution root:
