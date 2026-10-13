@@ -26,7 +26,7 @@ public record CompleteRegisterPassenger
     public Guid Id { get; init; } = NewId.NextGuid();
 }
 
-public record PassengerRegistrationCompletedDomainEvent(Guid Id, string Name, string PassportNumber,
+public record PassengerRegistrationCompletedDomainEvent(Guid Id, Guid UserId, string Name, string PassportNumber,
     Enums.PassengerType PassengerType, int Age, bool IsDeleted = false) : IDomainEvent;
 
 public record CompleteRegisterPassengerResult(PassengerDto PassengerDto);
