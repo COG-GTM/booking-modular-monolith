@@ -1,8 +1,12 @@
+using System.Collections.Generic;
+using System.Net;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Api;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
 using Grpc.Core;
+using Grpc.Net.Client;
 using Integration.Test.Fakes;
 using Passenger;
 using Passenger.Data;
@@ -71,5 +75,28 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         // Assert
         var exception = await act.Should().ThrowAsync<RpcException>();
         exception.Which.StatusCode.Should().Be(StatusCode.Unauthenticated);
+    }
+
+    [Fact]
+    public async Task should_reject_grpc_get_by_id_without_api_scope()
+    {
+        // Arrange
+        var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
+
+        await Fixture.SendAsync(command);
+
+        var httpClient = Fixture.HttpClient;
+        httpClient.SetFakeBearerToken(
+            new Dictionary<string, object> { { ClaimTypes.Name, "test@sample.com" }, { "scope", "other-api" } });
+
+        var channel = GrpcChannel.ForAddress(httpClient.BaseAddress!, new GrpcChannelOptions { HttpClient = httpClient });
+        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(channel);
+
+        // Act
+        var act = async () => await passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = command.Id.ToString() });
+
+        // Assert
+        var exception = await act.Should().ThrowAsync<RpcException>();
+        exception.Which.StatusCode.Should().Be(StatusCode.PermissionDenied);
     }
 }
