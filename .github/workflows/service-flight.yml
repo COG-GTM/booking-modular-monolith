@@ -1,0 +1,69 @@
+# Flight pipeline: build/test, then image booking-flight (pushed on main and release tags).
+# Path-filtered so it runs only when the Flight service or a shared input it builds from
+# changes. Logic lives in _service-pipeline.yml; see docs/ci-cd.md.
+name: Service - Flight
+
+on:
+  push:
+    branches: [main]
+    # Path filters are not evaluated for tag pushes: v* releases every service, flight-v* only this one.
+    tags: ["v*.*.*", "flight-v*.*.*"]
+    paths:
+      - "src/Services/Flight.Host/**"
+      - "src/Modules/Flight/**"
+      - "src/BuildingBlocks/**"
+      - "src/Contracts/**"
+      - "src/Aspire/src/ServiceDefaults/**"
+      - "Directory.*.props"
+      - "global.json"
+      - "nuget.config"
+      - ".editorconfig"
+      - ".dockerignore"
+      - ".config/dotnet-tools.json"
+      - ".github/actions/build/**"
+      - ".github/actions/build-test/**"
+      - ".github/actions/test/**"
+      - ".github/actions/docker-build-publish/**"
+      - ".github/workflows/_service-pipeline.yml"
+      - ".github/workflows/service-flight.yml"
+  pull_request:
+    paths:
+      - "src/Services/Flight.Host/**"
+      - "src/Modules/Flight/**"
+      - "src/BuildingBlocks/**"
+      - "src/Contracts/**"
+      - "src/Aspire/src/ServiceDefaults/**"
+      - "Directory.*.props"
+      - "global.json"
+      - "nuget.config"
+      - ".editorconfig"
+      - ".dockerignore"
+      - ".config/dotnet-tools.json"
+      - ".github/actions/build/**"
+      - ".github/actions/build-test/**"
+      - ".github/actions/test/**"
+      - ".github/actions/docker-build-publish/**"
+      - ".github/workflows/_service-pipeline.yml"
+      - ".github/workflows/service-flight.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  checks: write
+  packages: write
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_service-pipeline.yml
+    with:
+      service: flight
+      dockerfile: src/Services/Flight.Host/Dockerfile
+      targets: >-
+        [
+          {"name": "Flight", "project": "src/Modules/Flight/src/", "tests": "src/Modules/Flight/tests/"},
+          {"name": "Flight.Host", "project": "src/Services/Flight.Host/src/", "tests": "src/Services/Flight.Host/tests/"}
+        ]

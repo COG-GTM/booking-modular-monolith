@@ -1,0 +1,62 @@
+# Gateway pipeline: build/test, then image booking-gateway (pushed on main and release tags).
+# Path-filtered so it runs only when the Gateway service or a shared input it builds from
+# changes. Logic lives in _service-pipeline.yml; see docs/ci-cd.md.
+name: Service - Gateway
+
+on:
+  push:
+    branches: [main]
+    # Path filters are not evaluated for tag pushes: v* releases every service, gateway-v* only this one.
+    tags: ["v*.*.*", "gateway-v*.*.*"]
+    paths:
+      - "src/Gateway/**"
+      - "src/Aspire/src/ServiceDefaults/**"
+      - "Directory.*.props"
+      - "global.json"
+      - "nuget.config"
+      - ".editorconfig"
+      - ".dockerignore"
+      - ".config/dotnet-tools.json"
+      - ".github/actions/build/**"
+      - ".github/actions/build-test/**"
+      - ".github/actions/test/**"
+      - ".github/actions/docker-build-publish/**"
+      - ".github/workflows/_service-pipeline.yml"
+      - ".github/workflows/service-gateway.yml"
+  pull_request:
+    paths:
+      - "src/Gateway/**"
+      - "src/Aspire/src/ServiceDefaults/**"
+      - "Directory.*.props"
+      - "global.json"
+      - "nuget.config"
+      - ".editorconfig"
+      - ".dockerignore"
+      - ".config/dotnet-tools.json"
+      - ".github/actions/build/**"
+      - ".github/actions/build-test/**"
+      - ".github/actions/test/**"
+      - ".github/actions/docker-build-publish/**"
+      - ".github/workflows/_service-pipeline.yml"
+      - ".github/workflows/service-gateway.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  checks: write
+  packages: write
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_service-pipeline.yml
+    with:
+      service: gateway
+      dockerfile: src/Gateway/Dockerfile
+      targets: >-
+        [
+          {"name": "Gateway", "project": "src/Gateway/src/", "tests": "src/Gateway/tests/"}
+        ]

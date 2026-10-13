@@ -1,0 +1,69 @@
+# Booking pipeline: build/test, then image booking-booking (pushed on main and release tags).
+# Path-filtered so it runs only when the Booking service or a shared input it builds from
+# changes. Logic lives in _service-pipeline.yml; see docs/ci-cd.md.
+name: Service - Booking
+
+on:
+  push:
+    branches: [main]
+    # Path filters are not evaluated for tag pushes: v* releases every service, booking-v* only this one.
+    tags: ["v*.*.*", "booking-v*.*.*"]
+    paths:
+      - "src/Services/Booking.Host/**"
+      - "src/Modules/Booking/**"
+      - "src/BuildingBlocks/**"
+      - "src/Contracts/**"
+      - "src/Aspire/src/ServiceDefaults/**"
+      - "Directory.*.props"
+      - "global.json"
+      - "nuget.config"
+      - ".editorconfig"
+      - ".dockerignore"
+      - ".config/dotnet-tools.json"
+      - ".github/actions/build/**"
+      - ".github/actions/build-test/**"
+      - ".github/actions/test/**"
+      - ".github/actions/docker-build-publish/**"
+      - ".github/workflows/_service-pipeline.yml"
+      - ".github/workflows/service-booking.yml"
+  pull_request:
+    paths:
+      - "src/Services/Booking.Host/**"
+      - "src/Modules/Booking/**"
+      - "src/BuildingBlocks/**"
+      - "src/Contracts/**"
+      - "src/Aspire/src/ServiceDefaults/**"
+      - "Directory.*.props"
+      - "global.json"
+      - "nuget.config"
+      - ".editorconfig"
+      - ".dockerignore"
+      - ".config/dotnet-tools.json"
+      - ".github/actions/build/**"
+      - ".github/actions/build-test/**"
+      - ".github/actions/test/**"
+      - ".github/actions/docker-build-publish/**"
+      - ".github/workflows/_service-pipeline.yml"
+      - ".github/workflows/service-booking.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  checks: write
+  packages: write
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_service-pipeline.yml
+    with:
+      service: booking
+      dockerfile: src/Services/Booking.Host/Dockerfile
+      targets: >-
+        [
+          {"name": "Booking", "project": "src/Modules/Booking/src/", "tests": "src/Modules/Booking/tests/"},
+          {"name": "Booking.Host", "project": "src/Services/Booking.Host/src/", "tests": "src/Services/Booking.Host/tests/"}
+        ]

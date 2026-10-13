@@ -1,14 +1,35 @@
 name: CI
 
+# Monolith pipeline: builds/tests the four modules consumed by src/Api, then builds the
+# booking-monolith image (pushed on main and v*/monolith-v* tags). The Gateway and standalone service
+# hosts have their own path-filtered pipelines (service-*.yml), so changes confined to them don't run
+# this workflow. See docs/ci-cd.md.
 on:
   push:
     branches: [ "main"]
+    # Path filters are not evaluated for tag pushes.
+    tags: [ "v*.*.*", "monolith-v*.*.*" ]
     paths-ignore:
-      - "README.md"
+      - "**/*.md"
+      - "docs/**"
+      - "src/Gateway/**"
+      - "src/Services/**"
+      - ".github/workflows/service-*.yml"
+      - ".github/workflows/packages.yml"
+      - ".github/workflows/deploy.yml"
+      - ".github/actions/nuget-pack-publish/**"
   pull_request:
     branches: [ "main"]
     paths-ignore:
-      - "README.md"
+      - "**/*.md"
+      - "docs/**"
+      - "src/Gateway/**"
+      - "src/Services/**"
+      - ".github/workflows/service-*.yml"
+      - ".github/workflows/packages.yml"
+      - ".github/workflows/deploy.yml"
+      - ".github/actions/nuget-pack-publish/**"
+  workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
   cancel-in-progress: true
@@ -90,3 +111,15 @@ jobs:
       - name: Release Version Info
         run:
           echo "Release version is:" ${{ steps.last_release.outputs.tag_name }}
+
+  image:
+    needs: ci
+    permissions:
+      contents: read
+      checks: write
+      packages: write
+    uses: ./.github/workflows/_service-pipeline.yml
+    with:
+      service: monolith
+      dockerfile: src/Api/Dockerfile
+      targets: "[]"

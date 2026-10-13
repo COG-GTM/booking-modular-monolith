@@ -1,0 +1,67 @@
+# Packs the shared NuGet packages (BuildingBlocks, Contracts) and publishes every package whose
+# version is not in GitHub Packages yet, i.e. publishes on version bump. Pull requests do a dry run
+# (pack everything, push nothing, warn about changed sources without a bump). See docs/ci-cd.md.
+name: Shared NuGet packages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/BuildingBlocks/**"
+      - "src/Contracts/**"
+      - "Directory.*.props"
+      - "global.json"
+      - "nuget.config"
+      - ".github/actions/nuget-pack-publish/**"
+      - ".github/workflows/packages.yml"
+  pull_request:
+    paths:
+      - "src/BuildingBlocks/**"
+      - "src/Contracts/**"
+      - "Directory.*.props"
+      - "global.json"
+      - "nuget.config"
+      - ".github/actions/nuget-pack-publish/**"
+      - ".github/workflows/packages.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  pack-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.x.x"
+
+      - name: Pack and publish bumped packages
+        uses: ./.github/actions/nuget-pack-publish
+        with:
+          source: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+          username: ${{ github.actor }}
+          api-key: ${{ secrets.GITHUB_TOKEN }}
+          # Publish only from main (push or manual run); never from pull requests.
+          publish: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+          base-ref: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+          output-dir: ${{ github.workspace }}/artifacts/packages
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts/packages/*.nupkg
+          if-no-files-found: ignore
