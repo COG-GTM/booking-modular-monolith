@@ -36,11 +36,6 @@ public static class PassengerServiceHostExtensions
         builder.Services.AddEventDispatcher();
         builder.Services.AddHttpContextEventHeaders();
 
-        // Single-module host: the unkeyed processor (used by the MassTransit inbox filter) is Passenger's.
-        builder.Services.AddScoped<IPersistMessageProcessor>(sp =>
-            sp.GetRequiredService<IPersistMessageProcessor<PassengerRoot>>()
-        );
-
         builder.Services.AddCustomMassTransit(
             builder.Configuration,
             builder.Environment,
