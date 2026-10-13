@@ -11,6 +11,7 @@ using BuildingBlocks.Web;
 using Contracts.Grpc.Passenger;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using PassengerRoot = Passenger.PassengerRoot;
 
@@ -113,7 +114,7 @@ public static class PassengerServiceHostExtensions
             )
             .AddMongoDb(
                 clientFactory: sp => new MongoClient(
-                    sp.GetRequiredService<IConfiguration>()[$"{nameof(MongoOptions)}:ConnectionString"]
+                    sp.GetRequiredService<IOptionsMonitor<MongoOptions>>().Get(nameof(Passenger)).ConnectionString
                 ),
                 name: "passenger-mongo",
                 tags: [ReadyTag]
