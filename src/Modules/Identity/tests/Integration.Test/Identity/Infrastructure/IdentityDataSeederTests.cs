@@ -216,7 +216,7 @@ public class IdentityDataSeederTests
     }
 
     [Fact]
-    public async Task should_log_error_and_not_dispatch_event_when_role_assignment_fails()
+    public async Task should_roll_back_user_and_not_dispatch_event_when_role_assignment_fails()
     {
         await using var harness = await SeederHarness.CreateAsync(
             new IdentitySeedOptions { AdminPassword = AdminPassword }
@@ -227,9 +227,7 @@ public class IdentityDataSeederTests
             .CreateSeeder(new IdentitySeedOptions { AdminPassword = AdminPassword }, failingUserManager)
             .SeedAllAsync();
 
-        var admin = await harness.UserManager.FindByNameAsync("samh");
-        admin.Should().NotBeNull();
-        (await harness.UserManager.GetRolesAsync(admin!)).Should().BeEmpty();
+        (await harness.UserManager.FindByNameAsync("samh")).Should().BeNull();
         harness.Events.Should().BeEmpty();
         harness
             .Logger.Entries.Should()
@@ -238,6 +236,29 @@ public class IdentityDataSeederTests
             .Contain("'admin'")
             .And.Contain("'samh'")
             .And.Contain("role store unavailable");
+    }
+
+    [Fact]
+    public async Task should_seed_user_on_a_later_run_after_role_assignment_failure_was_rolled_back()
+    {
+        await using var harness = await SeederHarness.CreateAsync(
+            new IdentitySeedOptions { AdminPassword = AdminPassword }
+        );
+
+        await harness
+            .CreateSeeder(
+                new IdentitySeedOptions { AdminPassword = AdminPassword },
+                harness.Resolve<RoleAssignmentFailingUserManager>()
+            )
+            .SeedAllAsync();
+        (await harness.UserManager.FindByNameAsync("samh")).Should().BeNull();
+
+        await harness.Seeder.SeedAllAsync();
+
+        var admin = await harness.UserManager.FindByNameAsync("samh");
+        admin.Should().NotBeNull();
+        (await harness.UserManager.GetRolesAsync(admin!)).Should().BeEquivalentTo(IdentityConstant.Role.Admin);
+        harness.Events.OfType<UserCreated>().Should().ContainSingle().Which.Id.Should().Be(admin!.Id);
     }
 
     private sealed class RoleAssignmentFailingUserManager : UserManager<User>
