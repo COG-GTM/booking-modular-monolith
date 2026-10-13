@@ -80,20 +80,45 @@ public static class IdentityServerExtensions
     // content-root tempkey.jwk) so tokens issued before the switch keep validating.
     private static void SeedSharedSigningKey(string currentKeyFile, string sharedKeyFile)
     {
-        if (File.Exists(currentKeyFile))
+        byte[] ownKey = null;
+        try
+        {
+            if (File.Exists(currentKeyFile))
+                ownKey = File.ReadAllBytes(currentKeyFile);
+        }
+        catch (FileNotFoundException)
+        {
+            // Vanished between the check and the read: nothing to carry over.
+        }
+
+        if (ownKey is { Length: > 0 })
         {
             Directory.CreateDirectory(Path.GetDirectoryName(sharedKeyFile)!);
+            FileStream shared = null;
             try
             {
                 // CreateNew is atomic (O_EXCL): exactly one racing host wins and seeds the shared file.
-                using var shared = new FileStream(sharedKeyFile, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-                using var own = File.OpenRead(currentKeyFile);
-                own.CopyTo(shared);
-                return;
+                shared = new FileStream(sharedKeyFile, FileMode.CreateNew, FileAccess.Write, FileShare.None);
             }
             catch (IOException) when (File.Exists(sharedKeyFile))
             {
                 // Another host seeded the shared file first; use that one.
+            }
+
+            if (shared is not null)
+            {
+                try
+                {
+                    using (shared)
+                        shared.Write(ownKey);
+                    return;
+                }
+                catch
+                {
+                    // Never leave a half-written key behind for the other hosts to load.
+                    File.Delete(sharedKeyFile);
+                    throw;
+                }
             }
         }
 
