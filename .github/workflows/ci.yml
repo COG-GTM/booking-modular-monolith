@@ -1,14 +1,13 @@
 name: CI
 
-# Monolith pipeline: builds/tests the four modules consumed by src/Api, then builds the
-# booking-monolith image (pushed on main and v*/monolith-v* tags). The Gateway and standalone service
-# hosts have their own path-filtered pipelines (service-*.yml), so changes confined to them don't run
-# this workflow. See docs/ci-cd.md.
+# Module pipeline: builds/tests BuildingBlocks, the four modules and the Gateway. The monolith host
+# (src/Api) and its booking-monolith image were decommissioned in AB-505; the Gateway and service hosts
+# publish their images from their own path-filtered pipelines (service-*.yml). See docs/ci-cd.md.
 on:
   push:
     branches: [ "main"]
     # Path filters are not evaluated for tag pushes.
-    tags: [ "v*.*.*", "monolith-v*.*.*" ]
+    tags: [ "v*.*.*" ]
     paths-ignore:
       - "**/*.md"
       - "docs/**"
@@ -144,15 +143,3 @@ jobs:
       - name: Release Version Info
         run:
           echo "Release version is:" ${{ steps.last_release.outputs.tag_name }}
-
-  image:
-    needs: ci
-    permissions:
-      contents: read
-      checks: write
-      packages: write
-    uses: ./.github/workflows/_service-pipeline.yml
-    with:
-      service: monolith
-      dockerfile: src/Api/Dockerfile
-      targets: "[]"

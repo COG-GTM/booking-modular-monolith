@@ -4,8 +4,10 @@ Precondition: all four contexts have been on their services for the full burn-in
 rollback trigger, and the gateway logs show no request proxied to `booking_modular_monolith` for
 at least 7 days (`flip-route.sh status` shows every context on `service`).
 
-1. Point the gateway's catch-all `monolith` cluster at nothing (remove the route) and confirm
-   there is no traffic for it.
+1. Repoint the gateway's catch-all `monolith` cluster (non-module paths: `/connect`,
+   `/.well-known`, IdentityServer UI) at the Identity service and confirm nothing else hits it.
+   The destination keeps the name `monolith` so existing `...__Destinations__monolith__Address`
+   overrides keep working.
 2. Stop the monolith deployment; keep its databases read-only for the retention period (they are
    the source for any manual data recovery), then archive and drop them:
    `*_modular_monolith`, `*_modular_monolith_persist_message`, `*_modular_monolith_read`.

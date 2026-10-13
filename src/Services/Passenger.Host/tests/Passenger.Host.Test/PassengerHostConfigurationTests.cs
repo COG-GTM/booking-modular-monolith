@@ -109,7 +109,7 @@ public class PassengerHostConfigurationTests
 
         var jwt = configuration.GetOptions<JwtBearerOptions>("Jwt");
         jwt.Authority.Should().Be("https://localhost:3000", "tokens are still validated against the public issuer");
-        jwt.MetadataAddress.Should().Be("http://booking_modular_monolith:80/.well-known/openid-configuration");
+        jwt.MetadataAddress.Should().Be("http://identity-service/.well-known/openid-configuration");
         jwt.Audience.Should().Be("booking-modular-monolith");
     }
 }

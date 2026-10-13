@@ -9,9 +9,12 @@ modular monolith to one service per module. Decisions are recorded in the
 - Mermaid sources: [target-state.mmd](target-state.mmd), [transition-state.mmd](transition-state.mmd)
   (re-render with `npx @mermaid-js/mermaid-cli -i <file>.mmd -o ../../assets/<file>.svg -b white`)
 
-## Current state
+## Pre-migration state
 
-One host (`src/Api`) composes Identity, Flight, Passenger and Booking. Modules talk via in-process
+> `src/Api` was decommissioned in AB-505 once every route was served by its service; see
+> [docs/runbooks](../runbooks/README.md).
+
+One host (`src/Api`) composed Identity, Flight, Passenger and Booking. Modules talked via in-process
 gRPC (Booking -> Flight/Passenger) and MassTransit's in-memory bus; per-module Postgres databases
 (`*_modular_monolith`), a shared outbox DB (`persist_message`), one Mongo read DB
 (`booking_modular_monolith_read`) and EventStoreDB. See

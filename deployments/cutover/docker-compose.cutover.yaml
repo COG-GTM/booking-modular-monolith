@@ -23,10 +23,9 @@ x-cutover-signing-key: &cutover-signing-key
 
 services:
   booking_modular_monolith:
-    image: ${MONOLITH_IMAGE:-booking-modular-monolith}
-    build:
-      context: ../../
-      dockerfile: src/Api/Dockerfile
+    # src/Api is decommissioned (AB-505): replaying a cut-over needs the last released monolith image,
+    # e.g. MONOLITH_IMAGE=ghcr.io/cog-gtm/booking-monolith:<last-version>.
+    image: ${MONOLITH_IMAGE:?set MONOLITH_IMAGE to the last released monolith image}
     container_name: booking_modular_monolith
     <<: *cutover-signing-key
     entrypoint: ["dotnet", "/app/Api.dll"]

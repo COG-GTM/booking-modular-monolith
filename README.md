@@ -239,7 +239,8 @@ docker compose -f ./deployments/docker-compose/docker-compose.yaml up -d --build
 ./deployments/docker-compose/smoke-test.sh
 ```
 
-To run the monolith behind the gateway instead, use [docker-compose.monolith.yaml](./deployments/docker-compose/docker-compose.monolith.yaml).
+The monolith host (`src/Api`) has been decommissioned; the cut-over and rollback procedure that retired it is in
+[docs/runbooks](./docs/runbooks/README.md).
 
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
@@ -248,21 +249,21 @@ dotnet build
 ```
 
 > ### Run
-To `run` all modules, run this command in the root of the `Api` folder:
+Each module runs in its own service host under `src/Services/<Module>.Host`, e.g.:
 ```bash
-dotnet run
+dotnet run --project src/Services/Flight.Host/src
 ```
 
 > ### API Gateway (single ingress)
 
 [`src/Gateway`](./src/Gateway) is a YARP reverse proxy that is the only endpoint clients should call. It validates JWTs (same `Jwt` section as the API), applies CORS (`CorsOptions:AllowedOrigins`), a per-client fixed-window rate limit (`RateLimitOptions`; list your load balancer in `TrustedProxyOptions` so `X-Forwarded-For` is used as the client address), HTTP request logging, and forwards `Authorization`, `correlationId` and `traceparent` headers downstream.
 
-| Where | Gateway | Monolith API |
+| Where | Gateway | Identity service |
 | --- | --- | --- |
-| `dotnet run` / Aspire | `http://localhost:5000`, `https://localhost:5001` | `http://localhost:3001`, `https://localhost:3000` |
-| Docker Compose | `http://localhost:5000` | `http://localhost:3001`, `https://localhost:3000` |
+| `dotnet run` / Aspire | `http://localhost:5000`, `https://localhost:5001` | `http://localhost:5100` |
+| Docker Compose | `http://localhost:5000` | `http://127.0.0.1:5100` (debug only) |
 
-Routing is fully config-driven (`ReverseProxy` section of [`appsettings.json`](./src/Gateway/src/appsettings.json)). Each module has its own cluster (`flight`, `passenger`, `booking`, `identity`) whose single destination is the monolith, plus a `monolith` fallback cluster for everything else (`/connect`, `/.well-known`, Swagger, health). Any other `/api/*` path still requires a valid token (`api-fallback` route). To move a module to an extracted service, repoint **only** that cluster's destination — no code change:
+Routing is fully config-driven (`ReverseProxy` section of [`appsettings.json`](./src/Gateway/src/appsettings.json)). Each module has its own cluster (`flight`, `passenger`, `booking`, `identity`) whose single destination (still named `monolith` for compatibility) is that module's service, plus a `monolith` fallback cluster, now pointing at Identity, for everything else (`/connect`, `/.well-known`, Swagger, health). Any other `/api/*` path still requires a valid token (`api-fallback` route). To move a module to an extracted service, repoint **only** that cluster's destination — no code change:
 
 ```bash
 # e.g. Flight is now served by its own service

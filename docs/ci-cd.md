@@ -6,7 +6,7 @@ retests and republishes what it affects. All service pipelines call one reusable
 
 | Workflow | Deployable | Image | Triggers (besides shared inputs\*) |
 |---|---|---|---|
-| `ci.yml` | Monolith (`src/Api` + all modules) | `ghcr.io/cog-gtm/booking-monolith` | everything except `src/Gateway/**`, `src/Services/**`, docs, other pipelines' files |
+| `ci.yml` | none — BuildingBlocks, module and Gateway tests (the `src/Api` monolith image was decommissioned in AB-505) | — | everything except `src/Gateway/**`, `src/Services/**`, docs, other pipelines' files |
 | `service-gateway.yml` | YARP gateway (`src/Gateway`) | `ghcr.io/cog-gtm/booking-gateway` | `src/Gateway/**` |
 | `service-identity.yml` | Identity host | `ghcr.io/cog-gtm/booking-identity` | `src/Services/Identity.Host/**`, `src/Modules/Identity/**` |
 | `service-flight.yml` | Flight host | `ghcr.io/cog-gtm/booking-flight` | `src/Services/Flight.Host/**`, `src/Modules/Flight/**` |
@@ -28,7 +28,7 @@ depends on ServiceDefaults, so BuildingBlocks/Contracts changes don't rebuild it
 1. **build-test** — one matrix job per target through `.github/actions/build-test` (restore, CSharpier
    check, Release build, `dotnet test` incl. Testcontainers suites, TRX report). Targets whose project
    directory doesn't exist yet are skipped with a notice, so pipelines for hosts that haven't landed
-   stay green. `targets: "[]"` skips the job (used by `ci.yml`, which tests the monolith itself).
+   stay green. `targets: "[]"` skips the job.
 2. **image** — runs after build-test succeeds. Builds `dockerfile` (context = repo root) through
    `.github/actions/docker-build-publish` (Buildx + GHA layer cache). Skipped with a notice when the
    Dockerfile doesn't exist yet.

@@ -1,4 +1,3 @@
-using Api;
 using BuildingBlocks.Constants;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.MassTransit;
@@ -6,20 +5,18 @@ using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.TestBase;
 using EasyNetQ.Management.Client;
 using FluentAssertions;
-using Identity.Identity.Models;
 using MassTransit;
 using MassTransit.Testing;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Passenger.Data;
+using Passenger.Host;
 using Passenger.Identity.Consumers.RegisteringNewUser.V1;
 using Xunit;
-using RegisterNewUserCommand = Identity.Identity.Features.RegisteringNewUser.V1.RegisterNewUser;
 
 namespace Integration.Test.Messaging;
 
-// Runs the monolith on a real RabbitMQ (Testcontainers) instead of the in-memory transport.
+// Runs the Passenger host on a real RabbitMQ (Testcontainers) instead of the in-memory transport.
 public class RabbitMqTestFixture : TestFixture<Program, PassengerDbContext, PassengerReadDbContext>
 {
     public const string ServiceName = "passenger-it";
@@ -70,33 +67,16 @@ public class RabbitMqUserCreatedTests : TestBase<Program, PassengerDbContext, Pa
         queues.Select(q => q.Name).Should().Contain(ConsumerQueue);
     }
 
+    // Identity runs in its own host now, so publish UserCreated the way its outbox does (outbox row id as
+    // the broker MessageId). The Identity -> RabbitMQ -> Passenger hop across hosts is covered by
+    // tests/Microservices.EndToEnd.Test.
     [Fact]
-    public async Task user_created_from_identity_outbox_should_be_consumed_by_passenger_over_rabbitmq()
+    public async Task user_created_published_over_rabbitmq_should_be_consumed_by_passenger()
     {
+        var messageId = NewId.NextGuid();
         var passportNumber = $"P{Random.Shared.Next(10_000_000, 99_999_999)}";
-        var command = new RegisterNewUserCommand(
-            "Rabbit",
-            "Mq",
-            $"rabbit{Guid.NewGuid():N}"[..20],
-            $"{Guid.NewGuid():N}@test.com",
-            "Password@123",
-            "Password@123",
-            passportNumber
-        );
 
-        // The write DB is shared with Identity and reset after every test, so restore the roles it needs.
-        await EnsureIdentityRolesAsync();
-
-        await _fixture.SendAsync(command);
-
-        var outboxRow = await WaitForAsync(
-            async () =>
-                (await PersistMessages(x => x.DeliveryType == MessageDeliveryType.Outbox)).FirstOrDefault(x =>
-                    x.DataType.Contains(nameof(UserCreated), StringComparison.Ordinal)
-                    && x.Data.Contains(passportNumber, StringComparison.Ordinal)
-                )
-        );
-        outboxRow.Should().NotBeNull("Identity must write UserCreated to its outbox");
+        await PublishWithMessageId(new UserCreated(Guid.NewGuid(), "Rabbit Mq", passportNumber), messageId);
 
         var passengerCreated = await WaitForAsync(
             async () =>
@@ -111,14 +91,12 @@ public class RabbitMqUserCreatedTests : TestBase<Program, PassengerDbContext, Pa
         // The harness records the consume after the consumer returns, i.e. after the passenger row commits.
         var harness = _fixture.ServiceProvider.GetRequiredService<ITestHarness>();
         var consumed = await WaitForAsync(() =>
-            Task.FromResult(
-                harness.Consumed.Select<UserCreated>(x => x.Context.MessageId == outboxRow!.Id).FirstOrDefault()
-            )
+            Task.FromResult(harness.Consumed.Select<UserCreated>(x => x.Context.MessageId == messageId).FirstOrDefault())
         );
-        consumed.Should().NotBeNull("the outbox row id is the broker MessageId");
+        consumed.Should().NotBeNull("the published MessageId is the broker MessageId");
         consumed!.Context.ReceiveContext.InputAddress!.AbsolutePath.Trim('/').Should().Be(ConsumerQueue);
 
-        var inboxId = InboxMessageId.Create(outboxRow!.Id, consumed.Context.ReceiveContext.InputAddress);
+        var inboxId = InboxMessageId.Create(messageId, consumed.Context.ReceiveContext.InputAddress);
         var inboxRow = await WaitForAsync(
             async () =>
                 (
@@ -218,20 +196,6 @@ public class RabbitMqUserCreatedTests : TestBase<Program, PassengerDbContext, Pa
             .NotBe(MessageStatus.Processed);
     }
 
-    private async Task EnsureIdentityRolesAsync()
-    {
-        using var scope = _fixture.ServiceProvider.CreateScope();
-        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<Role>>();
-
-        foreach (var role in new[] { IdentityConstant.Role.Admin, IdentityConstant.Role.User })
-        {
-            if (!await roleManager.RoleExistsAsync(role))
-            {
-                await roleManager.CreateAsync(new Role { Name = role });
-            }
-        }
-    }
-
     private async Task PublishWithMessageId(UserCreated message, Guid messageId)
     {
         var bus = _fixture.ServiceProvider.GetRequiredService<IBus>();
@@ -245,7 +209,6 @@ public class RabbitMqUserCreatedTests : TestBase<Program, PassengerDbContext, Pa
         using var scope = _fixture.ServiceProvider.CreateScope();
         var messages = new List<PersistMessage>();
 
-        // Outbox rows live in the publisher's (Identity) store, inbox rows in the consumer's (Passenger) store.
         foreach (var store in scope.ServiceProvider.GetServices<PersistMessageStore>())
         {
             var module = store.DbContextType.GetGenericArguments()[0];

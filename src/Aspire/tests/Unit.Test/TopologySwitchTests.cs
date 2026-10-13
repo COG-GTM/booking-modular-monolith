@@ -4,10 +4,12 @@ using static AppHost.Unit.Test.AppHostModel;
 
 namespace AppHost.Unit.Test;
 
-// AppHost:Topology picks the whole resource graph; both modes must stay self-contained.
+// Only the services topology is left (src/Api was decommissioned in AB-505).
 public class TopologySwitchTests
 {
     private static readonly string[] ServiceProjects = ["booking", "flight", "identity", "passenger"];
+
+    // Databases the decommissioned monolith used; the services topology must not recreate them.
     private static readonly string[] MonolithDatabases =
     [
         "flight",
@@ -35,13 +37,12 @@ public class TopologySwitchTests
 
     [Theory]
     [InlineData("monolith")]
-    [InlineData("MONOLITH")]
     [InlineData("Monolith")]
-    public async Task monolith_topology_is_matched_case_insensitively(string topology)
+    public async Task monolith_topology_is_rejected_after_the_decommission(string topology)
     {
-        await using var appHost = await BuildAsync(new() { ["AppHost:Topology"] = topology });
+        var error = await Assert.ThrowsAnyAsync<Exception>(() => BuildAsync(new() { ["AppHost:Topology"] = topology }));
 
-        Assert.Equal(["api", "gateway"], ProjectNames(appHost));
+        Assert.Contains("removed together with src/Api", error.ToString(), StringComparison.Ordinal);
     }
 
     [Theory]
@@ -62,58 +63,6 @@ public class TopologySwitchTests
 
         Assert.Contains("'Mesh'", message, StringComparison.Ordinal);
         Assert.Contains("'Services'", message, StringComparison.Ordinal);
-        Assert.Contains("'Monolith'", message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task monolith_topology_registers_no_per_service_resources()
-    {
-        await using var appHost = await BuildMonolithAsync();
-        var names = GetResources(appHost.App).Select(r => r.Name).ToList();
-
-        Assert.DoesNotContain(names, name => name.Contains("-service-", StringComparison.Ordinal));
-        Assert.DoesNotContain(GetResources(appHost.App).OfType<MongoDBDatabaseResource>(), _ => true);
-    }
-
-    [Fact]
-    public async Task monolith_topology_keeps_every_module_database_on_the_api()
-    {
-        await using var appHost = await BuildMonolithAsync();
-        var databases = GetResources(appHost.App).OfType<PostgresDatabaseResource>().ToDictionary(db => db.Name);
-        var env = await GetEnvironmentAsync(appHost.App, "api");
-        var waits = GetProject(appHost.App, "api")
-            .Annotations.OfType<WaitAnnotation>()
-            .Select(w => w.Resource.Name)
-            .ToList();
-
-        foreach (var database in MonolithDatabases)
-        {
-            Assert.Equal(database.Replace('-', '_'), databases[database].DatabaseName);
-            Assert.Equal($"{{{database}.connectionString}}", env[$"ConnectionStrings__{database}"]);
-            Assert.Contains(database, waits);
-        }
-
-        Assert.Equal("{mongo.connectionString}", env["ConnectionStrings__mongo"]);
-        Assert.Equal("{eventstore.connectionString}", env["ConnectionStrings__eventstore"]);
-        Assert.Equal("{rabbitmq.connectionString}", env["ConnectionStrings__rabbitmq"]);
-        Assert.Equal("RabbitMq", env["MessageBroker__TransportType"]);
-        Assert.Contains("mongo", waits);
-        Assert.Contains("eventstore", waits);
-        Assert.Contains("rabbitmq", waits);
-    }
-
-    [Fact]
-    public async Task monolith_api_keeps_its_ports_and_issues_tokens_from_https()
-    {
-        await using var appHost = await BuildMonolithAsync();
-        var api = GetProject(appHost.App, "api");
-        var endpoints = api.Annotations.OfType<EndpointAnnotation>().ToDictionary(e => e.Name);
-        var env = await GetEnvironmentAsync(appHost.App, "api");
-
-        Assert.Equal(3001, endpoints["api-http"].Port);
-        Assert.Equal(3000, endpoints["api-https"].Port);
-        Assert.Equal("{api.bindings.api-https.url}", env["AuthOptions__IssuerUri"]);
-        Assert.Equal("{api.bindings.api-https.url}", env["Jwt__Authority"]);
     }
 
     [Fact]

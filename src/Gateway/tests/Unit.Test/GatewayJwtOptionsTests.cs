@@ -27,7 +27,7 @@ public class GatewayJwtOptionsTests
     [Fact]
     public void configured_metadata_address_overrides_discovery_but_issuer_is_still_the_authority()
     {
-        const string metadataAddress = "http://booking_modular_monolith:80/.well-known/openid-configuration";
+        const string metadataAddress = "http://identity-service:80/.well-known/openid-configuration";
         using var factory = CreateFactory(("Jwt:MetadataAddress", metadataAddress));
 
         var options = GetJwtBearerOptions(factory);

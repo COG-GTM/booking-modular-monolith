@@ -22,8 +22,10 @@ ARB triggers (`/arb-review:arb-triage` verdict **ARB_REQUIRED**):
 - **T6 auth / network boundary**: every gateway cluster is repointed to a service, the token issuer
   moves to the Identity service, and signing + Data Protection keys are shared between two hosts.
 
-False positives: the detector's T2 "PII" hit (`docs/runbooks/identity.md`) is a runbook sentence
-mentioning the passport field of a smoke-test passenger, not a new store of PII. Not triggered:
+False positives: the detector's T2 "PII" hits (`docs/runbooks/identity.md` and this ADR) are
+sentences mentioning the passport field of a smoke-test passenger, not a new store of PII; its T1
+hits are the deleted `src/Api/Dockerfile` and a comment-only edit to
+`deployments/docker-compose/docker-compose.yaml`. Not triggered:
 T1 (nothing new is deployed; the monolith host is removed), T3 (no new vendor; `pg_dump`/`mongodump`
 ship in the postgres/mongo images already in use), T4 (no contract changes), T5 (no
 `policy/approved-infra.yaml` in this repo; no new infrastructure), T7, T8, T9.

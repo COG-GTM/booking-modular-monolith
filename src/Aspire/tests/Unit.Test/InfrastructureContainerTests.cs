@@ -7,7 +7,7 @@ namespace AppHost.Unit.Test;
 // Image pins and arguments the AppHost needs for every container to start and report healthy.
 public class InfrastructureContainerTests
 {
-    public static TheoryData<string?> Topologies => new() { null, MonolithTopology };
+    public static TheoryData<string?> Topologies => new() { null, "Services" };
 
     [Theory]
     [MemberData(nameof(Topologies))]
@@ -53,15 +53,12 @@ public class InfrastructureContainerTests
     }
 
     [Fact]
-    public async Task shared_infrastructure_is_the_same_in_both_topologies()
+    public async Task shared_infrastructure_containers_are_registered()
     {
         await using var services = await BuildAsync();
-        await using var monolith = await BuildMonolithAsync();
 
         var servicesContainers = ContainerNames(services);
-        var monolithContainers = ContainerNames(monolith);
 
-        Assert.Equal(servicesContainers, monolithContainers);
         Assert.Contains("postgres", servicesContainers);
         Assert.Contains("mongo", servicesContainers);
         Assert.Contains("rabbitmq", servicesContainers);

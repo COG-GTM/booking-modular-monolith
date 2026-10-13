@@ -10,7 +10,7 @@ on:
       service:
         description: Service to deploy
         type: choice
-        options: [gateway, identity, flight, passenger, booking, monolith]
+        options: [gateway, identity, flight, passenger, booking]
         required: true
       environment:
         description: Target environment (GitHub environment name; protection rules apply)

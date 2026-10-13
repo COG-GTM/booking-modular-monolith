@@ -165,6 +165,8 @@ host), then daily during burn-in. Roll back if any of these hold:
 ## 7. Running it locally
 
 ```bash
+# src/Api is decommissioned: replaying the cut-over needs the last released monolith image.
+export MONOLITH_IMAGE=ghcr.io/cog-gtm/booking-monolith:<last-version>
 export COMPOSE_DIR=deployments/docker-compose
 docker compose -f $COMPOSE_DIR/docker-compose.yaml -f deployments/cutover/docker-compose.cutover.yaml build
 deployments/cutover/flip-route.sh up          # all contexts on the monolith, services dark
