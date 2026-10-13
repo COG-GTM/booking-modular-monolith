@@ -1,6 +1,7 @@
 namespace Passenger.Passengers.Features.CompletingRegisterPassenger.V1;
 
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
@@ -41,7 +42,7 @@ public class CompleteRegisterPassengerEndpoint : IMinimalEndpoint
     {
         builder.MapPost($"{EndpointConfig.BaseApiPath}/passenger/complete-registration", async (
                 CompleteRegisterPassengerRequestDto request, IMapper mapper,
-                IMediator mediator, CancellationToken cancellationToken, IHttpContextAccessor httpContextAccessor) =>
+                IMediator mediator, CancellationToken cancellationToken) =>
             {
                 var command = mapper.Map<CompleteRegisterPassenger>(request);
 
@@ -56,6 +57,7 @@ public class CompleteRegisterPassengerEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Passenger").Build())
             .Produces<CompleteRegisterPassengerResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .WithSummary("Complete Register Passenger")
             .WithDescription("Complete Register Passenger")
             .WithOpenApi()
@@ -85,11 +87,14 @@ internal class CompleteRegisterPassengerCommandHandler : ICommandHandler<Complet
 {
     private readonly IMapper _mapper;
     private readonly PassengerDbContext _passengerDbContext;
+    private readonly ICurrentUserProvider _currentUserProvider;
 
-    public CompleteRegisterPassengerCommandHandler(IMapper mapper, PassengerDbContext passengerDbContext)
+    public CompleteRegisterPassengerCommandHandler(IMapper mapper, PassengerDbContext passengerDbContext,
+        ICurrentUserProvider currentUserProvider)
     {
         _mapper = mapper;
         _passengerDbContext = passengerDbContext;
+        _currentUserProvider = currentUserProvider;
     }
 
     public async Task<CompleteRegisterPassengerResult> Handle(CompleteRegisterPassenger request,
@@ -105,6 +110,8 @@ internal class CompleteRegisterPassengerCommandHandler : ICommandHandler<Complet
             throw new PassengerNotExist();
         }
 
+        EnsureCallerCanModify(passenger);
+
         passenger.CompleteRegistrationPassenger(passenger.Id, passenger.Name,
             passenger.PassportNumber, request.PassengerType, Age.Of(request.Age));
 
@@ -113,5 +120,20 @@ internal class CompleteRegisterPassengerCommandHandler : ICommandHandler<Complet
         var passengerDto = _mapper.Map<PassengerDto>(updatePassenger);
 
         return new CompleteRegisterPassengerResult(passengerDto);
+    }
+
+    private void EnsureCallerCanModify(Models.Passenger passenger)
+    {
+        if (_currentUserProvider.IsInRole(IdentityConstant.Role.Admin))
+        {
+            return;
+        }
+
+        var currentUserId = _currentUserProvider.GetCurrentUserGuid();
+
+        if (currentUserId is null || passenger.UserId is null || passenger.UserId != currentUserId)
+        {
+            throw new PassengerAccessDeniedException();
+        }
     }
 }
