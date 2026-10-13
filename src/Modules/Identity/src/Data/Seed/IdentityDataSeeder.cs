@@ -53,17 +53,26 @@ public class IdentityDataSeeder : IDataSeeder
 
     private async Task SeedRoles()
     {
-        if (!await _identityContext.Roles.AnyAsync())
-        {
-            if (await _roleManager.RoleExistsAsync(IdentityConstant.Role.Admin) == false)
-            {
-                await _roleManager.CreateAsync(new Role { Name = IdentityConstant.Role.Admin });
-            }
+        await SeedRole(IdentityConstant.Role.Admin);
+        await SeedRole(IdentityConstant.Role.User);
+    }
 
-            if (await _roleManager.RoleExistsAsync(IdentityConstant.Role.User) == false)
-            {
-                await _roleManager.CreateAsync(new Role { Name = IdentityConstant.Role.User });
-            }
+    private async Task SeedRole(string role)
+    {
+        if (await _roleManager.RoleExistsAsync(role))
+        {
+            return;
+        }
+
+        var result = await _roleManager.CreateAsync(new Role { Name = role });
+
+        if (!result.Succeeded)
+        {
+            _logger.LogError(
+                "Seeding role '{Role}' failed: {Errors}",
+                role,
+                string.Join("; ", result.Errors.Select(e => e.Description))
+            );
         }
     }
 
@@ -115,7 +124,18 @@ public class IdentityDataSeeder : IDataSeeder
             return;
         }
 
-        await _userManager.AddToRoleAsync(user, role);
+        var roleResult = await _userManager.AddToRoleAsync(user, role);
+
+        if (!roleResult.Succeeded)
+        {
+            _logger.LogError(
+                "Assigning role '{Role}' to seeded user '{UserName}' failed: {Errors}",
+                role,
+                user.UserName,
+                string.Join("; ", roleResult.Errors.Select(e => e.Description))
+            );
+            return;
+        }
 
         await _eventDispatcher.SendAsync(
             new UserCreated(user.Id, user.FirstName + " " + user.LastName, user.PassPortNumber)

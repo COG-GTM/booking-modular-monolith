@@ -108,6 +108,38 @@ public class IdentityDataSeederTests
     }
 
     [Fact]
+    public async Task should_create_missing_role_and_seed_admin_when_roles_are_partially_present()
+    {
+        await using var harness = await SeederHarness.CreateAsync(
+            new IdentitySeedOptions { AdminPassword = AdminPassword }
+        );
+
+        (await harness.RoleManager.CreateAsync(new Role { Name = IdentityConstant.Role.User }))
+            .Succeeded.Should()
+            .BeTrue();
+        (
+            await harness.UserManager.CreateAsync(
+                new User
+                {
+                    UserName = "existing",
+                    FirstName = "Existing",
+                    LastName = "User",
+                    PassPortNumber = "0",
+                },
+                UserPassword
+            )
+        ).Succeeded.Should().BeTrue();
+
+        await harness.Seeder.SeedAllAsync();
+
+        (await harness.RoleManager.RoleExistsAsync(IdentityConstant.Role.Admin)).Should().BeTrue();
+        var admin = await harness.UserManager.FindByNameAsync("samh");
+        admin.Should().NotBeNull();
+        (await harness.UserManager.GetRolesAsync(admin!)).Should().BeEquivalentTo(IdentityConstant.Role.Admin);
+        harness.Logger.Entries.Should().NotContain(e => e.Level == LogLevel.Error);
+    }
+
+    [Fact]
     public async Task should_seed_both_users_with_their_roles_when_both_passwords_are_configured()
     {
         await using var harness = await SeederHarness.CreateAsync(
@@ -196,6 +228,7 @@ public class IdentityDataSeederTests
 
             Context = _scope.ServiceProvider.GetRequiredService<IdentityContext>();
             UserManager = _scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+            RoleManager = _scope.ServiceProvider.GetRequiredService<RoleManager<Role>>();
             Seeder = _scope.ServiceProvider.GetRequiredService<IdentityDataSeeder>();
             Events = _scope.ServiceProvider.GetRequiredService<RecordingEventDispatcher>().Events;
             Logger = _scope.ServiceProvider.GetRequiredService<RecordingLogger<IdentityDataSeeder>>();
@@ -203,6 +236,7 @@ public class IdentityDataSeederTests
 
         public IdentityContext Context { get; }
         public UserManager<User> UserManager { get; }
+        public RoleManager<Role> RoleManager { get; }
         public IdentityDataSeeder Seeder { get; }
         public List<object> Events { get; }
         public RecordingLogger<IdentityDataSeeder> Logger { get; }
