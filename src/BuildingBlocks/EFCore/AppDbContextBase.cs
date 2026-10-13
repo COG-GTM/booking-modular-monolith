@@ -91,32 +91,14 @@ public abstract class AppDbContextBase : DbContext, IDbContext
         });
     }
 
-    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         OnBeforeSaving();
-        try
-        {
-            return await base.SaveChangesAsync(cancellationToken);
-        }
-        //ref: https://learn.microsoft.com/en-us/ef/core/saving/concurrency?tabs=data-annotations#resolving-concurrency-conflicts
-        catch (DbUpdateConcurrencyException ex)
-        {
-            foreach (var entry in ex.Entries)
-            {
-                var databaseValues = await entry.GetDatabaseValuesAsync(cancellationToken);
 
-                if (databaseValues == null)
-                {
-                    _logger.LogError("The record no longer exists in the database, The record has been deleted by another user.");
-                    throw;
-                }
-
-                // Refresh the original values to bypass next concurrency check
-                entry.OriginalValues.SetValues(databaseValues);
-            }
-
-            return await base.SaveChangesAsync(cancellationToken);
-        }
+        // Concurrency conflicts (DbUpdateConcurrencyException) are intentionally not caught here.
+        // Swallowing them and retrying with refreshed OriginalValues turns the Version concurrency
+        // token into last-writer-wins, which allows e.g. the same seat to be reserved twice.
+        return base.SaveChangesAsync(cancellationToken);
     }
 
     public IReadOnlyList<IDomainEvent> GetDomainEvents()
