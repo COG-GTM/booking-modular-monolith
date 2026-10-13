@@ -1,0 +1,224 @@
+{{- /*
+One Deployment + Service (ClusterIP) + ConfigMap + Secret (+ HPA) per enabled service.
+Only the gateway is exposed externally, through ingress.yaml.
+*/ -}}
+{{- $root := . -}}
+{{- range $name := list "gateway" "identity" "flight" "passenger" "booking" }}
+{{- $raw := index $root.Values.services $name }}
+{{- if $raw.enabled }}
+{{- $s := include "booking.serviceValues" (dict "root" $root "name" $name) | fromYaml }}
+{{- $ctx := dict "root" $root "name" $s.serviceName "svc" $s }}
+{{- $secretName := default (printf "%s-secrets" $s.serviceName) $s.existingSecret }}
+{{- $replicas := int $s.replicas }}
+{{- if and (eq $name "booking") (or (hasKey $s.env "Modules__Booking__BackgroundProcessingEnabled") (hasKey $s.secretEnv "Modules__Booking__BackgroundProcessingEnabled")) }}
+{{- fail "services.booking: set backgroundProcessingEnabled instead of overriding Modules__Booking__BackgroundProcessingEnabled in env/secretEnv (the replica guard relies on it)" }}
+{{- end }}
+{{- if and (eq $name "booking") $s.backgroundProcessingEnabled (or (gt $replicas 1) $s.hpa.enabled) }}
+{{- fail "services.booking: replicas must be 1 and hpa disabled while backgroundProcessingEnabled=true (single ESDB subscription consumer, ADR 0496)" }}
+{{- end }}
+{{- $sharedKey := and (eq $name "identity") $root.Values.identity.signingKey.existingSecret }}
+{{- if and (eq $name "identity") (not $sharedKey) (or (gt $replicas 1) $s.hpa.enabled) }}
+{{- fail "services.identity: replicas > 1 / hpa need identity.signingKey.existingSecret (all replicas must sign with the same key)" }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $s.serviceName }}-config
+  labels:
+    {{- include "booking.labels" $ctx | nindent 4 }}
+data:
+  {{- include "booking.configEnv" (dict "root" $root "name" $name "svc" $s) | nindent 2 }}
+{{- if not $s.existingSecret }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $secretName }}
+  labels:
+    {{- include "booking.labels" $ctx | nindent 4 }}
+type: Opaque
+stringData:
+  {{- include "booking.secretEnv" (dict "root" $root "name" $name "svc" $s) | nindent 2 }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $s.serviceName }}
+  labels:
+    {{- include "booking.labels" $ctx | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "booking.selectorLabels" $ctx | nindent 4 }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+      appProtocol: http
+    {{- if $s.grpc }}
+    - name: grpc
+      port: 81
+      targetPort: grpc
+      protocol: TCP
+      appProtocol: kubernetes.io/h2c
+    {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $s.serviceName }}
+  labels:
+    {{- include "booking.labels" $ctx | nindent 4 }}
+spec:
+  {{- if not $s.hpa.enabled }}
+  replicas: {{ $replicas }}
+  {{- end }}
+  revisionHistoryLimit: 3
+  {{- if eq $name "booking" }}
+  # Never run two background-processing replicas side by side during a rollout.
+  strategy:
+    type: Recreate
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "booking.selectorLabels" $ctx | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "booking.labels" $ctx | nindent 8 }}
+      annotations:
+        checksum/config: {{ include "booking.configEnv" (dict "root" $root "name" $name "svc" $s) | sha256sum }}
+        checksum/secret: {{ include "booking.secretEnv" (dict "root" $root "name" $name "svc" $s) | sha256sum }}
+        {{- with $s.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with $root.Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $root.Values.global.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      enableServiceLinks: false
+      {{- if and $root.Values.global.waitForDependencies.enabled $s.waitFor }}
+      initContainers:
+        - name: wait-for-dependencies
+          image: {{ $root.Values.global.waitForDependencies.image }}
+          imagePullPolicy: {{ $root.Values.global.imagePullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              for dep in {{ range $dep := $s.waitFor }}"{{ include "booking.dependencyAddress" (dict "root" $root "dep" $dep) }}" {{ end }}; do
+                until nc -z -w 2 $dep; do echo "waiting for $dep"; sleep 2; done
+              done
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65534
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 50m, memory: 32Mi}
+      {{- end }}
+      containers:
+        - name: {{ $s.serviceName }}
+          image: {{ include "booking.image" (dict "root" $root "name" $name) }}
+          imagePullPolicy: {{ $root.Values.global.imagePullPolicy }}
+          {{- with $root.Values.global.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            {{- if $s.grpc }}
+            - name: grpc
+              containerPort: 81
+              protocol: TCP
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ $s.serviceName }}-config
+            - secretRef:
+                name: {{ $secretName }}
+          {{- if and (ne $name "gateway") $root.Values.rabbitmq.existingSecret }}
+          env:
+            - name: MessageBroker__RabbitMq__Username
+              valueFrom:
+                secretKeyRef: {name: {{ $root.Values.rabbitmq.existingSecret }}, key: username}
+            - name: MessageBroker__RabbitMq__Password
+              valueFrom:
+                secretKeyRef: {name: {{ $root.Values.rabbitmq.existingSecret }}, key: password}
+          {{- end }}
+          startupProbe:
+            httpGet: {path: {{ $s.probes.livenessPath }}, port: http}
+            periodSeconds: 5
+            failureThreshold: {{ $s.probes.startupFailureThreshold }}
+          livenessProbe:
+            httpGet: {path: {{ $s.probes.livenessPath }}, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: {path: {{ $s.probes.readinessPath }}, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml $s.resources | nindent 12 }}
+          {{- if $sharedKey }}
+          volumeMounts:
+            - name: signing-key
+              mountPath: /app/tempkey.jwk
+              subPath: {{ $root.Values.identity.signingKey.key }}
+              readOnly: true
+          {{- end }}
+      {{- if $sharedKey }}
+      volumes:
+        - name: signing-key
+          secret:
+            secretName: {{ $root.Values.identity.signingKey.existingSecret }}
+      {{- end }}
+      {{- with $s.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $s.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $s.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- if $s.hpa.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $s.serviceName }}
+  labels:
+    {{- include "booking.labels" $ctx | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $s.serviceName }}
+  minReplicas: {{ $s.hpa.minReplicas }}
+  maxReplicas: {{ $s.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $s.hpa.targetCPUUtilizationPercentage }}
+{{- end }}
+{{- end }}
+{{- end }}

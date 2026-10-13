@@ -1,0 +1,9 @@
+apiVersion: v2
+name: booking
+description: >-
+  Booking microservices (gateway, identity, flight, passenger, booking) with optional in-chart
+  Postgres/MongoDB/RabbitMQ/EventStoreDB for local clusters (AB-491).
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords: [booking, dotnet, yarp, microservices]
