@@ -5,6 +5,7 @@ using BuildingBlocks.Mongo;
 using BuildingBlocks.Web;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
@@ -26,22 +27,20 @@ public static class Extensions
         {
             var appOptions = services.GetOptions<AppOptions>(nameof(AppOptions));
             var postgresOptions = services.GetOptions<PostgresOptions>(nameof(PostgresOptions));
-            var rabbitMqOptions = services.GetOptions<RabbitMqOptions>(nameof(RabbitMqOptions));
+            var messageBrokerOptions = services.GetOptions<MessageBrokerOptions>(MessageBrokerOptions.SectionName);
             var eventStoreOptions = services.GetOptions<EventStoreOptions>(nameof(EventStoreOptions));
             var mongoOptions = services.GetOptions<MongoOptions>(nameof(MongoOptions));
 
             var healthChecksBuilder = services.AddHealthChecks()
                 // Add a default liveness check to ensure app is responsive
-                .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"])
-                .AddRabbitMQ(
-                    serviceProvider =>
-                    {
-                        var factory = new ConnectionFactory
-                        {
-                            Uri = new Uri($"amqp://{rabbitMqOptions.UserName}:{rabbitMqOptions.Password}@{rabbitMqOptions.HostName}"),
-                        };
-                        return factory.CreateConnectionAsync();
-                    });
+                .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
+
+            if (messageBrokerOptions.TransportType == TransportType.RabbitMq)
+            {
+                healthChecksBuilder.AddRabbitMQ(serviceProvider =>
+                    CreateRabbitMqConnectionFactory(serviceProvider).CreateConnectionAsync()
+                );
+            }
 
             if (!string.IsNullOrEmpty(mongoOptions.ConnectionString))
             {
@@ -67,6 +66,32 @@ public static class Extensions
 
         services.AddHealthChecks().AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
         return services;
+    }
+
+    // Same precedence as the MassTransit bus: Aspire ConnectionStrings:rabbitmq, then MessageBroker:RabbitMq.
+    private static ConnectionFactory CreateRabbitMqConnectionFactory(IServiceProvider serviceProvider)
+    {
+        var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+        var connectionString = configuration.GetConnectionString(MassTransit.Extensions.RabbitMqConnectionName);
+
+        if (!string.IsNullOrEmpty(connectionString))
+        {
+            return new ConnectionFactory { Uri = new Uri(connectionString) };
+        }
+
+        var options =
+            serviceProvider.GetService<MessageBrokerOptions>()
+            ?? configuration.GetOptions<MessageBrokerOptions>(MessageBrokerOptions.SectionName);
+        var rabbitMq = options.RabbitMq ?? new RabbitMqTransportOptions();
+
+        return new ConnectionFactory
+        {
+            HostName = rabbitMq.Host,
+            Port = rabbitMq.Port,
+            VirtualHost = rabbitMq.VirtualHost,
+            UserName = rabbitMq.Username,
+            Password = rabbitMq.Password,
+        };
     }
 
     public static WebApplication UseCustomHealthCheck(this WebApplication app)
