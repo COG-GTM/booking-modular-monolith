@@ -113,6 +113,10 @@ jobs:
           service-name: 'Gateway'
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Pack Contracts.Messages
+        if: success()
+        run: dotnet pack src/Contracts/Contracts.Messages/Contracts.Messages.csproj -c Release -o artifacts/packages
+
       - name: Update Release Drafter
         if: ${{ github.ref == 'refs/heads/main' && success() }}
         id: last_release
