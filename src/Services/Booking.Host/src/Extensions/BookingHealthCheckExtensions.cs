@@ -46,24 +46,37 @@ public static class BookingHealthCheckExtensions
         if (brokerOptions.TransportType == TransportType.RabbitMq)
         {
             checks.AddRabbitMQ(
-                sp =>
-                {
-                    var rabbitMq = sp.GetRequiredService<MessageBrokerOptions>().RabbitMq;
-                    return new ConnectionFactory
-                    {
-                        HostName = rabbitMq.Host,
-                        Port = rabbitMq.Port,
-                        VirtualHost = rabbitMq.VirtualHost,
-                        UserName = rabbitMq.Username,
-                        Password = rabbitMq.Password,
-                    }.CreateConnectionAsync();
-                },
+                sp => CreateRabbitMqConnectionFactory(sp).CreateConnectionAsync(),
                 name: "booking-rabbitmq",
                 tags: [ReadyTag]
             );
         }
 
         return services;
+    }
+
+    // Same precedence as the MassTransit bus: Aspire ConnectionStrings:rabbitmq, then MessageBroker:RabbitMq.
+    private static ConnectionFactory CreateRabbitMqConnectionFactory(IServiceProvider serviceProvider)
+    {
+        var connectionString = serviceProvider
+            .GetRequiredService<IConfiguration>()
+            .GetConnectionString(BuildingBlocks.MassTransit.Extensions.RabbitMqConnectionName);
+
+        if (!string.IsNullOrEmpty(connectionString))
+        {
+            return new ConnectionFactory { Uri = new Uri(connectionString) };
+        }
+
+        var rabbitMq = serviceProvider.GetRequiredService<MessageBrokerOptions>().RabbitMq;
+
+        return new ConnectionFactory
+        {
+            HostName = rabbitMq.Host,
+            Port = rabbitMq.Port,
+            VirtualHost = rabbitMq.VirtualHost,
+            UserName = rabbitMq.Username,
+            Password = rabbitMq.Password,
+        };
     }
 }
 
