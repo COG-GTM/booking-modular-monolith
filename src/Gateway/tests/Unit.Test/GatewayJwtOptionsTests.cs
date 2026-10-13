@@ -9,7 +9,7 @@ namespace Gateway.Unit.Test;
 
 public class GatewayJwtOptionsTests
 {
-    private const string Authority = "https://localhost:3000";
+    private const string Authority = "http://localhost:5100";
     private const string Audience = "booking-modular-monolith";
 
     [Fact]
@@ -27,7 +27,7 @@ public class GatewayJwtOptionsTests
     [Fact]
     public void configured_metadata_address_overrides_discovery_but_issuer_is_still_the_authority()
     {
-        const string metadataAddress = "http://booking_modular_monolith:80/.well-known/openid-configuration";
+        const string metadataAddress = "http://identity-service:80/.well-known/openid-configuration";
         using var factory = CreateFactory(("Jwt:MetadataAddress", metadataAddress));
 
         var options = GetJwtBearerOptions(factory);

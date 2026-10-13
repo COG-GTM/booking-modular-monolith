@@ -9,15 +9,10 @@ namespace AppHost.Unit.Test;
 
 internal static class AppHostModel
 {
-    public const string MonolithTopology = "Monolith";
-
     public static readonly string[] Clusters = ["flight", "passenger", "booking", "identity", "monolith"];
 
     public static string ClusterAddressKey(string cluster) =>
         $"ReverseProxy__Clusters__{cluster}__Destinations__monolith__Address";
-
-    public static Task<AppHostUnderTest> BuildMonolithAsync(Dictionary<string, string?>? configuration = null) =>
-        BuildAsync(new(configuration ?? []) { ["AppHost:Topology"] = MonolithTopology });
 
     public static async Task<AppHostUnderTest> BuildAsync(Dictionary<string, string?>? configuration = null)
     {

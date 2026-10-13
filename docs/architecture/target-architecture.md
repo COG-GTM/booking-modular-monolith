@@ -9,9 +9,12 @@ modular monolith to one service per module. Decisions are recorded in the
 - Mermaid sources: [target-state.mmd](target-state.mmd), [transition-state.mmd](transition-state.mmd)
   (re-render with `npx @mermaid-js/mermaid-cli -i <file>.mmd -o ../../assets/<file>.svg -b white`)
 
-## Current state
+## Pre-migration state
 
-One host (`src/Api`) composes Identity, Flight, Passenger and Booking. Modules talk via in-process
+> `src/Api` was decommissioned in AB-505 once every route was served by its service; see
+> [docs/runbooks](../runbooks/README.md).
+
+One host (`src/Api`) composed Identity, Flight, Passenger and Booking. Modules talked via in-process
 gRPC (Booking -> Flight/Passenger) and MassTransit's in-memory bus; per-module Postgres databases
 (`*_modular_monolith`), a shared outbox DB (`persist_message`), one Mongo read DB
 (`booking_modular_monolith_read`) and EventStoreDB. See
@@ -87,13 +90,14 @@ flowchart LR
 
 ## Transition state (strangler-fig)
 
-Example: Flight has been peeled off. The gateway's `flight` cluster now points at the Flight
-service; every other cluster still points at the unchanged monolith, which has Flight's
-background processing switched off. Rollback = set the address back and re-enable the switch -
-config-only until the Flight service DB has accepted writes, after that it needs the AB-505 data-sync
-step ([ADR 0002](../adr/0002-strangler-fig-migration-behind-gateway.md)). Flight goes first because no
-other module consumes its events; Identity and Passenger share `UserCreated`, so they flip together
-or with the monolith on RabbitMQ.
+Example: after the first two flips of the [cut-over runbook](../runbooks/README.md) (Identity, then
+Flight). The gateway's `identity` and `flight` clusters point at their services; the other clusters
+still point at the monolith, which has Identity's and Flight's background processing switched off and
+calls Flight over gRPC for Booking. Each flip freezes the context's route, drains the outbox, copies
+the context's data into the new owner's databases and moves the background-processing switch with
+the route, so rolling back (`flip-route.sh <context> monolith`) copies the service's writes back
+([ADR 0505](../adr/0505-ab-505-cutover-rollback-and-monolith-decommission.md)). Identity's
+`UserCreated` reaches the monolith's Passenger consumer over RabbitMQ.
 
 ```mermaid
 flowchart LR
@@ -107,17 +111,46 @@ flowchart LR
     end
     gw --> cI & cF & cP & cB
 
-    mono["Monolith src/Api (unchanged)<br/>Modules:Flight:BackgroundProcessingEnabled=false"]
+    mono["Monolith src/Api<br/>Modules:Identity|Flight:BackgroundProcessingEnabled=false"]
+    isvc["Identity service :5100"]
     fsvc["Flight service :5200"]
 
-    cI --> mono
+    cI -->|"ReverseProxy__Clusters__identity__<br/>Destinations__monolith__Address"| isvc
+    cF -->|"ReverseProxy__Clusters__flight__<br/>Destinations__monolith__Address"| fsvc
     cP --> mono
     cB --> mono
-    cF -->|"ReverseProxy__Clusters__flight__<br/>Destinations__monolith__Address"| fsvc
 
-    mono --- monoDb[("*_modular_monolith DBs<br/>persist_message, in-memory bus")]
+    mono --- monoDb[("passenger/booking *_modular_monolith DBs<br/>identity/flight DBs kept read-only for rollback")]
+    isvc --- iDb[("identity_service DBs")]
     fsvc --- fDb[("flight_service DBs")]
-    mono -->|"gRPC (Booking -> Flight)"| fsvc
+    mono -->|"gRPC (Booking -> Flight) :81"| fsvc
+    isvc -.->|"UserCreated (RabbitMQ)"| mono
+```
+
+## Cut-over sequence
+
+Identity -> Flight -> Passenger -> Booking, each reversible (dotted) until decommission
+([runbook](../runbooks/README.md), scripts in `deployments/cutover/`).
+
+```mermaid
+flowchart LR
+    s0["0. All on monolith<br/>services dark, monolith owns background work"]
+    s1["1. Identity on identity-service<br/>shared signing key + DataProtection ring"]
+    s2["2. + Flight on flight-service<br/>monolith Booking gRPC -> flight-service:81"]
+    s3["3. + Passenger on passenger-service<br/>monolith Booking gRPC -> passenger-service:81"]
+    s4["4. + Booking on booking-service<br/>gateway serves all traffic from services"]
+    s5["5. Monolith host decommissioned<br/>src/Api removed, *_modular_monolith DBs archived"]
+
+    s0 -->|"flip-route.sh identity service"| s1
+    s1 -->|"flip-route.sh flight service"| s2
+    s2 -->|"flip-route.sh passenger service"| s3
+    s3 -->|"flip-route.sh booking service"| s4
+    s4 -->|"burn-in, no monolith traffic"| s5
+
+    s1 -.->|"identity monolith"| s0
+    s2 -.->|"flight monolith"| s1
+    s3 -.->|"passenger monolith"| s2
+    s4 -.->|"booking monolith"| s3
 ```
 
 ## Migration phases

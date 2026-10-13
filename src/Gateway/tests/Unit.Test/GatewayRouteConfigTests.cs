@@ -76,13 +76,22 @@ public class GatewayRouteConfigTests : IClassFixture<WebApplicationFactory<Progr
             ["booking", "flight", "identity", "monolith", "passenger"],
             _config.Clusters.Select(c => c.ClusterId).Order()
         );
+        // Each context cluster targets its service host; the catch-all goes to Identity (AB-505).
+        var expected = new Dictionary<string, string>
+        {
+            ["identity"] = "http://localhost:5100",
+            ["flight"] = "http://localhost:5200",
+            ["passenger"] = "http://localhost:5300",
+            ["booking"] = "http://localhost:5400",
+            ["monolith"] = "http://localhost:5100",
+        };
         Assert.All(
             _config.Clusters,
             cluster =>
             {
                 var destination = Assert.Single(cluster.Destinations!);
                 Assert.Equal("monolith", destination.Key);
-                Assert.Equal("http://localhost:3001", destination.Value.Address);
+                Assert.Equal(expected[cluster.ClusterId], destination.Value.Address);
             }
         );
     }

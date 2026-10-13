@@ -1,8 +1,8 @@
 using System.Threading.Tasks;
-using Api;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.TestBase;
 using Flight.Data;
+using Flight.Host;
 using FluentAssertions;
 using Integration.Test.Fakes;
 using Xunit;
@@ -11,10 +11,8 @@ namespace Integration.Test.Aircraft.Features;
 
 public class CreateAircraftTests : FlightIntegrationTestBase
 {
-    public CreateAircraftTests(
-        TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory) : base(integrationTestFactory)
-    {
-    }
+    public CreateAircraftTests(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory)
+        : base(integrationTestFactory) { }
 
     [Fact]
     public async Task should_create_new_aircraft_to_db_and_publish_message_to_broker()

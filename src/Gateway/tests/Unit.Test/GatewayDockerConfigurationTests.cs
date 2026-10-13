@@ -10,11 +10,12 @@ namespace Gateway.Unit.Test;
 
 /// <summary>
 /// docker-compose runs the gateway with <c>ASPNETCORE_ENVIRONMENT=docker</c>; these tests load that
-/// layer the same way the container does and check it points at the monolith's container name.
+/// layer the same way the container does and check every context cluster points at its service container
+/// (the monolith host is decommissioned, AB-505).
 /// </summary>
 public class GatewayDockerConfigurationTests : IAsyncLifetime
 {
-    private const string MonolithContainer = "http://booking_modular_monolith:80";
+    private const string IdentityContainer = "http://identity-service:80";
     private const string PublicAuthority = "https://localhost:3000";
     private WebApplicationFactory<Program> _factory = null!;
 
@@ -37,8 +38,25 @@ public class GatewayDockerConfigurationTests : IAsyncLifetime
         return Task.CompletedTask;
     }
 
+    [Theory]
+    [InlineData("identity", "http://identity-service:80")]
+    [InlineData("flight", "http://flight-service:80")]
+    [InlineData("passenger", "http://passenger-service:80")]
+    [InlineData("booking", "http://booking-service:80")]
+    // Catch-all: no monolith is left, so unmatched paths go to Identity (UI pages, discovery).
+    [InlineData("monolith", IdentityContainer)]
+    public void every_cluster_targets_its_service_container(string clusterId, string address)
+    {
+        var config = _factory.Services.GetRequiredService<IProxyConfigProvider>().GetConfig();
+
+        var cluster = Assert.Single(config.Clusters, c => c.ClusterId == clusterId);
+        var destination = Assert.Single(cluster.Destinations!);
+        Assert.Equal("monolith", destination.Key);
+        Assert.Equal(address, destination.Value.Address);
+    }
+
     [Fact]
-    public void every_cluster_targets_the_monolith_container()
+    public void no_cluster_targets_the_decommissioned_monolith_container()
     {
         var config = _factory.Services.GetRequiredService<IProxyConfigProvider>().GetConfig();
 
@@ -46,14 +64,9 @@ public class GatewayDockerConfigurationTests : IAsyncLifetime
             ["booking", "flight", "identity", "monolith", "passenger"],
             config.Clusters.Select(c => c.ClusterId).Order()
         );
-        Assert.All(
-            config.Clusters,
-            cluster =>
-            {
-                var destination = Assert.Single(cluster.Destinations!);
-                Assert.Equal("monolith", destination.Key);
-                Assert.Equal(MonolithContainer, destination.Value.Address);
-            }
+        Assert.DoesNotContain(
+            config.Clusters.SelectMany(c => c.Destinations!.Values),
+            d => d.Address.Contains("booking_modular_monolith", StringComparison.Ordinal)
         );
     }
 
@@ -84,7 +97,7 @@ public class GatewayDockerConfigurationTests : IAsyncLifetime
             .Services.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>()
             .Get(JwtBearerDefaults.AuthenticationScheme);
 
-        Assert.Equal($"{MonolithContainer}/.well-known/openid-configuration", options.MetadataAddress);
+        Assert.Equal($"{IdentityContainer}/.well-known/openid-configuration", options.MetadataAddress);
         Assert.Equal(PublicAuthority, options.Authority);
         Assert.Equal([PublicAuthority], options.TokenValidationParameters.ValidIssuers);
         Assert.Equal(["booking-modular-monolith"], options.TokenValidationParameters.ValidAudiences);

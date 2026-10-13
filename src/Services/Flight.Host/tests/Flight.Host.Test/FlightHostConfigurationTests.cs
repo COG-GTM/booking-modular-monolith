@@ -26,6 +26,15 @@ public class FlightHostConfigurationTests
     }
 
     [Fact]
+    public void default_settings_should_validate_tokens_issued_by_the_identity_service()
+    {
+        var configuration = Load("appsettings.json");
+
+        configuration["Jwt:Authority"].Should().Be("http://localhost:5100", "src/Api no longer issues tokens (AB-505)");
+        configuration["Jwt:Audience"].Should().Be("booking-modular-monolith");
+    }
+
+    [Fact]
     public void default_settings_should_name_the_service_and_its_broker_identity()
     {
         var configuration = Load("appsettings.json");

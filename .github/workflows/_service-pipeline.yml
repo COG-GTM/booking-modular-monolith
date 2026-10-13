@@ -8,7 +8,7 @@ on:
   workflow_call:
     inputs:
       service:
-        description: Service key (gateway, identity, flight, passenger, booking, monolith). Image is <registry>/<owner>/booking-<service>; per-service release tags are <service>-vX.Y.Z.
+        description: Service key (gateway, identity, flight, passenger, booking). Image is <registry>/<owner>/booking-<service>; per-service release tags are <service>-vX.Y.Z.
         type: string
         required: true
       dockerfile:

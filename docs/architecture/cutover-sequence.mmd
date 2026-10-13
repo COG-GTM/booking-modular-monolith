@@ -1,0 +1,18 @@
+flowchart LR
+    s0["0. All on monolith<br/>services dark, monolith owns background work"]
+    s1["1. Identity on identity-service<br/>shared signing key + DataProtection ring"]
+    s2["2. + Flight on flight-service<br/>monolith Booking gRPC -> flight-service:81"]
+    s3["3. + Passenger on passenger-service<br/>monolith Booking gRPC -> passenger-service:81"]
+    s4["4. + Booking on booking-service<br/>gateway serves all traffic from services"]
+    s5["5. Monolith host decommissioned<br/>src/Api removed, *_modular_monolith DBs archived"]
+
+    s0 -->|"flip-route.sh identity service"| s1
+    s1 -->|"flip-route.sh flight service"| s2
+    s2 -->|"flip-route.sh passenger service"| s3
+    s3 -->|"flip-route.sh booking service"| s4
+    s4 -->|"burn-in, no monolith traffic"| s5
+
+    s1 -.->|"identity monolith"| s0
+    s2 -.->|"flight monolith"| s1
+    s3 -.->|"passenger monolith"| s2
+    s4 -.->|"booking monolith"| s3

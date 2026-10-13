@@ -3,9 +3,9 @@ using Projects;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-// "Services" (default) runs the gateway in front of one host per module, each on its own databases.
-// "Monolith" runs the pre-migration src/Api behind the gateway (e.g. --AppHost:Topology=Monolith).
-var topology = AppHostTopology.Resolve(builder.Configuration);
+// The gateway runs in front of one host per module, each on its own databases. The monolith topology
+// was removed with src/Api (AB-505); a stale AppHost:Topology=Monolith fails fast instead of being ignored.
+AppHostTopology.Resolve(builder.Configuration);
 
 builder.AddDockerComposeEnvironment("docker-compose");
 
@@ -310,10 +310,8 @@ var gateway = builder
     .WithHttpsEndpoint(port: 5001, name: "gateway-https");
 
 // Every gateway cluster keeps its single destination named "monolith" (see src/Gateway appsettings);
-// only its address changes with the topology. Gateway:Clusters:<cluster> overrides either default.
-var clusterDestinations = topology == AppHostTopology.Monolith
-    ? AddMonolith()
-    : AddServices();
+// it defaults to the module's service. Gateway:Clusters:<cluster> overrides the default.
+var clusterDestinations = AddServices();
 
 foreach (var (cluster, destination) in clusterDestinations)
 {
@@ -327,54 +325,6 @@ foreach (var (cluster, destination) in clusterDestinations)
 }
 
 builder.Build().Run();
-
-Dictionary<string, EndpointReference> AddMonolith()
-{
-    var flightDb = postgres.AddDatabase("flight");
-    var passengerDb = postgres.AddDatabase("passenger");
-    var identityDb = postgres.AddDatabase("identity");
-    // Each module owns its outbox/inbox database; nothing is shared across modules.
-    var flightPersistMessageDb = postgres.AddDatabase("flight-persist-message", "flight_persist_message");
-    var passengerPersistMessageDb = postgres.AddDatabase("passenger-persist-message", "passenger_persist_message");
-    var identityPersistMessageDb = postgres.AddDatabase("identity-persist-message", "identity_persist_message");
-    var bookingPersistMessageDb = postgres.AddDatabase("booking-persist-message", "booking_persist_message");
-
-    var api = builder
-        .AddProject<Api>("api")
-        .WithReference(flightPersistMessageDb)
-        .WaitFor(flightPersistMessageDb)
-        .WithReference(passengerPersistMessageDb)
-        .WaitFor(passengerPersistMessageDb)
-        .WithReference(identityPersistMessageDb)
-        .WaitFor(identityPersistMessageDb)
-        .WithReference(bookingPersistMessageDb)
-        .WaitFor(bookingPersistMessageDb)
-        .WithReference(flightDb)
-        .WaitFor(flightDb)
-        .WithReference(passengerDb)
-        .WaitFor(passengerDb)
-        .WithReference(identityDb)
-        .WaitFor(identityDb)
-        .WithReference(mongo)
-        .WaitFor(mongo)
-        .WithReference(eventstore)
-        .WaitFor(eventstore)
-        .WithReference(rabbitmq)
-        .WaitFor(rabbitmq)
-        .WithEnvironment("MessageBroker__TransportType", "RabbitMq")
-        .WithHttpEndpoint(port: 3001, name: "api-http")
-        .WithHttpsEndpoint(port: 3000, name: "api-https");
-
-    // IdentityServer's issuer and every JWT validator must agree on the same public address,
-    // so all of them are derived from the API's HTTPS endpoint instead of hard-coded appsettings.
-    var issuer = api.GetEndpoint("api-https");
-    api.WithEnvironment("AuthOptions__IssuerUri", issuer).WithEnvironment("Jwt__Authority", issuer);
-
-    gateway.WithReference(api).WaitFor(api).WithEnvironment("Jwt__Authority", issuer);
-
-    var apiHttp = api.GetEndpoint("api-http");
-    return AppHostTopology.Clusters.ToDictionary(cluster => cluster, _ => apiHttp);
-}
 
 Dictionary<string, EndpointReference> AddServices()
 {

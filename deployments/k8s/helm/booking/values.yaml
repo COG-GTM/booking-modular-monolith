@@ -103,8 +103,8 @@ services:
     serviceName: gateway
     otelServiceName: gateway
     hpa: {enabled: true}
-    # The gateway's catch-all `monolith` cluster. No monolith runs in-cluster, so it defaults to
-    # identity; point it at the monolith Service while running the strangler-fig side by side.
+    # The gateway's catch-all `monolith` cluster (name kept for override compatibility). The
+    # monolith host was decommissioned in AB-505, so it serves identity's /connect + /.well-known.
     monolithAddress: http://identity:80
     # CIDRs allowed to set X-Forwarded-For (the ingress controller pods); the rate limiter
     # partitions on the forwarded client IP.

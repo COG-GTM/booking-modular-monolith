@@ -3,8 +3,7 @@
 # Run from the repository root:
 #   docker compose -f deployments/docker-compose/docker-compose.yaml up -d --build
 #   deployments/docker-compose/smoke-test.sh
-# The unchanged monolith topology lives in docker-compose.monolith.yaml; the two cannot run at the
-# same time (same infrastructure container names and host ports).
+# The monolith topology was removed with src/Api (AB-505); see docs/runbooks for the cut-over.
 #
 # Tokens are issued by identity-service with the gateway's public URL as issuer (PUBLIC_GATEWAY_URL);
 # every host validates `iss` against it but fetches discovery/JWKS from identity-service directly.
