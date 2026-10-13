@@ -29,7 +29,19 @@ We will migrate with the **strangler-fig pattern behind an API gateway**:
 4. The monolith `src/Api` keeps building and running **unchanged** on its existing databases and
    in-memory bus for the whole transition. It is decommissioned only after every cluster points at
    a service and the cutover runbook (AB-505) has been executed.
-5. Suggested extraction order (lowest coupling first): Identity, Flight, Passenger, Booking.
+5. **Event-coupled modules move onto one transport together.** The only cross-module async flow today
+   is Identity `UserCreated` -> Passenger. A producer on RabbitMQ and a consumer on the monolith's
+   in-memory bus never meet, so before either route flips, either flip Identity and Passenger in the
+   same step, or run the monolith with `MessageBroker:TransportType=RabbitMq` (config only, default
+   stays `InMemory`) for the side-by-side period ([0003](0003-inter-service-communication.md)).
+6. Suggested extraction order: **Flight** (no cross-module consumers; Booking reaches it via
+   `Grpc:FlightAddress`), then **Identity + Passenger** (together, or one at a time with the monolith on
+   RabbitMQ), then **Booking**.
+7. **Rollback is config-only only until the service's databases accept writes.** After that, the
+   service DB holds writes the monolith DB lacks (data ownership, [0004](0004-data-ownership-database-per-service.md)),
+   so routing back requires quiescing writes, copying/replaying post-flip changes into the monolith
+   store and verifying consistency first. The per-module procedure, including the point of no
+   config-only return, belongs to the cutover/rollback runbook (AB-505).
 
 ## Alternatives considered
 
@@ -41,7 +53,8 @@ We will migrate with the **strangler-fig pattern behind an API gateway**:
 
 ## Consequences
 
-- Each module can be moved (and moved back) independently with a config change.
+- Each module can be moved independently with a config change, and moved back with a config change
+  until its service DB has taken writes; later rollbacks need the AB-505 data-sync procedure.
 - The gateway is a new hop and a single point of failure; it must be stateless and horizontally
   scaled, with health checks per destination.
 - For a while two hosts can run the same module code - background work must run in exactly one of

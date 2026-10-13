@@ -45,6 +45,10 @@
   ```
 
   `TransportType` is `InMemory` | `RabbitMq`. **InMemory stays** for unit tests and for the monolith.
+- A producer and its consumers must share a transport. While event-coupled modules are split
+  between the monolith and a service host, the monolith opts in to `TransportType=RabbitMq` (with
+  `ServiceName=monolith`) instead of moving producer and consumer in the same step
+  ([0002](0002-strangler-fig-migration-behind-gateway.md)). This is a config change only.
 - Queues are named per service (prefixed with `ServiceName`) so each service gets its own copy of
   an event and competing consumers only compete within one service.
 - Consumers are idempotent via the per-service inbox ([0004](0004-data-ownership-database-per-service.md)),

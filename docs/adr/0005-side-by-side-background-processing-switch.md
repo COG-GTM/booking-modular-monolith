@@ -33,8 +33,17 @@ The monolith gets a **per-module switch**:
 - When `false`, the monolith does not start that module's background work: its outbox worker,
   (for Booking) the EventStoreDB subscription, and the module's MassTransit consumers. HTTP/gRPC
   endpoints stay mapped so rollback is a gateway change only.
+- **The monolith's outbox/inbox poller must be partitioned per module.** Today a single
+  `PersistMessageBackgroundService` polls every module's rows in the shared `persist_message` DB, so
+  it cannot be stopped for one module only. The implementing ticket (AB-492) registers one poller per
+  module (e.g. `PersistMessageBackgroundService<TModule>` filtering on the owning module of each
+  persisted message), so disabling Flight leaves Identity/Passenger/Booking messages flowing.
+- Before switching a module off, **drain its pending outbox/inbox rows** (backlog = 0); rows written
+  while the switch is off in every process are only delivered once a processor is re-enabled. Never
+  leave a module's switch off in every running process.
 - Operational rule: when a module's gateway cluster points at the service host, set the switch to
-  `false` in the monolith; on rollback set it back to `true` (or stop the service host).
+  `false` in the monolith; on rollback set it back to `true` (or stop the service host). Once the service DB has accepted
+  writes, rollback also needs the data-sync step from [0002](0002-strangler-fig-migration-behind-gateway.md) / AB-505.
 
 ## Alternatives considered
 
@@ -45,6 +54,6 @@ The monolith gets a **per-module switch**:
 
 ## Consequences
 
-- Side-by-side operation is safe and reversible with config.
+- Side-by-side operation is safe and switchable with config (data rollback rules in [0002](0002-strangler-fig-migration-behind-gateway.md)).
 - One more operational step per extraction/rollback; documented in the cutover runbook (AB-505).
 - The switch is transitional and is removed together with the monolith host.

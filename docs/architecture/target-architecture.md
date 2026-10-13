@@ -89,7 +89,11 @@ flowchart LR
 
 Example: Flight has been peeled off. The gateway's `flight` cluster now points at the Flight
 service; every other cluster still points at the unchanged monolith, which has Flight's
-background processing switched off. Rollback = set the address back and re-enable the switch.
+background processing switched off. Rollback = set the address back and re-enable the switch -
+config-only until the Flight service DB has accepted writes, after that it needs the AB-505 data-sync
+step ([ADR 0002](../adr/0002-strangler-fig-migration-behind-gateway.md)). Flight goes first because no
+other module consumes its events; Identity and Passenger share `UserCreated`, so they flip together
+or with the monolith on RabbitMQ.
 
 ```mermaid
 flowchart LR

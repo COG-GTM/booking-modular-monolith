@@ -127,7 +127,8 @@ C4Container
 - **Dashboards / alarms:** per-service health (`/health`, `/alive`) and Grafana dashboards (AB-495).
 - **Rollback plan:** repoint the gateway cluster back to the `monolith` destination
   ([0002](0002-strangler-fig-migration-behind-gateway.md)) and re-enable the module's background
-  processing in the monolith ([0005](0005-side-by-side-background-processing-switch.md)).
+  processing in the monolith ([0005](0005-side-by-side-background-processing-switch.md)); config-only
+  until the service DB accepts writes, afterwards with the AB-505 data-sync step.
 - **Migration / cut-over plan:** strangler-fig, one module at a time; data migration at cutover (AB-505).
 
 ## Policy exceptions requested
