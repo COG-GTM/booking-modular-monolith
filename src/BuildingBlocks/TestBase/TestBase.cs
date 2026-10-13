@@ -290,17 +290,48 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
         );
     }
 
+    public void SetCurrentUser(Guid userId, params string[] roles)
+    {
+        var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, userId.ToString()) };
+        claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+
+        var identity = new ClaimsIdentity(claims, "test", ClaimTypes.Name, ClaimTypes.Role);
+
+        GetOrCreateHttpContext().User = new ClaimsPrincipal(identity);
+    }
+
+    public void ClearCurrentUser()
+    {
+        GetOrCreateHttpContext().User = new ClaimsPrincipal();
+    }
+
+    // The request pipeline resets IHttpContextAccessor.HttpContext to null after each HTTP call,
+    // so re-create the context when a test needs an ambient user outside of a request.
+    private HttpContext GetOrCreateHttpContext()
+    {
+        var httpContextAccessor = ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+
+        return httpContextAccessor.HttpContext ??= CreateHttpContext(ServiceProvider);
+    }
+
     private IHttpContextAccessor AddHttpContextAccessorMock(IServiceProvider serviceProvider)
     {
         var httpContextAccessorMock = Substitute.For<IHttpContextAccessor>();
         using var scope = serviceProvider.CreateScope();
 
-        httpContextAccessorMock.HttpContext = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
-
-        httpContextAccessorMock.HttpContext.Request.Host = new HostString("localhost", 6012);
-        httpContextAccessorMock.HttpContext.Request.Scheme = "http";
+        httpContextAccessorMock.HttpContext = CreateHttpContext(scope.ServiceProvider);
 
         return httpContextAccessorMock;
+    }
+
+    private static HttpContext CreateHttpContext(IServiceProvider serviceProvider)
+    {
+        var httpContext = new DefaultHttpContext { RequestServices = serviceProvider };
+
+        httpContext.Request.Host = new HostString("localhost", 6012);
+        httpContext.Request.Scheme = "http";
+
+        return httpContext;
     }
 }
 
