@@ -80,17 +80,49 @@ public static class IdentityServerExtensions
     // content-root tempkey.jwk) so tokens issued before the switch keep validating.
     private static void SeedSharedSigningKey(string currentKeyFile, string sharedKeyFile)
     {
-        if (File.Exists(sharedKeyFile) || !File.Exists(currentKeyFile))
-            return;
-
-        Directory.CreateDirectory(Path.GetDirectoryName(sharedKeyFile)!);
-        try
+        if (File.Exists(currentKeyFile))
         {
-            File.Copy(currentKeyFile, sharedKeyFile);
+            Directory.CreateDirectory(Path.GetDirectoryName(sharedKeyFile)!);
+            try
+            {
+                // CreateNew is atomic (O_EXCL): exactly one racing host wins and seeds the shared file.
+                using var shared = new FileStream(sharedKeyFile, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                using var own = File.OpenRead(currentKeyFile);
+                own.CopyTo(shared);
+                return;
+            }
+            catch (IOException) when (File.Exists(sharedKeyFile))
+            {
+                // Another host seeded the shared file first; use that one.
+            }
         }
-        catch (IOException) when (File.Exists(sharedKeyFile))
+
+        if (File.Exists(sharedKeyFile))
+            WaitUntilFullyWritten(sharedKeyFile);
+    }
+
+    // The winner still holds the shared file exclusively while copying; a loser that reads it right away
+    // either fails with "being used by another process" or sees a truncated key, so wait for the winner.
+    private static void WaitUntilFullyWritten(string file)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (true)
         {
-            // Another host seeded the shared file first; use that one.
+            try
+            {
+                using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read);
+                if (stream.Length > 0)
+                    return;
+            }
+            catch (IOException)
+            {
+                // Still being written; retry below.
+            }
+
+            if (DateTime.UtcNow > deadline)
+                return;
+
+            Thread.Sleep(25);
         }
     }
 }
