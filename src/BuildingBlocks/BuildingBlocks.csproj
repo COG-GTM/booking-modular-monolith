@@ -112,4 +112,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Contracts\Contracts.Messages\Contracts.Messages.csproj" />
+  </ItemGroup>
 </Project>
