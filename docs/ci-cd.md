@@ -45,7 +45,7 @@ Conventions for new hosts: project `src/Services/<Module>.Host/src/`, tests
 | tag `vX.Y.Z` | every pipeline | yes |
 | tag `<service>-vX.Y.Z` | that service only | yes |
 
-Tags: `sha-<short>` always; `X.Y.Z` and `X.Y` for release tags; `main` for the default branch.
+Tags: `sha-<short>` always; `X.Y.Z` for release tags (plus `X.Y` for non-prerelease ones); `main` for the default branch.
 Images are pushed with the workflow's `GITHUB_TOKEN` (`packages: write`).
 
 ## Shared packages
