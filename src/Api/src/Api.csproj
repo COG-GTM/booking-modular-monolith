@@ -3,6 +3,9 @@
     <RootNamespace>Api</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Grpc.AspNetCore.HealthChecks" Version="2.76.0" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\Aspire\src\ServiceDefaults\ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\Modules\Booking\src\Booking.csproj" />
     <ProjectReference Include="..\..\Modules\Flight\src\Flight.csproj" />

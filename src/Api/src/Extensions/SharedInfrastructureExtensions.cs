@@ -1,5 +1,6 @@
 using System.Reflection;
 using Booking;
+using Booking.Extensions.Infrastructure;
 using BuildingBlocks.Core;
 using BuildingBlocks.Exception;
 using BuildingBlocks.Jwt;
@@ -8,6 +9,9 @@ using BuildingBlocks.OpenApi;
 using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
+using Contracts.Grpc.Flight;
+using Contracts.Grpc.Passenger;
+using Grpc.AspNetCore.HealthChecks;
 using Figgle.Fonts;
 using Flight;
 using Identity;
@@ -53,6 +57,18 @@ public static class SharedInfrastructureExtensions
             options.Interceptors.Add<GrpcExceptionInterceptor>();
         });
 
+        // grpc.health.v1 for the gRPC services this host serves; outbound gRPC dependency checks are
+        // excluded so the host never reports on itself.
+        builder.Services.AddGrpcHealthChecks(options =>
+        {
+            Func<HealthCheckMapContext, bool> excludeGrpcDependencies = context =>
+                !context.Tags.Contains(GrpcClientExtensions.GrpcDependencyTag);
+
+            options.Services.Map(string.Empty, excludeGrpcDependencies);
+            options.Services.Map(FlightGrpcService.Descriptor.FullName, excludeGrpcDependencies);
+            options.Services.Map(PassengerGrpcService.Descriptor.FullName, excludeGrpcDependencies);
+        });
+
         builder.Services.AddEasyCaching(options =>
         {
             options.UseInMemory(builder.Configuration, "mem");
@@ -94,6 +110,7 @@ public static class SharedInfrastructureExtensions
         app.UseCorrelationId();
 
         app.MapGet("/", x => x.Response.WriteAsync(appOptions.Name));
+        app.MapGrpcHealthChecksService();
 
         if (app.Environment.IsDevelopment())
         {

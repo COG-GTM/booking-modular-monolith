@@ -1,6 +1,9 @@
+// Shared contract: additive changes only. See ../README.md before editing.
 syntax = "proto3";
 
-package bookingPassenger;
+package passenger;
+
+option csharp_namespace = "Contracts.Grpc.Passenger";
 
 service PassengerGrpcService {
 

@@ -28,7 +28,7 @@ public static class InfrastructureExtensions
             builder.Services.AddEventStoreDBSubscriptionToAll();
         }
 
-        builder.Services.AddGrpcClients();
+        builder.Services.AddGrpcClients(builder.Configuration);
 
         builder.Services.AddCustomMediatR();
 
