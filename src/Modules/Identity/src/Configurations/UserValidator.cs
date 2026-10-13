@@ -23,6 +23,12 @@ public class UserValidator : IResourceOwnerPasswordValidator
     {
         var user = await _userManager.FindByNameAsync(context.UserName);
 
+        if (user == null)
+        {
+            context.Result = new GrantValidationResult(TokenRequestErrors.InvalidGrant, "Invalid Credentials");
+            return;
+        }
+
         var signIn = await _signInManager.PasswordSignInAsync(
             user,
             context.Password,

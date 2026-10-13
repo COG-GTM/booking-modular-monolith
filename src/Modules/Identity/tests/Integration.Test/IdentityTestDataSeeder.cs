@@ -2,7 +2,6 @@ using BuildingBlocks.Constants;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.Core;
 using BuildingBlocks.EFCore;
-using Identity.Data.Seed;
 using Identity.Identity.Constants;
 using Identity.Identity.Models;
 using Microsoft.AspNetCore.Identity;
@@ -49,7 +48,7 @@ public class IdentityTestDataSeeder(
             }
         }
 
-        if (await userManager.FindByNameAsync("meysamh2") == null)
+        if (await userManager.FindByNameAsync("samh2") == null)
         {
             var result = await userManager.CreateAsync(InitialData.Users.Last(), "User@123456");
 
