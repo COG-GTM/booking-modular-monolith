@@ -160,3 +160,36 @@ public class EventStoreDbHealthCheckTests
     public void rejects_invalid_connection_strings(string? connectionString) =>
         EventStoreDbHealthCheck.TryGetLivenessUri(connectionString, out _).Should().BeFalse();
 }
+
+public class HealthCheckConnectionResolutionTests
+{
+    [Fact]
+    public void aspire_connection_strings_win_over_options_and_register_aspire_only_stores()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["PostgresOptions:ConnectionString:Flight"] = "Host=localhost;Database=flight_service",
+                    ["ConnectionStrings:flight"] = "Host=postgres;Database=flight_service",
+                    ["ConnectionStrings:flight-persist-message"] = "Host=postgres;Database=flight_service_persist_message",
+                    ["ConnectionStrings:mongo"] = "mongodb://mongo:27017",
+                    ["MongoOptions:ConnectionString"] = "mongodb://localhost:27017",
+                }
+            )
+            .Build();
+
+        var connections = BuildingBlocks.HealthCheck.Extensions
+            .GetPostgresConnections(configuration)
+            .ToDictionary(c => c.Name, c => c.Resolve(configuration));
+
+        connections.Should().BeEquivalentTo(
+            new Dictionary<string, string?>
+            {
+                ["postgres-flight"] = "Host=postgres;Database=flight_service",
+                ["postgres-flight-persist-message"] = "Host=postgres;Database=flight_service_persist_message",
+            }
+        );
+        BuildingBlocks.HealthCheck.Extensions.GetMongoConnectionString(configuration).Should().Be("mongodb://mongo:27017");
+    }
+}

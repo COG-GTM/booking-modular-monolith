@@ -1,6 +1,7 @@
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.Web;
 using HealthChecks.UI.Client;
+using Humanizer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
@@ -28,6 +29,8 @@ public static class Extensions
     private const string PersistMessageConnectionKey = "PersistMessageOptions:ConnectionString";
     private const string MongoConnectionKey = "MongoOptions:ConnectionString";
     private const string EventStoreConnectionKey = "EventStoreOptions:ConnectionString";
+    private const string MongoAspireConnectionName = "mongo";
+    private const string PersistMessageSuffix = "-persist-message";
 
     private static readonly TimeSpan DependencyTimeout = TimeSpan.FromSeconds(5);
 
@@ -111,10 +114,10 @@ public static class Extensions
     {
         string[] readyTags = [ReadyTag];
 
-        foreach (var (name, key) in GetPostgresConnections(configuration))
+        foreach (var (name, resolve) in GetPostgresConnections(configuration))
         {
             builder.AddNpgSql(
-                sp => sp.GetRequiredService<IConfiguration>()[key]!,
+                sp => resolve(sp.GetRequiredService<IConfiguration>())!,
                 name: name,
                 failureStatus: HealthStatus.Unhealthy,
                 tags: readyTags,
@@ -122,10 +125,10 @@ public static class Extensions
             );
         }
 
-        if (!string.IsNullOrEmpty(configuration[MongoConnectionKey]))
+        if (!string.IsNullOrEmpty(GetMongoConnectionString(configuration)))
         {
             builder.AddMongoDb(
-                clientFactory: sp => new MongoClient(sp.GetRequiredService<IConfiguration>()[MongoConnectionKey]),
+                clientFactory: sp => new MongoClient(GetMongoConnectionString(sp.GetRequiredService<IConfiguration>())),
                 name: "mongodb",
                 failureStatus: HealthStatus.Unhealthy,
                 tags: readyTags,
@@ -162,24 +165,50 @@ public static class Extensions
     }
 
     // PostgresOptions:ConnectionString is either a single string (monolith) or one entry per module
-    // (service hosts); every module also has its own outbox/inbox store.
-    public static IEnumerable<(string Name, string Key)> GetPostgresConnections(IConfiguration configuration)
+    // (service hosts); every module also has its own outbox/inbox store. Each check resolves the same
+    // connection the module uses: Aspire ConnectionStrings:<module>[-persist-message] first, then the options.
+    public static IEnumerable<(string Name, Func<IConfiguration, string?> Resolve)> GetPostgresConnections(
+        IConfiguration configuration
+    )
     {
         if (!string.IsNullOrEmpty(configuration[PostgresConnectionKey]))
-            yield return ("postgres", PostgresConnectionKey);
+            yield return ("postgres", c => c[PostgresConnectionKey]);
 
         foreach (var module in configuration.GetSection(PostgresConnectionKey).GetChildren())
         {
-            if (!string.IsNullOrEmpty(module.Value))
-                yield return ($"postgres-{module.Key.ToLowerInvariant()}", module.Path);
+            var aspireName = module.Key.Kebaberize();
+            var optionsKey = module.Path;
+
+            if (!string.IsNullOrEmpty(configuration.GetConnectionString(aspireName) ?? module.Value))
+                yield return ($"postgres-{aspireName}", c => c.GetConnectionString(aspireName) ?? c[optionsKey]);
         }
 
-        foreach (var module in configuration.GetSection(PersistMessageConnectionKey).GetChildren())
+        var persistModules = configuration
+            .GetSection(PersistMessageConnectionKey)
+            .GetChildren()
+            .Select(m => m.Key.Kebaberize())
+            .Concat(
+                configuration
+                    .GetSection("ConnectionStrings")
+                    .GetChildren()
+                    .Where(c => c.Key.EndsWith(PersistMessageSuffix, StringComparison.OrdinalIgnoreCase))
+                    .Select(c => c.Key[..^PersistMessageSuffix.Length].ToLowerInvariant())
+            )
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var module in persistModules)
         {
-            if (!string.IsNullOrEmpty(module.Value))
-                yield return ($"postgres-{module.Key.ToLowerInvariant()}-persist-message", module.Path);
+            var aspireName = module + PersistMessageSuffix;
+            var optionsKey = $"{PersistMessageConnectionKey}:{module}";
+
+            if (!string.IsNullOrEmpty(configuration.GetConnectionString(aspireName) ?? configuration[optionsKey]))
+                yield return ($"postgres-{aspireName}", c => c.GetConnectionString(aspireName) ?? c[optionsKey]);
         }
     }
+
+    // Same precedence as BuildingBlocks.Mongo: Aspire ConnectionStrings:mongo, then MongoOptions:ConnectionString.
+    public static string? GetMongoConnectionString(IConfiguration configuration) =>
+        configuration.GetConnectionString(MongoAspireConnectionName) ?? configuration[MongoConnectionKey];
 
     // Same precedence as the MassTransit bus: Aspire ConnectionStrings:rabbitmq, then MessageBroker:RabbitMq.
     private static ConnectionFactory CreateRabbitMqConnectionFactory(IServiceProvider serviceProvider)
