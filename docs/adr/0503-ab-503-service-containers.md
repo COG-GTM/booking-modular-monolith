@@ -45,6 +45,25 @@ infrastructure.
   (token, register user, RabbitMQ-created passenger, flight + seat, booking over gRPC, seat
   reservation visible in Flight).
 
+```mermaid
+flowchart LR
+  client([client]) -->|":5000"| gw[gateway]
+  gw --> id[identity-service :80]
+  gw --> fl[flight-service :80]
+  gw --> pa[passenger-service :80]
+  gw --> bo[booking-service :80]
+  bo -->|"gRPC h2c :81"| fl
+  bo -->|"gRPC h2c :81"| pa
+  id & fl & pa & bo <-->|MessageBroker| mq[(RabbitMQ)]
+  id & fl & pa & bo --> pg[(Postgres 16: per-service DBs)]
+  fl & pa & bo --> mo[(Mongo read DBs)]
+  bo --> es[(EventStoreDB)]
+```
+
+**Non-functional scope:** local development and CI smoke testing only (single host, no HA,
+no persistence guarantees beyond named volumes, synthetic test data only). Production
+availability/RPO targets belong to the Helm/Kubernetes deployment (AB-491).
+
 ## Alternatives considered
 
 - **Compose profiles in one file** instead of a separate monolith file: profiles cannot change
