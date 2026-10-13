@@ -239,7 +239,8 @@ public class IdentityHostCompositionTests
         var builder = CreateBuilder(
             environment,
             new KeyValuePair<string, string?>("MessageBroker:TransportType", nameof(TransportType.InMemory)),
-            new KeyValuePair<string, string?>("MessageBroker:UseInbox", "false")
+            new KeyValuePair<string, string?>("MessageBroker:UseInbox", "false"),
+            new KeyValuePair<string, string?>("HealthOptions:DependencyChecksEnabled", "false")
         );
         builder.WebHost.UseTestServer();
         builder.AddIdentityServiceInfrastructure();

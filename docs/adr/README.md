@@ -17,6 +17,7 @@ The target-state diagram and the migration phases are in
 | [0006](0006-contract-and-proto-versioning.md) | Versioning and compatibility policy for contracts and protos | Proposed |
 | [0007](0007-unauthenticated-internal-grpc-accepted-risk.md) | Unauthenticated service-to-service gRPC (accepted risk, ARB follow-up) | Proposed |
 | [0008](0008-service-host-layout-and-ports.md) | Service host layout, ports and naming conventions | Proposed |
+| [0495](0495-ab-495-per-service-observability-and-health.md) | Per-service observability, health probes and trace propagation (AB-495) | Proposed |
 
 Status moves from `Proposed` to `Accepted` once the ARB ticket is approved
 (ARB ticket: TO BE CREATED - there is no ARB project on the Jira site yet).

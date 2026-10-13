@@ -170,6 +170,7 @@ public class FlightHostInfrastructureTests
         );
         builder.Configuration["ObservabilityOptions:UseOTLPExporter"] = "false";
         builder.Configuration["ObservabilityOptions:UseAspireOTLPExporter"] = "false";
+        builder.Configuration["HealthOptions:DependencyChecksEnabled"] = "false";
 
         builder.AddFlightHostInfrastructure();
 

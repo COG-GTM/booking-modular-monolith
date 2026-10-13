@@ -8,7 +8,9 @@ using Grafana.OpenTelemetry;
 using MassTransit.Logging;
 using MassTransit.Monitoring;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -29,8 +31,48 @@ namespace BuildingBlocks.OpenTelemetryCollector;
 // https://blog.codingmilitia.com/2023/09/05/observing-dotnet-microservices-with-opentelemetry-logs-traces-metrics/
 public static class Extensions
 {
+    public const string ServiceNameEnvironmentVariable = "OTEL_SERVICE_NAME";
+    public const string OtlpEndpointEnvironmentVariable = "OTEL_EXPORTER_OTLP_ENDPOINT";
+    public const string YarpActivitySourceName = "Yarp.ReverseProxy";
+    public const string PersistMessageActivitySourceName = "BuildingBlocks.PersistMessageProcessor";
+
     private const string HealthEndpointPath = "/health";
     private const string AlivenessEndpointPath = "/alive";
+    private const string MetricsEndpointPath = "/metrics";
+
+    // service.name resource attribute: OTEL_SERVICE_NAME (set by Aspire/compose/K8s) wins over
+    // ObservabilityOptions:ServiceName, which wins over the application name.
+    public static string ResolveServiceName(
+        IConfiguration configuration,
+        ObservabilityOptions options,
+        IHostEnvironment environment
+    )
+    {
+        var fromEnvironment = configuration[ServiceNameEnvironmentVariable];
+
+        if (!string.IsNullOrWhiteSpace(fromEnvironment))
+            return fromEnvironment.Trim();
+
+        return string.IsNullOrWhiteSpace(options.ServiceName) ? environment.ApplicationName : options.ServiceName.Trim();
+    }
+
+    // The standard OTEL_EXPORTER_OTLP_ENDPOINT points the OTLP exporter at the collector without an
+    // appsettings override per deployment.
+    public static void ApplyOtlpEndpointOverride(IConfiguration configuration, ObservabilityOptions options)
+    {
+        var endpoint = configuration[OtlpEndpointEnvironmentVariable];
+
+        if (string.IsNullOrWhiteSpace(endpoint))
+            return;
+
+        options.OTLPOptions ??= new OTLPOptions();
+        options.OTLPOptions.OTLPGrpcExporterEndpoint = endpoint.Trim();
+    }
+
+    private static bool IsInfrastructureEndpoint(PathString path) =>
+        path.StartsWithSegments(HealthEndpointPath, StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments(AlivenessEndpointPath, StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments(MetricsEndpointPath, StringComparison.OrdinalIgnoreCase);
 
     public static WebApplicationBuilder AddCustomObservability(this WebApplicationBuilder builder)
     {
@@ -50,20 +92,27 @@ public static class Extensions
             return builder;
         }
 
+        var serviceName = ResolveServiceName(builder.Configuration, observabilityOptions, builder.Environment);
+        ApplyOtlpEndpointOverride(builder.Configuration, observabilityOptions);
+        var serviceVersion = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "unknown";
+
         void ConfigureResourceBuilder(ResourceBuilder resourceBuilder)
         {
-            resourceBuilder.AddAttributes([new("service.environment", builder.Environment.EnvironmentName)]);
-
             resourceBuilder.AddService(
-                serviceName: observabilityOptions.ServiceName ?? builder.Environment.ApplicationName,
-                serviceVersion: Assembly.GetCallingAssembly().GetName().Version?.ToString() ?? "unknown",
+                serviceName: serviceName,
+                serviceVersion: serviceVersion,
                 serviceInstanceId: Environment.MachineName
+            );
+            resourceBuilder.AddAttributes(
+                [
+                    new("service.environment", builder.Environment.EnvironmentName),
+                    new("deployment.environment.name", builder.Environment.EnvironmentName),
+                ]
             );
         }
 
         if (observabilityOptions.LoggingEnabled)
         {
-            // logging
             // opentelemtry logging works with .net default logging providers and doesn't work for `serilog`, in serilog we should enable `WriteToProviders=true`
             builder.Logging.AddOpenTelemetry(options =>
             {
@@ -71,23 +120,11 @@ public static class Extensions
                 ConfigureResourceBuilder(resourceBuilder);
                 options.SetResourceBuilder(resourceBuilder);
 
-                options.IncludeFormattedMessage = true;
                 options.IncludeScopes = true;
                 // this allows the state value passed to the logger.Log method to be parsed, in case it isn't a collection of KeyValuePair<string, object?>, which is the case when we use things like logger.LogInformation.
                 options.ParseStateValues = true;
                 // which means the message wouldn't have the placeholders replaced
                 options.IncludeFormattedMessage = true;
-
-                // add some metadata to exported logs
-                options.SetResourceBuilder(
-                    ResourceBuilder
-                        .CreateDefault()
-                        .AddService(
-                            observabilityOptions.ServiceName ?? builder.Environment.ApplicationName,
-                            serviceVersion: Assembly.GetCallingAssembly().GetName().Version?.ToString() ?? "unknown",
-                            serviceInstanceId: Environment.MachineName
-                        )
-                );
 
                 options.AddLoggingExporters(observabilityOptions);
             });
@@ -150,12 +187,7 @@ public static class Extensions
                     {
                         options.RecordException = true;
                         // Don't trace requests to the health endpoint to avoid filling the dashboard with noise
-                        options.Filter = httpContext =>
-                                             !(httpContext.Request.Path.StartsWithSegments(
-                                                   HealthEndpointPath, StringComparison.OrdinalIgnoreCase) ||
-                                               httpContext.Request.Path.StartsWithSegments(
-                                                   AlivenessEndpointPath, StringComparison.OrdinalIgnoreCase
-                                               ));
+                        options.Filter = httpContext => !IsInfrastructureEndpoint(httpContext.Request.Path);
                     })
                     .AddGrpcClientInstrumentation()
                     .AddHttpClientInstrumentation(instrumentationOptions =>
@@ -163,7 +195,12 @@ public static class Extensions
                         instrumentationOptions.RecordException = true;
                     })
                     .AddEntityFrameworkCoreInstrumentation()
+                    // MassTransit send/publish/consume spans; MassTransit propagates W3C trace context in message headers
                     .AddSource(DiagnosticHeaders.DefaultListenerName)
+                    // YARP forwarder spans (the outgoing proxied request is traced by the HttpClient instrumentation)
+                    .AddSource(YarpActivitySourceName)
+                    // outbox publish spans re-parented onto the request that enqueued the message
+                    .AddSource(PersistMessageActivitySourceName)
                     .AddNpgsql()
                     // `AddSource` for adding custom activity sources
                     .AddSource(observabilityOptions.InstrumentationName)
@@ -187,7 +224,7 @@ public static class Extensions
             async (context, next) =>
             {
                 var metricsFeature = context.Features.Get<IHttpMetricsTagsFeature>();
-                if (metricsFeature != null && context.Request.Path is { Value: "/metrics" or "/health" })
+                if (metricsFeature != null && IsInfrastructureEndpoint(context.Request.Path))
                 {
                     metricsFeature.MetricsDisabled = true;
                 }

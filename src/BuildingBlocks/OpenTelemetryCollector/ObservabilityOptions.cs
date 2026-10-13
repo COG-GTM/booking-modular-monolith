@@ -38,10 +38,32 @@ public class JaegerOptions
 public class OTLPOptions
 {
     public string OTLPGrpcExporterEndpoint { get; set; } = "http://localhost:4317";
+
+    // Misspelled key used by existing appsettings files; bound as an alias so those overrides apply.
+    public string? OTLPGrpExporterEndpoint
+    {
+        get => null;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                OTLPGrpcExporterEndpoint = value;
+        }
+    }
     public string OTLPHttpExporterEndpoint { get; set; } = "http://localhost:4318";
 }
 
 public class AspireDashboardOTLPOptions
 {
     public string OTLPGrpcExporterEndpoint { get; set; } = "http://localhost:4319";
+
+    // Misspelled key used by existing appsettings files; bound as an alias so those overrides apply.
+    public string? OTLPGrpExporterEndpoint
+    {
+        get => null;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                OTLPGrpcExporterEndpoint = value;
+        }
+    }
 }

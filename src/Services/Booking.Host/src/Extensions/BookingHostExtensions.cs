@@ -8,7 +8,6 @@ using BuildingBlocks.OpenTelemetryCollector;
 using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 namespace Booking.Host.Extensions;
 
@@ -73,16 +72,6 @@ public static class BookingHostExtensions
 
         app.UseCustomHealthCheck();
         app.UseCustomObservability();
-
-        // UseCustomHealthCheck only maps probes in Development; a deployable service needs them everywhere.
-        if (!app.Environment.IsDevelopment())
-        {
-            app.MapHealthChecks(HealthEndpointPath);
-            app.MapHealthChecks(
-                AlivenessEndpointPath,
-                new HealthCheckOptions { Predicate = r => r.Tags.Contains("live") }
-            );
-        }
 
         app.UseCustomProblemDetails();
         app.UseCorrelationId();

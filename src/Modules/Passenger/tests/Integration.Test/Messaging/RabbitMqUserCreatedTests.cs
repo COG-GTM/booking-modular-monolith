@@ -108,10 +108,13 @@ public class RabbitMqUserCreatedTests : TestBase<Program, PassengerDbContext, Pa
         );
         passengerCreated.Should().BeTrue("Passenger must consume UserCreated delivered by RabbitMQ");
 
-        var consumed = _fixture
-            .ServiceProvider.GetRequiredService<ITestHarness>()
-            .Consumed.Select<UserCreated>(x => x.Context.MessageId == outboxRow!.Id)
-            .FirstOrDefault();
+        // The harness records the consume after the consumer returns, i.e. after the passenger row commits.
+        var harness = _fixture.ServiceProvider.GetRequiredService<ITestHarness>();
+        var consumed = await WaitForAsync(() =>
+            Task.FromResult(
+                harness.Consumed.Select<UserCreated>(x => x.Context.MessageId == outboxRow!.Id).FirstOrDefault()
+            )
+        );
         consumed.Should().NotBeNull("the outbox row id is the broker MessageId");
         consumed!.Context.ReceiveContext.InputAddress!.AbsolutePath.Trim('/').Should().Be(ConsumerQueue);
 

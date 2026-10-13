@@ -46,3 +46,19 @@ scrape_configs:
 #  - job_name: 'tempo'
 #    static_configs:
 #      - targets: [ 'tempo:3200' ]
+
+  # Per-service scrape of the OpenTelemetry Prometheus exporter (`/metrics`, ObservabilityOptions:UsePrometheusExporter).
+  # DNS discovery against the compose network (images listen on 80): services that are not deployed in a given
+  # stack (e.g. monolith-only compose) simply resolve to no targets instead of showing up as DOWN. The same
+  # metrics also arrive through the collector (OTLP -> remote write) with `job` = service.name.
+  - job_name: "services"
+    scrape_interval: 10s
+    metrics_path: /metrics
+    dns_sd_configs:
+      - names: ["gateway", "identity-service", "flight-service", "passenger-service", "booking-service"]
+        type: A
+        port: 80
+        refresh_interval: 30s
+    relabel_configs:
+      - source_labels: [__meta_dns_name]
+        target_label: service
