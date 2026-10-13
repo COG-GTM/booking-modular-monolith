@@ -20,6 +20,7 @@ public class CompleteRegisterPassengerTests : PassengerIntegrationTestBase
         // Arrange
         var passenger = global::Passenger.Passengers.Models.Passenger.Create(
             PassengerId.Of(Guid.CreateVersion7()),
+            Guid.CreateVersion7(),
             Name.Of("Sam"),
             PassportNumber.Of("123456789")
         );

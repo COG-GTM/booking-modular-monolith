@@ -8,6 +8,7 @@ using ValueObjects;
 
 public record Passenger : Aggregate<PassengerId>
 {
+    public Guid UserId { get; private set; }
     public PassportNumber PassportNumber { get; private set; } = default!;
     public Name Name { get; private set; } = default!;
     public Enums.PassengerType PassengerType { get; private set; }
@@ -23,7 +24,7 @@ public record Passenger : Aggregate<PassengerId>
         this.Age = age;
         this.IsDeleted = isDeleted;
 
-        var @event = new PassengerRegistrationCompletedDomainEvent(this.Id, this.Name,
+        var @event = new PassengerRegistrationCompletedDomainEvent(this.Id, this.UserId, this.Name,
             this.PassportNumber,
             this.PassengerType, this.Age, this.IsDeleted);
 
@@ -31,12 +32,16 @@ public record Passenger : Aggregate<PassengerId>
     }
 
 
-    public static Passenger Create(PassengerId id, Name name, PassportNumber passportNumber, bool isDeleted = false)
+    public static Passenger Create(PassengerId id, Guid userId, Name name, PassportNumber passportNumber,
+        bool isDeleted = false)
     {
-        var passenger = new Passenger { Id = id, Name = name, PassportNumber = passportNumber, IsDeleted = isDeleted };
+        var passenger = new Passenger
+        {
+            Id = id, UserId = userId, Name = name, PassportNumber = passportNumber, IsDeleted = isDeleted
+        };
 
-        var @event = new PassengerCreatedDomainEvent(passenger.Id, passenger.Name, passenger.PassportNumber,
-            passenger.IsDeleted);
+        var @event = new PassengerCreatedDomainEvent(passenger.Id, passenger.UserId, passenger.Name,
+            passenger.PassportNumber, passenger.IsDeleted);
 
         passenger.AddDomainEvent(@event);
 

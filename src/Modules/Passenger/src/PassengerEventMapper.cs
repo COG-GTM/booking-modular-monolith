@@ -23,10 +23,10 @@ public sealed class PassengerEventMapper : IEventMapper
     {
         return @event switch
         {
-            PassengerRegistrationCompletedDomainEvent e => new CompleteRegisterPassengerMongoCommand(e.Id, e.PassportNumber, e.Name, e.PassengerType,
-                e.Age, e.IsDeleted),
-            PassengerCreatedDomainEvent e => new CompleteRegisterPassengerMongoCommand(e.Id, e.PassportNumber, e.Name, Passengers.Enums.PassengerType.Unknown,
-                0, e.IsDeleted),
+            PassengerRegistrationCompletedDomainEvent e => new CompleteRegisterPassengerMongoCommand(e.Id, e.UserId, e.PassportNumber, e.Name,
+                e.PassengerType, e.Age, e.IsDeleted),
+            PassengerCreatedDomainEvent e => new CompleteRegisterPassengerMongoCommand(e.Id, e.UserId, e.PassportNumber, e.Name,
+                Passengers.Enums.PassengerType.Unknown, 0, e.IsDeleted),
             _ => null
         };
     }

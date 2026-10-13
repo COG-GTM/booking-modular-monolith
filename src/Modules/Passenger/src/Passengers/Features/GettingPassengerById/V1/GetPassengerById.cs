@@ -1,6 +1,8 @@
 namespace Passenger.Passengers.Features.GettingPassengerById.V1;
 
+using System.Security.Claims;
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Web;
 using Duende.IdentityServer.EntityFramework.Entities;
@@ -19,7 +21,7 @@ using Passenger.Passengers.Exceptions;
 
 public record GetPassengerById(Guid Id) : IQuery<GetPassengerByIdResult>;
 
-public record GetPassengerByIdResult(PassengerDto PassengerDto);
+public record GetPassengerByIdResult(PassengerDto PassengerDto, Guid UserId);
 
 public record GetPassengerByIdResponseDto(PassengerDto PassengerDto);
 
@@ -28,9 +30,14 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
         builder.MapGet($"{EndpointConfig.BaseApiPath}/passenger/{{id}}",
-                async (Guid id, IMediator mediator, CancellationToken cancellationToken) =>
+                async (Guid id, ClaimsPrincipal user, IMediator mediator, CancellationToken cancellationToken) =>
                 {
                     var result = await mediator.Send(new GetPassengerById(id), cancellationToken);
+
+                    if (!PassengerAccessPolicy.CanRead(user, result.UserId))
+                    {
+                        return Results.Forbid();
+                    }
 
                     var response = result.Adapt<GetPassengerByIdResponseDto>();
 
@@ -41,12 +48,32 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Passenger").Build())
             .Produces<GetPassengerByIdResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Get Passenger By Id")
             .WithDescription("Get Passenger By Id")
             .WithOpenApi()
             .HasApiVersion(1.0);
 
         return builder;
+    }
+}
+
+public static class PassengerAccessPolicy
+{
+    // Only the user that owns the passenger record, or an admin, may read it.
+    public static bool CanRead(ClaimsPrincipal user, Guid ownerUserId)
+    {
+        if (user.IsInRole(IdentityConstant.Role.Admin))
+        {
+            return true;
+        }
+
+        var subject = user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(subject, out var currentUserId)
+               && currentUserId != Guid.Empty
+               && currentUserId == ownerUserId;
     }
 }
 
@@ -84,6 +111,6 @@ internal class GetPassengerByIdHandler : IQueryHandler<GetPassengerById, GetPass
 
         var passengerDto = _mapper.Map<PassengerDto>(passenger);
 
-        return new GetPassengerByIdResult(passengerDto);
+        return new GetPassengerByIdResult(passengerDto, passenger.UserId);
     }
 }
