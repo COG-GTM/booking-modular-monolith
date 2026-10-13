@@ -259,6 +259,31 @@ public class BreakingChangeDetectionTests
             .And.Contain(v => v.Contains("property Passport added as required"));
 
     [Fact]
+    public void adding_a_non_nullable_member_with_a_default_is_compatible() =>
+        CompareUserCreated(typeof(Defaulted.UserCreated)).Should().BeEmpty();
+
+    [Fact]
+    public void nested_versioned_proto_baselines_are_enumerated()
+    {
+        var root = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "grpc", "v2"));
+            File.WriteAllText(Path.Combine(root, "grpc", "flight.json"), "{}");
+            File.WriteAllText(Path.Combine(root, "grpc", "v2", "flight.json"), "{}");
+
+            Baselines
+                .ExistingProtoBaselines(root)
+                .Should()
+                .BeEquivalentTo(Baselines.ProtoFile("flight.proto"), Baselines.ProtoFile("v2/flight.proto"));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void making_an_optional_integration_event_member_required_is_breaking()
     {
         var current = ContractSnapshots.ForMessages(ContractSnapshots.MessagesAssembly);

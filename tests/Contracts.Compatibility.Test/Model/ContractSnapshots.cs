@@ -22,6 +22,9 @@ public sealed class MessageProperty
 {
     public string Type { get; set; } = string.Empty;
     public bool Nullable { get; set; }
+
+    // Optional constructor parameter: older payloads that omit the member still deserialize.
+    public bool? HasDefault { get; set; }
 }
 
 // Wire-relevant shape of one .proto file (what `buf breaking` would compare).
@@ -111,6 +114,11 @@ public static class ContractSnapshots
     {
         var nullability = new NullabilityInfoContext();
         var contract = new MessageContract { Urn = MessageUrn.ForTypeString(type) };
+        var parameters =
+            type.GetConstructors()
+                .OrderByDescending(ctor => ctor.GetParameters().Length)
+                .FirstOrDefault()
+                ?.GetParameters() ?? [];
         foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
         {
             if (property.GetMethod is not { IsPublic: true } || property.GetIndexParameters().Length > 0)
@@ -124,6 +132,12 @@ public static class ContractSnapshots
                 Nullable =
                     System.Nullable.GetUnderlyingType(property.PropertyType) is not null
                     || nullability.Create(property).ReadState == NullabilityState.Nullable,
+                HasDefault = parameters.Any(parameter =>
+                    parameter.HasDefaultValue
+                    && string.Equals(parameter.Name, property.Name, StringComparison.OrdinalIgnoreCase)
+                )
+                    ? true
+                    : null,
             };
         }
 

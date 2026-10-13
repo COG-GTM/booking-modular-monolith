@@ -49,10 +49,10 @@ public static class CompatibilityRules
 
             foreach (var (propertyName, property) in now.Properties)
             {
-                if (!previous.Properties.ContainsKey(propertyName) && !property.Nullable)
+                if (!previous.Properties.ContainsKey(propertyName) && !property.Nullable && property.HasDefault != true)
                 {
                     violations.Add(
-                        $"message {name}: property {propertyName} added as required (new members must be nullable)"
+                        $"message {name}: property {propertyName} added as required (new members must be nullable or have a default)"
                     );
                 }
             }

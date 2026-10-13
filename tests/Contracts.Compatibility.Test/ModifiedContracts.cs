@@ -4,6 +4,11 @@ namespace Contracts.Compatibility.Test.Additive
     public record UserCreated(Guid Id, string Name, string PassportNumber, string? Email = null);
 }
 
+namespace Contracts.Compatibility.Test.Defaulted
+{
+    public record UserCreated(Guid Id, string Name, string PassportNumber, string Country = "US");
+}
+
 namespace Contracts.Compatibility.Test.Breaking
 {
     public record UserCreated(string Id, string? Name, string Passport);

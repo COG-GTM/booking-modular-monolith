@@ -27,11 +27,14 @@ public static class Baselines
 
     public static string SampleFile(Type messageType) => $"messages/samples/{messageType.Name}.json";
 
-    public static IEnumerable<string> ExistingProtoBaselines()
+    public static IEnumerable<string> ExistingProtoBaselines(string? root = null)
     {
-        var directory = Path.Combine(OutputDirectory, "grpc");
+        root ??= OutputDirectory;
+        var directory = Path.Combine(root, "grpc");
         return Directory.Exists(directory)
-            ? Directory.GetFiles(directory, "*.json").Select(path => $"grpc/{Path.GetFileName(path)}")
+            ? Directory
+                .GetFiles(directory, "*.json", SearchOption.AllDirectories)
+                .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
             : [];
     }
 
