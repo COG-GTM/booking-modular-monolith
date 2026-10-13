@@ -123,6 +123,7 @@ C4Container
 
 - Positive: clients get one stable URL; module extraction becomes a config change; ingress concerns (auth, CORS, rate limit, logging) are defined once.
 - Negative / risks: one more process to run and monitor; an extra network hop; the gateway is a new single point of failure unless replicated; the monolith's IdentityServer must be reachable from the gateway for JWKS.
+- Transitional: the monolith stays directly reachable (compose 3000/3001, Aspire `api-*` endpoints) until every client has moved to the gateway; direct callers bypass the gateway's CORS/rate limit, so closing those ports is the decommission step at the end of AB-488, not part of this change.
 - Follow-ups: create the ARB ticket; confirm NFR/ownership TBDs; add gateway to CI image build; decide whether client-side `Authorization` should be stripped once downstream services trust the gateway (not now).
 
 ## Open questions
