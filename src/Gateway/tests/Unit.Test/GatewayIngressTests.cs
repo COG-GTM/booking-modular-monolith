@@ -31,6 +31,7 @@ public class GatewayIngressTests : IClassFixture<DownstreamStub>, IAsyncLifetime
         {
             builder.UseEnvironment("test");
             builder.UseSetting("RateLimitOptions:PermitLimit", "3");
+            builder.UseSetting("CorsOptions:AllowedOrigins:0", "https://app.example.com");
             builder.UseSetting("RateLimitOptions:WindowSeconds", "60");
 
             foreach (var cluster in new[] { "flight", "passenger", "booking", "identity", "monolith" })
@@ -180,7 +181,10 @@ public class GatewayIngressTests : IClassFixture<DownstreamStub>, IAsyncLifetime
         var response = await _factory.CreateClient().SendAsync(request);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal("*", Assert.Single(response.Headers.GetValues("Access-Control-Allow-Origin")));
+        Assert.Equal(
+            "https://app.example.com",
+            Assert.Single(response.Headers.GetValues("Access-Control-Allow-Origin"))
+        );
     }
 
     [Fact]

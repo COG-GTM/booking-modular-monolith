@@ -369,9 +369,16 @@ services:
     container_name: gateway
     ports:
       - 5000:80
+      - 5001:443
+    volumes:
+      - ~/.aspnet/https:/https:ro
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
-      - ASPNETCORE_URLS=http://+:80
+      - ASPNETCORE_URLS=https://+;http://+
+      - ASPNETCORE_HTTPS_PORT=5001
+      - ASPNETCORE_HTTP_PORT=5000
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
     depends_on:
       - booking_modular_monolith
     networks:

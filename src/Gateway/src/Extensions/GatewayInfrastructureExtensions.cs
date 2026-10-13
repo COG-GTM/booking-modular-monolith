@@ -96,9 +96,9 @@ public static class GatewayInfrastructureExtensions
             {
                 policy.AllowAnyHeader().AllowAnyMethod();
 
-                if (corsOptions.AllowedOrigins.Length == 0)
-                    policy.AllowAnyOrigin();
-                else
+                // Deny by default: with no configured origins the policy matches nothing,
+                // so browsers get no Access-Control-Allow-* headers.
+                if (corsOptions.AllowedOrigins.Length > 0)
                     policy.WithOrigins(corsOptions.AllowedOrigins).AllowCredentials();
             })
         );

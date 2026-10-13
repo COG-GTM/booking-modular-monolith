@@ -95,7 +95,7 @@ C4Container
 - **Audit logging:** Structured HTTP logs (method, path, query, status, duration) per request with `correlationId`; OpenTelemetry traces exported via the existing collector.
 - **Data residency / regions:** Unchanged — deploys wherever the monolith deploys.
 - **Policy sections satisfied:** no new cloud resources; reuses approved container runtime and existing OTel pipeline.
-- **Threats considered:** token replay (mitigated by short-lived tokens + lifetime validation), header spoofing of `correlationId` (accepted: informational only), DoS (per-IP fixed-window rate limit; tune `RateLimitOptions`; behind a load balancer register it in `TrustedProxyOptions` so the limiter keys on `X-Forwarded-For`), CORS misconfiguration (default allows any origin without credentials; set `CorsOptions:AllowedOrigins` in shared environments), open-proxy risk (routes are an explicit allow-list; no wildcard host forwarding).
+- **Threats considered:** token replay (mitigated by short-lived tokens + lifetime validation), header spoofing of `correlationId` (accepted: informational only), DoS (per-IP fixed-window rate limit; tune `RateLimitOptions`; behind a load balancer register it in `TrustedProxyOptions` so the limiter keys on `X-Forwarded-For`), CORS misconfiguration (deny by default: no cross-origin browser access until `CorsOptions:AllowedOrigins` is set), open-proxy risk (routes are an explicit allow-list; no wildcard host forwarding).
 
 ## Cost
 
