@@ -20,6 +20,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using NSubstitute;
@@ -51,8 +52,9 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
     public EventStoreDbContainer EventStoreDbTestContainer;
     public CancellationTokenSource CancellationTokenSource;
 
-    public PersistMessageBackgroundService PersistMessageBackgroundService =>
-        ServiceProvider.GetRequiredService<PersistMessageBackgroundService>();
+    // One outbox/inbox poller per module; tests start/stop them explicitly instead of as hosted services.
+    public IEnumerable<PersistMessageBackgroundService> PersistMessageBackgroundServices =>
+        ServiceProvider.GetServices<PersistMessageBackgroundService>();
 
     public HttpClient HttpClient
     {
@@ -91,8 +93,7 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
                 TestRegistrationServices?.Invoke(services);
                 services.ReplaceSingleton(AddHttpContextAccessorMock);
 
-                services.AddSingleton<PersistMessageBackgroundService>();
-                services.RemoveHostedService<PersistMessageBackgroundService>();
+                ReplacePersistMessageHostedServices(services);
 
                 // Register all ITestDataSeeder implementations dynamically
                 services.Scan(scan =>
@@ -273,7 +274,10 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
                 new("PostgresOptions:ConnectionString:Flight", PostgresTestcontainer.GetConnectionString()),
                 new("PostgresOptions:ConnectionString:Identity", PostgresTestcontainer.GetConnectionString()),
                 new("PostgresOptions:ConnectionString:Passenger", PostgresTestcontainer.GetConnectionString()),
-                new("PersistMessageOptions:ConnectionString", PostgresPersistTestContainer.GetConnectionString()),
+                new("PersistMessageOptions:ConnectionString:Flight", PersistMessageConnectionString("Flight")),
+                new("PersistMessageOptions:ConnectionString:Identity", PersistMessageConnectionString("Identity")),
+                new("PersistMessageOptions:ConnectionString:Passenger", PersistMessageConnectionString("Passenger")),
+                new("PersistMessageOptions:ConnectionString:Booking", PersistMessageConnectionString("Booking")),
                 new("RabbitMqOptions:HostName", RabbitMqTestContainer.Hostname),
                 new("RabbitMqOptions:UserName", TestContainers.RabbitMqContainerConfiguration.UserName),
                 new("RabbitMqOptions:Password", TestContainers.RabbitMqContainerConfiguration.Password),
@@ -284,10 +288,41 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
                         .ToString(NumberFormatInfo.InvariantInfo)
                 ),
                 new("MongoOptions:ConnectionString", MongoDbTestContainer.GetConnectionString()),
-                new("MongoOptions:DatabaseName", TestContainers.MongoContainerConfiguration.Name),
+                new("MongoOptions:Flight:DatabaseName", MongoDatabaseName("Flight")),
+                new("MongoOptions:Passenger:DatabaseName", MongoDatabaseName("Passenger")),
+                new("MongoOptions:Booking:DatabaseName", MongoDatabaseName("Booking")),
                 new("EventStoreOptions:ConnectionString", EventStoreDbTestContainer.GetConnectionString()),
             }
         );
+    }
+
+    private string PersistMessageConnectionString(string moduleName) =>
+        new NpgsqlConnectionStringBuilder(PostgresPersistTestContainer.GetConnectionString())
+        {
+            Database = $"{moduleName.ToLowerInvariant()}_persist_message",
+        }.ConnectionString;
+
+    public static string MongoDatabaseName(string moduleName) =>
+        $"{TestContainers.MongoContainerConfiguration.Name}_{moduleName.ToLowerInvariant()}";
+
+    private static void ReplacePersistMessageHostedServices(IServiceCollection services)
+    {
+        var hostedServices = services
+            .Where(d =>
+                d.ServiceType == typeof(IHostedService)
+                && d.ImplementationType?.IsAssignableTo(typeof(PersistMessageBackgroundService)) == true
+            )
+            .ToList();
+
+        foreach (var descriptor in hostedServices)
+        {
+            var implementationType = descriptor.ImplementationType!;
+            services.Remove(descriptor);
+            services.AddSingleton(implementationType);
+            services.AddSingleton(sp =>
+                (PersistMessageBackgroundService)sp.GetRequiredService(implementationType)
+            );
+        }
     }
 
     private IHttpContextAccessor AddHttpContextAccessorMock(IServiceProvider serviceProvider)
@@ -479,9 +514,8 @@ public class TestFixtureCore<TEntryPoint> : IAsyncLifetime
     where TEntryPoint : class
 {
     private Respawner _reSpawnerDefaultDb;
-    private Respawner _reSpawnerPersistDb;
+    private readonly List<(NpgsqlConnection Connection, Respawner Respawner)> _persistDbs = [];
     private NpgsqlConnection DefaultDbConnection { get; set; }
-    private NpgsqlConnection PersistDbConnection { get; set; }
     private Type _dbContextType;
 
     public TestFixtureCore(
@@ -513,23 +547,28 @@ public class TestFixtureCore<TEntryPoint> : IAsyncLifetime
     private async Task InitPostgresAsync()
     {
         var postgresOptions = Fixture.ServiceProvider.GetService<PostgresOptions>();
-        var persistOptions = Fixture.ServiceProvider.GetService<PersistMessageOptions>();
-
-        if (!string.IsNullOrEmpty(persistOptions?.ConnectionString))
+        // Every module owns its own outbox/inbox database.
+        foreach (var store in Fixture.ServiceProvider.GetServices<PersistMessageStore>())
         {
-            PersistDbConnection = new NpgsqlConnection(persistOptions.ConnectionString);
-            await PersistDbConnection.OpenAsync();
-
             using var scope = Fixture.ServiceProvider.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
+            var dbContext = (PersistMessageDbContext)scope.ServiceProvider.GetRequiredService(store.DbContextType);
             await dbContext.Database.EnsureCreatedAsync();
+            dbContext.CreatePersistMessageTableIfNotExists();
 
-            await Fixture.PersistMessageBackgroundService.StartAsync(Fixture.CancellationTokenSource.Token);
+            var connection = new NpgsqlConnection(dbContext.Database.GetConnectionString());
+            await connection.OpenAsync();
 
-            _reSpawnerPersistDb = await Respawner.CreateAsync(
-                PersistDbConnection,
+            var respawner = await Respawner.CreateAsync(
+                connection,
                 new RespawnerOptions { DbAdapter = DbAdapter.Postgres }
             );
+
+            _persistDbs.Add((connection, respawner));
+        }
+
+        foreach (var backgroundService in Fixture.PersistMessageBackgroundServices)
+        {
+            await backgroundService.StartAsync(Fixture.CancellationTokenSource.Token);
         }
 
         if (!string.IsNullOrEmpty(postgresOptions?.ConnectionString) && _dbContextType != null)
@@ -555,16 +594,23 @@ public class TestFixtureCore<TEntryPoint> : IAsyncLifetime
 
     private async Task ResetPostgresAsync()
     {
-        if (PersistDbConnection is not null)
+        foreach (var backgroundService in Fixture.PersistMessageBackgroundServices)
         {
-            await _reSpawnerPersistDb.ResetAsync(PersistDbConnection);
-
-            await Fixture.PersistMessageBackgroundService.StopAsync(Fixture.CancellationTokenSource.Token);
+            await backgroundService.StopAsync(Fixture.CancellationTokenSource.Token);
         }
+
+        foreach (var (connection, respawner) in _persistDbs)
+        {
+            await respawner.ResetAsync(connection);
+            await connection.DisposeAsync();
+        }
+
+        _persistDbs.Clear();
 
         if (DefaultDbConnection is not null)
         {
             await _reSpawnerDefaultDb.ResetAsync(DefaultDbConnection);
+            await DefaultDbConnection.DisposeAsync();
         }
     }
 
@@ -573,15 +619,19 @@ public class TestFixtureCore<TEntryPoint> : IAsyncLifetime
         //https://stackoverflow.com/questions/3366397/delete-everything-in-a-mongodb-database
         var dbClient = new MongoClient(Fixture.MongoDbTestContainer?.GetConnectionString());
 
-        var collections = await dbClient
-            .GetDatabase(TestContainers.MongoContainerConfiguration.Name)
-            .ListCollectionsAsync(cancellationToken: cancellationToken);
+        // Each module has its own read database, all prefixed with the container name.
+        var databaseNames = (await dbClient.ListDatabaseNamesAsync(cancellationToken)).ToList(cancellationToken)
+            .Where(name => name.StartsWith(TestContainers.MongoContainerConfiguration.Name, StringComparison.Ordinal));
 
-        foreach (var collection in collections.ToList())
+        foreach (var databaseName in databaseNames)
         {
-            await dbClient
-                .GetDatabase(TestContainers.MongoContainerConfiguration.Name)
-                .DropCollectionAsync(collection["name"].AsString, cancellationToken);
+            var database = dbClient.GetDatabase(databaseName);
+            var collections = await database.ListCollectionNamesAsync(cancellationToken: cancellationToken);
+
+            foreach (var collection in collections.ToList(cancellationToken))
+            {
+                await database.DropCollectionAsync(collection, cancellationToken);
+            }
         }
     }
 

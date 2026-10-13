@@ -9,10 +9,10 @@ using MessageEnvelope = BuildingBlocks.Core.Event.MessageEnvelope;
 
 namespace BuildingBlocks.Core;
 
-public sealed class EventDispatcher(
+public class EventDispatcher(
     IServiceScopeFactory serviceScopeFactory,
     IEventMapper eventMapper,
-    ILogger<EventDispatcher> logger,
+    ILogger logger,
     IPersistMessageProcessor persistMessageProcessor,
     IHttpContextAccessor httpContextAccessor
 )
@@ -153,3 +153,14 @@ public sealed class EventDispatcher(
         return headers;
     }
 }
+
+public sealed class EventDispatcher<TModule>(
+    IServiceScopeFactory serviceScopeFactory,
+    IEventMapper eventMapper,
+    ILogger<EventDispatcher<TModule>> logger,
+    IPersistMessageProcessor<TModule> persistMessageProcessor,
+    IHttpContextAccessor httpContextAccessor
+)
+    : EventDispatcher(serviceScopeFactory, eventMapper, logger, persistMessageProcessor, httpContextAccessor),
+        IEventDispatcher<TModule>
+    where TModule : class;
