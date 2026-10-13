@@ -1,7 +1,11 @@
 using System.Net;
+using System.Security.Claims;
 using Gateway.Configurations;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using WebMotions.Fake.Authentication.JwtBearer;
 using Xunit;
 
 namespace Gateway.Unit.Test;
@@ -28,6 +32,16 @@ public class GatewayUpstreamHeaderPerClusterTests : IAsyncLifetime
                 builder.UseSetting($"ReverseProxy:Clusters:{cluster}:Destinations:monolith:Address", _service.Address);
 
             builder.UseSetting("ReverseProxy:Clusters:monolith:Destinations:monolith:Address", _monolith.Address);
+
+            builder.ConfigureTestServices(services =>
+                services
+                    .AddAuthentication(options =>
+                    {
+                        options.DefaultAuthenticateScheme = FakeJwtBearerDefaults.AuthenticationScheme;
+                        options.DefaultChallengeScheme = FakeJwtBearerDefaults.AuthenticationScheme;
+                    })
+                    .AddFakeJwtBearer()
+            );
         });
     }
 
@@ -41,7 +55,7 @@ public class GatewayUpstreamHeaderPerClusterTests : IAsyncLifetime
     [Fact]
     public async Task upstream_header_names_the_cluster_destination_that_served_each_request()
     {
-        var client = _factory.CreateClient();
+        var client = SignedIn(_factory);
 
         var identity = await client.GetAsync("/.well-known/openid-configuration");
         var monolith = await client.GetAsync("/some-legacy-page");
@@ -66,13 +80,20 @@ public class GatewayUpstreamHeaderPerClusterTests : IAsyncLifetime
             builder.UseSetting("ReverseProxy:Clusters:identity:Destinations:monolith:Address", _monolith.Address)
         );
 
-        var response = await flipped.CreateClient().GetAsync("/.well-known/openid-configuration");
+        var response = await SignedIn(flipped).GetAsync("/.well-known/openid-configuration");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
             HostPort(_monolith.Address),
             Assert.Single(response.Headers.GetValues(UpstreamHeaderOptions.HeaderName))
         );
+    }
+
+    private static HttpClient SignedIn(WebApplicationFactory<Program> factory)
+    {
+        var client = factory.CreateClient();
+        client.SetFakeBearerToken(new Dictionary<string, object> { { ClaimTypes.Name, "operator" } });
+        return client;
     }
 
     private static string HostPort(string address)

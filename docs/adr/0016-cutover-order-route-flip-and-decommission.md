@@ -24,8 +24,9 @@ Flight → Passenger → Booking → Identity ("lowest coupling first") before t
 There was no runbook, no tooling for the flip itself, and no rehearsed rollback.
 
 ARB triggers: T1 (deployment topology: compose overlay adding the monolith to the services topology, gateway
-deployment env changed per flip), T6 (routing of authenticated traffic and of the token endpoint moves between
-processes). The heuristic detector reported no triggers (no IaC files); the triggers above come from reading the diff.
+deployment env changed per flip, shared `identity-signing-keys` volume mounted into both Identity hosts), T6
+(routing of authenticated traffic and of the token endpoint moves between processes; one signing key shared by
+two token issuers; `X-Gateway-Upstream` restricted to authenticated callers). The heuristic detector reported no triggers (no IaC files); the triggers above come from reading the diff.
 
 ## Decision
 
@@ -34,16 +35,25 @@ processes). The heuristic detector reported no triggers (no IaC files); the trig
    gRPC) and the only context needing a data backfill; Passenger before Booking; Booking last because it depends on
    both over gRPC. This supersedes the order in ADR 0002.
 2. **A flip is one setting:** `ReverseProxy__Clusters__<ctx>__Destinations__monolith__Address` on the gateway,
-   applied by `deployments/scripts/route-flip.sh` (compose: git-ignored `.cutover.env` + recreate only the gateway;
-   Kubernetes: `kubectl set env deploy/gateway` + `rollout status`), with `--dry-run`, a post-flip `/health` check and
-   an authenticated smoke request. **Rollback is the same command with `monolith`.**
+   applied by `deployments/scripts/route-flip.sh` (compose: the project's git-ignored `.env`, so plain
+   `docker compose up` preserves the flipped routes, + recreate only the gateway; Kubernetes:
+   `kubectl set env deploy/gateway` + `rollout status`), with `--dry-run`, a post-flip `/health` check and an
+   authenticated smoke request that fails unless `X-Gateway-Upstream` names the expected destination.
+   **Rollback is the same command with `monolith`.**
 3. **Two-phase data move:** flip routes while the service still uses the monolith's module store (instant, lossless
    rollback; ADR 0013 switch keeps exactly one background processor), then separate data per context after burn-in,
    draining the outbox/inbox first and copying in a write freeze.
 4. **Observability for the window:** opt-in `X-Gateway-Upstream` response header (`UpstreamHeaderOptions:Enabled`,
-   default off because it leaks internal host names) plus YARP's per-request `Proxying to` log line.
-5. **Decommission** of `src/Api`, its CI/compose/Aspire wiring and the gateway `monolith` cluster happens only after
-   all four contexts have burned in, as the checklist in `docs/migration/cutover-runbook.md`. It is not done in AB-248.
+   default off because it leaks internal host names; when on, emitted only to authenticated callers,
+   `AuthenticatedOnly` default true) plus YARP's per-request `Proxying to` log line.
+5. **Token continuity:** both Identity hosts sign with one key during the window — `AuthOptions:SigningKeyPath`
+   points them at a shared key file/volume (compose) or secret (Kubernetes); `validate-rollback.sh identity`
+   fails when their JWKS differ. A production key store replaces the developer credential before the identity flip.
+6. **Decommission** in two steps: `deployments/scripts/decommission-monolith.sh` removes the running monolith host
+   once every cluster is on its service and the gateway has proxied nothing to the monolith for the quiet period,
+   then verifies all four contexts through the gateway without it; deleting `src/Api`, its CI/compose/Aspire wiring
+   and the gateway `monolith` cluster follows as the checklist in `docs/migration/cutover-runbook.md`, after
+   production burn-in. The code removal is not done in AB-248.
 
 ## Consequences
 
@@ -53,6 +63,7 @@ processes). The heuristic detector reported no triggers (no IaC files); the trig
   background processing on and Identity/Passenger/Booking off.
 - Flight's service database diverges from the monolith's once the route is on the service; a rollback after Flight
   writes needs the reverse copy described in the runbook, or Flight must use the shared store during Phase A.
-- Identity rollback requires both identity processes to share signing keys; this is a pre-flight check.
+- Identity rollback requires both identity processes to share signing keys; enforced by `AuthOptions:SigningKeyPath`
+  in the cut-over overlay and checked by `validate-rollback.sh identity` (pre-flight 3.3).
 - YARP's built-in load balancers are not weighted, so weighted canaries use repeated destinations or a custom policy;
   header-based dark launch is the recommended canary.

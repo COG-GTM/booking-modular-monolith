@@ -37,7 +37,7 @@ public static class GatewayInfrastructureExtensions
                 context.AddRequestTransform(PropagateCorrelationId);
 
                 if (upstreamHeader.Enabled)
-                    context.AddResponseTransform(AddUpstreamHeader);
+                    context.AddResponseTransform(ctx => AddUpstreamHeader(ctx, upstreamHeader));
             });
 
         return builder;
@@ -154,9 +154,14 @@ public static class GatewayInfrastructureExtensions
         return services;
     }
 
-    private static ValueTask AddUpstreamHeader(ResponseTransformContext context)
+    private static ValueTask AddUpstreamHeader(ResponseTransformContext context, UpstreamHeaderOptions options)
     {
-        var address = context.HttpContext.Features.Get<IReverseProxyFeature>()?.ProxiedDestination?.Model.Config.Address;
+        if (options.AuthenticatedOnly && context.HttpContext.User.Identity?.IsAuthenticated != true)
+            return ValueTask.CompletedTask;
+
+        var address = context
+            .HttpContext.Features.Get<IReverseProxyFeature>()
+            ?.ProxiedDestination?.Model.Config.Address;
 
         if (Uri.TryCreate(address, UriKind.Absolute, out var uri))
             context.HttpContext.Response.Headers[UpstreamHeaderOptions.HeaderName] = $"{uri.Host}:{uri.Port}";

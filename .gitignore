@@ -445,4 +445,5 @@ fabric.properties
 **/keys/is-signing-key-*.json
 
 # Route-flip state written by deployments/scripts/route-flip.sh
-deployments/docker-compose/.cutover.env
+# route-flip.sh state (chosen upstream per gateway cluster), loaded by docker compose automatically
+deployments/docker-compose/.env

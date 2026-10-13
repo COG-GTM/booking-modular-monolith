@@ -303,14 +303,16 @@ Under Aspire the AppHost injects each standalone service's endpoint into its clu
 To flip one context with a dry-run option and a post-flip health/smoke check (docker compose or `--target k8s`), and to roll it back, use `deployments/scripts/route-flip.sh`; `docker-compose.cutover.yaml` adds the monolith to the multi-service topology so both are reachable from the gateway:
 
 ```bash
+export SMOKE_USERNAME=samh SMOKE_PASSWORD='Admin@123456' SMOKE_CLIENT_ID=client SMOKE_CLIENT_SECRET=secret  # local dev seed, used by the smoke check
 docker compose -f deployments/docker-compose/docker-compose.services.yaml -f deployments/docker-compose/docker-compose.cutover.yaml up -d --build --wait gateway
 deployments/scripts/route-flip.sh flight monolith --dry-run
 deployments/scripts/route-flip.sh flight monolith     # rollback target
 deployments/scripts/route-flip.sh flight service
 deployments/scripts/validate-rollback.sh flight       # automated monolith -> service -> monolith rehearsal
+deployments/scripts/decommission-monolith.sh --check-only   # preconditions for removing the monolith host
 ```
 
-See the [cut-over runbook](./docs/migration/cutover-runbook.md) for order, pre-flight checks, canaries, data backfill and the decommission checklist.
+Flipped routes are stored in the git-ignored `deployments/docker-compose/.env`, which docker compose loads automatically, so a later plain `docker compose ... up -d` keeps them. See the [cut-over runbook](./docs/migration/cutover-runbook.md) for order, pre-flight checks, canaries, data backfill and the decommission checklist.
 
 The decision is recorded in [ADR 0008](./docs/adr/0008-api-gateway-single-ingress.md).
 

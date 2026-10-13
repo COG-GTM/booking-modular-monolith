@@ -5,8 +5,13 @@
 #   docker compose -f docker-compose.services.yaml -f docker-compose.cutover.yaml up -d --build
 #   deployments/scripts/route-flip.sh flight monolith      # or: service
 #
-# route-flip.sh keeps the chosen upstream per cluster in `.cutover.env` (git-ignored) and recreates
-# only the gateway. Defaults below = every cluster on its service (fully cut over).
+# route-flip.sh keeps the chosen upstream per cluster in this directory's `.env` (git-ignored), which
+# docker compose loads automatically, and recreates only the gateway. Defaults below = every cluster
+# on its service (fully cut over).
+#
+# Token continuity: both Identity hosts (identity-service and the monolith) sign with the same key,
+# stored on the shared `identity-signing-keys` volume, so tokens issued before a flip stay valid
+# after it in either direction. In Kubernetes mount the same secret/PVC into both deployments.
 #
 # Data ownership in this overlay (see the runbook's data section):
 # - identity/passenger/booking services already use the monolith's module stores, so the monolith
@@ -40,6 +45,7 @@ services:
       Jwt__Authority: ${JWT_ISSUER:-http://localhost:5000}
       Jwt__MetadataAddress: http://identity-service/.well-known/openid-configuration
       AuthOptions__IssuerUri: ${JWT_ISSUER:-http://localhost:5000}
+      AuthOptions__SigningKeyPath: /keys/identity/tempkey.jwk
       Modules__Identity__BackgroundProcessingEnabled: "false"
       Modules__Passenger__BackgroundProcessingEnabled: "false"
       Modules__Booking__BackgroundProcessingEnabled: "false"
@@ -71,11 +77,21 @@ services:
         condition: service_healthy
       flight-service:
         condition: service_healthy
+    volumes:
+      - identity-signing-keys:/keys/identity
     networks:
       - infrastructure
 
+  identity-service:
+    environment:
+      AuthOptions__SigningKeyPath: /keys/identity/tempkey.jwk
+    volumes:
+      - identity-signing-keys:/keys/identity
+
   gateway:
     environment:
+      # Diagnostic header naming the destination that served each response; the gateway only adds
+      # it for authenticated callers (UpstreamHeaderOptions:AuthenticatedOnly, default true).
       UpstreamHeaderOptions__Enabled: "true"
       ReverseProxy__Clusters__identity__Destinations__monolith__Address: ${GATEWAY_IDENTITY_UPSTREAM:-http://identity-service:80}
       ReverseProxy__Clusters__flight__Destinations__monolith__Address: ${GATEWAY_FLIGHT_UPSTREAM:-http://flight-service:80}
@@ -85,3 +101,6 @@ services:
     depends_on:
       booking_modular_monolith:
         condition: service_healthy
+
+volumes:
+  identity-signing-keys:

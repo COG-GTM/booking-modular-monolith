@@ -17,7 +17,8 @@ public static class IdentityServerExtensions
         builder.Services.AddValidateOptions<AuthOptions>();
         var authOptions = builder.Services.GetOptions<AuthOptions>(nameof(AuthOptions));
 
-        builder.Services.AddIdentity<User, Role>(config =>
+        builder
+            .Services.AddIdentity<User, Role>(config =>
             {
                 config.Password.RequiredLength = 6;
                 config.Password.RequireDigit = false;
@@ -27,13 +28,16 @@ public static class IdentityServerExtensions
             .AddEntityFrameworkStores<IdentityContext>()
             .AddDefaultTokenProviders();
 
-        var identityServerBuilder = builder.Services.AddIdentityServer(options =>
+        var identityServerBuilder = builder
+            .Services.AddIdentityServer(options =>
             {
                 options.Events.RaiseErrorEvents = true;
                 options.Events.RaiseInformationEvents = true;
                 options.Events.RaiseFailureEvents = true;
                 options.Events.RaiseSuccessEvents = true;
                 options.IssuerUri = authOptions.IssuerUri;
+                if (!string.IsNullOrWhiteSpace(authOptions.SigningKeyPath))
+                    options.KeyManagement.KeyPath = Path.GetDirectoryName(Path.GetFullPath(authOptions.SigningKeyPath));
             })
             .AddInMemoryIdentityResources(Config.IdentityResources)
             .AddInMemoryApiResources(Config.ApiResources)
@@ -43,22 +47,25 @@ public static class IdentityServerExtensions
             .AddResourceOwnerValidator<UserValidator>();
 
         //ref: https://documentation.openiddict.com/configuration/encryption-and-signing-credentials.html
-        identityServerBuilder.AddDeveloperSigningCredential();
+        identityServerBuilder.AddDeveloperSigningCredential(
+            persistKey: true,
+            filename: string.IsNullOrWhiteSpace(authOptions.SigningKeyPath) ? null : authOptions.SigningKeyPath
+        );
 
         builder.Services.ConfigureApplicationCookie(options =>
-                                                    {
-                                                        options.Events.OnRedirectToLogin = context =>
-                                                        {
-                                                            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                                                            return Task.CompletedTask;
-                                                        };
+        {
+            options.Events.OnRedirectToLogin = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return Task.CompletedTask;
+            };
 
-                                                        options.Events.OnRedirectToAccessDenied = context =>
-                                                        {
-                                                            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                                                            return Task.CompletedTask;
-                                                        };
-                                                    });
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return Task.CompletedTask;
+            };
+        });
 
         return builder;
     }

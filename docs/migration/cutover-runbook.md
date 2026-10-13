@@ -49,15 +49,29 @@ deployments/scripts/route-flip.sh flight service --target k8s --namespace bookin
 ```
 
 After each flip the script waits for `GET /health` = 200 on the gateway, gets a token through
-`/connect/token`, calls a context endpoint through the gateway and, when the gateway has
-`UpstreamHeaderOptions:Enabled=true`, checks that the `X-Gateway-Upstream` response header names
-the expected destination. A failed smoke check exits non-zero and prints the rollback command.
+`/connect/token` (credentials from `SMOKE_USERNAME`, `SMOKE_PASSWORD`, `SMOKE_CLIENT_ID`,
+`SMOKE_CLIENT_SECRET` — no defaults; the local dev values are the seeded `samh` user and the
+`client`/`secret` client from `booking.rest`), calls a context endpoint through the gateway with
+that token and checks that the `X-Gateway-Upstream` response header names the expected
+destination. A response without the header **fails** the check (the destination is unproven)
+unless you pass `--allow-unverified-upstream`; a failed smoke check exits non-zero and prints the
+rollback command.
 
 `X-Gateway-Upstream` (host:port of the destination that served the response) is **off by
-default** because it discloses internal host names. Enable it for the cut-over window
+default** because it discloses internal host names, and even when enabled it is only added to
+responses for authenticated callers (`UpstreamHeaderOptions:AuthenticatedOnly`, default `true`), so
+anonymous internet traffic never sees it. Enable it for the cut-over window
 (`UpstreamHeaderOptions__Enabled=true`) and turn it off afterwards. The gateway always logs
 `Proxying to <destination>` per request (`Yarp.ReverseProxy.Forwarder.HttpForwarder`), which is the
 production signal.
+
+**Compose route state.** `route-flip.sh` writes the chosen upstream per cluster
+(`GATEWAY_<CTX>_UPSTREAM=...`) to `deployments/docker-compose/.env` (git-ignored). Docker Compose
+loads that file automatically for every command run against this compose project, so a later plain
+`docker compose ... up -d` (a redeploy, a rebuilt image) keeps the routes exactly as last flipped
+instead of resetting them to the overlay defaults (every cluster on its service). To start from a
+clean state delete the file; to keep it elsewhere set `ROUTE_FLIP_STATE_FILE` and pass
+`--env-file` to your own compose commands.
 
 ## 2. Cut-over order
 
@@ -78,7 +92,7 @@ burn-in (default 7 days without rollback, error budget intact).
 
 1. **Service is healthy:** `GET http://<service>/ready` = 200 (checks its Postgres/Mongo/RabbitMQ/EventStore), and `GET /alive` = 200.
 2. **Gateway is healthy:** `GET http://gateway/health` = 200; `route-flip.sh status` shows the expected current state.
-3. **Tokens are interchangeable:** a token from `POST /connect/token` through the gateway is accepted by both the monolith and the service (call one endpoint on each directly with the same bearer token). For the identity flip also compare the signing keys: `curl -s http://identity-service/.well-known/openid-configuration/jwks` and the monolith's must contain the same `kid`, otherwise tokens issued by one are rejected by the other's validators after a rollback. Today both identity processes share `identity_modular_monolith`; use a shared signing credential (certificate / Duende key store in that database) before the production identity flip.
+3. **Tokens are interchangeable:** a token from `POST /connect/token` through the gateway is accepted by both the monolith and the service (call one endpoint on each directly with the same bearer token). For the identity flip also compare the signing keys: `curl -s http://identity-service/.well-known/openid-configuration/jwks` and the monolith's must contain the same `kid`, otherwise tokens issued by one are rejected by the other's validators after a rollback. `AuthOptions:SigningKeyPath` makes an Identity host load/persist its signing key from a given file (and store automatic key-management keys next to it): `docker-compose.cutover.yaml` points both hosts at `/keys/identity/tempkey.jwk` on the shared `identity-signing-keys` volume, and `validate-rollback.sh identity` fails if the two JWKS documents differ. In Kubernetes mount the same secret/PVC into both deployments (or move both to a shared Duende key store); the developer credential is a stop-gap for the cut-over window, not a production key.
 4. **Background-processing ownership (ADR 0013):** exactly one process runs each module's outbox/inbox poller, consumers and projections. Before flipping a context whose service shares the monolith's store, set `Modules__<Module>__BackgroundProcessingEnabled=false` on the monolith and restart it; the service keeps it `true`. Check the monolith's start-up warning (`Background processing is disabled for module <Module>`).
 5. **Outbox/inbox drained** in the store being handed over (section 4): `select count(*) from persist_message where message_status <> 'Processed'` (adjust to the module schema) is 0, or stable and owned by the process that will keep running.
 6. **Data backfilled and verified** for contexts with their own database (Flight today; section 4).
@@ -221,29 +235,46 @@ demonstrably moved every time (`X-Gateway-Upstream` header, the gateway's `Proxy
 and request log lines appearing only in the expected container):
 
 ```bash
+export SMOKE_USERNAME=samh SMOKE_PASSWORD='Admin@123456' SMOKE_CLIENT_ID=client SMOKE_CLIENT_SECRET=secret  # local dev seed
 docker compose -f deployments/docker-compose/docker-compose.services.yaml \
                -f deployments/docker-compose/docker-compose.cutover.yaml up -d --build --wait gateway
 deployments/scripts/validate-rollback.sh flight     # monolith -> service -> monolith
+deployments/scripts/validate-rollback.sh identity   # same, plus: both hosts publish the same JWKS kids
 ```
 
 `docker-compose.cutover.yaml` adds the monolith to the multi-service topology (same `infrastructure`
 network, so the two compose projects never both start the fixed-name infrastructure containers),
 makes every gateway cluster switchable through `GATEWAY_<CTX>_UPSTREAM` (written to the git-ignored
-`.cutover.env` by `route-flip.sh`) and enables `X-Gateway-Upstream`. If host ports are taken on
-your machine, add a local override with `EXTRA_COMPOSE_FILES=/path/override.yaml` (both scripts
-honour it). Output from the AB-248 run is in the PR description.
+`.env` by `route-flip.sh`), shares the Identity signing key between both Identity hosts and enables
+`X-Gateway-Upstream` for authenticated callers. If host ports are taken on your machine, add a local
+override with `EXTRA_COMPOSE_FILES=/path/override.yaml` (all scripts honour it). Output from the
+AB-248 run is in the PR description.
 
 ## 8. Monolith decommission checklist
 
 Do **not** start until all four contexts have been on their services for the burn-in period,
 `route-flip.sh status` shows `service` for every context, and the `monolith` fallback cluster has
-served no traffic for 7 days (gateway `Proxying to http://booking_modular_monolith` = 0). Each item
-is a separate, reviewable PR.
+served no traffic for 7 days (gateway `Proxying to http://booking_modular_monolith` = 0).
+
+**Step 1 — remove the running host** (`deployments/scripts/decommission-monolith.sh`): checks both
+preconditions (`--check-only` to just report; `--quiet-hours` defaults to 168), stops and removes the
+monolith host (compose: `stop` + `rm booking_modular_monolith`; `--target k8s`: scales the monolith
+deployment to 0), then smoke-tests all four contexts through the gateway with the monolith gone.
+After it the gateway's `monolith` fallback cluster has no live destination — the plain
+`docker-compose.services.yaml` topology. The host can be started again until Step 2 lands; keep the
+image and database backups for the retention period.
+
+```bash
+deployments/scripts/decommission-monolith.sh --check-only
+deployments/scripts/decommission-monolith.sh              # or: --target k8s --namespace booking
+```
+
+**Step 2 — remove the code.** Each item is a separate, reviewable PR.
 
 **Gateway**
 - [ ] Remove the `monolith` cluster and the `api-fallback` / `monolith-fallback` routes from `src/Gateway/src/appsettings.json` and `appsettings.docker.json`; unknown paths then 404 at the gateway. Update `GatewayRouteConfigTests` (`every_cluster_initially_targets_the_monolith`) and `GatewayIngressTests`.
 - [ ] Set each cluster's default destination to its service and rename the destination key from `monolith` to `primary` (update `route-flip.sh`, the compose files, Aspire and README together).
-- [ ] Delete `deployments/docker-compose/docker-compose.cutover.yaml` and `deployments/scripts/validate-rollback.sh`; keep `route-flip.sh` only if a rollback target still exists.
+- [ ] Delete `deployments/docker-compose/docker-compose.cutover.yaml`, `deployments/scripts/validate-rollback.sh` and `deployments/scripts/decommission-monolith.sh`; keep `route-flip.sh` only if a rollback target still exists. Remove `AuthOptions:SigningKeyPath` from identity-service only after it has moved to a production key store.
 
 **Monolith host and modules**
 - [ ] Delete `src/Api` (host, `Dockerfile`, `appsettings*.json`, `tempkey.jwk`, `Extensions/SharedInfrastructureExtensions.cs` module composition) and remove `Api` from `booking-modular-monolith.sln`.

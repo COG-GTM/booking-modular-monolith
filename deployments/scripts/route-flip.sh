@@ -12,16 +12,22 @@
 #   --gateway-url URL      Gateway base URL for the smoke check (default: http://localhost:5000).
 #   --namespace NS         Kubernetes namespace (k8s target, default: current context namespace).
 #   --deployment NAME      Kubernetes gateway deployment (default: gateway).
+#   --allow-unverified-upstream
+#                          Accept a smoke response that carries no X-Gateway-Upstream header
+#                          (gateway runs with UpstreamHeaderOptions:Enabled=false). Default: fail.
 #
 # EXTRA_COMPOSE_FILES=a.yaml:b.yaml adds compose files (compose target).
 # Upstream addresses can be overridden with MONOLITH_URL and <CTX>_SERVICE_URL (e.g. FLIGHT_SERVICE_URL).
-# Smoke credentials (dev-only defaults from booking.rest): SMOKE_USERNAME, SMOKE_PASSWORD,
+# Smoke credentials (required unless --no-smoke; no defaults): SMOKE_USERNAME, SMOKE_PASSWORD,
 # SMOKE_CLIENT_ID, SMOKE_CLIENT_SECRET.
+# Compose state: the chosen upstream per cluster is written to deployments/docker-compose/.env
+# (git-ignored), which docker compose loads automatically, so a later plain `docker compose up`
+# keeps the flipped routes. Override the location with ROUTE_FLIP_STATE_FILE.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_DIR="$(cd "$SCRIPT_DIR/../docker-compose" && pwd)"
-STATE_FILE="${ROUTE_FLIP_STATE_FILE:-$COMPOSE_DIR/.cutover.env}"
+STATE_FILE="${ROUTE_FLIP_STATE_FILE:-$COMPOSE_DIR/.env}"
 COMPOSE_FILES=(-f "$COMPOSE_DIR/docker-compose.services.yaml" -f "$COMPOSE_DIR/docker-compose.cutover.yaml")
 # Extra compose files (colon-separated), e.g. a local override that remaps busy host ports.
 IFS=: read -ra _extra <<<"${EXTRA_COMPOSE_FILES:-}"
@@ -31,6 +37,7 @@ CONTEXTS=(identity flight passenger booking)
 TARGET=compose
 DRY_RUN=false
 SMOKE=true
+REQUIRE_UPSTREAM_HEADER=true
 GATEWAY_URL="${GATEWAY_URL:-http://localhost:5000}"
 NAMESPACE=""
 DEPLOYMENT=gateway
@@ -44,7 +51,7 @@ BOOKING_SERVICE_URL="${BOOKING_SERVICE_URL:-http://booking-service:80}"
 
 log() { printf '[route-flip] %s\n' "$*" >&2; }
 die() { log "ERROR: $*"; exit 1; }
-usage() { sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '2,26p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
 upper() { tr '[:lower:]' '[:upper:]' <<<"$1"; }
 state_var() { echo "GATEWAY_$(upper "$1")_UPSTREAM"; }
@@ -93,7 +100,8 @@ compose_flip() {
     echo "${var}=${url}" >>"$tmp"
     mv "$tmp" "$STATE_FILE"
   fi
-  # Only the gateway is recreated; services and the monolith keep running.
+  # Only the gateway is recreated; services and the monolith keep running. The state file is the
+  # compose project's .env, so it is also picked up by plain `docker compose up` later on.
   run docker compose "${COMPOSE_FILES[@]}" --env-file "$STATE_FILE" up -d --no-deps --wait gateway
 }
 
@@ -116,7 +124,15 @@ k8s_flip() {
 # --- smoke -----------------------------------------------------------------------------------
 
 http() { curl -s -o /tmp/route-flip-body.$$ -D /tmp/route-flip-headers.$$ -w '%{http_code}' "$@" || echo 000; }
-header() { grep -i "^$1:" /tmp/route-flip-headers.$$ | tail -1 | cut -d: -f2- | tr -d ' \r'; }
+header() { { grep -i "^$1:" /tmp/route-flip-headers.$$ || true; } | tail -1 | cut -d: -f2- | tr -d ' \r'; }
+
+require_smoke_credentials() {
+  local v missing=()
+  for v in SMOKE_USERNAME SMOKE_PASSWORD SMOKE_CLIENT_ID SMOKE_CLIENT_SECRET; do
+    [[ -n "${!v:-}" ]] || missing+=("$v")
+  done
+  ((${#missing[@]} == 0)) || die "smoke check needs ${missing[*]} (export them, or pass --no-smoke)"
+}
 
 wait_healthy() {
   local deadline=$((SECONDS + SMOKE_TIMEOUT)) code
@@ -131,16 +147,18 @@ token() {
   http -X POST "$GATEWAY_URL/connect/token" \
     -H 'Content-Type: application/x-www-form-urlencoded' \
     --data-urlencode grant_type=password \
-    --data-urlencode "client_id=${SMOKE_CLIENT_ID:-client}" \
-    --data-urlencode "client_secret=${SMOKE_CLIENT_SECRET:-secret}" \
-    --data-urlencode "username=${SMOKE_USERNAME:-samh}" \
-    --data-urlencode "password=${SMOKE_PASSWORD:-Admin@123456}" \
+    --data-urlencode "client_id=${SMOKE_CLIENT_ID}" \
+    --data-urlencode "client_secret=${SMOKE_CLIENT_SECRET}" \
+    --data-urlencode "username=${SMOKE_USERNAME}" \
+    --data-urlencode "password=${SMOKE_PASSWORD}" \
     --data-urlencode 'scope=booking-modular-monolith role' >/dev/null
+  grep -q '"access_token"' /tmp/route-flip-body.$$ || return 1
   sed -E 's/.*"access_token":"([^"]+)".*/\1/' /tmp/route-flip-body.$$
 }
 
 smoke() {
   local ctx="$1" expected="$2" code path upstream deadline tok
+  require_smoke_credentials
   wait_healthy
   case "$ctx" in
     identity) path=/.well-known/openid-configuration ;;
@@ -150,23 +168,33 @@ smoke() {
   esac
   deadline=$((SECONDS + SMOKE_TIMEOUT))
   while :; do
-    tok=""
-    [[ "$ctx" == identity ]] || tok="$(token)"
-    if [[ "$ctx" == booking ]]; then
-      code="$(http -X POST "$GATEWAY_URL$path" -H "Authorization: Bearer $tok" -H 'Content-Type: application/json' -d '{}')"
+    # Every request is authenticated (identity's discovery document too): the token proves the
+    # identity cluster issues tokens, and the gateway only emits X-Gateway-Upstream to authenticated callers.
+    if tok="$(token)"; then
+      if [[ "$ctx" == booking ]]; then
+        code="$(http -X POST "$GATEWAY_URL$path" -H "Authorization: Bearer $tok" -H 'Content-Type: application/json' -d '{}')"
+      else
+        code="$(http "$GATEWAY_URL$path" -H "Authorization: Bearer $tok")"
+      fi
+      upstream="$(header X-Gateway-Upstream)"
     else
-      code="$(http "$GATEWAY_URL$path" ${tok:+-H "Authorization: Bearer $tok"})"
+      code="token:$(tr -d '\n' </tmp/route-flip-body.$$ | cut -c1-120)" upstream=""
     fi
-    upstream="$(header X-Gateway-Upstream)"
     # 2xx, or a 4xx produced by the module itself (e.g. 404 unknown passenger / 400 empty booking),
-    # proves the request reached a live upstream. 401/403/5xx/000 fail the check.
-    if [[ "$code" =~ ^(2..|400|404)$ ]] && { [[ -z "$upstream" ]] || [[ "$upstream" == "$(authority "$expected")" ]]; }; then
-      break
+    # proves the request reached a live upstream. 401/403/5xx/000 fail the check. The upstream header
+    # must name the expected destination; a missing header only passes with --allow-unverified-upstream.
+    if [[ "$code" =~ ^(2..|400|404)$ ]]; then
+      if [[ "$upstream" == "$(authority "$expected")" ]]; then
+        break
+      elif [[ -z "$upstream" ]] && ! $REQUIRE_UPSTREAM_HEADER; then
+        log "WARNING: no X-Gateway-Upstream header; destination not verified (--allow-unverified-upstream)"
+        break
+      fi
     fi
-    ((SECONDS < deadline)) || die "smoke failed: ${ctx} ${path} -> ${code}, X-Gateway-Upstream='${upstream}', expected '$(authority "$expected")'"
+    ((SECONDS < deadline)) || die "smoke failed: ${ctx} ${path} -> ${code}, X-Gateway-Upstream='${upstream}', expected '$(authority "$expected")'$([[ -z "$upstream" ]] && echo ' (enable UpstreamHeaderOptions:Enabled on the gateway, or pass --allow-unverified-upstream)')"
     sleep 3
   done
-  log "smoke ok: ${ctx} ${path} -> ${code}, X-Gateway-Upstream=${upstream:-<header disabled>}, correlationId=$(header correlationId)"
+  log "smoke ok: ${ctx} ${path} -> ${code}, X-Gateway-Upstream=${upstream:-<unverified>}, correlationId=$(header correlationId)"
 }
 
 # --- main ------------------------------------------------------------------------------------
@@ -192,6 +220,7 @@ while (($#)); do
     --gateway-url) GATEWAY_URL="$2"; shift 2 ;;
     --namespace) NAMESPACE="$2"; shift 2 ;;
     --deployment) DEPLOYMENT="$2"; shift 2 ;;
+    --allow-unverified-upstream) REQUIRE_UPSTREAM_HEADER=false; shift ;;
     -h|--help) usage 0 ;;
     -*) log "unknown option $1"; usage 1 ;;
     *) POSITIONAL+=("$1"); shift ;;
