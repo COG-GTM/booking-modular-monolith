@@ -232,11 +232,14 @@ aspire run
 
 > ### Docker Compose
 
-To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-compose/docker-compose.yaml) and execute the below command at the `root` of the application:
+To run the multi-service topology (gateway on `http://localhost:5000` + Identity, Flight, Passenger and Booking services + infrastructure) in `Docker`, use the [docker-compose.yaml](./deployments/docker-compose/docker-compose.yaml) and execute the below commands at the `root` of the application:
 
 ```bash
-docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
+docker compose -f ./deployments/docker-compose/docker-compose.yaml up -d --build
+./deployments/docker-compose/smoke-test.sh
 ```
+
+To run the monolith behind the gateway instead, use [docker-compose.monolith.yaml](./deployments/docker-compose/docker-compose.monolith.yaml).
 
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
