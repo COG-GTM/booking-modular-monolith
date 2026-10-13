@@ -130,7 +130,9 @@ helm --kube-context "kind-$KIND_CLUSTER" upgrade --install "$RELEASE" "$SCRIPT_D
   --wait --timeout "$((TIMEOUT_SECONDS * 3))s"
 
 step "pods / services / ingress / hpa"
-kc -n "$NAMESPACE" wait --for=condition=Ready pod --all --timeout="${TIMEOUT_SECONDS}s"
+for workload in $(kc -n "$NAMESPACE" get deploy,statefulset -o name); do
+  kc -n "$NAMESPACE" rollout status "$workload" --timeout="${TIMEOUT_SECONDS}s"
+done
 kc -n "$NAMESPACE" get pods -o wide
 kc -n "$NAMESPACE" get svc,ingress,hpa
 
