@@ -328,6 +328,7 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(eventstore)
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
+    .WithEnvironment("MessageBroker__TransportType", "RabbitMq")
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
 
