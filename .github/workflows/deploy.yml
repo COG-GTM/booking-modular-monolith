@@ -1,0 +1,117 @@
+# Manual deploy of one service image to a target environment with the Helm chart.
+# Placeholder until the chart lands (AB-491): validates the inputs and the image, renders the chart
+# when deployments/helm/booking exists, and runs `helm upgrade` only when the environment has a
+# KUBE_CONFIG secret. Chart contract: values `<service>.image.repository` / `<service>.image.tag`.
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Service to deploy
+        type: choice
+        options: [gateway, identity, flight, passenger, booking, monolith]
+        required: true
+      environment:
+        description: Target environment (GitHub environment name; protection rules apply)
+        type: choice
+        options: [dev, staging, production]
+        default: dev
+      image-tag:
+        description: Image tag to deploy (e.g. sha-1a2b3c4 or 1.2.3)
+        type: string
+        required: true
+
+concurrency:
+  group: deploy-${{ inputs.environment }}-${{ inputs.service }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      packages: read
+    env:
+      CHART_DIR: deployments/helm/booking
+      SERVICE: ${{ inputs.service }}
+      TARGET_ENV: ${{ inputs.environment }}
+      IMAGE_TAG: ${{ inputs.image-tag }}
+      KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image
+        id: image
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          if ! [[ "$IMAGE_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo "::error::Invalid image tag: $IMAGE_TAG"
+            exit 1
+          fi
+          echo "repository=ghcr.io/${OWNER,,}/booking-${SERVICE}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify image exists
+        env:
+          REPOSITORY: ${{ steps.image.outputs.repository }}
+        run: docker buildx imagetools inspect "${REPOSITORY}:${IMAGE_TAG}"
+
+      - name: Check chart
+        id: chart
+        run: |
+          if [ -f "$CHART_DIR/Chart.yaml" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$CHART_DIR/Chart.yaml not found (Helm chart lands in AB-491); skipping deploy."
+          fi
+
+      - name: Setup Helm
+        if: ${{ steps.chart.outputs.exists == 'true' }}
+        uses: azure/setup-helm@v4
+
+      - name: Render chart
+        if: ${{ steps.chart.outputs.exists == 'true' }}
+        env:
+          REPOSITORY: ${{ steps.image.outputs.repository }}
+        run: |
+          helm lint "$CHART_DIR"
+          values=()
+          if [ -f "$CHART_DIR/values-${TARGET_ENV}.yaml" ]; then values=(-f "$CHART_DIR/values-${TARGET_ENV}.yaml"); fi
+          helm template booking "$CHART_DIR" "${values[@]}" \
+            --set-string "${SERVICE}.image.repository=${REPOSITORY}" \
+            --set-string "${SERVICE}.image.tag=${IMAGE_TAG}" > /dev/null
+
+      - name: Helm upgrade
+        if: ${{ steps.chart.outputs.exists == 'true' && env.KUBE_CONFIG != '' }}
+        env:
+          REPOSITORY: ${{ steps.image.outputs.repository }}
+        run: |
+          kubeconfig="$RUNNER_TEMP/kubeconfig"
+          printf '%s' "$KUBE_CONFIG" > "$kubeconfig"
+          chmod 600 "$kubeconfig"
+          values=()
+          if [ -f "$CHART_DIR/values-${TARGET_ENV}.yaml" ]; then values=(-f "$CHART_DIR/values-${TARGET_ENV}.yaml"); fi
+          helm upgrade --install booking "$CHART_DIR" "${values[@]}" \
+            --kubeconfig "$kubeconfig" \
+            --namespace "booking-${TARGET_ENV}" --create-namespace \
+            --reuse-values \
+            --set-string "${SERVICE}.image.repository=${REPOSITORY}" \
+            --set-string "${SERVICE}.image.tag=${IMAGE_TAG}" \
+            --wait --timeout 10m
+
+      - name: No cluster credentials
+        if: ${{ steps.chart.outputs.exists == 'true' && env.KUBE_CONFIG == '' }}
+        run: echo "::notice::No KUBE_CONFIG secret for environment '${TARGET_ENV}'; rendered the chart only."
