@@ -69,11 +69,6 @@ public class IdentityDataSeeder : IDataSeeder
 
     private async Task SeedUsers()
     {
-        if (await _identityContext.Users.AnyAsync())
-        {
-            return;
-        }
-
         await SeedUser(
             InitialData.Users.First(),
             _seedOptions.AdminPassword,

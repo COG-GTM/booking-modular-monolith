@@ -304,9 +304,11 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 // Supplied through AppHost user-secrets / Parameters config; never hardcode real values.
+// The client secret is required; the seed passwords are optional (an empty value means
+// the corresponding user is not seeded).
 var authClientSecret = builder.AddParameter("auth-client-secret", secret: true);
-var identitySeedAdminPassword = builder.AddParameter("identity-seed-admin-password", secret: true);
-var identitySeedUserPassword = builder.AddParameter("identity-seed-user-password", secret: true);
+var identitySeedAdminPassword = builder.AddParameter("identity-seed-admin-password", string.Empty, secret: true);
+var identitySeedUserPassword = builder.AddParameter("identity-seed-user-password", string.Empty, secret: true);
 
 var api = builder.AddProject<Api>("api")
     .WithEnvironment("AuthOptions__ClientSecret", authClientSecret)

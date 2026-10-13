@@ -84,6 +84,30 @@ public class IdentityDataSeederTests
     }
 
     [Fact]
+    public async Task should_seed_missing_user_on_a_later_run_when_its_password_becomes_configured()
+    {
+        await using var harness = await SeederHarness.CreateAsync(
+            new IdentitySeedOptions { AdminPassword = AdminPassword }
+        );
+
+        await harness.Seeder.SeedAllAsync();
+        (await harness.UserManager.FindByNameAsync("samh2")).Should().BeNull();
+
+        var secondRun = harness.CreateSeeder(
+            new IdentitySeedOptions { AdminPassword = AdminPassword, UserPassword = UserPassword }
+        );
+
+        await secondRun.SeedAllAsync();
+
+        var user = await harness.UserManager.FindByNameAsync("samh2");
+        user.Should().NotBeNull();
+        (await harness.UserManager.CheckPasswordAsync(user!, UserPassword)).Should().BeTrue();
+        (await harness.UserManager.GetRolesAsync(user!)).Should().BeEquivalentTo(IdentityConstant.Role.User);
+        (await harness.Context.Users.CountAsync(u => u.UserName == "samh")).Should().Be(1);
+        harness.Events.OfType<UserCreated>().Should().HaveCount(2);
+    }
+
+    [Fact]
     public async Task should_seed_both_users_with_their_roles_when_both_passwords_are_configured()
     {
         await using var harness = await SeederHarness.CreateAsync(
@@ -182,6 +206,9 @@ public class IdentityDataSeederTests
         public IdentityDataSeeder Seeder { get; }
         public List<object> Events { get; }
         public RecordingLogger<IdentityDataSeeder> Logger { get; }
+
+        public IdentityDataSeeder CreateSeeder(IdentitySeedOptions seedOptions) =>
+            ActivatorUtilities.CreateInstance<IdentityDataSeeder>(_scope.ServiceProvider, seedOptions);
 
         public static async Task<SeederHarness> CreateAsync(
             IdentitySeedOptions seedOptions,
