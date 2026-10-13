@@ -6,7 +6,8 @@
 #   flip-route.sh up                 # start the cut-over topology with the current state file
 #
 # A flip is a write-frozen hand-over of ownership, executed in this order:
-#   1. freeze   gateway cluster <m> -> unroutable upstream (clients get 502, nothing writes)
+#   1. freeze   gateway cluster <m> -> unroutable upstream (clients get 502, nothing writes);
+#               flight/passenger also freeze booking, which reaches them over gRPC
 #   2. drain    the current owner's outbox/inbox/internal commands until nothing is unprocessed
 #   3. release  current owner: Modules:<M>:BackgroundProcessingEnabled=false
 #               (flight/passenger: the monolith's Booking gRPC client follows the move to the
@@ -15,8 +16,9 @@
 #   5. acquire  new owner: Modules:<M>:BackgroundProcessingEnabled=true
 #   6. route    ReverseProxy__Clusters__<m>__Destinations__monolith__Address -> new owner
 #   7. verify   gateway answers the context's routes from the new upstream
-# Steps 1-6 are idempotent; rerunning the same flip after a failure resumes safely. --route-only
-# skips 2-5 (only for contexts whose stores are shared or empty, e.g. a fresh environment).
+# Rerunning the same flip after a failure resumes after the last completed stage (FLIP_<M>_STAGE), so
+# a finished copy is never replayed. --route-only skips only the copy (4), for contexts whose stores
+# are shared or empty (e.g. a fresh environment); ownership still moves.
 #
 # Environment: COMPOSE_DIR (compose topology, default deployments/docker-compose), STATE_FILE,
 # GATEWAY_URL (default http://localhost:5000), DRY_RUN=1, DRAIN_TIMEOUT_SECONDS.
@@ -107,12 +109,26 @@ flip() {
     check_order "$m" "$to"
     log "=== ${m}: ${current} -> ${to} ==="
 
+    # A retry resumes after the last completed stage so a finished copy is never replayed over data the
+    # new owner may already have processed.
+    local stage
+    stage="$(state_get "FLIP_${U}_STAGE")"
+    [[ -z "${in_progress}" ]] && stage=""
+
     log "1/7 freeze ${m} writes at the gateway"
     state_set "FLIP_${U}_IN_PROGRESS" "${to}"
     state_set "GATEWAY_${U}_UPSTREAM" "${FROZEN_UPSTREAM}"
+    # Booking reserves seats/reads passengers over gRPC, bypassing the moving context's frozen cluster,
+    # so its writes are frozen too until the move is complete.
+    if [[ ("$m" == flight || "$m" == passenger) && -z "$(state_get FLIP_BOOKING_HELD_UPSTREAM)" ]]; then
+      local held
+      held="$(state_get GATEWAY_BOOKING_UPSTREAM)"
+      state_set FLIP_BOOKING_HELD_UPSTREAM "${held:-default}"
+      state_set GATEWAY_BOOKING_UPSTREAM "${FROZEN_UPSTREAM}"
+    fi
     apply gateway
 
-    if [[ "${route_only}" != --route-only ]]; then
+    if [[ -z "${stage}" ]]; then
       log "2/7 drain ${from} outbox for ${m}"
       if [[ "${from}" == monolith ]]; then
         wait_for_drain "$(monolith_persist_db "$m")"
@@ -129,24 +145,42 @@ flip() {
         state_set "SERVICE_${U}_BACKGROUND" false
         apply "${container}"
       fi
+      stage=released
+      state_set "FLIP_${U}_STAGE" "${stage}"
+    fi
 
-      log "4/7 copy ${m} data to ${to}"
-      DRY_RUN="${DRY_RUN}" "${CUTOVER_DIR}/copy-data.sh" "$m" "to-${to}"
-
-      log "5/7 acquire background processing on ${to}"
-      if [[ "${to}" == service ]]; then
-        state_set "SERVICE_${U}_BACKGROUND" true
-        apply "${container}"
+    if [[ "${stage}" == released ]]; then
+      if [[ "${route_only}" == --route-only ]]; then
+        log "4/7 skip data copy (--route-only: stores are shared or empty)"
       else
-        state_set "MONOLITH_${U}_BACKGROUND" true
-        [[ "$m" == flight || "$m" == passenger ]] && state_set "MONOLITH_GRPC_${U}" "http://localhost:81"
-        apply booking_modular_monolith
+        log "4/7 copy ${m} data to ${to}"
+        DRY_RUN="${DRY_RUN}" "${CUTOVER_DIR}/copy-data.sh" "$m" "to-${to}"
       fi
+      stage=copied
+      state_set "FLIP_${U}_STAGE" "${stage}"
+    fi
+
+    log "5/7 acquire background processing on ${to}"
+    if [[ "${to}" == service ]]; then
+      state_set "SERVICE_${U}_BACKGROUND" true
+      apply "${container}"
+    else
+      state_set "MONOLITH_${U}_BACKGROUND" true
+      [[ "$m" == flight || "$m" == passenger ]] && state_set "MONOLITH_GRPC_${U}" "http://localhost:81"
+      apply booking_modular_monolith
     fi
 
     log "6/7 route ${m} -> ${upstream}"
     state_set "GATEWAY_${U}_UPSTREAM" "${upstream}"
+    if [[ "$m" == flight || "$m" == passenger ]]; then
+      local held
+      held="$(state_get FLIP_BOOKING_HELD_UPSTREAM)"
+      [[ "${held}" == default ]] && held=""
+      state_set GATEWAY_BOOKING_UPSTREAM "${held}"
+      state_set FLIP_BOOKING_HELD_UPSTREAM ""
+    fi
     apply gateway
+    state_set "FLIP_${U}_STAGE" ""
     state_set "FLIP_${U}_IN_PROGRESS" ""
   fi
 

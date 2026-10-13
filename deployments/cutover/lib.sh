@@ -139,10 +139,16 @@ mongo_eval() {
 }
 
 # --- gateway checks ------------------------------------------------------------------------------
+# Defaults are the local/compose seed user and client (Identity's IdentityServerConfig/seed data); any
+# real environment must supply a dedicated probe account through these variables.
+PROBE_CLIENT_ID="${PROBE_CLIENT_ID:-client}"
+PROBE_CLIENT_SECRET="${PROBE_CLIENT_SECRET:-secret}"
+PROBE_USERNAME="${PROBE_USERNAME:-samh}"
+PROBE_PASSWORD="${PROBE_PASSWORD:-Admin@123456}"
 gateway_token() {
   curl -fsS -X POST "${GATEWAY_URL}/connect/token" \
-    -d grant_type=password -d client_id=client -d client_secret=secret \
-    -d username=samh -d password=Admin@123456 \
+    -d grant_type=password -d client_id="${PROBE_CLIENT_ID}" -d client_secret="${PROBE_CLIENT_SECRET}" \
+    -d username="${PROBE_USERNAME}" -d password="${PROBE_PASSWORD}" \
     --data-urlencode 'scope=booking-modular-monolith role' | jq -r .access_token
 }
 

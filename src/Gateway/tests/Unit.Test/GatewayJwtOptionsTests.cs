@@ -9,7 +9,7 @@ namespace Gateway.Unit.Test;
 
 public class GatewayJwtOptionsTests
 {
-    private const string Authority = "https://localhost:3000";
+    private const string Authority = "http://localhost:5100";
     private const string Audience = "booking-modular-monolith";
 
     [Fact]

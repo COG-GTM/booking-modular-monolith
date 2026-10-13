@@ -16,6 +16,9 @@
   - Key: `AddDeveloperSigningCredential()` persists `tempkey.jwk` in the working directory; the
     compose overlay mounts one `identity-signing-key` volume as the working directory of both
     Identity hosts. In production provide the key from the secret store to both hosts instead.
+  - Seed that key **before** either host starts with the overlay: copy the monolith's active
+    `tempkey.jwk` (and Data Protection key ring) into the shared volume, otherwise both hosts
+    generate a fresh key and tokens issued by the original monolith stop validating.
   - Check: `curl $GATEWAY/.well-known/openid-configuration/jwks` and
     `curl http://identity-service/.well-known/openid-configuration/jwks` return the same `kid`.
 - Both hosts publish `UserCreated` on RabbitMQ (`MessageBroker__TransportType=RabbitMq`), so
