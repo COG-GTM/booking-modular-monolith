@@ -20,6 +20,12 @@ public interface IPersistMessageProcessor
         CancellationToken cancellationToken = default)
         where TMessageEnvelope : MessageEnvelope;
 
+    Task<Guid> AddReceivedMessageAsync<TMessageEnvelope>(
+        Guid messageId,
+        TMessageEnvelope messageEnvelope,
+        CancellationToken cancellationToken = default)
+        where TMessageEnvelope : MessageEnvelope;
+
     Task AddInternalMessageAsync<TCommand>(
         TCommand internalCommand,
         CancellationToken cancellationToken = default)
