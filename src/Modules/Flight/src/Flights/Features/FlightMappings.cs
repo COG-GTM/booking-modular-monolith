@@ -24,7 +24,8 @@ public class FlightMappings : IRegister
 
         config.NewConfig<Models.Flight, FlightReadModel>()
             .Map(d => d.Id, s => NewId.NextGuid())
-            .Map(d => d.FlightId, s => s.Id.Value);
+            .Map(d => d.FlightId, s => s.Id.Value)
+            .Map(d => d.FlightNumber, s => s.FlightNumber.Value);
 
         config.NewConfig<FlightReadModel, FlightDto>()
             .Map(d => d.Id, s => s.FlightId);
