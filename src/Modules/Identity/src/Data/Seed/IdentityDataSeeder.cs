@@ -54,17 +54,14 @@ public class IdentityDataSeeder : IDataSeeder
 
     private async Task SeedRoles()
     {
-        if (!await _identityContext.Roles.AnyAsync())
+        if (await _roleManager.RoleExistsAsync(IdentityConstant.Role.Admin) == false)
         {
-            if (await _roleManager.RoleExistsAsync(IdentityConstant.Role.Admin) == false)
-            {
-                await _roleManager.CreateAsync(new Role { Name = IdentityConstant.Role.Admin });
-            }
+            await _roleManager.CreateAsync(new Role { Name = IdentityConstant.Role.Admin });
+        }
 
-            if (await _roleManager.RoleExistsAsync(IdentityConstant.Role.User) == false)
-            {
-                await _roleManager.CreateAsync(new Role { Name = IdentityConstant.Role.User });
-            }
+        if (await _roleManager.RoleExistsAsync(IdentityConstant.Role.User) == false)
+        {
+            await _roleManager.CreateAsync(new Role { Name = IdentityConstant.Role.User });
         }
     }
 
@@ -84,14 +81,19 @@ public class IdentityDataSeeder : IDataSeeder
             return;
         }
 
+        // Name and passport number must be non-blank: the Passenger module's UserCreated
+        // consumer rejects blank values and the user cannot be re-seeded once it exists.
         if (
             string.IsNullOrWhiteSpace(_seedOptions.AdminUserName)
             || string.IsNullOrWhiteSpace(_seedOptions.AdminEmail)
             || string.IsNullOrWhiteSpace(_seedOptions.AdminPassword)
+            || string.IsNullOrWhiteSpace(_seedOptions.AdminFirstName)
+            || string.IsNullOrWhiteSpace(_seedOptions.AdminLastName)
+            || string.IsNullOrWhiteSpace(_seedOptions.AdminPassPortNumber)
         )
         {
             _logger.LogWarning(
-                "Identity user seeding is enabled but {Section}:AdminUserName, AdminEmail or AdminPassword is not configured; skipping initial admin creation.",
+                "Identity user seeding is enabled but {Section} is incomplete (AdminUserName, AdminEmail, AdminPassword, AdminFirstName, AdminLastName and AdminPassPortNumber are required); skipping initial admin creation.",
                 nameof(IdentitySeedOptions)
             );
             return;
@@ -107,9 +109,9 @@ public class IdentityDataSeeder : IDataSeeder
             Id = NewId.NextGuid(),
             UserName = _seedOptions.AdminUserName,
             Email = _seedOptions.AdminEmail,
-            FirstName = _seedOptions.AdminFirstName ?? string.Empty,
-            LastName = _seedOptions.AdminLastName ?? string.Empty,
-            PassPortNumber = _seedOptions.AdminPassPortNumber ?? string.Empty,
+            FirstName = _seedOptions.AdminFirstName,
+            LastName = _seedOptions.AdminLastName,
+            PassPortNumber = _seedOptions.AdminPassPortNumber,
             SecurityStamp = Guid.NewGuid().ToString(),
         };
 
@@ -125,7 +127,22 @@ public class IdentityDataSeeder : IDataSeeder
             return;
         }
 
-        await _userManager.AddToRoleAsync(admin, IdentityConstant.Role.Admin);
+        var roleResult = await _userManager.AddToRoleAsync(admin, IdentityConstant.Role.Admin);
+
+        if (!roleResult.Succeeded)
+        {
+            // Remove the half-initialised account so the next startup can retry instead of
+            // leaving an unprivileged admin that blocks seeding forever.
+            await _userManager.DeleteAsync(admin);
+
+            _logger.LogError(
+                "Failed to assign the {Role} role to initial admin user {UserName}; the user was removed so seeding can be retried: {Errors}",
+                IdentityConstant.Role.Admin,
+                admin.UserName,
+                string.Join("; ", roleResult.Errors.Select(e => e.Description))
+            );
+            return;
+        }
 
         await _eventDispatcher.SendAsync(
             new UserCreated(admin.Id, admin.FirstName + " " + admin.LastName, admin.PassPortNumber)

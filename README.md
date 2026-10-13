@@ -240,7 +240,7 @@ No user accounts are shipped with the repository. The Identity module only creat
 `IdentitySeedOptions:Enabled` is `true` **and** the password is supplied from outside the source tree
 (environment variable, `dotnet user-secrets`, or your secret store). It is never created from a default value.
 
-`appsettings.Development.json` enables seeding for local development with username `admin`; set the password before starting the app:
+`appsettings.Development.json` enables seeding for local development with username `admin` (all of `AdminUserName`, `AdminEmail`, `AdminFirstName`, `AdminLastName`, `AdminPassPortNumber` and `AdminPassword` are required, otherwise seeding is skipped with a warning); set the password before starting the app:
 
 ```bash
 export IdentitySeedOptions__AdminPassword='<choose-a-strong-password>'
