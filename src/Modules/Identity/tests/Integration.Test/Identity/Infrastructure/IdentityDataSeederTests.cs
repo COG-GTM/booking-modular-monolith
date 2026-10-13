@@ -141,21 +141,27 @@ public class IdentityDataSeederTests
     }
 
     [Fact]
-    public async Task should_assign_missing_role_to_existing_seeded_user_without_recreating_it()
+    public async Task should_not_promote_pre_registered_user_sharing_the_seeded_username()
     {
         await using var harness = await SeederHarness.CreateAsync(
             new IdentitySeedOptions { AdminPassword = AdminPassword }
         );
-        var stranded = InitialData.Users.First();
-        (await harness.UserManager.CreateAsync(stranded, AdminPassword)).Succeeded.Should().BeTrue();
+        var registered = new User
+        {
+            UserName = "samh",
+            FirstName = "Some",
+            LastName = "Body",
+            PassPortNumber = "0",
+        };
+        (await harness.UserManager.CreateAsync(registered, "Attacker-Chosen-Pw1")).Succeeded.Should().BeTrue();
 
         await harness.Seeder.SeedAllAsync();
 
-        var admin = await harness.UserManager.FindByNameAsync("samh");
-        admin!.Id.Should().Be(stranded.Id);
-        (await harness.UserManager.GetRolesAsync(admin)).Should().BeEquivalentTo(IdentityConstant.Role.Admin);
+        var user = await harness.UserManager.FindByNameAsync("samh");
+        user!.Id.Should().Be(registered.Id);
+        (await harness.UserManager.GetRolesAsync(user)).Should().BeEmpty();
+        (await harness.Context.Users.CountAsync()).Should().Be(1);
         harness.Events.Should().BeEmpty();
-        harness.Logger.Entries.Should().NotContain(e => e.Level == LogLevel.Error);
     }
 
     [Fact]

@@ -106,10 +106,10 @@ public class IdentityDataSeeder : IDataSeeder
             return;
         }
 
-        var existing = await _userManager.FindByNameAsync(user.UserName!);
-        if (existing != null)
+        // Never touch an existing account (including its roles): the seeder must not be able
+        // to promote a self-registered user who happens to share the seeded username.
+        if (await _userManager.FindByNameAsync(user.UserName!) != null)
         {
-            await EnsureRole(existing, role);
             return;
         }
 
@@ -140,8 +140,9 @@ public class IdentityDataSeeder : IDataSeeder
             if (!deleteResult.Succeeded)
             {
                 _logger.LogError(
-                    "Rolling back seeded user '{UserName}' failed; the role will be reconciled on the next run: {Errors}",
+                    "Rolling back seeded user '{UserName}' failed; the account exists without role '{Role}' and must be fixed manually: {Errors}",
                     user.UserName,
+                    role,
                     string.Join("; ", deleteResult.Errors.Select(e => e.Description))
                 );
             }
@@ -151,24 +152,5 @@ public class IdentityDataSeeder : IDataSeeder
         await _eventDispatcher.SendAsync(
             new UserCreated(user.Id, user.FirstName + " " + user.LastName, user.PassPortNumber)
         );
-    }
-
-    private async Task EnsureRole(User user, string role)
-    {
-        if (await _userManager.IsInRoleAsync(user, role))
-        {
-            return;
-        }
-
-        var result = await _userManager.AddToRoleAsync(user, role);
-        if (!result.Succeeded)
-        {
-            _logger.LogError(
-                "Assigning missing role '{Role}' to existing seeded user '{UserName}' failed: {Errors}",
-                role,
-                user.UserName,
-                string.Join("; ", result.Errors.Select(e => e.Description))
-            );
-        }
     }
 }
