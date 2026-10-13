@@ -72,6 +72,9 @@ services:
       ReverseProxy__Clusters__flight__Destinations__monolith__Address: http://flight-service:80
       ReverseProxy__Clusters__passenger__Destinations__monolith__Address: http://passenger-service:80
       ReverseProxy__Clusters__booking__Destinations__monolith__Address: http://booking-service:80
+      # No monolith in this topology: send the api-/monolith-fallback routes to a live host so
+      # unmatched paths get a 404 instead of a 502.
+      ReverseProxy__Clusters__monolith__Destinations__monolith__Address: http://identity-service:80
     healthcheck:
       <<: *healthcheck-timing
       test:
@@ -104,8 +107,9 @@ services:
       context: ../../
       dockerfile: src/Services/Identity.Host/Dockerfile
     container_name: identity-service
+    # Service ports are published on loopback for debugging only; clients go through the gateway.
     ports:
-      - "5100:80"
+      - "127.0.0.1:5100:80"
     environment:
       <<: *service-environment
       AuthOptions__IssuerUri: ${PUBLIC_GATEWAY_URL:-http://localhost:5000}
@@ -134,8 +138,8 @@ services:
       dockerfile: src/Services/Flight.Host/Dockerfile
     container_name: flight-service
     ports:
-      - "5200:80"
-      - "5201:81"
+      - "127.0.0.1:5200:80"
+      - "127.0.0.1:5201:81"
     environment:
       <<: *service-environment
       PostgresOptions__ConnectionString__Flight: Server=postgres;Port=5432;Database=flight_service;User Id=flight_service;Password=flight_service
@@ -166,8 +170,8 @@ services:
       dockerfile: src/Services/Passenger.Host/Dockerfile
     container_name: passenger-service
     ports:
-      - "5300:80"
-      - "5301:81"
+      - "127.0.0.1:5300:80"
+      - "127.0.0.1:5301:81"
     environment:
       <<: *service-environment
       PostgresOptions__ConnectionString__Passenger: Server=postgres;Port=5432;Database=passenger_service;User Id=passenger_service;Password=passenger_service
@@ -198,7 +202,7 @@ services:
       dockerfile: src/Services/Booking.Host/Dockerfile
     container_name: booking-service
     ports:
-      - "5400:80"
+      - "127.0.0.1:5400:80"
     environment:
       <<: *service-environment
       EventStoreOptions__ConnectionString: esdb://eventstore:2113?tls=false

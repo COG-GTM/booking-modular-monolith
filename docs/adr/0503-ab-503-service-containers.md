@@ -79,12 +79,14 @@ availability/RPO targets belong to the Helm/Kubernetes deployment (AB-491).
   defaults and can be overridden with `RABBITMQ_USER`/`RABBITMQ_PASSWORD`; real environments inject
   secrets (AB-491/Helm). RabbitMQ's `guest` user is loopback-only and is no longer used by containers.
 - Service-to-service gRPC stays unauthenticated on the internal compose network (ARB follow-up from
-  the epic). Service ports are published on the host for debugging only; clients must use the
-  gateway.
+  the epic). Service ports are published on host loopback (`127.0.0.1`) for debugging only; clients
+  must use the gateway, which is plain HTTP for local development (TLS terminates at the ingress in
+  AB-491).
 - Service healthchecks only prove that Kestrel is serving (the hosts map `/health` in Development
   only); readiness of downstream dependencies is not checked yet (AB-495 observability).
 - `postgres:latest` (18) is incompatible with the data-volume mount, so the image is pinned to 16
-  with `max_prepared_transactions=100` (Flight's `TransactionScope`). Tempo is pinned to 2.7.2
+  with `max_prepared_transactions=100` (Flight's `TransactionScope`). A `postgres-data` volume created by an
+  older `postgres:latest` (17) must be recreated (`docker compose ... down -v`); it is dev data only. Tempo is pinned to 2.7.2
   because the checked-in `tempo.yaml` uses the 2.x schema.
 - No new cloud resources, vendors or runtime frameworks; images run the same .NET 10 runtime as
   the existing monolith image.
