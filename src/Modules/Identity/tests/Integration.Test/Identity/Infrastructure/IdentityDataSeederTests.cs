@@ -19,6 +19,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Integration.Test.Identity.Infrastructure;
@@ -214,6 +215,60 @@ public class IdentityDataSeederTests
         harness.Events.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task should_log_error_and_not_dispatch_event_when_role_assignment_fails()
+    {
+        await using var harness = await SeederHarness.CreateAsync(
+            new IdentitySeedOptions { AdminPassword = AdminPassword }
+        );
+        var failingUserManager = harness.Resolve<RoleAssignmentFailingUserManager>();
+
+        await harness
+            .CreateSeeder(new IdentitySeedOptions { AdminPassword = AdminPassword }, failingUserManager)
+            .SeedAllAsync();
+
+        var admin = await harness.UserManager.FindByNameAsync("samh");
+        admin.Should().NotBeNull();
+        (await harness.UserManager.GetRolesAsync(admin!)).Should().BeEmpty();
+        harness.Events.Should().BeEmpty();
+        harness
+            .Logger.Entries.Should()
+            .ContainSingle(e => e.Level == LogLevel.Error)
+            .Which.Message.Should()
+            .Contain("'admin'")
+            .And.Contain("'samh'")
+            .And.Contain("role store unavailable");
+    }
+
+    private sealed class RoleAssignmentFailingUserManager : UserManager<User>
+    {
+        public RoleAssignmentFailingUserManager(
+            IUserStore<User> store,
+            IOptions<IdentityOptions> optionsAccessor,
+            IPasswordHasher<User> passwordHasher,
+            IEnumerable<IUserValidator<User>> userValidators,
+            IEnumerable<IPasswordValidator<User>> passwordValidators,
+            ILookupNormalizer keyNormalizer,
+            IdentityErrorDescriber errors,
+            IServiceProvider services,
+            ILogger<UserManager<User>> logger
+        )
+            : base(
+                store,
+                optionsAccessor,
+                passwordHasher,
+                userValidators,
+                passwordValidators,
+                keyNormalizer,
+                errors,
+                services,
+                logger
+            ) { }
+
+        public override Task<IdentityResult> AddToRoleAsync(User user, string role) =>
+            Task.FromResult(IdentityResult.Failed(new IdentityError { Description = "role store unavailable" }));
+    }
+
     private sealed class SeederHarness : IAsyncDisposable
     {
         private readonly SqliteConnection _connection;
@@ -243,6 +298,12 @@ public class IdentityDataSeederTests
 
         public IdentityDataSeeder CreateSeeder(IdentitySeedOptions seedOptions) =>
             ActivatorUtilities.CreateInstance<IdentityDataSeeder>(_scope.ServiceProvider, seedOptions);
+
+        public IdentityDataSeeder CreateSeeder(IdentitySeedOptions seedOptions, UserManager<User> userManager) =>
+            ActivatorUtilities.CreateInstance<IdentityDataSeeder>(_scope.ServiceProvider, seedOptions, userManager);
+
+        public T Resolve<T>()
+            where T : notnull => ActivatorUtilities.CreateInstance<T>(_scope.ServiceProvider);
 
         public static async Task<SeederHarness> CreateAsync(
             IdentitySeedOptions seedOptions,
