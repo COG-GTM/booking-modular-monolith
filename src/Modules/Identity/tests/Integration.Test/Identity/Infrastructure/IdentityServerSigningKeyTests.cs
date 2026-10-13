@@ -198,4 +198,71 @@ public class IdentityServerSigningKeyTests : IDisposable
             .Should()
             .Contain(File.ReadAllText(shared));
     }
+
+    // A host joining a deployment whose shared key is already in place must use it even when its own
+    // legacy tempkey.jwk cannot be opened: the legacy key is only ever needed to seed a missing shared key.
+    [Fact]
+    public async Task an_existing_shared_key_is_used_without_reading_the_host_s_legacy_key()
+    {
+        var shared = Path.Combine(_directory, "shared", "tempkey.jwk");
+        var sharedKid = await SigningKeyIdOf(BuildIdentityServer(shared));
+        var contentRoot = Path.Combine(_directory, "host-locked");
+        var legacyKey = Path.Combine(contentRoot, "tempkey.jwk");
+        await using (var own = BuildIdentityServer(null, contentRoot))
+            (await SigningKeyIdOf(own)).Should().NotBe(sharedKid);
+        var legacyKeyBefore = File.ReadAllText(legacyKey);
+        var sharedKeyBefore = File.ReadAllText(shared);
+
+        // Another process holds the legacy key exclusively: any attempt to read it would throw IOException.
+        using var lockedLegacyKey = new FileStream(legacyKey, FileMode.Open, FileAccess.Read, FileShare.None);
+        var act = () => File.ReadAllBytes(legacyKey);
+        act.Should().Throw<IOException>("the test relies on the legacy key being unreadable while locked");
+
+        await using var joined = BuildIdentityServer(shared, contentRoot);
+
+        (await SigningKeyIdOf(joined)).Should().Be(sharedKid, "the already seeded shared key wins");
+        File.ReadAllText(shared).Should().Be(sharedKeyBefore, "an existing shared key is never rewritten");
+        lockedLegacyKey.Dispose();
+        File.ReadAllText(legacyKey).Should().Be(legacyKeyBefore, "the legacy key is left untouched");
+    }
+
+    // A zero-length legacy key is not a key: seeding the shared file from it would leave every host
+    // unable to load its signing credential, so the shared key is generated afresh instead.
+    [Fact]
+    public async Task an_empty_legacy_key_is_not_carried_over_to_the_shared_key()
+    {
+        var contentRoot = Path.Combine(_directory, "host-empty");
+        Directory.CreateDirectory(contentRoot);
+        var legacyKey = Path.Combine(contentRoot, "tempkey.jwk");
+        File.WriteAllBytes(legacyKey, Array.Empty<byte>());
+        var shared = Path.Combine(_directory, "shared", "tempkey.jwk");
+
+        await using var provider = BuildIdentityServer(shared, contentRoot);
+
+        (await SigningKeyIdOf(provider)).Should().NotBeNullOrWhiteSpace();
+        new FileInfo(shared).Length.Should().BePositive("the shared key must hold a freshly generated key");
+        new FileInfo(legacyKey).Length.Should().Be(0, "the legacy file is only read, never written to");
+    }
+
+    // No shared key yet and the legacy key exists but cannot be read: silently seeding a replacement key
+    // would invalidate every token the legacy key already signed, so startup must fail instead - and it
+    // must not leave a half-seeded shared file behind for the other hosts to load.
+    [Fact]
+    public async Task startup_aborts_instead_of_replacing_an_unreadable_legacy_key()
+    {
+        var contentRoot = Path.Combine(_directory, "host-unreadable");
+        var legacyKey = Path.Combine(contentRoot, "tempkey.jwk");
+        await using (var own = BuildIdentityServer(null, contentRoot))
+            (await SigningKeyIdOf(own)).Should().NotBeNullOrEmpty();
+        var legacyKeyBefore = File.ReadAllText(legacyKey);
+        var shared = Path.Combine(_directory, "shared", "tempkey.jwk");
+        using var lockedLegacyKey = new FileStream(legacyKey, FileMode.Open, FileAccess.Read, FileShare.None);
+
+        var act = () => BuildIdentityServer(shared, contentRoot);
+
+        act.Should().Throw<IOException>().Which.Should().NotBeOfType<FileNotFoundException>();
+        File.Exists(shared).Should().BeFalse("no shared key may be seeded from a key that could not be read");
+        lockedLegacyKey.Dispose();
+        File.ReadAllText(legacyKey).Should().Be(legacyKeyBefore);
+    }
 }
