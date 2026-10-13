@@ -9,7 +9,6 @@ using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Contracts.Grpc.Passenger;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
@@ -77,11 +76,6 @@ public static class PassengerServiceHostExtensions
 
         app.MapGet("/", x => x.Response.WriteAsync(appOptions.Name));
 
-        app.MapHealthChecks(LivenessEndpointPath, new HealthCheckOptions { Predicate = r => r.Tags.Contains("live") });
-        app.MapHealthChecks(
-            ReadinessEndpointPath,
-            new HealthCheckOptions { Predicate = r => r.Tags.Contains(ReadyTag) }
-        );
         app.MapGrpcHealthChecksService();
 
         if (app.Environment.IsDevelopment())
