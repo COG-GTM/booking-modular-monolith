@@ -279,6 +279,146 @@ public class IdentityDataSeederTests
         harness.Events.OfType<UserCreated>().Should().ContainSingle().Which.Id.Should().Be(admin!.Id);
     }
 
+    [Fact]
+    public async Task should_log_rollback_failure_and_keep_user_when_delete_after_failed_role_assignment_fails()
+    {
+        await using var harness = await SeederHarness.CreateAsync(
+            new IdentitySeedOptions { AdminPassword = AdminPassword }
+        );
+
+        await harness
+            .CreateSeeder(
+                new IdentitySeedOptions { AdminPassword = AdminPassword },
+                harness.Resolve<RollbackFailingUserManager>()
+            )
+            .SeedAllAsync();
+
+        var admin = await harness.UserManager.FindByNameAsync("samh");
+        admin.Should().NotBeNull();
+        (await harness.UserManager.GetRolesAsync(admin!)).Should().BeEmpty();
+        harness.Events.Should().BeEmpty();
+
+        var errors = harness.Logger.Entries.Where(e => e.Level == LogLevel.Error).Select(e => e.Message).ToList();
+        errors.Should().HaveCount(2);
+        errors
+            .Should()
+            .ContainSingle(m => m.Contains("Assigning role 'admin'") && m.Contains("role store unavailable"));
+        errors
+            .Should()
+            .ContainSingle(m =>
+                m.Contains("Rolling back seeded user 'samh' failed")
+                && m.Contains("reconciled on the next run")
+                && m.Contains("user store unavailable")
+            );
+    }
+
+    [Fact]
+    public async Task should_reconcile_role_on_a_later_run_when_rollback_of_failed_role_assignment_left_user_behind()
+    {
+        await using var harness = await SeederHarness.CreateAsync(
+            new IdentitySeedOptions { AdminPassword = AdminPassword }
+        );
+
+        await harness
+            .CreateSeeder(
+                new IdentitySeedOptions { AdminPassword = AdminPassword },
+                harness.Resolve<RollbackFailingUserManager>()
+            )
+            .SeedAllAsync();
+        var stranded = await harness.UserManager.FindByNameAsync("samh");
+        stranded.Should().NotBeNull();
+
+        await harness.Seeder.SeedAllAsync();
+
+        var admin = await harness.UserManager.FindByNameAsync("samh");
+        admin!.Id.Should().Be(stranded!.Id);
+        (await harness.UserManager.CheckPasswordAsync(admin, AdminPassword)).Should().BeTrue();
+        (await harness.UserManager.GetRolesAsync(admin)).Should().BeEquivalentTo(IdentityConstant.Role.Admin);
+        harness.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task should_log_error_and_keep_existing_seeded_user_when_assigning_its_missing_role_fails()
+    {
+        await using var harness = await SeederHarness.CreateAsync(
+            new IdentitySeedOptions { AdminPassword = AdminPassword }
+        );
+        var stranded = InitialData.Users.First();
+        (await harness.UserManager.CreateAsync(stranded, AdminPassword)).Succeeded.Should().BeTrue();
+
+        await harness
+            .CreateSeeder(
+                new IdentitySeedOptions { AdminPassword = AdminPassword },
+                harness.Resolve<RoleAssignmentFailingUserManager>()
+            )
+            .SeedAllAsync();
+
+        var admin = await harness.UserManager.FindByNameAsync("samh");
+        admin!.Id.Should().Be(stranded.Id);
+        (await harness.UserManager.GetRolesAsync(admin)).Should().BeEmpty();
+        harness.Events.Should().BeEmpty();
+        harness
+            .Logger.Entries.Should()
+            .ContainSingle(e => e.Level == LogLevel.Error)
+            .Which.Message.Should()
+            .Contain("Assigning missing role 'admin' to existing seeded user 'samh' failed")
+            .And.Contain("role store unavailable");
+    }
+
+    [Fact]
+    public async Task should_not_reassign_role_or_log_when_existing_seeded_user_already_has_its_role()
+    {
+        await using var harness = await SeederHarness.CreateAsync(
+            new IdentitySeedOptions { AdminPassword = AdminPassword }
+        );
+        await harness.Seeder.SeedAllAsync();
+        harness.Events.Clear();
+
+        await harness
+            .CreateSeeder(
+                new IdentitySeedOptions { AdminPassword = AdminPassword },
+                harness.Resolve<RoleAssignmentFailingUserManager>()
+            )
+            .SeedAllAsync();
+
+        var admin = await harness.UserManager.FindByNameAsync("samh");
+        (await harness.UserManager.GetRolesAsync(admin!)).Should().BeEquivalentTo(IdentityConstant.Role.Admin);
+        harness.Events.Should().BeEmpty();
+        harness.Logger.Entries.Should().NotContain(e => e.Level == LogLevel.Error);
+    }
+
+    private sealed class RollbackFailingUserManager : UserManager<User>
+    {
+        public RollbackFailingUserManager(
+            IUserStore<User> store,
+            IOptions<IdentityOptions> optionsAccessor,
+            IPasswordHasher<User> passwordHasher,
+            IEnumerable<IUserValidator<User>> userValidators,
+            IEnumerable<IPasswordValidator<User>> passwordValidators,
+            ILookupNormalizer keyNormalizer,
+            IdentityErrorDescriber errors,
+            IServiceProvider services,
+            ILogger<UserManager<User>> logger
+        )
+            : base(
+                store,
+                optionsAccessor,
+                passwordHasher,
+                userValidators,
+                passwordValidators,
+                keyNormalizer,
+                errors,
+                services,
+                logger
+            ) { }
+
+        public override Task<IdentityResult> AddToRoleAsync(User user, string role) =>
+            Task.FromResult(IdentityResult.Failed(new IdentityError { Description = "role store unavailable" }));
+
+        public override Task<IdentityResult> DeleteAsync(User user) =>
+            Task.FromResult(IdentityResult.Failed(new IdentityError { Description = "user store unavailable" }));
+    }
+
     private sealed class RoleAssignmentFailingUserManager : UserManager<User>
     {
         public RoleAssignmentFailingUserManager(
