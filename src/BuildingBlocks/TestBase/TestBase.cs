@@ -86,6 +86,12 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
         {
             builder.ConfigureAppConfiguration(AddCustomAppSettings);
 
+            // UseSetting is visible to Program's registration-time configuration reads (e.g. the bus transport).
+            foreach (var (key, value) in AdditionalAppSettings())
+            {
+                builder.UseSetting(key, value);
+            }
+
             builder.UseEnvironment("test");
 
             builder.ConfigureServices(services =>
@@ -258,11 +264,12 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
 
     private async Task StopTestContainerAsync()
     {
-        await PostgresTestcontainer.StopAsync();
-        await PostgresPersistTestContainer.StopAsync();
-        await RabbitMqTestContainer.StopAsync();
-        await MongoDbTestContainer.StopAsync();
-        await EventStoreDbTestContainer.StopAsync();
+        // Dispose (not just stop) so the static container names are free for the next fixture in the assembly.
+        await PostgresTestcontainer.DisposeAsync();
+        await PostgresPersistTestContainer.DisposeAsync();
+        await RabbitMqTestContainer.DisposeAsync();
+        await MongoDbTestContainer.DisposeAsync();
+        await EventStoreDbTestContainer.DisposeAsync();
     }
 
     private void AddCustomAppSettings(IConfigurationBuilder configuration)
@@ -292,9 +299,23 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
                 new("MongoOptions:Passenger:DatabaseName", MongoDatabaseName("Passenger")),
                 new("MongoOptions:Booking:DatabaseName", MongoDatabaseName("Booking")),
                 new("EventStoreOptions:ConnectionString", EventStoreDbTestContainer.GetConnectionString()),
+                new("MessageBroker:RabbitMq:Host", RabbitMqTestContainer.Hostname),
+                new("MessageBroker:RabbitMq:Username", TestContainers.RabbitMqContainerConfiguration.UserName),
+                new("MessageBroker:RabbitMq:Password", TestContainers.RabbitMqContainerConfiguration.Password),
+                new(
+                    "MessageBroker:RabbitMq:Port",
+                    RabbitMqTestContainer
+                        .GetMappedPublicPort(TestContainers.RabbitMqContainerConfiguration.Port)
+                        .ToString(NumberFormatInfo.InvariantInfo)
+                ),
             }
         );
+
+        configuration.AddInMemoryCollection(AdditionalAppSettings());
     }
+
+    // Lets a derived fixture override settings, e.g. MessageBroker:TransportType=RabbitMq.
+    protected virtual IEnumerable<KeyValuePair<string, string?>> AdditionalAppSettings() => [];
 
     private string PersistMessageConnectionString(string moduleName) =>
         new NpgsqlConnectionStringBuilder(PostgresPersistTestContainer.GetConnectionString())
@@ -648,15 +669,8 @@ public class TestFixtureCore<TEntryPoint> : IAsyncLifetime
             port
         );
 
-        var bd = await managementClient.GetBindingsAsync(cancellationToken);
-
-        var bindings = bd.Where(x => !string.IsNullOrEmpty(x.Source) && !string.IsNullOrEmpty(x.Destination));
-
-        foreach (var binding in bindings)
-        {
-            await managementClient.DeleteBindingAsync(binding, cancellationToken);
-        }
-
+        // Only purge: the bus outlives a single test, so deleting its exchange-to-queue bindings would
+        // silently drop every message published by later tests in the same fixture.
         var queues = await managementClient.GetQueuesAsync(cancellationToken: cancellationToken);
 
         foreach (var queue in queues)
