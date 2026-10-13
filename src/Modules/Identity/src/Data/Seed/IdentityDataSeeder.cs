@@ -129,11 +129,12 @@ public class IdentityDataSeeder : IDataSeeder
         if (!roleResult.Succeeded)
         {
             _logger.LogError(
-                "Assigning role '{Role}' to seeded user '{UserName}' failed: {Errors}",
+                "Assigning role '{Role}' to seeded user '{UserName}' failed, rolling back the user so the next run can retry: {Errors}",
                 role,
                 user.UserName,
                 string.Join("; ", roleResult.Errors.Select(e => e.Description))
             );
+            await _userManager.DeleteAsync(user);
             return;
         }
 
