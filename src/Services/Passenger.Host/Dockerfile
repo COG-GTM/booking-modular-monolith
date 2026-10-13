@@ -21,6 +21,8 @@ COPY src/BuildingBlocks/PersistMessageProcessor/BuildingBlocks.PersistMessagePro
 COPY src/BuildingBlocks/ProblemDetails/BuildingBlocks.ProblemDetails.csproj src/BuildingBlocks/ProblemDetails/
 COPY src/BuildingBlocks/Validation/BuildingBlocks.Validation.csproj src/BuildingBlocks/Validation/
 COPY src/BuildingBlocks/Web/BuildingBlocks.Web.csproj src/BuildingBlocks/Web/
+# Passenger.csproj still references the aggregate BuildingBlocks project, which includes TestBase.
+COPY src/BuildingBlocks/TestBase/BuildingBlocks.TestBase.csproj src/BuildingBlocks/TestBase/
 COPY src/Contracts/Contracts.Messages/Contracts.Messages.csproj src/Contracts/Contracts.Messages/
 COPY src/Contracts/Contracts.Grpc/Contracts.Grpc.csproj src/Contracts/Contracts.Grpc/
 COPY src/Modules/Passenger/src/Passenger.csproj src/Modules/Passenger/src/
