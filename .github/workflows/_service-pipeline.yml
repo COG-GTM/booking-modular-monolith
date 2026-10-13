@@ -1,0 +1,161 @@
+# Reusable per-service pipeline: build + test the service's projects, then build its container
+# image and push it to the registry for pushes to main and release tags only (pull requests only
+# prove the image builds). Called by the thin service-*.yml workflows and ci.yml, which own the
+# triggers and path filters. Targets or Dockerfiles that don't exist yet are skipped. See docs/ci-cd.md.
+name: Service pipeline
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: Service key (gateway, identity, flight, passenger, booking, monolith). Image is <registry>/<owner>/booking-<service>; per-service release tags are <service>-vX.Y.Z.
+        type: string
+        required: true
+      dockerfile:
+        description: Dockerfile path relative to the repository root (build context = repository root). The image job is skipped when it doesn't exist.
+        type: string
+        required: true
+      targets:
+        description: 'JSON array of build/test targets [{"name": "...", "project": "<dir>", "tests": "<dir or empty>"}], each run through .github/actions/build-test. "[]" skips build/test (image only).'
+        type: string
+        required: true
+      registry:
+        description: Container registry host.
+        type: string
+        default: ghcr.io
+    outputs:
+      image:
+        description: Image name without tag.
+        value: ${{ jobs.image.outputs.image }}
+      tags:
+        description: Newline-separated image references that were built.
+        value: ${{ jobs.image.outputs.tags }}
+      pushed:
+        description: "'true' when the image was pushed."
+        value: ${{ jobs.image.outputs.pushed }}
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: build-test (${{ matrix.name }})
+    if: ${{ inputs.targets != '[]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.targets) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve target
+        id: target
+        env:
+          PROJECT: ${{ matrix.project }}
+          TESTS: ${{ matrix.tests }}
+          NAME: ${{ matrix.name }}
+        run: |
+          if [ -d "$PROJECT" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$NAME: $PROJECT does not exist yet; skipping build/test."
+          fi
+          if [ -n "$TESTS" ] && [ -d "$TESTS" ]; then
+            echo "tests=$TESTS" >> "$GITHUB_OUTPUT"
+          else
+            echo "tests=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and test ${{ matrix.name }}
+        if: ${{ steps.target.outputs.exists == 'true' }}
+        uses: ./.github/actions/build-test
+        with:
+          project-path: ${{ matrix.project }}
+          tests-path: ${{ steps.target.outputs.tests }}
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: ${{ matrix.name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  image:
+    name: image (booking-${{ inputs.service }})
+    needs: build-test
+    if: ${{ !cancelled() && (needs.build-test.result == 'success' || needs.build-test.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+      tags: ${{ steps.meta.outputs.tags }}
+      pushed: ${{ steps.docker.outputs.pushed }}
+    env:
+      # Push only for pushes (or manual runs) on main and release tags. pull_request events, including
+      # PRs from forks, never push; they build the image to prove the Dockerfile works.
+      PUSH_IMAGE: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image
+        id: image
+        env:
+          REGISTRY: ${{ inputs.registry }}
+          OWNER: ${{ github.repository_owner }}
+          SERVICE: ${{ inputs.service }}
+          DOCKERFILE: ${{ inputs.dockerfile }}
+        run: |
+          echo "name=${REGISTRY}/${OWNER,,}/booking-${SERVICE}" >> "$GITHUB_OUTPUT"
+          if [ -f "$DOCKERFILE" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$DOCKERFILE does not exist yet; skipping the booking-${SERVICE} image."
+          fi
+
+      # sha-<short> on every build; semver X.Y.Z / X.Y for v1.2.3 (all services) and
+      # <service>-v1.2.3 (this service only); `main` for the default branch.
+      - name: Image metadata
+        id: meta
+        if: ${{ steps.image.outputs.exists == 'true' }}
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=match,pattern=^${{ inputs.service }}-v(\d+\.\d+\.\d+.*)$,group=1
+            type=ref,event=branch,enable={{is_default_branch}}
+
+      - name: Build (and push when enabled) image
+        id: docker
+        if: ${{ steps.image.outputs.exists == 'true' }}
+        uses: ./.github/actions/docker-build-publish
+        with:
+          dockerfile-path: ${{ inputs.dockerfile }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: ${{ env.PUSH_IMAGE }}
+          registry: ${{ inputs.registry }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
+          cache-scope: booking-${{ inputs.service }}
+
+      - name: Image summary
+        if: ${{ steps.image.outputs.exists == 'true' }}
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          PUSHED: ${{ steps.docker.outputs.pushed }}
+          SERVICE: ${{ inputs.service }}
+        run: |
+          {
+            echo "### booking-${SERVICE} image (pushed: ${PUSHED})"
+            echo '```'
+            echo "${TAGS}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

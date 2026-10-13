@@ -1,0 +1,57 @@
+name: "NuGet pack and publish"
+description: "Pack the shared NuGet packages and push the ones whose version is not in the feed yet (i.e. version bumps)"
+
+inputs:
+  project-dirs:
+    description: "Space-separated directory prefixes; every IsPackable project of the solution under them is packed"
+    required: false
+    default: "src/BuildingBlocks/ src/Contracts/"
+  solution:
+    description: "Solution file used to discover projects"
+    required: false
+    default: "booking-modular-monolith.sln"
+  source:
+    description: "NuGet v3 service index (e.g. https://nuget.pkg.github.com/<owner>/index.json)"
+    required: true
+  username:
+    description: "User for feed reads (GitHub Packages requires auth for reads)"
+    required: false
+    default: ""
+  api-key:
+    description: "Token for feed reads and pushes"
+    required: false
+    default: ""
+  publish:
+    description: "'true' pushes bumped versions; anything else is a dry run that packs everything and pushes nothing"
+    required: false
+    default: "false"
+  base-ref:
+    description: "Optional git ref; packages whose sources changed since it without a version bump get a warning"
+    required: false
+    default: ""
+  output-dir:
+    description: "Where the .nupkg files are written"
+    required: false
+    default: "artifacts/packages"
+
+outputs:
+  published:
+    description: "Space-separated <id>.<version> list that was (or, in a dry run, would be) published"
+    value: ${{ steps.pack.outputs.published }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Pack and publish
+      id: pack
+      shell: bash
+      env:
+        PROJECT_DIRS: ${{ inputs.project-dirs }}
+        SOLUTION: ${{ inputs.solution }}
+        NUGET_SOURCE: ${{ inputs.source }}
+        NUGET_USER: ${{ inputs.username }}
+        NUGET_API_KEY: ${{ inputs.api-key }}
+        PUBLISH: ${{ inputs.publish }}
+        BASE_REF: ${{ inputs.base-ref }}
+        OUTPUT_DIR: ${{ inputs.output-dir }}
+      run: ${{ github.action_path }}/pack-publish.sh
