@@ -9,6 +9,7 @@ using Identity.Identity.Features.RegisteringNewUser.V1;
 using MassTransit;
 using MassTransit.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.JsonWebTokens;
 using RabbitMQ.Client;
@@ -79,6 +80,38 @@ public class IdentityHostTests(IdentityHostTestFixture fixture) : IdentityHostTe
             .Should()
             .Contain(["identity-api", "flight-api"]);
         token.Subject.Should().NotBeNullOrEmpty();
+    }
+
+    // Gateway, monolith and the Flight/Passenger/Booking hosts all validate aud/scope
+    // `booking-modular-monolith`; the host's Jwt:Audience + ApiScope policy require the same value.
+    [Fact]
+    public async Task token_for_standard_monolith_scope_should_carry_the_audience_all_services_validate()
+    {
+        var response = await Fixture.HttpClient.PostAsync(
+            "/connect/token",
+            new FormUrlEncodedContent(
+                new Dictionary<string, string>
+                {
+                    ["grant_type"] = "password",
+                    ["client_id"] = "client",
+                    ["client_secret"] = "secret",
+                    ["username"] = IdentityHostTestDataSeeder.UserName,
+                    ["password"] = IdentityHostTestDataSeeder.Password,
+                    ["scope"] = "booking-modular-monolith",
+                }
+            )
+        );
+
+        var body = await response.Content.ReadAsStringAsync();
+        response.StatusCode.Should().Be(HttpStatusCode.OK, body);
+
+        using var json = JsonDocument.Parse(body);
+        var token = new JsonWebToken(json.RootElement.GetProperty("access_token").GetString());
+
+        var jwtOptions = Fixture.ServiceProvider.GetRequiredService<IConfiguration>().GetSection("Jwt");
+        jwtOptions["Audience"].Should().Be("booking-modular-monolith");
+        token.Audiences.Should().Contain(jwtOptions["Audience"]);
+        token.Claims.Where(c => c.Type == "scope").Select(c => c.Value).Should().Contain(jwtOptions["Audience"]);
     }
 
     [Fact]

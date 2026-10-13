@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.PersistMessageProcessor;
@@ -10,6 +11,8 @@ using Identity.Extensions.Infrastructure;
 using Identity.Host.Extensions;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -78,6 +81,26 @@ public class IdentityHostCompositionTests
         options.MetadataAddress.Should().Be($"{PublicIssuer}/.well-known/openid-configuration");
         options.TokenValidationParameters.ValidIssuers.Should().Equal(PublicIssuer);
         options.TokenValidationParameters.ValidAudiences.Should().Equal("booking-modular-monolith");
+    }
+
+    [Fact]
+    public async Task api_scope_policy_requires_the_same_scope_as_the_gateway_and_sibling_hosts()
+    {
+        var builder = CreateBuilder(Environments.Production);
+        builder.AddIdentityServiceInfrastructure();
+
+        using var provider = builder.Services.BuildServiceProvider();
+        var policy = await provider
+            .GetRequiredService<IAuthorizationPolicyProvider>()
+            .GetPolicyAsync(IdentityConstant.Policy.ApiScope);
+
+        policy.Should().NotBeNull();
+        policy!
+            .Requirements.OfType<ClaimsAuthorizationRequirement>()
+            .Should()
+            .ContainSingle(r => r.ClaimType == "scope")
+            .Which.AllowedValues.Should()
+            .Equal("booking-modular-monolith");
     }
 
     [Fact]
