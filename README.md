@@ -139,7 +139,7 @@ gRPC for synchronous calls, RabbitMQ for integration events, and a database per 
 
 - Target-state diagram: [docs/target-architecture.md](docs/target-architecture.md)
 - Decision records: [docs/adr](docs/adr/README.md)
-- Cut-over, rollback and monolith decommission runbook (order Identity → Flight → Passenger → Booking): [docs/migration/cutover-runbook.md](docs/migration/cutover-runbook.md) ([ADR 0016](docs/adr/0016-cutover-order-route-flip-and-decommission.md))
+- Cut-over, rollback and monolith decommission runbook (order Identity → Flight → Passenger → Booking): [docs/migration/cutover-runbook.md](docs/migration/cutover-runbook.md) ([ADR 0017](docs/adr/0017-cutover-order-route-flip-and-decommission.md))
 
 
 ## Structure of Project

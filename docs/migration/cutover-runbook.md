@@ -1,7 +1,7 @@
 # Strangler-fig cut-over, rollback and monolith decommission runbook
 
 - **Ticket:** [AB-248](https://cog-gtm.atlassian.net/browse/AB-248) (epic [AB-231](https://cog-gtm.atlassian.net/browse/AB-231))
-- **Decision record:** [ADR 0016](../adr/0016-cutover-order-route-flip-and-decommission.md)
+- **Decision record:** [ADR 0017](../adr/0017-cutover-order-route-flip-and-decommission.md)
 - **Related:** [ADR 0002](../adr/0002-strangler-fig-migration.md) (strangler fig),
   [ADR 0006](../adr/0006-per-service-database-and-outbox-isolation.md) (per-service DB + outbox/inbox),
   [ADR 0008](../adr/0008-api-gateway-single-ingress.md) (gateway),
@@ -78,7 +78,7 @@ clean state delete the file; to keep it elsewhere set `ROUTE_FLIP_STATE_FILE` an
 ## 2. Cut-over order
 
 **Identity → Flight → Passenger → Booking.** This replaces the provisional order in ADR 0002
-(Flight → Passenger → Booking → Identity); see ADR 0016.
+(Flight → Passenger → Booking → Identity); see ADR 0017.
 
 | # | Context | Why here |
 | --- | --- | --- |
@@ -318,5 +318,5 @@ deployments/scripts/decommission-monolith.sh              # or: --target k8s --n
 - [ ] Remove `src/Gateway/src/appsettings.docker.json` destinations that point at `booking_modular_monolith`, and every `booking_modular_monolith` reference in service `appsettings.docker.json` (`Jwt:MetadataAddress`).
 
 **Docs**
-- [ ] README: drop the monolith run instructions and the "Monolith API" column; `docs/target-architecture.md`: remove the transition-state section; mark ADR 0013 superseded and ADR 0016 implemented.
+- [ ] README: drop the monolith run instructions and the "Monolith API" column; `docs/target-architecture.md`: remove the transition-state section; mark ADR 0013 superseded and ADR 0017 implemented.
 - [ ] Close AB-248 / AB-231.

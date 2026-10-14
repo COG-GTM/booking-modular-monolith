@@ -72,7 +72,7 @@ been extracted; the gateway decides per route:
                             both publish/consume via RabbitMQ
 ```
 
-Cut-over order: Identity → Flight → Passenger → Booking ([ADR 0016](adr/0016-cutover-order-route-flip-and-decommission.md)).
+Cut-over order: Identity → Flight → Passenger → Booking ([ADR 0017](adr/0017-cutover-order-route-flip-and-decommission.md)).
 Each flip is configuration-only and reversible (`deployments/scripts/route-flip.sh`); a module is
 removed from the monolith only after its service has taken 100% of traffic. Procedure, rollback,
 data backfill and the decommission checklist: [docs/migration/cutover-runbook.md](migration/cutover-runbook.md).
