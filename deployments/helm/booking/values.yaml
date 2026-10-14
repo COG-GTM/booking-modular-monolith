@@ -1,0 +1,269 @@
+# Default values for the booking chart. Environment overlays: values-kind.yaml, values-production.yaml.
+# Install into its own namespace:
+#   helm upgrade --install booking deployments/helm/booking --namespace booking --create-namespace -f <overlay>
+#
+# Each entry under `services` renders a Deployment, a ClusterIP Service (named exactly like the key, so
+# in-cluster DNS matches the docker-compose hostnames), a ConfigMap (`env`), a Secret (`secretEnv`,
+# skipped when `existingSecret` is set) and, when enabled, an HPA. Keys in `env`/`secretEnv` are
+# ASP.NET Core configuration keys in environment-variable form (`Section__Key`).
+
+global:
+  image:
+    # Prefixed to every service image repository when set (e.g. ghcr.io/cog-gtm).
+    registry: ""
+    tag: dev
+    pullPolicy: IfNotPresent
+  imagePullSecrets: []
+  # Public base URL clients use to reach the gateway. It is the JWT issuer: identity-service stamps it
+  # into tokens (AuthOptions__IssuerUri) and every service validates it (Jwt__Authority).
+  publicUrl: http://localhost:8080
+  # Where services fetch the OIDC discovery document (in-cluster, bypassing the ingress).
+  jwtMetadataAddress: http://identity-service/.well-known/openid-configuration
+  aspnetcoreEnvironment: docker
+  # When true, rendering fails unless every enabled service uses `existingSecret`.
+  requireExistingSecrets: false
+  # busybox init container that waits (nc -z) for each service's `dependsOn` host:port list.
+  waitForDependencies:
+    enabled: false
+    image: busybox:1.36
+  # Non-secret env applied to every service (service `env` wins on conflict).
+  env:
+    ObservabilityOptions__UseAspireOTLPExporter: "false"
+    ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
+  podSecurityContext: {}
+  securityContext: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+defaults:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 768Mi
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 75
+    targetMemoryUtilizationPercentage: ""
+  probes:
+    startup:
+      path: /alive
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 36
+    liveness:
+      path: /alive
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+    readiness:
+      path: /ready
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+  podAnnotations: {}
+  podLabels: {}
+
+services:
+  gateway:
+    enabled: true
+    image:
+      repository: booking/gateway
+      tag: ""
+    ports:
+      - name: http
+        containerPort: 80
+    probePort: http
+    env:
+      ReverseProxy__Clusters__identity__Destinations__monolith__Address: http://identity-service:80
+      ReverseProxy__Clusters__flight__Destinations__monolith__Address: http://flight-service:80
+      ReverseProxy__Clusters__passenger__Destinations__monolith__Address: http://passenger-service:5102
+      ReverseProxy__Clusters__booking__Destinations__monolith__Address: http://booking-service:80
+      # Legacy monolith fallback; no destination in this topology, unmatched paths return 502.
+      ReverseProxy__Clusters__monolith__Destinations__monolith__Address: http://booking-monolith:80
+    secretEnv: {}
+    existingSecret: ""
+    dependsOn: []
+
+  identity-service:
+    enabled: true
+    image:
+      repository: booking/identity-service
+      tag: ""
+    ports:
+      - name: http
+        containerPort: 80
+    probePort: http
+    env:
+      MessageBroker__TransportType: RabbitMq
+      RabbitMqOptions__HostName: rabbitmq
+      RabbitMqOptions__Port: "5672"
+    # DEV-ONLY defaults; use existingSecret (same keys) outside local clusters.
+    secretEnv:
+      PostgresOptions__ConnectionString__Identity: Server=postgres;Port=5432;Database=identity_modular_monolith;User Id=identity;Password=identity
+      RabbitMqOptions__UserName: guest
+      RabbitMqOptions__Password: guest
+    existingSecret: ""
+    # IdentityServer's AddDeveloperSigningCredential() loads (or creates) /app/tempkey.jwk. Point this at a
+    # Secret holding key `tempkey.jwk` so every replica and restart signs with the same key. Required when
+    # replicaCount > 1 or autoscaling is enabled.
+    signingKey:
+      existingSecret: ""
+      key: tempkey.jwk
+    dependsOn:
+      - postgres:5432
+      - rabbitmq:5672
+
+  flight-service:
+    enabled: true
+    image:
+      repository: booking/flight-service
+      tag: ""
+    ports:
+      - name: http
+        containerPort: 80
+      - name: grpc
+        containerPort: 81
+        appProtocol: kubernetes.io/h2c
+    probePort: http
+    env:
+      Kestrel__Endpoints__Http__Url: http://+:80
+      Kestrel__Endpoints__Http__Protocols: Http1
+      Kestrel__Endpoints__Grpc__Url: http://+:81
+      Kestrel__Endpoints__Grpc__Protocols: Http2
+      RabbitMqOptions__HostName: rabbitmq
+      RabbitMqOptions__Port: "5672"
+    secretEnv:
+      PostgresOptions__ConnectionString__Flight: Server=postgres;Port=5432;Database=flight_service;User Id=flight;Password=flight
+      MongoOptions__ConnectionString: mongodb://mongo:27017
+      RabbitMqOptions__UserName: guest
+      RabbitMqOptions__Password: guest
+    existingSecret: ""
+    dependsOn:
+      - postgres:5432
+      - mongo:27017
+      - rabbitmq:5672
+
+  passenger-service:
+    enabled: true
+    image:
+      repository: booking/passenger-service
+      tag: ""
+    ports:
+      - name: http
+        containerPort: 5102
+      - name: grpc
+        containerPort: 5202
+        appProtocol: kubernetes.io/h2c
+    probePort: http
+    env:
+      Kestrel__Endpoints__Http__Url: http://0.0.0.0:5102
+      Kestrel__Endpoints__Http__Protocols: Http1
+      Kestrel__Endpoints__Grpc__Url: http://0.0.0.0:5202
+      Kestrel__Endpoints__Grpc__Protocols: Http2
+      MessageBroker__TransportType: RabbitMq
+      RabbitMqOptions__HostName: rabbitmq
+      RabbitMqOptions__Port: "5672"
+    secretEnv:
+      PostgresOptions__ConnectionString__Passenger: Server=postgres;Port=5432;Database=passenger_modular_monolith;User Id=passenger;Password=passenger
+      MongoOptions__ConnectionString: mongodb://mongo:27017
+      RabbitMqOptions__UserName: guest
+      RabbitMqOptions__Password: guest
+    existingSecret: ""
+    dependsOn:
+      - postgres:5432
+      - mongo:27017
+      - rabbitmq:5672
+
+  booking-service:
+    enabled: true
+    image:
+      repository: booking/booking-service
+      tag: ""
+    ports:
+      - name: http
+        containerPort: 80
+    probePort: http
+    env:
+      ASPNETCORE_URLS: http://+:80
+      # gRPC clients resolve logical names through .NET service discovery (Services__<name>__http__0).
+      Grpc__Flight__Address: http://flight
+      Services__flight__http__0: http://flight-service:81
+      Grpc__Passenger__Address: http://passenger
+      Services__passenger__http__0: http://passenger-service:5202
+      RabbitMqOptions__HostName: rabbitmq
+      RabbitMqOptions__Port: "5672"
+    secretEnv:
+      PostgresOptions__ConnectionString__Booking: Server=postgres;Port=5432;Database=booking_modular_monolith;User Id=booking;Password=booking
+      MongoOptions__ConnectionString: mongodb://mongo:27017
+      EventStoreOptions__ConnectionString: esdb://eventstore:2113?tls=false
+      RabbitMqOptions__UserName: guest
+      RabbitMqOptions__Password: guest
+    existingSecret: ""
+    dependsOn:
+      - postgres:5432
+      - mongo:27017
+      - eventstore:2113
+      - rabbitmq:5672
+      - flight-service:81
+      - passenger-service:5202
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  # Empty host matches any host (handy for kind / localhost).
+  host: ""
+  path: /
+  pathType: Prefix
+  # Routes to this service only; every other service stays ClusterIP-internal.
+  service: gateway
+  servicePort: http
+  tls: []
+  #  - secretName: booking-gateway-tls
+  #    hosts: [booking.example.com]
+
+# In-cluster single-replica dev infrastructure (Postgres, MongoDB, RabbitMQ, EventStoreDB) with the same
+# Service names as docker-compose. Keep disabled in production and point connection strings at managed services.
+infrastructure:
+  enabled: false
+  postgres:
+    image: postgres:16
+    # DEV-ONLY superuser password. Per-service roles/databases come from files/postgres-init.sql
+    # (a copy of deployments/docker-compose/init/postgres/01-service-databases.sql).
+    password: postgres
+    persistence:
+      enabled: false
+      size: 2Gi
+      storageClass: ""
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {cpu: "1", memory: 1Gi}
+  mongo:
+    image: mongo:7.0
+    persistence:
+      enabled: false
+      size: 2Gi
+      storageClass: ""
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {cpu: "1", memory: 1Gi}
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    # DEV-ONLY credentials (match the services' default secretEnv).
+    username: guest
+    password: guest
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {cpu: "1", memory: 1Gi}
+  eventstore:
+    image: eventstore/eventstore:24.10
+    resources:
+      requests: {cpu: 100m, memory: 256Mi}
+      limits: {cpu: "1", memory: 1Gi}

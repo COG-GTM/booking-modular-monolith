@@ -1,0 +1,23 @@
+# kind cluster for the booking Helm chart: `kind create cluster --config deployments/kubernetes/kind-config.yaml`
+# ingress-nginx (kind provider) binds host ports on the node labelled ingress-ready=true; host 8080 -> 80.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: booking
+networking:
+  # Must match TrustedProxyOptions__KnownNetworks__0 in deployments/helm/booking/values-kind.yaml.
+  podSubnet: 10.244.0.0/16
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 8080
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 8443
+        protocol: TCP

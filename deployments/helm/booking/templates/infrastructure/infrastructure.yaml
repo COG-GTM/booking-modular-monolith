@@ -1,0 +1,63 @@
+{{- if .Values.infrastructure.enabled }}
+{{- $infra := .Values.infrastructure }}
+{{- $initSql := .Files.Get "files/postgres-init.sql" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  labels:
+    {{- include "booking.labels" (dict "root" $ "name" "postgres" "component" "infrastructure") | nindent 4 }}
+data:
+  01-service-databases.sql: |
+    {{- $initSql | nindent 4 }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: booking-infrastructure
+  labels:
+    {{- include "booking.labels" (dict "root" $ "name" "infrastructure" "component" "infrastructure") | nindent 4 }}
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: {{ $infra.postgres.password | quote }}
+  RABBITMQ_DEFAULT_USER: {{ $infra.rabbitmq.username | quote }}
+  RABBITMQ_DEFAULT_PASS: {{ $infra.rabbitmq.password | quote }}
+{{ include "booking.infra" (dict
+  "root" $ "name" "postgres" "cfg" $infra.postgres
+  "ports" (list (dict "name" "postgres" "port" 5432))
+  "dataPath" "/var/lib/postgresql/data"
+  "annotations" (dict "checksum/init" ($initSql | sha256sum))
+  "args" (list "-c" "wal_level=logical" "-c" "max_prepared_transactions=10")
+  "env" (list
+    (dict "name" "POSTGRES_USER" "value" "postgres")
+    (dict "name" "POSTGRES_PASSWORD" "valueFrom" (dict "secretKeyRef" (dict "name" "booking-infrastructure" "key" "POSTGRES_PASSWORD")))
+    (dict "name" "PGDATA" "value" "/var/lib/postgresql/data/pgdata"))
+  "probe" (dict "exec" (dict "command" (list "pg_isready" "-U" "postgres" "-h" "127.0.0.1")))
+  "extraVolumes" (list (dict "name" "init" "configMap" (dict "name" "postgres-init")))
+  "extraMounts" (list (dict "name" "init" "mountPath" "/docker-entrypoint-initdb.d" "readOnly" true))) }}
+{{ include "booking.infra" (dict
+  "root" $ "name" "mongo" "cfg" $infra.mongo
+  "ports" (list (dict "name" "mongo" "port" 27017))
+  "dataPath" "/data/db"
+  "probe" (dict "exec" (dict "command" (list "mongosh" "--quiet" "--eval" "db.adminCommand('ping')")))) }}
+{{ include "booking.infra" (dict
+  "root" $ "name" "rabbitmq" "cfg" $infra.rabbitmq
+  "ports" (list (dict "name" "amqp" "port" 5672) (dict "name" "management" "port" 15672))
+  "env" (list
+    (dict "name" "RABBITMQ_DEFAULT_USER" "valueFrom" (dict "secretKeyRef" (dict "name" "booking-infrastructure" "key" "RABBITMQ_DEFAULT_USER")))
+    (dict "name" "RABBITMQ_DEFAULT_PASS" "valueFrom" (dict "secretKeyRef" (dict "name" "booking-infrastructure" "key" "RABBITMQ_DEFAULT_PASS"))))
+  "probe" (dict "exec" (dict "command" (list "rabbitmq-diagnostics" "-q" "check_port_connectivity")))) }}
+{{ include "booking.infra" (dict
+  "root" $ "name" "eventstore" "cfg" $infra.eventstore
+  "ports" (list (dict "name" "http" "port" 2113))
+  "env" (list
+    (dict "name" "EVENTSTORE_CLUSTER_SIZE" "value" "1")
+    (dict "name" "EVENTSTORE_RUN_PROJECTIONS" "value" "All")
+    (dict "name" "EVENTSTORE_START_STANDARD_PROJECTIONS" "value" "true")
+    (dict "name" "EVENTSTORE_HTTP_PORT" "value" "2113")
+    (dict "name" "EVENTSTORE_INSECURE" "value" "true")
+    (dict "name" "EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP" "value" "true")
+    (dict "name" "EVENTSTORE_MEM_DB" "value" "true"))
+  "probe" (dict "httpGet" (dict "path" "/health/live" "port" "http"))) }}
+{{- end }}
