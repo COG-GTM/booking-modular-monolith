@@ -17,7 +17,8 @@ public static class IdentityServerExtensions
         builder.Services.AddValidateOptions<AuthOptions>();
         var authOptions = builder.Services.GetOptions<AuthOptions>(nameof(AuthOptions));
 
-        builder.Services.AddIdentity<User, Role>(config =>
+        builder
+            .Services.AddIdentity<User, Role>(config =>
             {
                 config.Password.RequiredLength = 6;
                 config.Password.RequireDigit = false;
@@ -27,13 +28,18 @@ public static class IdentityServerExtensions
             .AddEntityFrameworkStores<IdentityContext>()
             .AddDefaultTokenProviders();
 
-        var identityServerBuilder = builder.Services.AddIdentityServer(options =>
+        var identityServerBuilder = builder
+            .Services.AddIdentityServer(options =>
             {
                 options.Events.RaiseErrorEvents = true;
                 options.Events.RaiseInformationEvents = true;
                 options.Events.RaiseFailureEvents = true;
                 options.Events.RaiseSuccessEvents = true;
                 options.IssuerUri = authOptions.IssuerUri;
+                // One shared key file means one key: automatic key management would otherwise create a
+                // per-host key next to it and the hosts' JWKS would differ.
+                if (!string.IsNullOrWhiteSpace(authOptions.SigningKeyPath))
+                    options.KeyManagement.Enabled = false;
             })
             .AddInMemoryIdentityResources(Config.IdentityResources)
             .AddInMemoryApiResources(Config.ApiResources)
@@ -42,24 +48,115 @@ public static class IdentityServerExtensions
             .AddAspNetIdentity<User>()
             .AddResourceOwnerValidator<UserValidator>();
 
+        var defaultKeyFile = Path.Combine(builder.Environment.ContentRootPath, "tempkey.jwk");
+        var keyFile = string.IsNullOrWhiteSpace(authOptions.SigningKeyPath)
+            ? defaultKeyFile
+            : Path.GetFullPath(authOptions.SigningKeyPath);
+        if (keyFile != defaultKeyFile)
+            SeedSharedSigningKey(defaultKeyFile, keyFile);
+
         //ref: https://documentation.openiddict.com/configuration/encryption-and-signing-credentials.html
-        identityServerBuilder.AddDeveloperSigningCredential();
+        identityServerBuilder.AddDeveloperSigningCredential(persistKey: true, filename: keyFile);
 
         builder.Services.ConfigureApplicationCookie(options =>
-                                                    {
-                                                        options.Events.OnRedirectToLogin = context =>
-                                                        {
-                                                            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                                                            return Task.CompletedTask;
-                                                        };
+        {
+            options.Events.OnRedirectToLogin = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return Task.CompletedTask;
+            };
 
-                                                        options.Events.OnRedirectToAccessDenied = context =>
-                                                        {
-                                                            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                                                            return Task.CompletedTask;
-                                                        };
-                                                    });
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return Task.CompletedTask;
+            };
+        });
 
         return builder;
+    }
+
+    // First start with a shared key path: carry over the key this host was already signing with (its
+    // content-root tempkey.jwk) so tokens issued before the switch keep validating.
+    private static void SeedSharedSigningKey(string currentKeyFile, string sharedKeyFile)
+    {
+        if (File.Exists(sharedKeyFile))
+        {
+            // Already seeded (possibly still being written by another host): the legacy key is irrelevant.
+            WaitUntilFullyWritten(sharedKeyFile);
+            return;
+        }
+
+        byte[] ownKey = null;
+        try
+        {
+            if (File.Exists(currentKeyFile))
+                ownKey = File.ReadAllBytes(currentKeyFile);
+        }
+        catch (FileNotFoundException)
+        {
+            // Vanished between the check and the read: nothing to carry over. Any other read failure
+            // propagates and aborts startup: silently seeding a replacement key would invalidate the
+            // tokens the legacy key already signed.
+        }
+
+        if (ownKey is { Length: > 0 })
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(sharedKeyFile)!);
+            FileStream shared = null;
+            try
+            {
+                // CreateNew is atomic (O_EXCL): exactly one racing host wins and seeds the shared file.
+                shared = new FileStream(sharedKeyFile, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            }
+            catch (IOException) when (File.Exists(sharedKeyFile))
+            {
+                // Another host seeded the shared file first; use that one.
+            }
+
+            if (shared is not null)
+            {
+                try
+                {
+                    using (shared)
+                        shared.Write(ownKey);
+                    return;
+                }
+                catch
+                {
+                    // Never leave a half-written key behind for the other hosts to load.
+                    File.Delete(sharedKeyFile);
+                    throw;
+                }
+            }
+        }
+
+        if (File.Exists(sharedKeyFile))
+            WaitUntilFullyWritten(sharedKeyFile);
+    }
+
+    // The winner still holds the shared file exclusively while copying; a loser that reads it right away
+    // either fails with "being used by another process" or sees a truncated key, so wait for the winner.
+    private static void WaitUntilFullyWritten(string file)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (true)
+        {
+            try
+            {
+                using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read);
+                if (stream.Length > 0)
+                    return;
+            }
+            catch (IOException)
+            {
+                // Still being written; retry below.
+            }
+
+            if (DateTime.UtcNow > deadline)
+                return;
+
+            Thread.Sleep(25);
+        }
     }
 }

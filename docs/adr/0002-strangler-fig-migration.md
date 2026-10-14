@@ -15,8 +15,9 @@ Use the **strangler-fig pattern behind an API gateway**:
 
 1. Introduce an API gateway (YARP, see AB-234) as the single ingress. Initially it routes
    100% of traffic to the monolith.
-2. Peel off one service at a time (recommended order: Flight → Passenger → Booking →
-   Identity, lowest-coupling first). For each service, flip the gateway route for that
+2. Peel off one service at a time (order: Identity → Flight → Passenger → Booking; the
+   original Flight → Passenger → Booking → Identity is superseded by
+   [ADR 0017](0017-cutover-order-route-flip-and-decommission.md)). For each service, flip the gateway route for that
    module's path prefix (e.g. `/api/v*/flight/**`) from the monolith to the new service.
 3. The monolith keeps running throughout; a module's code is deleted from the monolith
    only after its service has taken 100% of traffic and burned in.
