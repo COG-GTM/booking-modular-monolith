@@ -1,6 +1,7 @@
 {{- range $name, $raw := .Values.services }}
 {{- if $raw.enabled }}
-{{- $ctx := dict "root" $ "name" $name "svc" $raw }}
+{{- $svc := include "booking.serviceConfig" (dict "root" $ "svc" $raw) | fromYaml }}
+{{- $ctx := dict "root" $ "name" $name "svc" $svc }}
 ---
 apiVersion: v1
 kind: Service
@@ -14,7 +15,7 @@ spec:
   selector:
     {{- include "booking.selectorLabels" $ctx | nindent 4 }}
   ports:
-    {{- range $raw.ports }}
+    {{- range $svc.ports }}
     - name: {{ .name }}
       port: {{ .servicePort | default .containerPort }}
       targetPort: {{ .name }}

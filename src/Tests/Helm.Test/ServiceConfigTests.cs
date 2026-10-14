@@ -479,4 +479,29 @@ public class ServiceConfigTests
             .Should()
             .Be("/var/lib/postgresql/data");
     }
+
+    [HelmFact]
+    public void defaults_env_and_secret_env_reach_every_service_configmap_and_secret()
+    {
+        var objects = HelmChart.Render(
+            "--set",
+            "defaults.env.FEATURE_FLAG=on",
+            "--set",
+            "defaults.secretEnv.SHARED_TOKEN=dev-only"
+        );
+
+        foreach (var name in new[] { "gateway", "identity-service", "flight-service", "passenger-service", "booking-service" })
+        {
+            objects
+                .Single(o => o.Kind == "ConfigMap" && o.Name == $"{name}-config")
+                .Map("data")
+                .Should()
+                .ContainKey("FEATURE_FLAG");
+            objects
+                .Single(o => o.Kind == "Secret" && o.Name == $"{name}-secret")
+                .Map("stringData")
+                .Should()
+                .ContainKey("SHARED_TOKEN");
+        }
+    }
 }

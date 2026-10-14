@@ -9,8 +9,9 @@ global:
   requireExistingSecrets: true
   aspnetcoreEnvironment: docker
   env:
-    # Pod CIDR (or ingress controller subnet) of the cluster, so X-Forwarded-For from the ingress is trusted.
-    TrustedProxyOptions__KnownNetworks__0: 10.0.0.0/8
+    # REPLACE with the narrowest range the ingress controller pods live in: every address in it may set
+    # X-Forwarded-For, which the gateway uses for rate-limit partitioning. Don't use a cluster-wide /8.
+    TrustedProxyOptions__KnownNetworks__0: 10.244.0.0/16
     ObservabilityOptions__UseOTLPExporter: "true"
     ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector.observability:4317
   securityContext:
