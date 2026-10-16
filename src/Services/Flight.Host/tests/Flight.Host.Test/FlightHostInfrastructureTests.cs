@@ -1,10 +1,14 @@
 using System.Net;
+using Asp.Versioning;
+using BuildingBlocks.Core;
+using BuildingBlocks.Core.Event;
 using BuildingBlocks.Exception;
 using BuildingBlocks.Jwt;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.Web;
 using Contracts.Grpc.Flight;
 using Contracts.Grpc.Passenger;
+using EasyCaching.Core;
 using Flight.Host.Extensions;
 using FluentAssertions;
 using Grpc.AspNetCore.HealthChecks;
@@ -16,6 +20,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -120,6 +125,22 @@ public class FlightHostInfrastructureTests
     }
 
     [Fact]
+    public void infrastructure_should_register_named_cache_versioning_problem_details_and_event_dispatcher()
+    {
+        var builder = CreateBuilder();
+        using var provider = builder.Services.BuildServiceProvider();
+
+        provider.GetRequiredService<IEasyCachingProviderFactory>().GetCachingProvider("mem").Should().NotBeNull();
+        provider
+            .GetRequiredService<IOptions<ApiVersioningOptions>>()
+            .Value.DefaultApiVersion.ToString()
+            .Should()
+            .Be("1.0");
+        provider.GetRequiredService<IProblemDetailsService>().Should().NotBeNull();
+        provider.GetRequiredService<IEventDispatcher>().Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task host_infrastructure_should_boot_without_the_flight_module_and_serve_root_and_grpc_health()
     {
         var builder = CreateBuilder();
@@ -152,14 +173,31 @@ public class FlightHostInfrastructureTests
         await app.StopAsync();
     }
 
+    [Fact]
+    public async Task development_environment_should_serve_openapi_document()
+    {
+        var builder = CreateBuilder("Development");
+        builder.WebHost.UseTestServer();
+
+        await using var app = builder.Build();
+        app.UseFlightHostInfrastructure();
+        await app.StartAsync();
+
+        using var client = app.GetTestClient();
+        var openApi = await client.GetAsync("/openapi/v1.json");
+        openApi.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        await app.StopAsync();
+    }
+
     // Loads the host's real appsettings.json from the test output, but keeps the bus and telemetry
     // off the network.
-    private static WebApplicationBuilder CreateBuilder()
+    private static WebApplicationBuilder CreateBuilder(string environmentName = "test")
     {
         var builder = WebApplication.CreateBuilder(
             new WebApplicationOptions
             {
-                EnvironmentName = "test",
+                EnvironmentName = environmentName,
                 ApplicationName = typeof(Program).Assembly.GetName().Name,
                 ContentRootPath = AppContext.BaseDirectory,
             }
