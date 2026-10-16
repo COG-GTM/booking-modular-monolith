@@ -17,6 +17,9 @@ using global::Flight.Seats.Exceptions;
 using global::Flight.Seats.Features.GettingAvailableSeats.V1;
 using global::Flight.Seats.Models;
 using MapsterMapper;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Driver;
 using Unit.Test.Common;
 using Xunit;
 
@@ -71,13 +74,29 @@ public class FlightReadHandlersTests
     public async Task get_flight_by_id_maps_a_document_returned_by_the_cursor()
     {
         var document = FlightDocument(Guid.NewGuid(), false);
-        using var context = FakeFlightReadDbContext.Create([document]);
+        PipelineDefinition<FlightReadModel, FlightReadModel>? pipeline = null;
+        using var context = FakeFlightReadDbContext.Create(
+            [document],
+            captureFlightPipeline: capturedPipeline => pipeline = capturedPipeline
+        );
         var handler = new GetFlightByIdHandler(_mapper, context);
 
         var result = await handler.Handle(new GetFlightById(document.FlightId), CancellationToken.None);
 
         result.FlightDto.Id.Should().Be(document.FlightId);
         result.FlightDto.FlightNumber.Should().Be(document.FlightNumber);
+
+        var rendered = pipeline!
+            .Render(
+                new RenderArgs<FlightReadModel>(
+                    BsonSerializer.LookupSerializer<FlightReadModel>(),
+                    BsonSerializer.SerializerRegistry
+                )
+            )
+            .Documents;
+        var match = rendered.Should().ContainSingle(stage => stage.Contains("$match")).Which["$match"].AsBsonDocument;
+        match["flightId"].Should().Be(document.ToBsonDocument()["flightId"]);
+        match["isDeleted"].AsBsonDocument["$ne"].Should().Be(BsonBoolean.True);
     }
 
     [Fact]

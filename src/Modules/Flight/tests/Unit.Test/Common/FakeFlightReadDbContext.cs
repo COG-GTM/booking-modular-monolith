@@ -1,5 +1,6 @@
 namespace Unit.Test.Common;
 
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
@@ -17,7 +18,8 @@ public static class FakeFlightReadDbContext
 {
     public static FlightReadDbContext Create(
         IEnumerable<FlightReadModel>? flights = null,
-        IEnumerable<SeatReadModel>? seats = null
+        IEnumerable<SeatReadModel>? seats = null,
+        Action<PipelineDefinition<FlightReadModel, FlightReadModel>>? captureFlightPipeline = null
     )
     {
         var databaseName = "flight-unit";
@@ -32,7 +34,7 @@ public static class FakeFlightReadDbContext
             SetCollection(
                 context,
                 nameof(FlightReadDbContext.Flight),
-                CreateCollection(flights, databaseName, "flight")
+                CreateCollection(flights, databaseName, "flight", captureFlightPipeline)
             );
         }
 
@@ -47,7 +49,8 @@ public static class FakeFlightReadDbContext
     private static IMongoCollection<TDocument> CreateCollection<TDocument>(
         IEnumerable<TDocument> documents,
         string databaseName,
-        string collectionName
+        string collectionName,
+        Action<PipelineDefinition<TDocument, TDocument>>? capturePipeline = null
     )
     {
         var client = new MongoClient("mongodb://localhost:27017");
@@ -64,7 +67,7 @@ public static class FakeFlightReadDbContext
         cursor.MoveNextAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(true), Task.FromResult(false));
         collection
             .AggregateAsync<TDocument>(
-                Arg.Any<PipelineDefinition<TDocument, TDocument>>(),
+                Arg.Do<PipelineDefinition<TDocument, TDocument>>(pipeline => capturePipeline?.Invoke(pipeline)),
                 Arg.Any<AggregateOptions>(),
                 Arg.Any<CancellationToken>()
             )
