@@ -33,12 +33,13 @@ public class UserValidatorTests
             .AddEntityFrameworkStores<IdentityContext>()
             .AddDefaultTokenProviders();
 
+        var httpContextAccessor = new HttpContextAccessor();
+        services.AddSingleton<IHttpContextAccessor>(httpContextAccessor);
+
         var provider = services.BuildServiceProvider();
+        httpContextAccessor.HttpContext = new DefaultHttpContext { RequestServices = provider };
 
-        var httpContext = new DefaultHttpContext { RequestServices = provider };
-        services.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor { HttpContext = httpContext });
-
-        return services.BuildServiceProvider();
+        return provider;
     }
 
     private static async Task<(UserValidator Validator, User User)> SeedUserAsync(ServiceProvider provider)
