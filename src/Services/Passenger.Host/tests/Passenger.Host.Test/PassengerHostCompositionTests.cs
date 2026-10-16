@@ -1,10 +1,16 @@
+using BuildingBlocks.Exception;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.PersistMessageProcessor;
+using BuildingBlocks.Web;
 using FluentAssertions;
 using Grpc.AspNetCore.HealthChecks;
+using Grpc.AspNetCore.Server;
+using Grpc.Core.Interceptors;
 using MassTransit;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -187,6 +193,73 @@ public class PassengerHostCompositionTests : IDisposable
     }
 
     [Fact]
+    public void api_behavior_suppresses_the_model_state_invalid_filter()
+    {
+        var app = BuildHost();
+
+        app.Services.GetRequiredService<IOptions<ApiBehaviorOptions>>()
+            .Value.SuppressModelStateInvalidFilter.Should()
+            .BeTrue();
+    }
+
+    [Fact]
+    public void grpc_services_register_the_exception_interceptor()
+    {
+        var app = BuildHost();
+
+        app.Services.GetRequiredService<IOptions<GrpcServiceOptions>>()
+            .Value.Interceptors.Should()
+            .Contain(interceptor => interceptor.Type == typeof(GrpcExceptionInterceptor));
+    }
+
+    [Fact]
+    public void current_user_provider_is_scoped()
+    {
+        var app = BuildHost();
+
+        _registrations[app]
+            .Should()
+            .Contain(descriptor =>
+                descriptor.ServiceType == typeof(ICurrentUserProvider)
+                && descriptor.ImplementationType == typeof(CurrentUserProvider)
+                && descriptor.Lifetime == ServiceLifetime.Scoped
+            );
+    }
+
+    [Theory]
+    [InlineData("Development", true)]
+    [InlineData("test", false)]
+    public void openapi_routes_are_mapped_only_in_development(string environmentName, bool expected)
+    {
+        var app = BuildHost(environmentName: environmentName);
+        var routes = ((IEndpointRouteBuilder)app)
+            .DataSources.SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .Select(endpoint => endpoint.RoutePattern.RawText)
+            .ToList();
+
+        if (expected)
+        {
+            routes.Should().Contain("/openapi/{documentName}.json");
+        }
+        else
+        {
+            routes.Should().NotContain("/openapi/{documentName}.json");
+        }
+    }
+
+    [Fact]
+    public async Task root_endpoint_returns_the_configured_service_name()
+    {
+        var app = BuildHost(useTestServer: true);
+
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+
+        (await client.GetStringAsync("/")).Should().Be("Passenger-Service");
+    }
+
+    [Fact]
     public void mass_transit_registers_only_passenger_consumers_under_the_passenger_queue_prefix()
     {
         var app = BuildHost();
@@ -227,12 +300,20 @@ public class PassengerHostCompositionTests : IDisposable
         return report.Entries.Should().ContainKey(name).WhoseValue;
     }
 
-    private WebApplication BuildHost(IDictionary<string, string?>? settings = null)
+    private WebApplication BuildHost(
+        IDictionary<string, string?>? settings = null,
+        string environmentName = "test",
+        bool useTestServer = false
+    )
     {
         var contentRoot = Directory.CreateTempSubdirectory("passenger-host-test").FullName;
         var builder = WebApplication.CreateBuilder(
-            new WebApplicationOptions { EnvironmentName = "test", ContentRootPath = contentRoot }
+            new WebApplicationOptions { EnvironmentName = environmentName, ContentRootPath = contentRoot }
         );
+        if (useTestServer)
+        {
+            builder.WebHost.UseTestServer();
+        }
 
         var defaults = new Dictionary<string, string?>
         {
