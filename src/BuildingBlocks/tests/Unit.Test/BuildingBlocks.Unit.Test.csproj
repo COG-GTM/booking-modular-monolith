@@ -4,6 +4,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="FluentAssertions" Version="8.8.0" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.3" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
@@ -21,6 +25,22 @@
     <ProjectReference Include="..\..\Jwt\BuildingBlocks.Jwt.csproj" />
     <ProjectReference Include="..\..\OpenTelemetryCollector\BuildingBlocks.OpenTelemetryCollector.csproj" />
     <ProjectReference Include="..\..\PersistMessageProcessor\BuildingBlocks.PersistMessageProcessor.csproj" />
+    <ProjectReference Include="..\..\ProblemDetails\BuildingBlocks.ProblemDetails.csproj" />
+    <ProjectReference Include="..\..\Validation\BuildingBlocks.Validation.csproj" />
     <ProjectReference Include="..\..\Web\BuildingBlocks.Web.csproj" />
   </ItemGroup>
+
+  <!-- Coverlet (Cecil) resolves referenced assemblies from the module's directory only, and
+       framework-only assemblies are never copied to bin, so instrumenting BuildingBlocks.Web
+       fails with CecilAssemblyResolutionException. Copying the shared framework into the
+       output folder lets coverlet resolve them; deps.json still loads them from the shared
+       framework at runtime, so this does not change what executes. -->
+  <Target Name="CopySharedFrameworkAssembliesForCoverlet" AfterTargets="Build" Condition="'$(DOTNET_HOST_PATH)' != ''">
+    <ItemGroup>
+      <_SharedFrameworkAssemblies
+        Include="$([System.IO.Path]::GetDirectoryName($(DOTNET_HOST_PATH)))/shared/Microsoft.AspNetCore.App/*/*.dll" />
+    </ItemGroup>
+    <Message Importance="High" Text="Coverlet shared-framework copy: @(_SharedFrameworkAssemblies->Count()) assemblies" />
+    <Copy SourceFiles="@(_SharedFrameworkAssemblies)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
 </Project>
