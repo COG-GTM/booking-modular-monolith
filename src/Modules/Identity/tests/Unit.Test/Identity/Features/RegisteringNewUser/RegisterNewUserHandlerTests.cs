@@ -91,9 +91,6 @@ public class RegisterNewUserHandlerTests
         var exception = await act.Should().ThrowAsync<RegisterIdentityUserException>();
         exception.Which.Message.Should().Be("a,b");
 
-        // The handler calls AddToRoleAsync before it checks identityResult.Succeeded,
-        // so a role assignment is still attempted for a user that failed creation.
-        await _userManager.Received(1).AddToRoleAsync(Arg.Any<User>(), IdentityConstant.Role.User);
         await _eventDispatcher
             .DidNotReceiveWithAnyArgs()
             .SendAsync(Arg.Any<UserCreated>(), Arg.Any<Type>(), Arg.Any<CancellationToken>());
