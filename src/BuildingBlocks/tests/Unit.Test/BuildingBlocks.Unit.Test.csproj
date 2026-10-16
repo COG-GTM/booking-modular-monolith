@@ -1,8 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <IsPackable>false</IsPackable>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <PreserveCompilationContext>true</PreserveCompilationContext>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,16 +30,15 @@
     <ProjectReference Include="..\..\Web\BuildingBlocks.Web.csproj" />
   </ItemGroup>
 
-  <!-- Coverlet (Cecil) resolves referenced assemblies from the module's directory only.
-       BuildingBlocks.* assemblies that live on Microsoft.AspNetCore.App reference framework-only
-       assemblies that are never copied to bin, so instrumentation fails with
-       CecilAssemblyResolutionException. Copying the shared framework assemblies into the
+  <!-- Coverlet (Cecil) resolves referenced assemblies from the module's directory only, and
+       framework-only assemblies are never copied to bin, so instrumenting BuildingBlocks.Web
+       fails with CecilAssemblyResolutionException. Copying the shared framework into the
        output folder lets coverlet resolve them; deps.json still loads them from the shared
        framework at runtime, so this does not change what executes. -->
-  <Target Name="CopySharedFrameworkAssembliesForCoverlet" AfterTargets="Build">
+  <Target Name="CopySharedFrameworkAssembliesForCoverlet" AfterTargets="Build" Condition="'$(DOTNET_HOST_PATH)' != ''">
     <ItemGroup>
       <_SharedFrameworkAssemblies
-        Include="$(HOME)/.dotnet/shared/Microsoft.AspNetCore.App/*/*.dll;$(USERPROFILE)/.dotnet/shared/Microsoft.AspNetCore.App/*/*.dll;$(ProgramFiles)/dotnet/shared/Microsoft.AspNetCore.App/*/*.dll;/usr/share/dotnet/shared/Microsoft.AspNetCore.App/*/*.dll;/usr/lib/dotnet/shared/Microsoft.AspNetCore.App/*/*.dll;/usr/local/share/dotnet/shared/Microsoft.AspNetCore.App/*/*.dll;$(HOME)/.dotnet/shared/Microsoft.NETCore.App/*/*.dll;/usr/share/dotnet/shared/Microsoft.NETCore.App/*/*.dll;/usr/lib/dotnet/shared/Microsoft.NETCore.App/*/*.dll;/usr/local/share/dotnet/shared/Microsoft.NETCore.App/*/*.dll" />
+        Include="$([System.IO.Path]::GetDirectoryName($(DOTNET_HOST_PATH)))/shared/Microsoft.AspNetCore.App/*/*.dll" />
     </ItemGroup>
     <Message Importance="High" Text="Coverlet shared-framework copy: @(_SharedFrameworkAssemblies->Count()) assemblies" />
     <Copy SourceFiles="@(_SharedFrameworkAssemblies)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
