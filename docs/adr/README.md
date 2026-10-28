@@ -20,7 +20,7 @@ The target state is drawn in [docs/architecture/target-architecture.md](../archi
 | [0008](0008-defer-service-to-service-grpc-authentication.md) | Defer authentication of service-to-service gRPC | Proposed |
 | 0009 | Reserved for AB-499 (unused) | — |
 | 0010 | BuildingBlocks package boundaries — added by AB-500 | Lands in a sibling PR |
-| 0011 | CI/CD and package publishing — added by AB-490 | Lands in a sibling PR |
+| [0011](0011-service-artifact-publishing.md) | Independent service artifact publishing (AB-490) | Proposed |
 
 ## Conventions
 

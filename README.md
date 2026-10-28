@@ -151,7 +151,7 @@ go over RabbitMQ with MassTransit; each service owns its own databases and its o
   - [0007 Extraction order](./docs/adr/0007-extraction-order.md)
   - [0008 Defer service-to-service gRPC authentication](./docs/adr/0008-defer-service-to-service-grpc-authentication.md)
   - 0010 BuildingBlocks package boundaries (AB-500, lands in a sibling PR)
-  - 0011 CI/CD and package publishing (AB-490, lands in a sibling PR)
+  - [0011 Independent service artifact publishing (AB-490)](./docs/adr/0011-service-artifact-publishing.md)
 
 
 ## Structure of Project
