@@ -304,6 +304,7 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 var api = builder.AddProject<Api>("api")
+    .WithEnvironment("AuthOptions__IssuerUri", "https://localhost:3000")
     .WithReference(persistMessageDb)
     .WaitFor(persistMessageDb)
     .WithReference(flightDb)
@@ -320,5 +321,19 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
+
+var gateway = builder.AddProject<Gateway>("gateway")
+    .WithReference(api)
+    .WaitFor(api)
+    .WithHttpEndpoint(port: 5000, targetPort: 8080, name: "gateway-http")
+    .WithEnvironment("Jwt__Authority", "https://localhost:3000")
+    .WithEnvironment("Jwt__MetadataAddress", ReferenceExpression.Create($"{api.GetEndpoint("api-http")}/.well-known/openid-configuration"));
+
+foreach (var cluster in new[] { "identity", "flight", "passenger", "booking", "monolith" })
+{
+    gateway.WithEnvironment(
+        $"ReverseProxy__Clusters__{cluster}__Destinations__primary__Address",
+        api.GetEndpoint("api-http"));
+}
 
 builder.Build().Run();

@@ -80,6 +80,12 @@ jobs:
           service-name: 'Booking'
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build gateway
+        run: dotnet build src/Gateway/Gateway.csproj
+
+      - name: Test gateway
+        run: dotnet test src/Gateway/tests/Unit.Test
+
       - name: Update Release Drafter
         if: ${{ github.ref == 'refs/heads/main' && success() }}
         id: last_release
