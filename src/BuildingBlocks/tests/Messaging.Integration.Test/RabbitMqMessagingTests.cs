@@ -42,7 +42,12 @@ public class BrokerFixture : IAsyncLifetime
         await Postgres.DisposeAsync();
     }
 
-    public async Task<ServiceProvider> StartBus(string prefix, ProbeState state, bool connectionString = true)
+    public async Task<ServiceProvider> StartBus(
+        string prefix,
+        ProbeState state,
+        bool connectionString = true,
+        bool registerConsumers = true
+    )
     {
         var env = Substitute.For<IWebHostEnvironment>();
         env.EnvironmentName.Returns("Integration");
@@ -67,7 +72,7 @@ public class BrokerFixture : IAsyncLifetime
             env,
             new ConfigurationBuilder().AddInMemoryCollection(settings).Build(),
             prefix,
-            typeof(ProbeConsumer).Assembly
+            registerConsumers ? [typeof(ProbeConsumer).Assembly] : []
         );
         var provider = services.BuildServiceProvider();
         await provider.GetRequiredService<IBusControl>().StartAsync();
@@ -221,6 +226,45 @@ public class RabbitMqMessagingTests(BrokerFixture fixture) : IClassFixture<Broke
         await fixture.WaitForQueue(prefix + "-a-probe", 2);
         Assert.Empty(restarted.Attempts);
         await c.GetRequiredService<IBusControl>().StopAsync();
+    }
+}
+
+public class PublisherStartupTests(BrokerFixture fixture) : IClassFixture<BrokerFixture>
+{
+    [Fact]
+    public async Task Unrouted_outbox_stays_pending_until_the_first_consumer_starts()
+    {
+        var state = new ProbeState();
+        await using var publisher = await fixture.StartBus("publisher", state, registerConsumers: false);
+        var message = new ProbeEvent(Guid.NewGuid());
+        await using (var scope = publisher.CreateAsyncScope())
+        {
+            var processor = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor>();
+            await processor.PublishMessageAsync(new MessageEnvelope(message));
+            await Assert.ThrowsAnyAsync<System.Exception>(
+                () => processor.ProcessAsync(message.EventId, MessageDeliveryType.Outbox)
+            );
+            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
+            Assert.Equal(MessageStatus.InProgress, (await db.PersistMessage.SingleAsync()).MessageStatus);
+        }
+
+        await using var consumer = await fixture.StartBus("late-passenger", state);
+        await using (var scope = publisher.CreateAsyncScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor>().ProcessAllAsync();
+            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
+            Assert.Equal(MessageStatus.Processed, (await db.PersistMessage.SingleAsync()).MessageStatus);
+        }
+        await fixture.WaitForQueue("late-passenger-probe", 1);
+        Assert.Equal(1, state.Attempts[message.EventId]);
+        Assert.Equal(message.EventId, state.MessageIds[message.EventId]);
+        await using (var scope = consumer.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
+            Assert.True(await db.InboxMessages.AnyAsync(x => x.MessageId == message.EventId));
+        }
+        await consumer.GetRequiredService<IBusControl>().StopAsync();
+        await publisher.GetRequiredService<IBusControl>().StopAsync();
     }
 }
 

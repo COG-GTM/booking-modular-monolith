@@ -39,6 +39,11 @@ private ingress and TLS; the development compose stack is not a production secur
 ## Delivery guarantees
 
 - The outbox row ID becomes MassTransit's `MessageId` on every publish, including replay.
+- Outbox publication is mandatory: RabbitMQ must route to at least one queue. Without any
+  subscriber topology (including first startup), the broker rejects the publication and the
+  row stays pending. Start a consumer or provision its topology, then the worker retries.
+  This is not an acknowledgement from every intended subscriber: provision all required
+  endpoint bindings before enabling producers when adding another subscriber to a live system.
 - A PostgreSQL `inbox_message` receipt is keyed by `(message_id, consumer)`, independent of
   the event body's `EventId`. The filter is registered for both transports. Consumers using
   the in-memory transport still need a registered persistence store if they consume messages;
@@ -53,6 +58,9 @@ private ingress and TLS; the development compose stack is not a production secur
   receipt is committed. Keep the broker `MessageId` when replaying after fixing the cause.
 - If outbox publication fails, the row stays pending. The polling worker logs the error and
   retries on its next interval; publication/status-update failures may cause safe redelivery.
+  Events intentionally having no subscribers will remain pending; investigate them rather
+  than marking them delivered. Local broker/management ports bind only to host loopback;
+  containers connect over the compose network. Replace development credentials for deployment.
 
 ## Local verification
 

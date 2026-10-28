@@ -219,6 +219,7 @@ public class PersistMessageProcessor : IPersistMessageProcessor
             context =>
             {
                 context.MessageId = message.Id;
+                context.Mandatory = true;
                 foreach (var header in messageEnvelope.Headers)
                     context.Headers.Set(header.Key, header.Value);
             },

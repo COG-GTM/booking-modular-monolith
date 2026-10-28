@@ -51,6 +51,11 @@ flowchart LR
 
 ## Non-functional requirements
 
+Outbox publication uses MassTransit's mandatory flag. RabbitMQ rejects unroutable events,
+leaving their rows pending until a consumer's durable topology exists. This protects first
+publisher startup, but only proves routing to at least one queue, not every intended service.
+Provision all required bindings before enabling producers when adding subscribers.
+
 | NFR | Target | How met |
 | --- | --- | --- |
 | Availability SLO | TBD — owner to confirm before ARB | Pending outbox survives broker outages |
