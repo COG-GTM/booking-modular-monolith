@@ -1,0 +1,45 @@
+# Architecture Decision Records
+
+This folder records the decisions behind epic **AB-488 — Microservices Migration Scaffolding**: moving
+`booking-modular-monolith` from one deployable (`src/Api`) to one service per module, without a
+big-bang rewrite.
+
+The target state is drawn in [docs/architecture/target-architecture.md](../architecture/target-architecture.md).
+
+## Index
+
+| ADR | Title | Status |
+| --- | --- | --- |
+| [0001](0001-service-boundaries.md) | One service per existing module: Identity, Flight, Passenger, Booking | Proposed |
+| [0002](0002-strangler-fig-migration-behind-yarp-gateway.md) | Strangler-fig migration behind a YARP gateway | Proposed |
+| [0003](0003-sync-grpc-async-rabbitmq.md) | gRPC for synchronous calls, RabbitMQ (MassTransit) for integration events | Proposed |
+| [0004](0004-database-per-service-and-per-service-outbox-inbox.md) | Database per service, with a per-service outbox and inbox | Proposed |
+| [0005](0005-contract-and-proto-versioning-policy.md) | Versioning and compatibility policy for integration events and protos | Proposed |
+| [0006](0006-repository-layout-for-hosts-and-contracts.md) | Repository layout for the gateway, service hosts, contracts and BuildingBlocks | Proposed |
+| [0007](0007-extraction-order.md) | Extraction order: Flight, then Passenger + Identity, then Booking | Proposed |
+| [0008](0008-defer-service-to-service-grpc-authentication.md) | Defer authentication of service-to-service gRPC | Proposed |
+| 0009 | Reserved for AB-499 (unused) | — |
+| 0010 | BuildingBlocks package boundaries — added by AB-500 | Lands in a sibling PR |
+| [0011](0011-service-artifact-publishing.md) | Independent service artifact publishing (AB-490) | Proposed |
+
+## Conventions
+
+- File name: `NNNN-<kebab-case-title>.md`, numbered in sequence. Numbers are never reused.
+- Numbers for epic AB-488: 0001–0009 belong to AB-499 (architecture), 0010 to AB-500 (BuildingBlocks
+  package boundaries), 0011 to AB-490 (CI/CD and package publishing).
+- Every ADR uses the org ADR template (Context, Decision, Alternatives, Architecture, NFRs, Security,
+  Cost, Operations, Policy exceptions, Consequences, Open questions). A section that does not apply
+  says `N/A — <reason>` instead of being removed.
+- New ADRs start as `Proposed`. Only the Architecture Review Board (ARB) moves an ADR to `Accepted`.
+- A decision is changed by writing a new ADR that supersedes the old one. The old ADR gets
+  `Superseded by NNNN` in its status line and is otherwise left as written.
+- Numbers that are not known yet (SLOs, load, cost) are written as `TBD — owner to confirm before
+  ARB` and repeated under *Open questions*. Do not guess them.
+
+## ARB
+
+The epic adds deployable services (T1), new data stores (T2), a new broker integration between
+bounded contexts (T4), gateway and token-validation changes (T6) and shared contract libraries
+(T8), so these ADRs form its ARB submission. The ARB ticket is **TO BE CREATED** (there is no ARB
+project on the Jira site yet). Implementation PRs reference the ADR they implement; merging the
+epic branch into `main` waits on ARB approval.
