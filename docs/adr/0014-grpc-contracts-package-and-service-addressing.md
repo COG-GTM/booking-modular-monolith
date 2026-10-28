@@ -25,8 +25,9 @@ inherits HTTP-level retries that can replay non-idempotent seat reservations.
   configure Kubernetes DNS service names such as `http://flight-service:81`; h2c requires an
   Http2-only listener.
 - Retry gRPC `Unavailable` only for idempotent reads (Flight `GetById`, `GetAvailableSeats`, and
-  Passenger `GetById`). Never retry `ReserveSeat`. Use a 10-second default deadline and remove
-  HTTP resilience handlers from these clients to avoid protocol-agnostic retries and timeouts.
+  Passenger `GetById`). Never retry `ReserveSeat`. Configure 1–5 total attempts, where 1 disables
+  retries. Use a 10-second default deadline and remove HTTP resilience handlers from these clients
+  to avoid protocol-agnostic retries and timeouts.
 - Expose `grpc.health.v1` on the monolith, mapping its service names to liveness checks only.
   Booking performs separate readiness checks for the Flight and Passenger services.
 - HTTPS uses platform certificate validation. Service-to-service calls remain unauthenticated as

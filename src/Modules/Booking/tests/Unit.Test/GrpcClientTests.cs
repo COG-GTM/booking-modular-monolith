@@ -70,6 +70,24 @@ public class GrpcClientTests
     }
 
     [Fact]
+    public async Task max_retry_attempts_of_one_disables_retries_and_healthy_calls_succeed()
+    {
+        await using var server = await TestGrpcServer.StartAsync();
+        using var provider = CreateClientProvider(server.Address, server.Address, maxRetryAttempts: 1);
+        var client = provider.GetRequiredService<FlightGrpcService.FlightGrpcServiceClient>();
+
+        var exception = await Assert.ThrowsAsync<RpcException>(
+            () => client.GetByIdAsync(new GetByIdRequest { Id = "retry" }).ResponseAsync
+        );
+        exception.StatusCode.Should().Be(StatusCode.Unavailable);
+        server.Flight.GetByIdCalls.Should().Be(1);
+
+        var response = await client.GetByIdAsync(new GetByIdRequest { Id = "healthy" });
+        response.Should().NotBeNull();
+        server.Flight.GetByIdCalls.Should().Be(2);
+    }
+
+    [Fact]
     public async Task calls_apply_default_deadline_preserve_explicit_deadline_and_time_out_slow_handlers()
     {
         await using var server = await TestGrpcServer.StartAsync();
@@ -117,7 +135,8 @@ public class GrpcClientTests
         string? flightAddress,
         string? passengerAddress,
         TimeSpan? timeout = null,
-        bool addStandardResilience = false
+        bool addStandardResilience = false,
+        int? maxRetryAttempts = null
     )
     {
         var settings = new Dictionary<string, string?>();
@@ -132,6 +151,10 @@ public class GrpcClientTests
         if (timeout.HasValue)
         {
             settings["Grpc:Deadline"] = timeout.Value.ToString();
+        }
+        if (maxRetryAttempts.HasValue)
+        {
+            settings["Grpc:MaxRetryAttempts"] = maxRetryAttempts.Value.ToString();
         }
 
         var services = new ServiceCollection();

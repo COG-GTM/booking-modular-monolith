@@ -32,7 +32,7 @@ public static class GrpcClientExtensions
         services.AddServiceDiscovery();
         services.AddTransient(_ => new GrpcDeadlineInterceptor(grpcOptions.Deadline));
 
-        // Remove the experimental HTTP resilience handlers so they cannot replay non-idempotent RPCs.
+        // HTTP resilience handlers can replay non-idempotent RPCs; the gRPC retry policy below is authoritative.
 #pragma warning disable EXTEXP0001
         services
             .AddGrpcClient<FlightGrpcService.FlightGrpcServiceClient>(options => options.Address = flightAddress)
@@ -87,6 +87,11 @@ public static class GrpcClientExtensions
 
     private static ServiceConfig CreateServiceConfig(GrpcOptions options)
     {
+        if (options.MaxRetryAttempts == 1)
+        {
+            return new ServiceConfig();
+        }
+
         var retryPolicy = new RetryPolicy
         {
             MaxAttempts = options.MaxRetryAttempts,
