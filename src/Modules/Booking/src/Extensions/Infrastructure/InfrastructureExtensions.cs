@@ -24,7 +24,7 @@ public static class InfrastructureExtensions
             .Services.AddEventStore(builder.Configuration, typeof(BookingRoot).Assembly)
             .AddEventStoreDBSubscriptionToAll();
 
-        builder.Services.AddGrpcClients();
+        builder.Services.AddGrpcClients(builder.Configuration);
 
         builder.Services.AddCustomMediatR();
 
