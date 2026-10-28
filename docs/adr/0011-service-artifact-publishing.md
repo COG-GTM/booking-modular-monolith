@@ -1,4 +1,4 @@
-# 0490. Independent service artifact publishing
+# 0011. Independent service artifact publishing
 
 - **Status:** Proposed
 - **Date:** 2026-10-28

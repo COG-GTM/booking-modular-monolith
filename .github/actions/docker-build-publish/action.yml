@@ -49,4 +49,4 @@ runs:
         IMAGE: ${{ inputs.registry }}/${{ inputs.image-name }}:${{ inputs.tag-name }}
       run: |
         docker push "$IMAGE"
-        echo "Published `$IMAGE`" >> "$GITHUB_STEP_SUMMARY"
+        printf 'Published `%s`\n' "$IMAGE" >> "$GITHUB_STEP_SUMMARY"
