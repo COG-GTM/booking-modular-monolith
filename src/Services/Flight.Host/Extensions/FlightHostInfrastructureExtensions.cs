@@ -82,17 +82,23 @@ public static class FlightHostInfrastructureExtensions
         var appName = app.Configuration["AppOptions:Name"] ?? "Flight Service";
         app.MapGet("/", () => appName);
         app.MapHealthChecks(
-            "/health/live",
-            new HealthCheckOptions { Predicate = check => check.Tags.Contains("live"), ResponseWriter = WriteHealthCheckResponse }
-        );
+                "/health/live",
+                new HealthCheckOptions
+                {
+                    Predicate = check => check.Tags.Contains("live"),
+                    ResponseWriter = WriteHealthCheckResponse,
+                }
+            )
+            .AllowAnonymous();
         app.MapHealthChecks(
-            "/health/ready",
-            new HealthCheckOptions
-            {
-                Predicate = check => check.Tags.Contains("live") || IsReadyCheck(check),
-                ResponseWriter = WriteHealthCheckResponse,
-            }
-        );
+                "/health/ready",
+                new HealthCheckOptions
+                {
+                    Predicate = check => check.Tags.Contains("live") || IsReadyCheck(check),
+                    ResponseWriter = WriteHealthCheckResponse,
+                }
+            )
+            .AllowAnonymous();
         app.MapGrpcHealthChecksService();
 
         if (app.Environment.IsDevelopment())
@@ -112,21 +118,18 @@ public static class FlightHostInfrastructureExtensions
 
     private static void AddHealthChecks(WebApplicationBuilder builder)
     {
-        var healthChecks = builder.Services.AddHealthChecks().AddCheck(
-            "self",
-            () => HealthCheckResult.Healthy(),
-            LiveTag
-        );
+        var healthChecks = builder
+            .Services.AddHealthChecks()
+            .AddCheck("self", () => HealthCheckResult.Healthy(), LiveTag);
 
         healthChecks.Add(
             new HealthCheckRegistration(
                 "postgres-flight",
-                serviceProvider =>
-                    new NpgSqlHealthCheck(
-                        new NpgSqlHealthCheckOptions(
-                            serviceProvider.GetRequiredService<IConfiguration>().ResolvePostgresConnectionString("Flight")
-                        )
-                    ),
+                serviceProvider => new NpgSqlHealthCheck(
+                    new NpgSqlHealthCheckOptions(
+                        serviceProvider.GetRequiredService<IConfiguration>().ResolvePostgresConnectionString("Flight")
+                    )
+                ),
                 HealthStatus.Unhealthy,
                 ReadyTag
             )
@@ -134,21 +137,21 @@ public static class FlightHostInfrastructureExtensions
         healthChecks.Add(
             new HealthCheckRegistration(
                 "postgres-flight-persist-message",
-                serviceProvider =>
-                    new NpgSqlHealthCheck(
-                        new NpgSqlHealthCheckOptions(
-                            serviceProvider
-                                .GetRequiredService<IConfiguration>()
-                                .ResolvePersistMessageConnectionString("Flight")
-                        )
-                    ),
+                serviceProvider => new NpgSqlHealthCheck(
+                    new NpgSqlHealthCheckOptions(
+                        serviceProvider
+                            .GetRequiredService<IConfiguration>()
+                            .ResolvePersistMessageConnectionString("Flight")
+                    )
+                ),
                 HealthStatus.Unhealthy,
                 ReadyTag
             )
         );
         healthChecks.AddMongoDb(
-            serviceProvider =>
-                new MongoClient(serviceProvider.GetRequiredService<IOptionsMonitor<MongoOptions>>().Get("Flight").ConnectionString),
+            serviceProvider => new MongoClient(
+                serviceProvider.GetRequiredService<IOptionsMonitor<MongoOptions>>().Get("Flight").ConnectionString
+            ),
             serviceProvider =>
                 serviceProvider.GetRequiredService<IOptionsMonitor<MongoOptions>>().Get("Flight").DatabaseName,
             name: "mongo-flight",

@@ -2,6 +2,21 @@ namespace BuildingBlocks.OpenTelemetryCollector;
 
 public class ObservabilityOptions
 {
+    public void ApplyOverrides(Microsoft.Extensions.Configuration.IConfiguration configuration, string applicationName)
+    {
+        ServiceName = NonEmpty(configuration["OTEL_SERVICE_NAME"]) ?? NonEmpty(ServiceName) ?? applicationName;
+        var endpoint = NonEmpty(configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+        if (endpoint is not null)
+        {
+            UseOTLPExporter = true;
+            UseAspireOTLPExporter = false;
+            OTLPOptions ??= new OTLPOptions();
+            OTLPOptions.OTLPGrpcExporterEndpoint = endpoint;
+        }
+    }
+
+    private static string? NonEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
     public string InstrumentationName { get; set; } = default!;
     public string? ServiceName { get; set; }
     public bool MetricsEnabled { get; set; } = true;
