@@ -57,7 +57,8 @@ private ingress and TLS; the development compose stack is not a production secur
   Validation exceptions skip retry. Exhausted messages go to `<endpoint>_error`; no success
   receipt is committed. Keep the broker `MessageId` when replaying after fixing the cause.
 - If outbox publication fails, the row stays pending. The polling worker logs the error and
-  retries on its next interval; publication/status-update failures may cause safe redelivery.
+  continues other rows, then retries failed rows on its next interval. A single unroutable
+  event cannot starve other deliveries; publication/status-update failures may cause safe redelivery.
   Events intentionally having no subscribers will remain pending; investigate them rather
   than marking them delivered. Local broker/management ports bind only to host loopback;
   containers connect over the compose network. Replace development credentials for deployment.

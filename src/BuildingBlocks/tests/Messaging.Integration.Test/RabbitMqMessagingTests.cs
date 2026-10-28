@@ -116,6 +116,39 @@ public class BrokerFixture : IAsyncLifetime
 public class RabbitMqMessagingTests(BrokerFixture fixture) : IClassFixture<BrokerFixture>
 {
     [Fact]
+    public async Task Unroutable_event_does_not_block_other_outbox_rows()
+    {
+        var prefix = "isolation-" + Guid.NewGuid().ToString("N");
+        var state = new ProbeState();
+        await using var provider = await fixture.StartBus(prefix, state);
+        var unroutable = new UnroutableEvent(Guid.NewGuid());
+        var routable = new ProbeEvent(Guid.NewGuid());
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var processor = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor>();
+            await processor.PublishMessageAsync(new MessageEnvelope(unroutable));
+            await processor.PublishMessageAsync(new MessageEnvelope(routable));
+            await processor.ProcessAllAsync();
+        }
+        await fixture.WaitForQueue(prefix + "-probe", 1);
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
+            Assert.Equal(
+                MessageStatus.InProgress,
+                (await db.PersistMessage.SingleAsync(x => x.Id == unroutable.EventId)).MessageStatus
+            );
+            Assert.Equal(
+                MessageStatus.Processed,
+                (await db.PersistMessage.SingleAsync(x => x.Id == routable.EventId)).MessageStatus
+            );
+            Assert.True(await db.InboxMessages.AnyAsync(x => x.MessageId == routable.EventId));
+        }
+        Assert.Equal(1, state.Attempts[routable.EventId]);
+        await provider.GetRequiredService<IBusControl>().StopAsync();
+    }
+
+    [Fact]
     public async Task Outbox_publishes_stable_message_id_and_replay_is_deduplicated()
     {
         var prefix = "outbox-" + Guid.NewGuid().ToString("N");
@@ -269,6 +302,8 @@ public class PublisherStartupTests(BrokerFixture fixture) : IClassFixture<Broker
 }
 
 public record ProbeEvent(Guid EventId, int FailAttempts = 0, int DelayMilliseconds = 0) : IIntegrationEvent;
+
+public record UnroutableEvent(Guid EventId) : IIntegrationEvent;
 
 public class ProbeState
 {

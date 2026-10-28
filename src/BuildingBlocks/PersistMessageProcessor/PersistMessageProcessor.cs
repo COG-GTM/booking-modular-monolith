@@ -182,7 +182,24 @@ public class PersistMessageProcessor : IPersistMessageProcessor
 
         foreach (var message in messages)
         {
-            await ProcessAsync(message.Id, message.DeliveryType, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                await ProcessAsync(message.Id, message.DeliveryType, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (System.Exception exception)
+            {
+                ((DbContext)_persistMessageDbContext).ChangeTracker.Clear();
+                _logger.LogError(
+                    exception,
+                    "Persisted message {MessageId} delivery failed; continuing with other pending messages.",
+                    message.Id
+                );
+            }
         }
     }
 
