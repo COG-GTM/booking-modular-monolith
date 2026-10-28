@@ -21,6 +21,7 @@ The target state is drawn in [docs/architecture/target-architecture.md](../archi
 | 0009 | Reserved for AB-499 (unused) | — |
 | 0010 | BuildingBlocks package boundaries — added by AB-500 | Lands in a sibling PR |
 | [0011](0011-service-artifact-publishing.md) | Independent service artifact publishing (AB-490) | Proposed |
+| [0013](0013-identity-service-token-issuer.md) | Identity service is the sole token issuer behind the gateway (AB-493) | Proposed |
 | [0014](0014-grpc-contracts-package-and-service-addressing.md) | Shared gRPC contracts and service addressing (AB-494) | Proposed |
 | [0018](0018-passenger-service-host.md) | Passenger service host (AB-498) | Proposed |
 
