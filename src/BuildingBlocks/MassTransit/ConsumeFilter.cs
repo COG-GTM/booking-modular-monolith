@@ -1,4 +1,3 @@
-using BuildingBlocks.Core.Event;
 using BuildingBlocks.PersistMessageProcessor;
 using MassTransit;
 
@@ -17,22 +16,16 @@ public class ConsumeFilter<T> : IFilter<ConsumeContext<T>>
 
     public async Task Send(ConsumeContext<T> context, IPipe<ConsumeContext<T>> next)
     {
-        var id = await _persistMessageProcessor.AddReceivedMessageAsync(
-            new MessageEnvelope(
-                context.Message,
-                context.Headers.ToDictionary(x => x.Key, x => x.Value))
+        var messageId =
+            context.MessageId
+            ?? throw new InvalidOperationException("An inbox message must have a MassTransit MessageId.");
+        await _persistMessageProcessor.ExecuteInboxAsync(
+            messageId,
+            context.ReceiveContext.InputAddress.AbsolutePath,
+            () => next.Send(context),
+            context.CancellationToken
         );
-
-        var message = await _persistMessageProcessor.ExistMessageAsync(id);
-
-        if (message is null)
-        {
-            await next.Send(context);
-            await _persistMessageProcessor.ProcessInboxAsync(id);
-        }
     }
 
-    public void Probe(ProbeContext context)
-    {
-    }
+    public void Probe(ProbeContext context) { }
 }

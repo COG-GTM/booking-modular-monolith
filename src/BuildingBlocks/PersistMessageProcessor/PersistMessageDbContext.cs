@@ -10,18 +10,23 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
 {
     private readonly ILogger<PersistMessageDbContext>? _logger;
 
-    public PersistMessageDbContext(DbContextOptions<PersistMessageDbContext> options,
-        ILogger<PersistMessageDbContext>? logger = null)
+    public PersistMessageDbContext(
+        DbContextOptions<PersistMessageDbContext> options,
+        ILogger<PersistMessageDbContext>? logger = null
+    )
         : base(options)
     {
         _logger = logger;
     }
 
     public DbSet<PersistMessage> PersistMessage => Set<PersistMessage>();
+    public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<InboxMessage>().ToTable("inbox_message");
+        builder.Entity<InboxMessage>().HasKey(x => new { x.MessageId, x.Consumer });
         builder.ToSnakeCaseTables();
     }
 
@@ -31,8 +36,10 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
         var strategy = Database.CreateExecutionStrategy();
         return strategy.ExecuteAsync(async () =>
         {
-            await using var transaction =
-                await Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+            await using var transaction = await Database.BeginTransactionAsync(
+                IsolationLevel.ReadCommitted,
+                cancellationToken
+            );
             try
             {
                 await SaveChangesAsync(cancellationToken);
@@ -63,7 +70,9 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
 
                 if (databaseValues == null)
                 {
-                    _logger.LogError("The record no longer exists in the database, The record has been deleted by another user.");
+                    _logger.LogError(
+                        "The record no longer exists in the database, The record has been deleted by another user."
+                    );
                     throw;
                 }
 
@@ -77,7 +86,8 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
 
     public void CreatePersistMessageTableIfNotExists()
     {
-        string createTableSql = @"
+        string createTableSql =
+            @"
             create table if not exists persist_message (
             id uuid not null,
             data_type text,
@@ -91,6 +101,15 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
             )";
 
         Database.ExecuteSqlRaw(createTableSql);
+        Database.ExecuteSqlRaw(
+            @"
+            create table if not exists inbox_message (
+            message_id uuid not null,
+            consumer text not null,
+            processed_at timestamp with time zone not null,
+            primary key (message_id, consumer)
+            )"
+        );
     }
 
     private void OnBeforeSaving()

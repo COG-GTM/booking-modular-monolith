@@ -1,0 +1,31 @@
+name: RabbitMQ messaging
+
+on:
+  pull_request:
+    branches: [main, devin/ab-488-v2]
+    paths:
+      - 'src/BuildingBlocks/**'
+      - 'src/Api/**'
+      - '.github/workflows/messaging.yml'
+  push:
+    branches: [main, devin/ab-488-v2]
+    paths:
+      - 'src/BuildingBlocks/**'
+      - 'src/Api/**'
+      - '.github/workflows/messaging.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  broker-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Build solution
+        run: dotnet build booking-modular-monolith.sln -c Release
+      - name: Verify real RabbitMQ and PostgreSQL delivery semantics
+        run: dotnet test src/BuildingBlocks/tests/Messaging.Integration.Test -c Release --no-build --logger 'console;verbosity=normal'
