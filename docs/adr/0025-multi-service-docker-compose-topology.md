@@ -47,9 +47,12 @@ PostgreSQL for its persist-message database. The existing MongoDB instance conta
 alone uses the existing EventStoreDB instance for its event stream.
 
 The `monolith` Compose profile is opt-in. When run alongside the services, its module background
-processing is disabled so it does not compete with the service hosts for outbox polling, consumers,
-or the Booking EventStoreDB subscription. The gateway catch-all cluster can be reconfigured to
+processing is disabled so it does not compete with the service hosts for outbox polling or
+the Booking EventStoreDB subscription. The gateway catch-all cluster can be reconfigured to
 target `http://booking_modular_monolith/`.
+The monolith's MassTransit consumers are still registered regardless of the module flag, so while
+the profile runs, `UserCreated` is delivered to both `monolith-register-new-user-handler` and
+`passenger-service`; the profile is for short coexistence and rollback checks only.
 
 Health checks gate startup in dependency order: infrastructure, Identity/Flight/Passenger, Booking,
 then gateway. Booking also waits for healthy EventStoreDB, Flight, and Passenger services.
@@ -184,3 +187,5 @@ C4Container
   policy, data residency, cost, on-call rotation, and alert thresholds.
 - Production ingress, TLS termination, and secret management are not defined by the local Compose
   topology.
+- Gate monolith MassTransit consumer registration on `Modules:<Module>:BackgroundProcessingEnabled`
+  so the `monolith` profile cannot double-consume `UserCreated` (follow-up outside AB-503).

@@ -71,7 +71,10 @@ docker compose --profile monolith up -d booking_modular_monolith
 ```
 
 Its module background processing is disabled so the service hosts remain the owners of outbox
-polling, consumers, and the Booking EventStoreDB subscription. To route a gateway cluster back to
+polling and the Booking EventStoreDB subscription. Caveat: the monolith still binds its MassTransit
+consumers (e.g. `monolith-register-new-user-handler` for `UserCreated`) regardless of that flag, so
+while it runs a `UserCreated` is delivered to both it and `passenger-service`. Keep the profile for
+short coexistence/rollback checks until consumer registration honours the module flag. To route a gateway cluster back to
 the monolith, set
 `ReverseProxy__Clusters__<c>__Destinations__primary__Address=http://booking_modular_monolith/`.
 
