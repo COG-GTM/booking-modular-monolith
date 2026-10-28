@@ -1,0 +1,94 @@
+name: Reusable service pipeline
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        type: string
+        required: true
+      project:
+        type: string
+        required: true
+      dockerfile:
+        type: string
+        required: true
+      tests:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      available: ${{ steps.host.outputs.available }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check host scaffolding
+        id: host
+        env:
+          PROJECT: ${{ inputs.project }}
+          DOCKERFILE: ${{ inputs.dockerfile }}
+        run: |
+          if [[ -f "$PROJECT" && -f "$DOCKERFILE" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Skipping service until $PROJECT and $DOCKERFILE both exist."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Find service tests
+        if: steps.host.outputs.available == 'true'
+        id: tests
+        env:
+          TESTS: ${{ inputs.tests }}
+        run: |
+          if [[ -d "$TESTS" ]] && find "$TESTS" -name '*.csproj' -print -quit | grep -q .; then
+            echo "path=$TESTS" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No test projects yet at $TESTS."
+          fi
+      - name: Build and test service
+        if: steps.host.outputs.available == 'true'
+        uses: ./.github/actions/build-test
+        with:
+          project-path: ${{ inputs.project }}
+          tests-path: ${{ steps.tests.outputs.path }}
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: ${{ inputs.service }}
+          token: ${{ github.token }}
+      - name: Verify container build without publishing
+        if: steps.host.outputs.available == 'true'
+        uses: ./.github/actions/docker-build-publish
+        with:
+          registry: ghcr.io
+          image-name: cog-gtm/booking-${{ inputs.service }}
+          tag-name: sha-${{ github.sha }}
+          dockerfile-path: ${{ inputs.dockerfile }}
+          push: 'false'
+
+  publish:
+    needs: verify
+    if: >-
+      needs.verify.outputs.available == 'true' &&
+      github.event_name != 'pull_request' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devin/ab-488-v2')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/docker-build-publish
+        with:
+          registry: ghcr.io
+          image-name: cog-gtm/booking-${{ inputs.service }}
+          tag-name: sha-${{ github.sha }}
+          dockerfile-path: ${{ inputs.dockerfile }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ github.token }}
+          push: 'true'

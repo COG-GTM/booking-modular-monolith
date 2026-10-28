@@ -1,0 +1,59 @@
+name: Flight service
+
+on:
+  push:
+    branches: [main, devin/ab-488-v2]
+    paths:
+      - 'src/Services/Flight.Host/**'
+      - 'src/Modules/Flight/**'
+      - 'src/Contracts/**'
+      - 'src/BuildingBlocks/**'
+      - 'src/Aspire/src/ServiceDefaults/**'
+      - 'Directory.*.props'
+      - 'Directory.*.targets'
+      - 'global.json'
+      - '**/[Nn]u[Gg]et.[Cc]onfig'
+      - '.config/dotnet-tools.json'
+      - 'package*.json'
+      - '.dockerignore'
+      - '.github/actions/**'
+      - '.github/workflows/service-flight.yml'
+      - '.github/workflows/service-pipeline.yml'
+  pull_request:
+    branches: [main, devin/ab-488-v2]
+    paths:
+      - 'src/Services/Flight.Host/**'
+      - 'src/Modules/Flight/**'
+      - 'src/Contracts/**'
+      - 'src/BuildingBlocks/**'
+      - 'src/Aspire/src/ServiceDefaults/**'
+      - 'Directory.*.props'
+      - 'Directory.*.targets'
+      - 'global.json'
+      - '**/[Nn]u[Gg]et.[Cc]onfig'
+      - '.config/dotnet-tools.json'
+      - 'package*.json'
+      - '.dockerignore'
+      - '.github/actions/**'
+      - '.github/workflows/service-flight.yml'
+      - '.github/workflows/service-pipeline.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flight-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pipeline:
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/service-pipeline.yml
+    with:
+      service: flight
+      project: src/Services/Flight.Host/Flight.Host.csproj
+      dockerfile: src/Services/Flight.Host/Dockerfile
+      tests: src/Modules/Flight/tests
