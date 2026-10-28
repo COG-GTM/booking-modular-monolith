@@ -18,6 +18,7 @@ namespace BuildingBlocks.Jwt
             .AddJwtBearer(options =>
             {
                 options.Authority = jwtOptions.Authority;
+                options.MetadataAddress = jwtOptions.MetadataAddress;
                 options.Audience = jwtOptions.Audience;
                 options.RequireHttpsMetadata = false;
 
