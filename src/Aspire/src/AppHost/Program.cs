@@ -325,6 +325,8 @@ var api = builder.AddProject<Api>("api")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
 
 api.WithEnvironment("Jwt__MetadataAddress", ReferenceExpression.Create($"{api.GetEndpoint("api-http")}/.well-known/openid-configuration"));
+api.WithEnvironment("Grpc__FlightAddress", api.GetEndpoint("api-https"));
+api.WithEnvironment("Grpc__PassengerAddress", api.GetEndpoint("api-https"));
 
 var gateway = builder.AddProject<Gateway>("gateway")
     .WithReference(api)

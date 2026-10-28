@@ -9,6 +9,7 @@ using BuildingBlocks.ProblemDetails;
 using BuildingBlocks.Web;
 using Figgle.Fonts;
 using Flight;
+using Grpc.AspNetCore.HealthChecks;
 using Identity;
 using Microsoft.AspNetCore.Mvc;
 using Passenger;
@@ -48,6 +49,12 @@ public static class SharedInfrastructureExtensions
         {
             options.Interceptors.Add<GrpcExceptionInterceptor>();
         });
+        builder.Services.AddGrpcHealthChecks(options =>
+        {
+            options.Services.Map("", context => context.Tags.Contains("live"));
+            options.Services.Map("flight.FlightGrpcService", context => context.Tags.Contains("live"));
+            options.Services.Map("passenger.PassengerGrpcService", context => context.Tags.Contains("live"));
+        });
 
         builder.Services.AddEasyCaching(options =>
         {
@@ -74,6 +81,7 @@ public static class SharedInfrastructureExtensions
         app.UseCorrelationId();
 
         app.MapGet("/", x => x.Response.WriteAsync(appOptions.Name));
+        app.MapGrpcHealthChecksService();
 
         if (app.Environment.IsDevelopment())
         {
