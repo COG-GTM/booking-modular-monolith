@@ -39,7 +39,10 @@ between services (Identity → Passenger `UserCreated` now, and any future event
 - gRPC: one copy of each proto, shared from `src/Contracts/Contracts.Grpc` with the server packages
   `flight` and `passenger`. Clients are addressed by `Grpc:FlightAddress` and
   `Grpc:PassengerAddress`. Only idempotent reads are retried; `ReserveSeat` is not retried
-  automatically.
+  automatically. Today `GrpcClientExtensions` adds one resilience handler (retry, circuit breaker,
+  timeout) per client, so `ReserveSeat` is retried too. The ticket that switches Booking to the
+  shared protos must make retries per method (for example, skip the retry when the gRPC method is
+  `ReserveSeat`); changing the proto alone does not do this.
 - Events: services publish through their own outbox ([0004](0004-database-per-service-and-per-service-outbox-inbox.md))
   to RabbitMQ with MassTransit's default publish topology (one exchange per message type). Each
   consumer gets its own queue. Consumers deduplicate on the MassTransit `MessageId` through their

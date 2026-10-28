@@ -40,7 +40,10 @@ We will give **each service its own data stores**, reachable only by that servic
   through its gRPC API or by consuming its events ([0003](0003-sync-grpc-async-rabbitmq.md)).
 - Each service has its own outbox and inbox (its own persist-message store and its own
   background poller), so the outbox poller of one service never sees another's rows. Inbox rows
-  are keyed on the MassTransit `MessageId`.
+  are keyed on the MassTransit `MessageId`. Today `PersistMessageProcessor` keys persisted
+  messages on `IEvent.EventId` instead, so the consumer-side inbox write and its duplicate check
+  have to move to `ConsumeContext.MessageId` when the per-service inbox is built. Outbox rows can
+  keep `EventId`.
 - The names above are the convention (`<module>_service`, `<module>_service_persist_message`,
   `<module>_service_read`); physical servers may be shared in non-production as long as
   databases and roles are separate.
