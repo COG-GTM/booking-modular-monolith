@@ -1,4 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageVersion>2.0.0</PackageVersion>
+  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Grpc.Net.Client" Version="2.76.0" />
     <PackageReference Include="AutoBogus" Version="2.13.1" />

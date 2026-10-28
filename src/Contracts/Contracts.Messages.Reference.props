@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <ContractsMessagesVersion Condition="'$(ContractsMessagesVersion)' == ''">1.0.0</ContractsMessagesVersion>
+    <ContractsPackageSource Condition="'$(ContractsPackageSource)' == ''">$(MSBuildThisFileDirectory)../../artifacts/packages</ContractsPackageSource>
+    <RestoreAdditionalProjectSources Condition="'$(UseContractsPackage)' == 'true'">$(RestoreAdditionalProjectSources);$(ContractsPackageSource)</RestoreAdditionalProjectSources>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(UseContractsPackage)' != 'true'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)Contracts.Messages/Contracts.Messages.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(UseContractsPackage)' == 'true'">
+    <PackageReference Include="BookingModularMonolith.Contracts.Messages" Version="$(ContractsMessagesVersion)" />
+  </ItemGroup>
+</Project>

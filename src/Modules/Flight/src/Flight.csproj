@@ -1,4 +1,5 @@
 ﻿  <Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../../../Contracts/Contracts.Messages.Reference.props" />
 
   <ItemGroup>
     <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
