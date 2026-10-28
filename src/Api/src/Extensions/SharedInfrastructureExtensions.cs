@@ -39,8 +39,12 @@ public static class SharedInfrastructureExtensions
 
         builder.Services.AddCustomMassTransit(
             builder.Environment,
-            TransportType.InMemory,
-            AppDomain.CurrentDomain.GetAssemblies()
+            builder.Configuration,
+            "monolith",
+            typeof(FlightEventMapper).Assembly,
+            typeof(IdentityEventMapper).Assembly,
+            typeof(PassengerEventMapper).Assembly,
+            typeof(BookingEventMapper).Assembly
         );
 
         builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);
