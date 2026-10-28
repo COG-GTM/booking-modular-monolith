@@ -35,11 +35,14 @@ public static class Extensions
     public static WebApplicationBuilder AddCustomObservability(this WebApplicationBuilder builder)
     {
         Activity.DefaultIdFormat = ActivityIdFormat.W3C;
+        Activity.ForceDefaultIdFormat = true;
+        Sdk.SetDefaultTextMapPropagator(new SuppressionAwarePropagator());
         builder.Services.AddSingleton<IDiagnosticsProvider, CustomeDiagnosticsProvider>();
         builder.AddCoreDiagnostics();
 
         builder.Services.AddValidateOptions<ObservabilityOptions>();
         var observabilityOptions = builder.Services.GetOptions<ObservabilityOptions>(nameof(ObservabilityOptions));
+        observabilityOptions.ApplyOverrides(builder.Configuration, builder.Environment.ApplicationName);
 
         // InstrumentationName property option is mandatory and can't be empty
         ArgumentException.ThrowIfNullOrEmpty(observabilityOptions.InstrumentationName);
@@ -52,7 +55,12 @@ public static class Extensions
 
         void ConfigureResourceBuilder(ResourceBuilder resourceBuilder)
         {
-            resourceBuilder.AddAttributes([new("service.environment", builder.Environment.EnvironmentName)]);
+            resourceBuilder.AddAttributes(
+                [
+                    new("service.environment", builder.Environment.EnvironmentName),
+                    new("deployment.environment", builder.Environment.EnvironmentName),
+                ]
+            );
 
             resourceBuilder.AddService(
                 serviceName: observabilityOptions.ServiceName ?? builder.Environment.ApplicationName,
@@ -77,17 +85,6 @@ public static class Extensions
                 options.ParseStateValues = true;
                 // which means the message wouldn't have the placeholders replaced
                 options.IncludeFormattedMessage = true;
-
-                // add some metadata to exported logs
-                options.SetResourceBuilder(
-                    ResourceBuilder
-                        .CreateDefault()
-                        .AddService(
-                            observabilityOptions.ServiceName ?? builder.Environment.ApplicationName,
-                            serviceVersion: Assembly.GetCallingAssembly().GetName().Version?.ToString() ?? "unknown",
-                            serviceInstanceId: Environment.MachineName
-                        )
-                );
 
                 options.AddLoggingExporters(observabilityOptions);
             });
@@ -138,10 +135,9 @@ public static class Extensions
         {
             otel.WithTracing(tracing =>
             {
-                if (builder.Environment.IsDevelopment())
+                if (string.IsNullOrWhiteSpace(builder.Configuration["OTEL_TRACES_SAMPLER"]))
                 {
-                    // We want to view all traces in development
-                    tracing.SetSampler(new AlwaysOnSampler());
+                    tracing.SetSampler(new ParentBasedSampler(new AlwaysOnSampler()));
                 }
 
                 tracing
@@ -151,19 +147,29 @@ public static class Extensions
                         options.RecordException = true;
                         // Don't trace requests to the health endpoint to avoid filling the dashboard with noise
                         options.Filter = httpContext =>
-                                             !(httpContext.Request.Path.StartsWithSegments(
-                                                   HealthEndpointPath, StringComparison.OrdinalIgnoreCase) ||
-                                               httpContext.Request.Path.StartsWithSegments(
-                                                   AlivenessEndpointPath, StringComparison.OrdinalIgnoreCase
-                                               ));
+                            !(
+                                httpContext.Request.Path.Value?.StartsWith(
+                                    HealthEndpointPath,
+                                    StringComparison.OrdinalIgnoreCase
+                                ) == true
+                                || httpContext.Request.Path.StartsWithSegments(
+                                    "/metrics",
+                                    StringComparison.OrdinalIgnoreCase
+                                )
+                                || httpContext.Request.Path.StartsWithSegments(
+                                    AlivenessEndpointPath,
+                                    StringComparison.OrdinalIgnoreCase
+                                )
+                            );
                     })
-                    .AddGrpcClientInstrumentation()
+                    .AddGrpcClientInstrumentation(options => options.SuppressDownstreamInstrumentation = true)
                     .AddHttpClientInstrumentation(instrumentationOptions =>
                     {
                         instrumentationOptions.RecordException = true;
                     })
                     .AddEntityFrameworkCoreInstrumentation()
                     .AddSource(DiagnosticHeaders.DefaultListenerName)
+                    .AddSource("BuildingBlocks.PersistMessageProcessor")
                     .AddNpgsql()
                     // `AddSource` for adding custom activity sources
                     .AddSource(observabilityOptions.InstrumentationName)
@@ -177,7 +183,6 @@ public static class Extensions
 
         return builder;
     }
-
 
     public static WebApplication UseCustomObservability(this WebApplication app)
     {

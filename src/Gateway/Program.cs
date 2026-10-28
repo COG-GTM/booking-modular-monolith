@@ -1,7 +1,10 @@
+using System.Diagnostics;
 using System.Threading.RateLimiting;
 using BuildingBlocks.Jwt;
 using BuildingBlocks.OpenTelemetryCollector;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddCustomObservability();
@@ -44,10 +47,11 @@ builder.Services.AddRateLimiter(options =>
             )
     );
 });
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks().AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"]);
 builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
 var app = builder.Build();
+app.UseCustomObservability();
 app.Use(
     async (context, next) =>
     {
@@ -57,6 +61,8 @@ app.Use(
         )
             correlationId = Guid.NewGuid();
         var correlation = correlationId.ToString();
+        Activity.Current?.SetTag("correlation.id", correlation);
+        Activity.Current?.SetBaggage("correlation.id", correlation);
         context.Request.Headers["correlationId"] = correlation;
         context.Request.Headers["X-Correlation-ID"] = correlation;
         context.Response.Headers["correlationId"] = correlation;
@@ -83,7 +89,8 @@ app.UseCors();
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
-app.MapHealthChecks("/health/live").AllowAnonymous();
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = check => check.Tags.Contains("live") })
+    .AllowAnonymous();
 app.MapHealthChecks("/health/ready").AllowAnonymous();
 app.MapReverseProxy().RequireRateLimiting("ingress");
 app.Run();

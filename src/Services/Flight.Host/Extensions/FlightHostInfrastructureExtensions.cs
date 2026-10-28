@@ -84,7 +84,7 @@ public static class FlightHostInfrastructureExtensions
         app.MapHealthChecks(
             "/health/live",
             new HealthCheckOptions { Predicate = check => check.Tags.Contains("live"), ResponseWriter = WriteHealthCheckResponse }
-        );
+        ).AllowAnonymous();
         app.MapHealthChecks(
             "/health/ready",
             new HealthCheckOptions
@@ -92,7 +92,7 @@ public static class FlightHostInfrastructureExtensions
                 Predicate = check => check.Tags.Contains("live") || IsReadyCheck(check),
                 ResponseWriter = WriteHealthCheckResponse,
             }
-        );
+        ).AllowAnonymous();
         app.MapGrpcHealthChecksService();
 
         if (app.Environment.IsDevelopment())
