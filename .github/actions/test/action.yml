@@ -50,16 +50,18 @@ runs:
       # https://octopus.com/blog/githubactions-running-unit-tests
       # we should not do 'no-build' here, because our tests not build in build phase (build composite action) and should build here
       run: |
-        for file in $(find . -name "*.csproj" -type f); do
+        status=0
+        while IFS= read -r -d '' file; do
           echo "Testing $file"
           if [ ${{ inputs.no-restore }} == 'true' ]; then
              echo "run tests in no-restore mode"
-             dotnet test "$file" -c Release --no-restore --logger "trx;LogFileName=test-results.trx" || true
+             dotnet test "$file" -c Release --no-restore --logger "trx;LogFileName=test-results.trx" || status=1
           else
              echo "run tests in restore nuget mode"
-             dotnet test "$file" -c Release --logger "trx;LogFileName=test-results.trx" || true
+             dotnet test "$file" -c Release --logger "trx;LogFileName=test-results.trx" || status=1
           fi
-        done
+        done < <(find . -name "*.csproj" -type f -print0)
+        exit "$status"
 
     # GitHub Api call permissions problem here
     # https://github.com/dorny/test-reporter/issues/168
