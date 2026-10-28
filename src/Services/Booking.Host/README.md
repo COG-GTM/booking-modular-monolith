@@ -26,8 +26,11 @@ names `postgres`, `mongo`, `eventstore`, `rabbitmq`, `flight-service`, and
 - `MongoOptions:ConnectionString` and
   `MongoOptions:Booking:DatabaseName`: MongoDB connection and read database.
 - `EventStoreOptions:ConnectionString`: EventStoreDB connection.
-- `Jwt:Authority`, `Jwt:Audience`, and optional `Jwt:MetadataAddress`: token
-  validation settings.
+- `Jwt:Authority` and `Jwt:Audience`: public issuer and token audience. By default the authority
+  is the Gateway at `http://localhost:5000`.
+- `Jwt:MetadataAddress`: internal Identity discovery document (`http://localhost:5101` locally,
+  `http://identity-service:8080` in Docker). Configure Identity.Host's `AuthOptions:IssuerUri` as
+  `http://localhost:5000` when it issues tokens through the Gateway.
 - `Grpc:FlightAddress` and `Grpc:PassengerAddress`: upstream gRPC services.
 - `Messaging:Transport` and `RabbitMqOptions`: message transport and RabbitMQ
   connection.
