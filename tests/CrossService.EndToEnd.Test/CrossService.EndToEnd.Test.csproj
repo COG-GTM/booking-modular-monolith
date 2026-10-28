@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>CrossService.EndToEnd.Test</AssemblyName>
+    <RootNamespace>CrossService.EndToEnd.Test</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="8.8.0" />
+    <PackageReference Include="Testcontainers.EventStoreDb" Version="4.9.0" />
+    <PackageReference Include="Testcontainers.MongoDb" Version="4.9.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.9.0" />
+    <PackageReference Include="Testcontainers.RabbitMq" Version="4.9.0" />
+    <PackageReference Include="Npgsql" Version="10.0.0" />
+    <PackageReference Include="MongoDB.Driver" Version="3.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Services/Identity.Host/Identity.Host.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/Services/Flight.Host/Flight.Host.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/Services/Passenger.Host/Passenger.Host.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/Services/Booking.Host/Booking.Host.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/Gateway/Gateway.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="RepositoryRoot" Value="$(MSBuildThisFileDirectory)../.." />
+    <AssemblyMetadata Include="BuildConfiguration" Value="$(Configuration)" />
+    <EmbeddedResource Include="../../deployments/docker-compose/init/postgres/01-service-databases.sql" Link="01-service-databases.sql" />
+  </ItemGroup>
+</Project>

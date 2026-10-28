@@ -1,0 +1,39 @@
+{
+  "consumer": "booking-service",
+  "provider": "flight-service",
+  "service": "flight.FlightGrpcService",
+  "rpcs": [
+    {
+      "name": "GetById",
+      "request": "flight.GetByIdRequest",
+      "response": "flight.GetFlightByIdResult",
+      "requestFields": [{ "name": "Id", "number": 1, "type": "string" }],
+      "responseFields": [
+        { "path": "FlightDto.Id", "number": 1, "type": "string" },
+        { "path": "FlightDto.FlightNumber", "number": 2, "type": "string" },
+        { "path": "FlightDto.AircraftId", "number": 3, "type": "string" },
+        { "path": "FlightDto.DepartureAirportId", "number": 4, "type": "string" },
+        { "path": "FlightDto.ArriveAirportId", "number": 7, "type": "string" },
+        { "path": "FlightDto.FlightDate", "number": 9, "type": "message" },
+        { "path": "FlightDto.Price", "number": 11, "type": "double" }
+      ]
+    },
+    {
+      "name": "GetAvailableSeats",
+      "request": "flight.GetAvailableSeatsRequest",
+      "response": "flight.GetAvailableSeatsResult",
+      "requestFields": [{ "name": "FlightId", "number": 1, "type": "string" }],
+      "responseFields": [{ "path": "SeatDtos.SeatNumber", "number": 2, "type": "string" }]
+    },
+    {
+      "name": "ReserveSeat",
+      "request": "flight.ReserveSeatRequest",
+      "response": "flight.ReserveSeatResult",
+      "requestFields": [
+        { "name": "FlightId", "number": 1, "type": "string" },
+        { "name": "SeatNumber", "number": 2, "type": "string" }
+      ],
+      "responseFields": [{ "path": "Id", "number": 1, "type": "string" }]
+    }
+  ]
+}
