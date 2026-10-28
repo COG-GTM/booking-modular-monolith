@@ -30,7 +30,9 @@ Each service receives only its own PostgreSQL database and persist-message conne
 its `<module>_service` role. Aspire service discovery resolves Booking's gRPC addresses; endpoint
 references configure the gateway's YARP clusters. A shared AppHost helper configures service names
 and exports telemetry to the OpenTelemetry Collector and Aspire dashboard. The `monolith` YARP
-fallback points to Identity while Services topology is active because no monolith process runs.
+fallback points to Identity while Services topology is active because no monolith process runs, and
+requires authentication so unmatched Identity paths cannot bypass gateway authorization. Dedicated
+`/connect/**` and `/.well-known/**` routes remain anonymous.
 
 This is local-development orchestration only; it does not define production infrastructure.
 

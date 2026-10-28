@@ -49,6 +49,10 @@ public class AppHostTopologyTests
         var monolithGateway = await EnvironmentAsync(
             monolithModel.Resources.OfType<ProjectResource>().Single(resource => resource.Name == "gateway")
         );
+        Assert.DoesNotContain(
+            "ReverseProxy__Routes__fallback__AuthorizationPolicy",
+            monolithGateway.Keys
+        );
         foreach (var cluster in new[] { "identity", "flight", "passenger", "booking", "monolith" })
         {
             var address = monolithGateway[$"ReverseProxy__Clusters__{cluster}__Destinations__primary__Address"];
@@ -134,6 +138,7 @@ public class AppHostTopologyTests
         var gateway = await EnvironmentAsync(projects["gateway"]);
         var identity = await EnvironmentAsync(projects["identity-service"]);
 
+        Assert.Equal("authenticated", gateway["ReverseProxy__Routes__fallback__AuthorizationPolicy"]);
         AssertClusterDestination(gateway, "identity", "identity-service");
         AssertClusterDestination(gateway, "flight", "flight-service");
         AssertClusterDestination(gateway, "passenger", "passenger-service");

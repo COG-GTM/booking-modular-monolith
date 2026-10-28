@@ -20,4 +20,6 @@ The gateway is available at `http://localhost:5000` and the Aspire dashboard at
 ports already configured by the service hosts.
 
 In Services topology, the gateway's `monolith` fallback points to Identity because no monolith
-process is started. Monolith topology retains the legacy API destination for every gateway cluster.
+process is started. The fallback requires authentication so unmatched Identity paths cannot bypass
+gateway authorization; `/connect/**` and `/.well-known/**` keep their dedicated anonymous routes.
+Monolith topology retains the legacy API destination for every gateway cluster.

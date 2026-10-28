@@ -553,6 +553,10 @@ else if (topology.Equals("Services", StringComparison.OrdinalIgnoreCase))
     gateway.WithEnvironment(
         "ReverseProxy__Clusters__monolith__Destinations__primary__Address",
         identity.GetEndpoint("http"));
+    // The Identity-backed catch-all must not expose unmatched paths anonymously.
+    gateway.WithEnvironment(
+        "ReverseProxy__Routes__fallback__AuthorizationPolicy",
+        "authenticated");
 }
 else
 {
