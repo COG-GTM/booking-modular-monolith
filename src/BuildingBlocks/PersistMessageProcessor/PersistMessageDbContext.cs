@@ -17,10 +17,13 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
     }
 
     public DbSet<PersistMessage> PersistMessage => Set<PersistMessage>();
+    public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<InboxMessage>().ToTable("inbox_message");
+        builder.Entity<InboxMessage>().HasKey(x => new { x.MessageId, x.Consumer });
         builder.ToSnakeCaseTables();
     }
 
@@ -95,6 +98,15 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
             )";
 
         Database.ExecuteSqlRaw(createTableSql);
+        Database.ExecuteSqlRaw(
+            @"
+            create table if not exists inbox_message (
+            message_id uuid not null,
+            consumer text not null,
+            processed_at timestamp with time zone not null,
+            primary key (message_id, consumer)
+            )"
+        );
     }
 
     private void OnBeforeSaving()

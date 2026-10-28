@@ -568,12 +568,14 @@ public class TestFixtureCore<TEntryPoint> : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await InitPostgresAsync();
+        await Fixture.ServiceProvider.GetRequiredService<IBusControl>().StartAsync();
         await Fixture.StartPersistMessageWorkersAsync();
     }
 
     public async Task DisposeAsync()
     {
         await Fixture.StopPersistMessageWorkersAsync();
+        await Fixture.ServiceProvider.GetRequiredService<IBusControl>().StopAsync();
         await ResetPostgresAsync();
         await ResetMongoAsync();
         await ResetRabbitMqAsync();

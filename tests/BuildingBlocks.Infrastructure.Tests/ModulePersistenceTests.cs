@@ -15,6 +15,21 @@ namespace BuildingBlocks.Infrastructure.Tests;
 public class ModulePersistenceTests
 {
     [Fact]
+    public void MongoServiceAndConcreteContextShareOneScopedInstance()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Configuration["MongoOptions:Flight:ConnectionString"] = "mongodb://localhost:27017";
+        builder.Configuration["MongoOptions:Flight:DatabaseName"] = "flight_service_read";
+        builder.Services.AddMongoDbContext<IMongoDbContext, NamedReadContext>(builder.Configuration, "Flight");
+        using var provider = builder.Services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var concrete = scope.ServiceProvider.GetRequiredService<NamedReadContext>();
+        Assert.Same(concrete, scope.ServiceProvider.GetRequiredService<IMongoDbContext>());
+        using var otherScope = provider.CreateScope();
+        Assert.NotSame(concrete, otherScope.ServiceProvider.GetRequiredService<NamedReadContext>());
+    }
+
+    [Fact]
     public void ResolvesEachModuleAndPrefersItsExplicitConnectionString()
     {
         var configuration = Configuration(
@@ -58,6 +73,8 @@ public class ModulePersistenceTests
         Assert.Equal("Host=localhost;Database=passenger", passenger.Database.GetConnectionString());
         Assert.IsAssignableFrom<PersistMessageDbContext>(flight);
         Assert.Equal("persist_message", flight.Model.FindEntityType(typeof(PersistMessage))!.GetTableName());
+        Assert.Equal("inbox_message", flight.Model.FindEntityType(typeof(InboxMessage))!.GetTableName());
+        Assert.Equal("inbox_message", passenger.Model.FindEntityType(typeof(InboxMessage))!.GetTableName());
         Assert.DoesNotContain(builder.Services, d => d.ServiceType == typeof(IPersistMessageDbContext));
         Assert.DoesNotContain(builder.Services, d => d.ServiceType == typeof(IPersistMessageProcessor));
         var workers = builder.Services.Where(d => d.ServiceType == typeof(IHostedService)).ToList();
@@ -142,6 +159,9 @@ public class ModulePersistenceTests
         new ConfigurationBuilder().AddInMemoryCollection(values).Build();
 
     private sealed class OtherModule { }
+
+    private sealed class NamedReadContext(IOptionsSnapshot<MongoOptions> options)
+        : MongoDbContext(Options.Create(options.Get("Flight")));
 
     private sealed class ReadContext(IOptions<MongoOptions> options) : MongoDbContext(options);
 

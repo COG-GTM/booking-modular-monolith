@@ -40,7 +40,9 @@ public static class Extensions
                 options => !string.IsNullOrWhiteSpace(options.DatabaseName),
                 $"Mongo database name for '{moduleName}' is required."
             );
-        services.AddScoped<TContextService, TContextImplementation>();
+        services.AddScoped<TContextImplementation>();
+        if (typeof(TContextService) != typeof(TContextImplementation))
+            services.AddScoped<TContextService>(sp => sp.GetRequiredService<TContextImplementation>());
         services.AddTransient(typeof(IMongoUnitOfWork<>), typeof(MongoUnitOfWork<>));
         return services;
     }

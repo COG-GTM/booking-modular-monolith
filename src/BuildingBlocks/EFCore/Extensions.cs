@@ -15,6 +15,11 @@ namespace BuildingBlocks.EFCore;
 
 public static class Extensions
 {
+    public static string ResolvePostgresConnectionString(this IConfiguration configuration, string moduleName) =>
+        configuration.GetConnectionString(moduleName.Kebaberize())
+        ?? configuration[$"PostgresOptions:ConnectionString:{moduleName}"]
+        ?? throw new ArgumentException($"Connection string '{moduleName}' not found.");
+
     public static IServiceCollection AddCustomDbContext<TContext>(
         this WebApplicationBuilder builder,
         string? connectionName = ""
@@ -28,11 +33,8 @@ public static class Extensions
         builder.Services.AddDbContext<TContext>(
             (sp, options) =>
             {
-                var aspireConnectionString = builder.Configuration.GetConnectionString(connectionName.Kebaberize());
-
-                var connectionString =
-                    aspireConnectionString
-                    ?? builder.Configuration.GetSection($"PostgresOptions:ConnectionString:{connectionName}").Value;
+                var connectionString = sp.GetRequiredService<IConfiguration>()
+                    .ResolvePostgresConnectionString(connectionName);
 
                 if (string.IsNullOrEmpty(connectionString))
                 {

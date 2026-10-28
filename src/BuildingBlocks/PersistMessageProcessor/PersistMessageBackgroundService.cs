@@ -31,10 +31,22 @@ public class PersistMessageBackgroundService<TModule>(
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await using (var scope = serviceProvider.CreateAsyncScope())
+            try
             {
+                await using var scope = serviceProvider.CreateAsyncScope();
                 var service = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor<TModule>>();
                 await service.ProcessAllAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (System.Exception exception)
+            {
+                logger.LogError(
+                    exception,
+                    "Persisted message delivery failed; pending messages will be retried next interval."
+                );
             }
 
             var delay = _options.Interval is { }

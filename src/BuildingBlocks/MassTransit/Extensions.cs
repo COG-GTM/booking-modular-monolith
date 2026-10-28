@@ -1,5 +1,5 @@
 using System.Reflection;
-using BuildingBlocks.Web;
+using BuildingBlocks.Exception;
 using MassTransit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -8,113 +8,111 @@ using Microsoft.Extensions.Hosting;
 
 namespace BuildingBlocks.MassTransit;
 
-using Exception;
-
 public static class Extensions
 {
     public static IServiceCollection AddCustomMassTransit(
         this IServiceCollection services,
         IWebHostEnvironment env,
-        TransportType transportType,
-        params Assembly[] assembly
+        IConfiguration configuration,
+        string serviceName,
+        params Assembly[] consumerAssemblies
     )
     {
-        services.AddValidateOptions<RabbitMqOptions>();
+        var transport =
+            configuration.GetValue<TransportType?>("Messaging:Transport")
+            ?? (env.IsEnvironment("test") ? TransportType.InMemory : TransportType.RabbitMq);
+        if (
+            transport == TransportType.InMemory
+            && !env.IsEnvironment("test")
+            && !(env.IsDevelopment() && configuration.GetValue<bool>("Messaging:AllowInMemory"))
+        )
+            throw new InvalidOperationException(
+                "InMemory messaging requires the test environment or Development with Messaging:AllowInMemory=true."
+            );
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(serviceName);
+        services.AddScoped(typeof(ConsumeFilter<>));
+        var formatter = new KebabCaseEndpointNameFormatter(serviceName, false);
+        foreach (
+            var consumer in consumerAssemblies
+                .Distinct()
+                .SelectMany(x => x.GetTypes())
+                .Where(x =>
+                    x is { IsClass: true, IsAbstract: false, ContainsGenericParameters: false }
+                    && typeof(IConsumer).IsAssignableFrom(x)
+                )
+        )
+        {
+            var endpoint = (string)
+                typeof(IEndpointNameFormatter)
+                    .GetMethod(nameof(IEndpointNameFormatter.Consumer))!
+                    .MakeGenericMethod(consumer)
+                    .Invoke(formatter, null)!;
+            services.AddSingleton(new ConsumerModuleRegistration(endpoint, consumer.Assembly));
+        }
+
+        void Configure(IBusRegistrationConfigurator registration)
+        {
+            registration.SetEndpointNameFormatter(formatter);
+            // An empty assembly list makes MassTransit scan every loaded assembly.
+            if (consumerAssemblies.Length > 0)
+                registration.AddConsumers(consumerAssemblies.Distinct().ToArray());
+
+            if (transport == TransportType.RabbitMq)
+            {
+                registration.UsingRabbitMq(
+                    (context, bus) =>
+                    {
+                        var connection = configuration.GetConnectionString("rabbitmq");
+                        if (!string.IsNullOrWhiteSpace(connection))
+                            bus.Host(new Uri(connection));
+                        else
+                        {
+                            var options =
+                                configuration.GetSection(nameof(RabbitMqOptions)).Get<RabbitMqOptions>() ?? new();
+                            bus.Host(
+                                options.HostName,
+                                options.Port,
+                                options.VirtualHost,
+                                host =>
+                                {
+                                    host.Username(options.UserName);
+                                    host.Password(options.Password);
+                                }
+                            );
+                        }
+
+                        bus.UseMessageRetry(AddRetryConfiguration);
+                        bus.UseConsumeFilter(typeof(ConsumeFilter<>), context);
+                        bus.ConfigureEndpoints(context);
+                    }
+                );
+            }
+            else if (transport == TransportType.InMemory)
+            {
+                registration.UsingInMemory(
+                    (context, bus) =>
+                    {
+                        bus.UseMessageRetry(AddRetryConfiguration);
+                        bus.UseConsumeFilter(typeof(ConsumeFilter<>), context);
+                        bus.ConfigureEndpoints(context);
+                    }
+                );
+            }
+            else
+                throw new ArgumentOutOfRangeException(nameof(transport));
+        }
 
         if (env.IsEnvironment("test"))
-        {
-            services.AddMassTransitTestHarness(
-                configure =>
-                {
-                    SetupMasstransitConfigurations(services, configure, transportType, assembly);
-                });
-        }
+            services.AddMassTransitTestHarness(Configure);
         else
-        {
-            services.AddMassTransit(
-                configure =>
-                {
-                    SetupMasstransitConfigurations(services, configure, transportType, assembly);
-                });
-        }
+            services.AddMassTransit(Configure);
 
         return services;
     }
 
-    private static void SetupMasstransitConfigurations(
-        IServiceCollection services,
-        IBusRegistrationConfigurator configure,
-        TransportType transportType,
-        params Assembly[] assembly
-    )
-    {
-        configure.AddConsumers(assembly);
-        configure.AddSagaStateMachines(assembly);
-        configure.AddSagas(assembly);
-        configure.AddActivities(assembly);
-
-        switch (transportType)
-        {
-            case TransportType.RabbitMq:
-                configure.UsingRabbitMq(
-                    (context, configurator) =>
-                    {
-                        var configuration = context.GetRequiredService<IConfiguration>();
-
-                        var aspireConnectionString = configuration.GetConnectionString("rabbitmq");
-
-                        if (!string.IsNullOrEmpty(aspireConnectionString))
-                        {
-                            configurator.Host(new Uri(aspireConnectionString));
-                        }
-                        else
-                        {
-                            var rabbitMqOptions = services.GetOptions<RabbitMqOptions>(nameof(RabbitMqOptions));
-
-                            ArgumentNullException.ThrowIfNull(rabbitMqOptions);
-
-                            configurator.Host(
-                                rabbitMqOptions?.HostName,
-                                rabbitMqOptions?.Port ?? 5672,
-                                "/",
-                                h =>
-                                {
-                                    h.Username(rabbitMqOptions.UserName);
-                                    h.Password(rabbitMqOptions.Password);
-                                });
-                        }
-
-                        configurator.ConfigureEndpoints(context);
-
-                        configurator.UseMessageRetry(AddRetryConfiguration);
-                    });
-
-                break;
-            case TransportType.InMemory:
-                configure.UsingInMemory(
-                    (context, configurator) =>
-                    {
-                        configurator.ConfigureEndpoints(context);
-                        configurator.UseMessageRetry(AddRetryConfiguration);
-                    });
-
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(
-                    nameof(transportType),
-                    transportType,
-                    message: null);
-        }
-    }
-
-    private static void AddRetryConfiguration(IRetryConfigurator retryConfigurator)
-    {
-        retryConfigurator.Exponential(
-                3,
-                TimeSpan.FromMilliseconds(200),
-                TimeSpan.FromMinutes(120),
-                TimeSpan.FromMilliseconds(200))
-            .Ignore<
-                ValidationException>(); // don't retry if we have invalid data and message goes to _error queue masstransit
-    }
+    private static void AddRetryConfiguration(IRetryConfigurator retry) =>
+        retry
+            .Exponential(3, TimeSpan.FromMilliseconds(200), TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(200))
+            .Ignore<ValidationException>();
 }
