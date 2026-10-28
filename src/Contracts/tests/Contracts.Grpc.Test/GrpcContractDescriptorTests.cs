@@ -8,6 +8,9 @@ namespace Contracts.Grpc.Test;
 
 public class GrpcContractDescriptorTests
 {
+    private const string BaselinePolicy =
+        "ADR 0005 requires additive proto changes; breaking changes use the V2-package route.";
+
     [Fact]
     public void flight_service_descriptor_preserves_wire_contract()
     {
@@ -65,6 +68,46 @@ public class GrpcContractDescriptorTests
             ("Age", 5),
             ("Email", 6)
         );
+    }
+
+    [Fact]
+    public void Proto_shape_matches_the_committed_baseline()
+    {
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CONTRACT_BASELINE_DIR")))
+            return;
+
+        var actualJson = ProtoBaselineTests.Serialize(ProtoBaselineTests.GetCurrentSnapshots());
+        if (
+            string.Equals(
+                Environment.GetEnvironmentVariable("UPDATE_CONTRACT_BASELINES"),
+                "true",
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+        {
+            var baselinePath = Path.GetFullPath(
+                Path.Combine(AppContext.BaseDirectory, "../../../Baselines/protos.json")
+            );
+            File.WriteAllText(baselinePath, actualJson + Environment.NewLine);
+            return;
+        }
+
+        var expectedJson = ProtoBaselineTests.Serialize(ProtoBaselineTests.ReadBaseline());
+        Assert.True(
+            string.Equals(expectedJson, actualJson, StringComparison.Ordinal),
+            $"{BaselinePolicy} Regenerate with UPDATE_CONTRACT_BASELINES=true after reviewing the change."
+        );
+    }
+
+    [Fact]
+    public void Current_protos_are_compatible_with_baseline()
+    {
+        var violations = ProtoCompatibility.Check(
+            ProtoBaselineTests.ReadBaseline(),
+            ProtoBaselineTests.GetCurrentSnapshots()
+        );
+
+        Assert.True(violations.Count == 0, $"{string.Join(Environment.NewLine, violations)} {BaselinePolicy}");
     }
 
     private static void AssertFields<TMessage>(params (string Name, int Number)[] expected)

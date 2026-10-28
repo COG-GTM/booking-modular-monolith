@@ -1,0 +1,14 @@
+{
+  "consumer": "booking-service",
+  "provider": "passenger-service",
+  "service": "passenger.PassengerGrpcService",
+  "rpcs": [
+    {
+      "name": "GetById",
+      "request": "passenger.GetByIdRequest",
+      "response": "passenger.GetPassengerByIdResult",
+      "requestFields": [{ "name": "Id", "number": 1, "type": "string" }],
+      "responseFields": [{ "path": "PassengerDto.Name", "number": 2, "type": "string" }]
+    }
+  ]
+}

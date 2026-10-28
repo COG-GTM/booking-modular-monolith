@@ -1,0 +1,16 @@
+{
+  "consumer": "passenger-service",
+  "provider": "identity-service",
+  "messageUrn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:UserCreated",
+  "queue": "passenger-service-register-new-user-handler",
+  "fields": [
+    { "name": "id", "jsonType": "string", "format": "uuid" },
+    { "name": "name", "jsonType": "string" },
+    { "name": "passportNumber", "jsonType": "string" }
+  ],
+  "samplePayload": {
+    "id": "5bc8cf34-202b-4ba3-bdc9-bd43a14c0c82",
+    "name": "Sam Passenger",
+    "passportNumber": "AB5041234"
+  }
+}

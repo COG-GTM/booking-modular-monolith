@@ -1,0 +1,114 @@
+name: Cross-service tests
+
+on:
+  pull_request:
+    branches:
+      - main
+      - devin/ab-488-v2
+    paths:
+      - "global.json"
+      - "Directory.Build.props"
+      - "src/**"
+      - "tests/CrossService.EndToEnd.Test/**"
+      - "deployments/docker-compose/init/**"
+      - ".github/workflows/cross-service-tests.yml"
+  push:
+    branches:
+      - main
+      - devin/ab-488-v2
+    paths:
+      - "global.json"
+      - "Directory.Build.props"
+      - "src/**"
+      - "tests/CrossService.EndToEnd.Test/**"
+      - "deployments/docker-compose/init/**"
+      - ".github/workflows/cross-service-tests.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Build and test contract projects
+        run: |
+          dotnet build src/Contracts/tests/Contracts.Messages.Test -c Release
+          dotnet test src/Contracts/tests/Contracts.Messages.Test -c Release --no-build
+          dotnet build src/Contracts/tests/Contracts.Grpc.Test -c Release
+          dotnet test src/Contracts/tests/Contracts.Grpc.Test -c Release --no-build
+      - name: Check compatibility against target branch
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_REF: ${{ github.base_ref }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            base_ref="origin/$PR_BASE_REF"
+          else
+            base_ref="$PUSH_BEFORE_SHA"
+          fi
+          if [[ "$base_ref" =~ ^0+$ ]] || ! git rev-parse --verify "$base_ref^{commit}" >/dev/null 2>&1; then
+            echo "Skipping compatibility comparison: base commit is unavailable."
+            exit 0
+          fi
+
+          baseline_dir="$(mktemp -d)"
+          message_path="src/Contracts/tests/Contracts.Messages.Test/Baselines/messages.json"
+          proto_path="src/Contracts/tests/Contracts.Grpc.Test/Baselines/protos.json"
+          message_available=false
+          proto_available=false
+          if git cat-file -e "$base_ref:$message_path" 2>/dev/null; then
+            git show "$base_ref:$message_path" > "$baseline_dir/messages.json"
+            message_available=true
+          fi
+          if git cat-file -e "$base_ref:$proto_path" 2>/dev/null; then
+            git show "$base_ref:$proto_path" > "$baseline_dir/protos.json"
+            proto_available=true
+          fi
+
+          if [[ "$message_available" == "true" ]]; then
+            CONTRACT_BASELINE_DIR="$baseline_dir" dotnet test src/Contracts/tests/Contracts.Messages.Test -c Release --no-build --filter "FullyQualifiedName~Every_baseline_type_and_member_remains_compatible"
+          else
+            echo "Skipping message compatibility: baseline is absent at $base_ref."
+          fi
+          if [[ "$proto_available" == "true" ]]; then
+            CONTRACT_BASELINE_DIR="$baseline_dir" dotnet test src/Contracts/tests/Contracts.Grpc.Test -c Release --no-build --filter "FullyQualifiedName~Current_protos_are_compatible_with_baseline"
+          else
+            echo "Skipping proto compatibility: baseline is absent at $base_ref."
+          fi
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Build end-to-end tests
+        run: dotnet build tests/CrossService.EndToEnd.Test -c Release
+      - name: Run end-to-end tests
+        run: dotnet test tests/CrossService.EndToEnd.Test -c Release --no-build --results-directory tests/CrossService.EndToEnd.Test/TestResults --logger "trx" --logger "console;verbosity=normal"
+      - name: Upload end-to-end logs and test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-service-test-results
+          path: |
+            tests/CrossService.EndToEnd.Test/bin/**/TestResults/e2e-logs/**
+            tests/CrossService.EndToEnd.Test/TestResults/**/*.trx
+          if-no-files-found: warn
