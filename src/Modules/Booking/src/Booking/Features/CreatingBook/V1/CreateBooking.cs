@@ -1,14 +1,14 @@
 namespace Booking.Booking.Features.CreatingBook.V1;
 
 using Ardalis.GuardClauses;
-using BookingFlight;
-using BookingPassenger;
 using BuildingBlocks.Core;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Core.Model;
 using BuildingBlocks.EventStoreDB.Repository;
 using BuildingBlocks.Web;
+using Contracts.Grpc.Flight;
+using Contracts.Grpc.Passenger;
 using Exceptions;
 using FluentValidation;
 using Mapster;
@@ -107,7 +107,7 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
         Guard.Against.Null(command, nameof(command));
 
         var flight = await _flightGrpcServiceClient.GetByIdAsync(
-            new BookingFlight.GetByIdRequest { Id = command.FlightId.ToString() },
+            new Contracts.Grpc.Flight.GetByIdRequest { Id = command.FlightId.ToString() },
             cancellationToken: cancellationToken
         );
 
@@ -117,7 +117,7 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
         }
 
         var passenger = await _passengerGrpcServiceClient.GetByIdAsync(
-            new BookingPassenger.GetByIdRequest { Id = command.PassengerId.ToString() },
+            new Contracts.Grpc.Passenger.GetByIdRequest { Id = command.PassengerId.ToString() },
             cancellationToken: cancellationToken
         );
 
