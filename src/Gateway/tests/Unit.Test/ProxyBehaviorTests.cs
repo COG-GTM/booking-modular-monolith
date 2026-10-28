@@ -32,38 +32,49 @@ public class ProxyBehaviorTests
     }
 
     [Theory]
-    [InlineData("client-correlation")]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData(" ")]
-    public async Task CorrelationIsReturnedAndForwarded(string? correlation)
+    [InlineData(
+        "4d4d8113-18f9-42c4-bcaf-b64308996e61",
+        "b5838f28-8df8-4bba-ae2c-f7f7fcff8ded",
+        "4d4d8113-18f9-42c4-bcaf-b64308996e61"
+    )]
+    [InlineData("invalid", "b5838f28-8df8-4bba-ae2c-f7f7fcff8ded", "b5838f28-8df8-4bba-ae2c-f7f7fcff8ded")]
+    [InlineData("{4D4D8113-18F9-42C4-BCAF-B64308996E61}", "invalid", "4d4d8113-18f9-42c4-bcaf-b64308996e61")]
+    [InlineData(" ", " ", null)]
+    public async Task CorrelationHeadersUseBackendPrecedenceAndCanonicalGuid(
+        string backendHeader,
+        string publicHeader,
+        string? expected
+    )
     {
         await using var fixture = await ProxyFixture.CreateAsync();
         using var request = new HttpRequestMessage(HttpMethod.Get, "/unmatched");
-        if (correlation is not null)
-            request.Headers.TryAddWithoutValidation("X-Correlation-ID", correlation);
+        request.Headers.TryAddWithoutValidation("correlationId", backendHeader);
+        request.Headers.TryAddWithoutValidation("X-Correlation-ID", publicHeader);
         using var response = await fixture.Client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var returned = Assert.Single(response.Headers.GetValues("X-Correlation-ID"));
-        Assert.False(string.IsNullOrWhiteSpace(returned));
+        Assert.True(Guid.TryParseExact(returned, "D", out _));
+        Assert.Equal(returned, Assert.Single(response.Headers.GetValues("correlationId")));
         Assert.Equal(returned, Assert.Single(response.Headers.GetValues("Upstream-Correlation")));
-        if (!string.IsNullOrWhiteSpace(correlation))
-            Assert.Equal(correlation, returned);
+        Assert.Equal(returned, Assert.Single(response.Headers.GetValues("Upstream-Backend-Correlation")));
+        if (expected is not null)
+            Assert.Equal(expected, returned);
     }
 
     [Theory]
-    [InlineData(128, true)]
-    [InlineData(129, false)]
-    public async Task CorrelationLengthIsBounded(int length, bool preserved)
+    [InlineData("/connect/token")]
+    [InlineData("/.well-known/openid-configuration")]
+    [InlineData("/api/v1/identity/users")]
+    public async Task IdentityRequestsForwardThePublicHost(string path)
     {
         await using var fixture = await ProxyFixture.CreateAsync();
-        var correlation = new string('a', length);
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/unmatched");
-        request.Headers.Add("X-Correlation-ID", correlation);
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Host = "public.example:5000";
+        if (path.StartsWith("/api/", StringComparison.Ordinal))
+            request.Headers.Add("Test-Subject", "user");
         using var response = await fixture.Client.SendAsync(request);
-        var returned = Assert.Single(response.Headers.GetValues("X-Correlation-ID"));
-        Assert.Equal(preserved, returned == correlation);
-        Assert.False(string.IsNullOrWhiteSpace(returned));
-        Assert.Equal(returned, Assert.Single(response.Headers.GetValues("Upstream-Correlation")));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("public.example:5000", Assert.Single(response.Headers.GetValues("Upstream-Host")));
     }
 
     [Fact]
@@ -100,6 +111,8 @@ public class ProxyBehaviorTests
             upstream.Run(async context =>
             {
                 context.Response.Headers["Upstream-Correlation"] = context.Request.Headers["X-Correlation-ID"];
+                context.Response.Headers["Upstream-Backend-Correlation"] = context.Request.Headers["correlationId"];
+                context.Response.Headers["Upstream-Host"] = context.Request.Host.ToString();
                 await context.Response.WriteAsync(context.Request.Path);
             });
             await upstream.StartAsync();
