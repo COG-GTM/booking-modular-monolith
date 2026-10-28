@@ -3,13 +3,19 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Booking.Booking.Features.CreatingBook.V1;
 using Booking.Data;
+using Booking.Host.Extensions;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.EventStoreDB.Events;
 using BuildingBlocks.EventStoreDB.Serialization;
+using BuildingBlocks.EventStoreDB.Subscriptions;
 using BuildingBlocks.TestBase;
 using EventStore.Client;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using Xunit;
 
@@ -95,9 +101,64 @@ public sealed class BookingHostTests : TestReadBase<Booking.Host.Program, Bookin
     {
         using var client = Fixture.HttpClient;
         using var live = await client.GetAsync("/health/live");
-        using var ready = await client.GetAsync("/health/ready");
+        await WaitForReadyAsync(client);
         Assert.Equal(HttpStatusCode.OK, live.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
+        var checks = Fixture
+            .ServiceProvider.GetRequiredService<IOptions<HealthCheckServiceOptions>>()
+            .Value.Registrations;
+        Assert.Contains(checks, registration => registration.Name == "eventstore-subscription");
+        var subscriptionState = Fixture.ServiceProvider.GetRequiredService<EventStoreDBSubscriptionState>();
+        Assert.True(subscriptionState.IsSubscribed);
+        Assert.NotNull(subscriptionState.LastChangedAt);
+    }
+
+    [Fact]
+    public void SubscriptionReadinessCheckIsOmittedWhenBackgroundProcessingIsDisabled()
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "test" });
+        builder.Configuration.AddInMemoryCollection(
+            new Dictionary<string, string?> { ["Modules:Booking:BackgroundProcessingEnabled"] = "false" }
+        );
+        builder.Services.AddBookingHealthChecks(builder.Configuration, builder.Environment);
+        using var serviceProvider = builder.Services.BuildServiceProvider();
+        var registrations = serviceProvider
+            .GetRequiredService<IOptions<HealthCheckServiceOptions>>()
+            .Value.Registrations;
+
+        Assert.DoesNotContain(registrations, registration => registration.Name == "eventstore-subscription");
+    }
+
+    [Fact]
+    public async Task SubscriptionReadinessCheckIsUnhealthyWhenStateIsNotRegistered()
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "test" });
+        builder.Configuration.AddInMemoryCollection(
+            new Dictionary<string, string?> { ["Modules:Booking:BackgroundProcessingEnabled"] = "true" }
+        );
+        builder.Services.AddBookingHealthChecks(builder.Configuration, builder.Environment);
+        using var serviceProvider = builder.Services.BuildServiceProvider();
+        var healthChecks = serviceProvider.GetRequiredService<HealthCheckService>();
+        var report = await healthChecks.CheckHealthAsync(check => check.Name == "eventstore-subscription");
+
+        Assert.Equal(HealthStatus.Unhealthy, report.Status);
+        Assert.Equal(
+            "EventStoreDB $all subscription is not active",
+            report.Entries["eventstore-subscription"].Description
+        );
+    }
+
+    private static async Task WaitForReadyAsync(HttpClient client)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
+        while (DateTime.UtcNow < deadline)
+        {
+            using var response = await client.GetAsync("/health/ready");
+            if (response.StatusCode == HttpStatusCode.OK)
+                return;
+            await Task.Delay(250);
+        }
+
+        throw new TimeoutException("Booking.Host did not become ready within 30 seconds.");
     }
 
     private async Task<Booking.Booking.Models.BookingReadModel> WaitForBookingAsync()

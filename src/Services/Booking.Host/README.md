@@ -13,9 +13,9 @@ docker build -f src/Services/Booking.Host/Dockerfile .
 docker run -p 8080:8080 booking-host
 ```
 
-The container listens on port `8080`. Its default configuration uses the Docker service
-names `postgres`, `mongo`, `eventstore`, `rabbitmq`, `flight-service`, and
-`passenger-service`.
+The container listens on port `8080` and sets `ASPNETCORE_ENVIRONMENT=docker` to load
+`appsettings.docker.json`. Its default configuration uses the Docker service names
+`postgres`, `mongo`, `eventstore`, `rabbitmq`, `flight-service`, and `passenger-service`.
 
 ## Configuration
 
@@ -40,8 +40,9 @@ names `postgres`, `mongo`, `eventstore`, `rabbitmq`, `flight-service`, and
   `ObservabilityOptions:ServiceName`: OpenTelemetry identity (`booking_service` /
   `booking-service`).
 
-`/health/live` is the liveness endpoint and `/health/ready` checks PostgreSQL,
-MongoDB, EventStoreDB, RabbitMQ when selected, and the Booking gRPC dependencies.
+`/health/live` is the liveness endpoint. `/health/ready` checks PostgreSQL, MongoDB,
+EventStoreDB HTTP liveness, RabbitMQ when selected, the Booking gRPC dependencies, and
+the active EventStoreDB `$all` subscription when Booking background processing is enabled.
 Both endpoints are available in every environment.
 
 ## Background-consumer cut-over

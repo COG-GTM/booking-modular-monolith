@@ -34,7 +34,8 @@ gateway public address), `AddPersistMessageProcessor<BookingRoot>("Booking")`, M
 - gRPC clients: `Grpc:FlightAddress` / `Grpc:PassengerAddress`, defaulting to the monolith (`https://localhost:3000`)
   until the Flight/Passenger hosts are cut over; service-to-service gRPC stays unauthenticated (ADR 0008).
 - Health: `/health/live` (self); `/health/ready` (persist-message PostgreSQL, MongoDB, EventStoreDB HTTP
-  `/health/live`, RabbitMQ when the transport is RabbitMQ, gRPC health of Flight and Passenger).
+  `/health/live`, RabbitMQ when the transport is RabbitMQ, gRPC health of Flight and Passenger, and the active
+  EventStoreDB `$all` subscription while Booking background processing is enabled).
 - The EventStoreDB subscription retries the initial subscribe with jittered exponential backoff (1 s to 30 s),
   ignores `Disposed`/cancellation drops, resubscribes asynchronously under a single-flight lock, and disposes the
   subscription when the host stops. `Modules:Booking:BackgroundProcessingEnabled=false` disables the subscription.

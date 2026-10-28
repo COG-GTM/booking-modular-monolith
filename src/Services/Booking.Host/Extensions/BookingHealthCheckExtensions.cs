@@ -1,3 +1,4 @@
+using BuildingBlocks.EventStoreDB.Subscriptions;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.Mongo;
 using BuildingBlocks.PersistMessageProcessor;
@@ -52,6 +53,8 @@ public static class BookingHealthCheckExtensions
 
         services.AddHttpClient<EventStoreHealthCheck>(client => client.Timeout = TimeSpan.FromSeconds(3));
         checks.AddCheck<EventStoreHealthCheck>("eventstore", tags: ["ready"]);
+        if (configuration.IsModuleBackgroundProcessingEnabled("Booking"))
+            checks.AddCheck<EventStoreDBSubscriptionHealthCheck>("eventstore-subscription", tags: ["ready"]);
 
         var transport =
             configuration.GetValue<TransportType?>("Messaging:Transport")
@@ -93,6 +96,22 @@ public static class BookingHealthCheckExtensions
             .AllowAnonymous();
         app.MapHealthChecks("/health/ready").AllowAnonymous();
         return app;
+    }
+}
+
+public sealed class EventStoreDBSubscriptionHealthCheck(IServiceProvider serviceProvider) : IHealthCheck
+{
+    public Task<HealthCheckResult> CheckHealthAsync(
+        HealthCheckContext context,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var state = serviceProvider.GetService<EventStoreDBSubscriptionState>();
+        return Task.FromResult(
+            state?.IsSubscribed == true
+                ? HealthCheckResult.Healthy()
+                : HealthCheckResult.Unhealthy("EventStoreDB $all subscription is not active")
+        );
     }
 }
 

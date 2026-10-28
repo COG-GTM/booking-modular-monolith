@@ -26,6 +26,7 @@ public class EventStoreDBSubscriptionToAll
     private readonly IMediator _mediator;
     private readonly ISubscriptionCheckpointRepository checkpointRepository;
     private readonly ILogger<EventStoreDBSubscriptionToAll> logger;
+    private readonly EventStoreDBSubscriptionState subscriptionState;
     private readonly SemaphoreSlim resubscribeLock = new(1, 1);
     private EventStoreDBSubscriptionToAllOptions subscriptionOptions = default!;
     private StreamSubscription? subscription;
@@ -37,7 +38,8 @@ public class EventStoreDBSubscriptionToAll
         IMediator mediator,
         IProjectionPublisher projectionPublisher,
         ISubscriptionCheckpointRepository checkpointRepository,
-        ILogger<EventStoreDBSubscriptionToAll> logger
+        ILogger<EventStoreDBSubscriptionToAll> logger,
+        EventStoreDBSubscriptionState subscriptionState
     )
     {
         this.projectionPublisher = projectionPublisher;
@@ -46,6 +48,7 @@ public class EventStoreDBSubscriptionToAll
         this.checkpointRepository =
             checkpointRepository ?? throw new ArgumentNullException(nameof(checkpointRepository));
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        this.subscriptionState = subscriptionState ?? throw new ArgumentNullException(nameof(subscriptionState));
     }
 
     public async Task SubscribeToAll(EventStoreDBSubscriptionToAllOptions subscriptionOptions, CancellationToken ct)
@@ -84,6 +87,7 @@ public class EventStoreDBSubscriptionToAll
             }
             finally
             {
+                subscriptionState.MarkUnsubscribed();
                 resubscribeLock.Release();
             }
         }
@@ -140,6 +144,8 @@ public class EventStoreDBSubscriptionToAll
         System.Exception? exception
     )
     {
+        subscriptionState.MarkUnsubscribed();
+
         if (cancellationToken.IsCancellationRequested || reason == SubscriptionDroppedReason.Disposed)
         {
             logger.LogInformation(
@@ -182,6 +188,7 @@ public class EventStoreDBSubscriptionToAll
                 );
 
                 Volatile.Write(ref subscription, currentSubscription);
+                subscriptionState.MarkSubscribed();
                 logger.LogInformation("Subscription to all '{SubscriptionId}' started", SubscriptionId);
                 return;
             }

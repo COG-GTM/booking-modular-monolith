@@ -90,12 +90,18 @@ public sealed class BookingHostProcessTests(BookingHostFixture fixture, ITestOut
 
             if (eventStoreAvailable)
                 await WaitUntilAsync(
-                    () =>
-                        Task.FromResult(
-                            childOutput
-                                .ToString()
-                                .Contains("Subscription to all 'default' started", StringComparison.Ordinal)
-                        ),
+                    async () =>
+                    {
+                        try
+                        {
+                            using var ready = await client.GetAsync($"{address}/health/ready");
+                            return ready.StatusCode == HttpStatusCode.OK;
+                        }
+                        catch
+                        {
+                            return false;
+                        }
+                    },
                     TimeSpan.FromSeconds(30)
                 );
             else
