@@ -13,5 +13,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Update="Baselines/messages.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Pacts/*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
