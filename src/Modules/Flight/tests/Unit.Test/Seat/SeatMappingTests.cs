@@ -56,4 +56,24 @@ public class SeatMappingTests
 
         Assert.Equal("12A", readModel.SeatNumber);
     }
+
+    [Fact]
+    public void should_map_seat_id_from_read_model()
+    {
+        var seatId = Guid.NewGuid();
+        var readModel = new SeatReadModel
+        {
+            Id = Guid.NewGuid(),
+            SeatId = seatId,
+            SeatNumber = "12A",
+            Type = global::Flight.Seats.Enums.SeatType.Window,
+            Class = global::Flight.Seats.Enums.SeatClass.Economy,
+            FlightId = Guid.NewGuid(),
+            IsDeleted = false,
+        };
+
+        var dto = _mapper.Map<SeatDto>(readModel);
+
+        Assert.Equal(seatId, dto.Id);
+    }
 }
