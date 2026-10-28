@@ -144,7 +144,8 @@ public class EventStoreDBSubscriptionToAll
         System.Exception? exception
     )
     {
-        subscriptionState.MarkUnsubscribed();
+        if (ReferenceEquals(Volatile.Read(ref subscription), droppedSubscription))
+            subscriptionState.MarkUnsubscribed();
 
         if (cancellationToken.IsCancellationRequested || reason == SubscriptionDroppedReason.Disposed)
         {

@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using BuildingBlocks.EventStoreDB.BackgroundWorkers;
 using BuildingBlocks.EventStoreDB.Projections;
 using BuildingBlocks.EventStoreDB.Subscriptions;
@@ -71,15 +73,65 @@ public class EventStoreDBSubscriptionToAllTests
         Assert.Equal(TaskStatus.RanToCompletion, worker.ExecuteTask.Status);
     }
 
-    private static EventStoreDBSubscriptionToAll CreateSubscription(ThrowingCheckpointRepository checkpoints) =>
+    [Fact]
+    public void DropFromStaleSubscriptionDoesNotClearSubscribedState()
+    {
+        var state = new EventStoreDBSubscriptionState();
+        state.MarkSubscribed();
+        var subscription = CreateSubscription(new ThrowingCheckpointRepository(), state);
+        var currentSubscription = CreateStreamSubscription();
+        var staleSubscription = CreateStreamSubscription();
+
+        InvokeHandleDrop(subscription, staleSubscription, currentSubscription);
+
+        Assert.True(state.IsSubscribed);
+    }
+
+    [Fact]
+    public void DropFromCurrentSubscriptionClearsSubscribedState()
+    {
+        var state = new EventStoreDBSubscriptionState();
+        state.MarkSubscribed();
+        var subscription = CreateSubscription(new ThrowingCheckpointRepository(), state);
+        var currentSubscription = CreateStreamSubscription();
+
+        InvokeHandleDrop(subscription, currentSubscription, currentSubscription);
+
+        Assert.False(state.IsSubscribed);
+    }
+
+    private static EventStoreDBSubscriptionToAll CreateSubscription(
+        ThrowingCheckpointRepository checkpoints,
+        EventStoreDBSubscriptionState? subscriptionState = null
+    ) =>
         new(
             new EventStoreClient(EventStoreClientSettings.Create("esdb://127.0.0.1:1?tls=false")),
             Substitute.For<IMediator>(),
             Substitute.For<IProjectionPublisher>(),
             checkpoints,
             NullLogger<EventStoreDBSubscriptionToAll>.Instance,
-            new EventStoreDBSubscriptionState()
+            subscriptionState ?? new EventStoreDBSubscriptionState()
         );
+
+    private static StreamSubscription CreateStreamSubscription() =>
+        (StreamSubscription)RuntimeHelpers.GetUninitializedObject(typeof(StreamSubscription));
+
+    private static void InvokeHandleDrop(
+        EventStoreDBSubscriptionToAll subscription,
+        StreamSubscription droppedSubscription,
+        StreamSubscription currentSubscription
+    )
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        var type = typeof(EventStoreDBSubscriptionToAll);
+        type.GetField("subscriptionOptions", flags)!.SetValue(subscription, new EventStoreDBSubscriptionToAllOptions());
+        type.GetField("subscription", flags)!.SetValue(subscription, currentSubscription);
+        type.GetMethod("HandleDrop", flags)!
+            .Invoke(
+                subscription,
+                new object?[] { droppedSubscription, SubscriptionDroppedReason.Disposed, null }
+            );
+    }
 
     private static async Task WaitForLoadCountAsync(
         ThrowingCheckpointRepository checkpoints,
