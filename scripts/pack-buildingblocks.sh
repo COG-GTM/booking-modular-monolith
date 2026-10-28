@@ -6,7 +6,7 @@ version="${1:-}"
 feed="$root/artifacts/packages"
 pack_args=()
 if [[ -n "$version" ]]; then
-    pack_args+=("-p:Version=$version")
+    pack_args+=("-p:Version=$version" "-p:PackageVersion=$version")
 fi
 mkdir -p "$feed"
 
