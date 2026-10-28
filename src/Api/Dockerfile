@@ -9,6 +9,7 @@ COPY Directory.Build.props .
 
 # Include the complete project graph and per-directory build props before restore.
 COPY src ./src
+COPY deployments/docker-compose/init ./deployments/docker-compose/init
 
 # Restore packages
 RUN dotnet restore src/Api/src/Api.csproj
