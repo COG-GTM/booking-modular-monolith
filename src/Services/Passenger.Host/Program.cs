@@ -4,9 +4,6 @@ using Passenger.Host.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-if (builder.Environment.IsEnvironment("test"))
-    builder.Configuration.AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.test.json"));
-
 builder.AddPassengerHostInfrastructure();
 builder.AddPassengerModules();
 

@@ -3,6 +3,7 @@ using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.TestBase;
 using Contracts.Grpc.Passenger;
 using Grpc.Health.V1;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -59,6 +60,7 @@ public class PassengerHostIntegrationTests : PassengerHostTestBase
     public void only_passenger_consumers_are_registered_for_the_host_queue()
     {
         Assert.Equal("RabbitMq", Fixture.Configuration["Messaging:Transport"]);
+        Assert.Equal("rabbitmq", Fixture.ServiceProvider.GetRequiredService<IBusControl>().Address.Scheme);
 
         var registrations = Fixture.ServiceProvider.GetServices<ConsumerModuleRegistration>().ToArray();
 
