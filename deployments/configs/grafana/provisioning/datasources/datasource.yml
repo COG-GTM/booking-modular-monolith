@@ -1,88 +1,65 @@
-# https://grafana.com/docs/grafana/latest/administration/provisioning/
-# https://github.com/grafana/tempo/blob/main/example/docker-compose/shared/grafana-datasources.yaml
-# https://github.com/grafana/intro-to-mltp/blob/main/grafana/provisioning/datasources/datasources.yaml
-
 apiVersion: 1
 
 datasources:
-  # https://github.com/grafana/tempo/blob/main/example/docker-compose/shared/grafana-datasources.yaml
   - name: Prometheus
     type: prometheus
-    typeName: Prometheus
     uid: prometheus-uid
     access: proxy
-    orgId: 1
     url: http://prometheus:9090
-    basicAuth: false
     isDefault: true
-    readOnly: false
-    user: ''
-    database: ''
-    version: 1
     editable: false
     jsonData:
-      httpMethod: GET
+      httpMethod: POST
 
   - name: Jaeger
     type: jaeger
+    uid: jaeger-uid
     access: proxy
     url: http://jaeger-all-in-one:16686
     editable: false
-    uid: jaeger-uid  
-      
-  - name: Zipkin
-    type: zipkin
-    access: proxy
-    url: http://zipkin-all-in-one:9411
-    editable: false
-    uid: zipkin-uid
 
-  # https://github.com/grafana/tempo/blob/main/example/docker-compose/shared/grafana-datasources.yaml
   - name: Tempo
     type: tempo
-    access: proxy
-    orgId: 1
-    url: http://tempo:3200
-    basicAuth: false
-    isDefault: false
-    version: 1
-    editable: false
-    apiVersion: 1
     uid: tempo-uid
+    access: proxy
+    url: http://tempo:3200
+    editable: false
     jsonData:
       httpMethod: GET
       serviceMap:
         datasourceUid: prometheus-uid
+      nodeGraph:
+        enabled: true
+      tracesToLogsV2:
+        datasourceUid: loki-uid
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+        tags: [{ key: 'service.name', value: 'service_name' }]
+        filterByTraceID: true
+        filterBySpanID: false
+        customQuery: true
+        query: '{service_name="$${__span.tags["service.name"]}"} | trace_id = "$${__trace.traceId}"'
+      tracesToMetrics:
+        datasourceUid: prometheus-uid
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+        tags: [{ key: 'service.name', value: 'service' }]
+        queries:
+          - name: Span rate
+            query: 'sum(rate(traces_spanmetrics_calls_total{$${__tags}}[5m]))'
       streamingEnabled:
         search: true
-        
-  #https://github.com/grafana/intro-to-mltp/blob/main/grafana/provisioning/datasources/datasources.yaml      
+
   - name: Loki
     type: loki
-    access: proxy
     uid: loki-uid
+    access: proxy
     url: http://loki:3100
-    user: ''
-    database: ''
-    readOnly: false
+    editable: false
     jsonData:
       derivedFields:
         - datasourceUid: tempo-uid
-          matcherRegex: "^.*?traceI[d|D]=(\\w+).*$"
-          name: traceId
+          matcherType: label
+          matcherRegex: trace_id
+          name: trace_id
           url: '$${__value.raw}'
-          
-  - name: Kibana 
-    type: elasticsearch
-    url: http://elasticsearch:9200
-    access: proxy
-    isDefault: false
-    uid: kibana-uid
-    jsonData:
-      esVersion: 7
-      timeField: "@timestamp"
-      maxConcurrentShardRequests: 256
-      interval: Daily
-      logMessageField: "message" # Optional: Field for log messages
-      logLevelField: "level" # Optional: Field for log levels
-    editable: true     
