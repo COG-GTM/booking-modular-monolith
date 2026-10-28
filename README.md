@@ -24,6 +24,7 @@
 - [When to Use](#when-to-use)
 - [Challenges](#challenges)
 - [The Domain and Bounded Context - Module Boundary](#the-domain-and-bounded-context---module-boundary)
+- [Target Microservices Architecture](#target-microservices-architecture)
 - [Structure of Project](#structure-of-project)
 - [Development Setup](#development-setup)
     - [Dotnet Tools Packages](#dotnet-tools-packages)
@@ -127,6 +128,30 @@
 - `Booking Module`: The Booking Module is a bounded context for managing all operation related to booking ticket.
 
 ![](./assets/booking-modular-monolith.png)
+
+
+## Target Microservices Architecture
+
+The modular monolith is being split into one service per module (Identity, Flight, Passenger,
+Booking) behind a YARP gateway, using the strangler-fig approach: the monolith keeps running
+while modules move out one at a time (Flight first, then Passenger and Identity together, then
+Booking). Booking calls Flight and Passenger over gRPC; integration events such as `UserCreated`
+go over RabbitMQ with MassTransit; each service owns its own databases and its own outbox/inbox.
+
+![Target architecture](./assets/target-architecture.png)
+
+- Full description and Mermaid source: [docs/architecture/target-architecture.md](./docs/architecture/target-architecture.md)
+- Architecture Decision Records: [docs/adr](./docs/adr/README.md)
+  - [0001 Service boundaries](./docs/adr/0001-service-boundaries.md)
+  - [0002 Strangler-fig migration behind a YARP gateway](./docs/adr/0002-strangler-fig-migration-behind-yarp-gateway.md)
+  - [0003 gRPC for sync calls, RabbitMQ for events](./docs/adr/0003-sync-grpc-async-rabbitmq.md)
+  - [0004 Database per service, per-service outbox and inbox](./docs/adr/0004-database-per-service-and-per-service-outbox-inbox.md)
+  - [0005 Contract and proto versioning policy](./docs/adr/0005-contract-and-proto-versioning-policy.md)
+  - [0006 Repository layout for hosts and contracts](./docs/adr/0006-repository-layout-for-hosts-and-contracts.md)
+  - [0007 Extraction order](./docs/adr/0007-extraction-order.md)
+  - [0008 Defer service-to-service gRPC authentication](./docs/adr/0008-defer-service-to-service-grpc-authentication.md)
+  - 0010 BuildingBlocks package boundaries (AB-500, lands in a sibling PR)
+  - [0011 Independent service artifact publishing (AB-490)](./docs/adr/0011-service-artifact-publishing.md)
 
 
 ## Structure of Project
