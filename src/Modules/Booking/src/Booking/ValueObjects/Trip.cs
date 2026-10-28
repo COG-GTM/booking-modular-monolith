@@ -4,17 +4,25 @@ using Exceptions;
 
 public record Trip
 {
-    public string FlightNumber { get; }
-    public Guid AircraftId { get; }
-    public Guid DepartureAirportId { get; }
-    public Guid ArriveAirportId { get; }
-    public DateTime FlightDate { get; }
-    public decimal Price { get; }
-    public string Description { get; }
-    public string SeatNumber { get; }
+    public string FlightNumber { get; init; }
+    public Guid AircraftId { get; init; }
+    public Guid DepartureAirportId { get; init; }
+    public Guid ArriveAirportId { get; init; }
+    public DateTime FlightDate { get; init; }
+    public decimal Price { get; init; }
+    public string Description { get; init; }
+    public string SeatNumber { get; init; }
 
-    private Trip(string flightNumber, Guid aircraftId, Guid departureAirportId, Guid arriveAirportId,
-        DateTime flightDate, decimal price, string description, string seatNumber)
+    private Trip(
+        string flightNumber,
+        Guid aircraftId,
+        Guid departureAirportId,
+        Guid arriveAirportId,
+        DateTime flightDate,
+        decimal price,
+        string description,
+        string seatNumber
+    )
     {
         FlightNumber = flightNumber;
         AircraftId = aircraftId;
@@ -26,8 +34,16 @@ public record Trip
         SeatNumber = seatNumber;
     }
 
-    public static Trip Of(string flightNumber, Guid aircraftId, Guid departureAirportId, Guid arriveAirportId,
-        DateTime flightDate, decimal price, string description, string seatNumber)
+    public static Trip Of(
+        string flightNumber,
+        Guid aircraftId,
+        Guid departureAirportId,
+        Guid arriveAirportId,
+        DateTime flightDate,
+        decimal price,
+        string description,
+        string seatNumber
+    )
     {
         if (string.IsNullOrWhiteSpace(flightNumber))
         {
@@ -64,6 +80,15 @@ public record Trip
             throw new SeatNumberException(seatNumber);
         }
 
-        return new Trip(flightNumber, aircraftId, departureAirportId, arriveAirportId, flightDate, price, description, seatNumber);
+        return new Trip(
+            flightNumber,
+            aircraftId,
+            departureAirportId,
+            arriveAirportId,
+            flightDate,
+            price,
+            description,
+            seatNumber
+        );
     }
 }

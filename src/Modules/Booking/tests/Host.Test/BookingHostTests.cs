@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Booking.Booking.Features.CreatingBook.V1;
 using Booking.Data;
 using BuildingBlocks.Contracts.EventBus.Messages;
@@ -64,7 +65,28 @@ public sealed class BookingHostTests : TestReadBase<Booking.Host.Program, Bookin
         var events = clientStore.ReadStreamAsync(Direction.Forwards, stream, StreamPosition.Start, 10);
         var storedEvent = await events.FirstOrDefaultAsync();
         Assert.NotNull(storedEvent.Event);
-        Assert.IsType<BookingCreatedDomainEvent>(storedEvent.Deserialize());
+        using var eventJson = JsonDocument.Parse(storedEvent.Event.Data.ToArray());
+        Assert.NotEqual(Guid.Empty, eventJson.RootElement.GetProperty("Id").GetGuid());
+        var bookingEvent = Assert.IsType<BookingCreatedDomainEvent>(storedEvent.Deserialize());
+        Assert.NotEqual(Guid.Empty, bookingEvent.Id);
+        Assert.Equal(HostFixture.GrpcServer.FlightNumber, bookingEvent.Trip.FlightNumber);
+        Assert.Equal(HostFixture.GrpcServer.AircraftId, bookingEvent.Trip.AircraftId);
+        Assert.Equal(HostFixture.GrpcServer.DepartureAirportId, bookingEvent.Trip.DepartureAirportId);
+        Assert.Equal(HostFixture.GrpcServer.ArriveAirportId, bookingEvent.Trip.ArriveAirportId);
+        Assert.Equal(HostFixture.GrpcServer.FlightDate, bookingEvent.Trip.FlightDate);
+        Assert.Equal(100, bookingEvent.Trip.Price);
+        Assert.Equal("standalone host test", bookingEvent.Trip.Description);
+        Assert.Equal("33F", bookingEvent.Trip.SeatNumber);
+        Assert.Equal(bookingEvent.Id, booking.BookId);
+        Assert.Equal(HostFixture.GrpcServer.FlightNumber, booking.Trip.FlightNumber);
+        Assert.Equal(HostFixture.GrpcServer.AircraftId, booking.Trip.AircraftId);
+        Assert.Equal(HostFixture.GrpcServer.DepartureAirportId, booking.Trip.DepartureAirportId);
+        Assert.Equal(HostFixture.GrpcServer.ArriveAirportId, booking.Trip.ArriveAirportId);
+        Assert.Equal(HostFixture.GrpcServer.FlightDate, booking.Trip.FlightDate);
+        Assert.Equal(100, booking.Trip.Price);
+        Assert.Equal("standalone host test", booking.Trip.Description);
+        Assert.Equal("33F", booking.Trip.SeatNumber);
+        Assert.Equal("Host test passenger", booking.PassengerInfo.Name);
         Assert.True(await Fixture.WaitForPublishing<BookingCreated>());
     }
 

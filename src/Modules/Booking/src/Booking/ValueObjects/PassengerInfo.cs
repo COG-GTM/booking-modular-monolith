@@ -4,7 +4,7 @@ using Exceptions;
 
 public record PassengerInfo
 {
-    public string Name { get; }
+    public string Name { get; init; }
 
     private PassengerInfo(string name)
     {

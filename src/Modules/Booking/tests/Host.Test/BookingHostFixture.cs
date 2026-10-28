@@ -55,6 +55,11 @@ public sealed class FakeGrpcServer : IAsyncDisposable
 
     public string Address { get; private set; } = "";
     public IReadOnlyCollection<string> Calls => calls.ToArray();
+    public string FlightNumber => FakeFlightService.FlightNumber;
+    public Guid AircraftId => FakeFlightService.AircraftId;
+    public Guid DepartureAirportId => FakeFlightService.DepartureAirportId;
+    public Guid ArriveAirportId => FakeFlightService.ArriveAirportId;
+    public DateTime FlightDate => FakeFlightService.FlightDate;
 
     public async Task StartAsync()
     {
@@ -95,6 +100,11 @@ public sealed class FakeGrpcServer : IAsyncDisposable
     private sealed class FakeFlightService : FlightGrpcService.FlightGrpcServiceBase
     {
         public static ConcurrentQueue<string> Calls { get; set; } = new();
+        public static string FlightNumber => "1500B";
+        public static Guid AircraftId => Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        public static Guid DepartureAirportId => Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        public static Guid ArriveAirportId => Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
+        public static DateTime FlightDate => new(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
 
         public override Task<GetFlightByIdResult> GetById(
             Contracts.Grpc.Flight.GetByIdRequest request,
@@ -108,13 +118,13 @@ public sealed class FakeGrpcServer : IAsyncDisposable
                     FlightDto = new FlightResponse
                     {
                         Id = request.Id,
-                        FlightNumber = "1500B",
-                        AircraftId = Guid.NewGuid().ToString(),
-                        DepartureAirportId = Guid.NewGuid().ToString(),
-                        ArriveAirportId = Guid.NewGuid().ToString(),
+                        FlightNumber = FlightNumber,
+                        AircraftId = AircraftId.ToString(),
+                        DepartureAirportId = DepartureAirportId.ToString(),
+                        ArriveAirportId = ArriveAirportId.ToString(),
                         DepartureDate = Timestamp.FromDateTime(DateTime.UtcNow),
                         ArriveDate = Timestamp.FromDateTime(DateTime.UtcNow),
-                        FlightDate = Timestamp.FromDateTime(DateTime.UtcNow),
+                        FlightDate = Timestamp.FromDateTime(FlightDate),
                         Status = FlightStatus.Completed,
                         Price = 100,
                     },
