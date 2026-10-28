@@ -81,7 +81,7 @@ same broker, both publish `UserCreated` for users registered through them, and P
 in the monolith and in `passenger-service` may both handle it. Give this host its own databases
 (the defaults above), and route `/connect/*` + `/api/v*/identity/*` to only one of the two.
 
-Tokens are signed with Duende's developer signing credential (`tempkey.jwk`, plus `keys/is-signing-key-*.json`
-from automatic key management, in the content root;
-not committed). Every Identity instance that should accept the others' tokens must share that key
-file; see [ADR 0013](../../../docs/adr/0013-identity-service-token-issuer.md).
+Tokens are signed with Duende's developer signing credential (`tempkey.jwk` and
+`keys/is-signing-key-*.json` in the content root; both git-ignored). Every Identity instance that
+should accept the others' tokens must share those files; see
+[ADR 0013](../../../docs/adr/0013-identity-service-token-issuer.md).
