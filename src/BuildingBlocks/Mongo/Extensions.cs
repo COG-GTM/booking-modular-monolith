@@ -27,6 +27,7 @@ public static class Extensions
                 {
                     options.ConnectionString =
                         config[$"MongoOptions:{moduleName}:ConnectionString"]
+                        ?? config.GetConnectionString("mongo")
                         ?? config["MongoOptions:ConnectionString"]!;
                     options.DatabaseName = config[$"MongoOptions:{moduleName}:DatabaseName"]!;
                 }

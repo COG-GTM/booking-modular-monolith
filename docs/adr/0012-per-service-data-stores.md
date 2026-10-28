@@ -21,8 +21,9 @@ The script runs only for a fresh PostgreSQL volume.
 - `PersistMessageOptions:Interval` remains the common polling interval.
 - `Modules:<Module>:BackgroundProcessingEnabled` defaults to true and gates only
   that module's polling worker.
-- Named `MongoOptions:<Module>:ConnectionString` falls back to root
-  `MongoOptions:ConnectionString`; `MongoOptions:<Module>:DatabaseName` is required.
+- Named `MongoOptions:<Module>:ConnectionString` falls back to Aspire's
+  `ConnectionStrings:mongo`, then root `MongoOptions:ConnectionString`;
+  `MongoOptions:<Module>:DatabaseName` is required.
 
 Typed persistence contexts, processors, publishers and dispatchers prevent
 last-registration-wins store selection. Generic persistence contexts inherit the

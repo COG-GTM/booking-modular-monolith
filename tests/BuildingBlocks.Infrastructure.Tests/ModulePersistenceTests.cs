@@ -105,6 +105,23 @@ public class ModulePersistenceTests
         Assert.DoesNotContain(builder.Services, d => d.ServiceType == typeof(IMongoRepository<,>));
     }
 
+    [Fact]
+    public void MongoAspireConnectionTakesPrecedenceOverRootButNotModuleConnection()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Configuration["MongoOptions:ConnectionString"] = "mongodb://root:27017";
+        builder.Configuration["ConnectionStrings:mongo"] = "mongodb://aspire:27017";
+        builder.Configuration["MongoOptions:Flight:ConnectionString"] = "mongodb://flight:27017";
+        builder.Configuration["MongoOptions:Flight:DatabaseName"] = "flight_service_read";
+        builder.Configuration["MongoOptions:Passenger:DatabaseName"] = "passenger_service_read";
+        builder.AddMongoDbContext<ReadContext>("Flight");
+        builder.AddMongoDbContext<OtherReadContext>("Passenger");
+        using var provider = builder.Services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<MongoOptions>>();
+        Assert.Equal("mongodb://flight:27017", options.Get("Flight").ConnectionString);
+        Assert.Equal("mongodb://aspire:27017", options.Get("Passenger").ConnectionString);
+    }
+
     [Theory]
     [InlineData(null, "flight")]
     [InlineData("mongodb://localhost", null)]
