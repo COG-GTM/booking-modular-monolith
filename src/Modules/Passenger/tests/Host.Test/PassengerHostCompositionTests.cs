@@ -92,7 +92,7 @@ public class PassengerHostCompositionTests
 
     [Theory]
     [InlineData("Production", "https://localhost:3000", "https://localhost:3000/.well-known/openid-configuration")]
-    [InlineData("docker", "http://localhost:5000", "http://booking_modular_monolith/.well-known/openid-configuration")]
+    [InlineData("docker", "http://localhost:5000", "http://identity-service:8080/.well-known/openid-configuration")]
     public async Task jwt_uses_the_configured_authority_audience_and_metadata(
         string environment,
         string authority,
