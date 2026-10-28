@@ -4,6 +4,7 @@ using BuildingBlocks.MassTransit;
 using BuildingBlocks.Mongo;
 using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Web;
+using HealthChecks.NpgSql;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Configuration;
@@ -27,8 +28,6 @@ public static class Extensions
         if (healthOptions.Enabled)
         {
             var appOptions = services.GetOptions<AppOptions>(nameof(AppOptions));
-            using var configurationProvider = services.BuildServiceProvider();
-            var configuration = configurationProvider.GetRequiredService<IConfiguration>();
             var rabbitMqOptions = services.GetOptions<RabbitMqOptions>(nameof(RabbitMqOptions));
             var eventStoreOptions = services.GetOptions<EventStoreOptions>(nameof(EventStoreOptions));
             var mongoOptions = services.GetOptions<MongoOptions>(nameof(MongoOptions));
@@ -56,34 +55,64 @@ public static class Extensions
                 );
             }
 
-            foreach (var module in configuration.GetSection("PostgresOptions:ConnectionString").GetChildren())
-                healthChecksBuilder.AddNpgSql(
-                    sp => sp.GetRequiredService<IConfiguration>().ResolvePostgresConnectionString(module.Key),
-                    name: $"postgres-{module.Key.ToLowerInvariant()}"
-                );
+            services
+                .AddOptions<HealthCheckServiceOptions>()
+                .Configure<
+                    IConfiguration,
+                    IEnumerable<PostgresModuleRegistration>,
+                    IEnumerable<ModulePersistenceRegistration>
+                >(
+                    (options, config, writeStores, persistStores) =>
+                    {
+                        var writeModules = config
+                            .GetSection("PostgresOptions:ConnectionString")
+                            .GetChildren()
+                            .Select(x => x.Key)
+                            .Concat(writeStores.Select(x => x.ModuleName))
+                            .Distinct(StringComparer.OrdinalIgnoreCase);
+                        foreach (var module in writeModules)
+                            options.Registrations.Add(
+                                new HealthCheckRegistration(
+                                    $"postgres-{module.ToLowerInvariant()}",
+                                    sp => new NpgSqlHealthCheck(
+                                        new NpgSqlHealthCheckOptions(
+                                            sp.GetRequiredService<IConfiguration>()
+                                                .ResolvePostgresConnectionString(module)
+                                        )
+                                    ),
+                                    HealthStatus.Unhealthy,
+                                    tags: null
+                                )
+                            );
 
-            var persistenceModules = configuration
-                .GetSection("PersistMessageOptions:ConnectionString")
-                .GetChildren()
-                .Select(x => x.Key)
-                .Concat(
-                    configuration
-                        .GetSection("ConnectionStrings")
-                        .GetChildren()
-                        .Where(x => x.Key.EndsWith("-persist-message", StringComparison.OrdinalIgnoreCase))
-                        .Select(x => x.Key[..^"-persist-message".Length])
-                )
-                .Concat(
-                    services
-                        .Select(x => x.ImplementationInstance)
-                        .OfType<ModulePersistenceRegistration>()
-                        .Select(x => x.ModuleName)
-                )
-                .Distinct(StringComparer.OrdinalIgnoreCase);
-            foreach (var module in persistenceModules)
-                healthChecksBuilder.AddNpgSql(
-                    sp => sp.GetRequiredService<IConfiguration>().ResolvePersistMessageConnectionString(module),
-                    name: $"postgres-{module.ToLowerInvariant()}-persist-message"
+                        var persistenceModules = config
+                            .GetSection("PersistMessageOptions:ConnectionString")
+                            .GetChildren()
+                            .Select(x => x.Key)
+                            .Concat(
+                                config
+                                    .GetSection("ConnectionStrings")
+                                    .GetChildren()
+                                    .Where(x => x.Key.EndsWith("-persist-message", StringComparison.OrdinalIgnoreCase))
+                                    .Select(x => x.Key[..^"-persist-message".Length])
+                            )
+                            .Concat(persistStores.Select(x => x.ModuleName))
+                            .Distinct(StringComparer.OrdinalIgnoreCase);
+                        foreach (var module in persistenceModules)
+                            options.Registrations.Add(
+                                new HealthCheckRegistration(
+                                    $"postgres-{module.ToLowerInvariant()}-persist-message",
+                                    sp => new NpgSqlHealthCheck(
+                                        new NpgSqlHealthCheckOptions(
+                                            sp.GetRequiredService<IConfiguration>()
+                                                .ResolvePersistMessageConnectionString(module)
+                                        )
+                                    ),
+                                    HealthStatus.Unhealthy,
+                                    tags: null
+                                )
+                            );
+                    }
                 );
 
             if (!string.IsNullOrEmpty(eventStoreOptions.ConnectionString))

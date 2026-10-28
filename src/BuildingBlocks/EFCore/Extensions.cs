@@ -29,6 +29,8 @@ public static class Extensions
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
         builder.Services.AddValidateOptions<PostgresOptions>();
+        if (!string.IsNullOrEmpty(connectionName))
+            builder.Services.AddSingleton(new PostgresModuleRegistration(connectionName));
 
         builder.Services.AddDbContext<TContext>(
             (sp, options) =>
