@@ -1,0 +1,521 @@
+[
+  {
+    "FileName": "Protos/flight.proto",
+    "Package": "flight",
+    "Services": [
+      {
+        "Name": "FlightGrpcService",
+        "Methods": [
+          {
+            "Name": "GetById",
+            "InputType": ".flight.GetByIdRequest",
+            "OutputType": ".flight.GetFlightByIdResult",
+            "ClientStreaming": false,
+            "ServerStreaming": false
+          },
+          {
+            "Name": "GetAvailableSeats",
+            "InputType": ".flight.GetAvailableSeatsRequest",
+            "OutputType": ".flight.GetAvailableSeatsResult",
+            "ClientStreaming": false,
+            "ServerStreaming": false
+          },
+          {
+            "Name": "ReserveSeat",
+            "InputType": ".flight.ReserveSeatRequest",
+            "OutputType": ".flight.ReserveSeatResult",
+            "ClientStreaming": false,
+            "ServerStreaming": false
+          }
+        ]
+      }
+    ],
+    "Messages": [
+      {
+        "FullName": "flight.GetByIdRequest",
+        "Fields": [
+          {
+            "Name": "Id",
+            "Number": 1,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      },
+      {
+        "FullName": "flight.GetFlightByIdResult",
+        "Fields": [
+          {
+            "Name": "FlightDto",
+            "Number": 1,
+            "Type": "Message",
+            "TypeName": ".flight.FlightResponse",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      },
+      {
+        "FullName": "flight.GetAvailableSeatsResult",
+        "Fields": [
+          {
+            "Name": "SeatDtos",
+            "Number": 1,
+            "Type": "Message",
+            "TypeName": ".flight.SeatDtoResponse",
+            "Label": "Repeated",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      },
+      {
+        "FullName": "flight.ReserveSeatResult",
+        "Fields": [
+          {
+            "Name": "Id",
+            "Number": 1,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      },
+      {
+        "FullName": "flight.FlightResponse",
+        "Fields": [
+          {
+            "Name": "Id",
+            "Number": 1,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "FlightNumber",
+            "Number": 2,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "AircraftId",
+            "Number": 3,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "DepartureAirportId",
+            "Number": 4,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "DepartureDate",
+            "Number": 5,
+            "Type": "Message",
+            "TypeName": ".google.protobuf.Timestamp",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "ArriveDate",
+            "Number": 6,
+            "Type": "Message",
+            "TypeName": ".google.protobuf.Timestamp",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "ArriveAirportId",
+            "Number": 7,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "DurationMinutes",
+            "Number": 8,
+            "Type": "Double",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "FlightDate",
+            "Number": 9,
+            "Type": "Message",
+            "TypeName": ".google.protobuf.Timestamp",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "Status",
+            "Number": 10,
+            "Type": "Enum",
+            "TypeName": ".flight.FlightStatus",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "Price",
+            "Number": 11,
+            "Type": "Double",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "FlightId",
+            "Number": 12,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      },
+      {
+        "FullName": "flight.GetAvailableSeatsRequest",
+        "Fields": [
+          {
+            "Name": "FlightId",
+            "Number": 1,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      },
+      {
+        "FullName": "flight.SeatDtoResponse",
+        "Fields": [
+          {
+            "Name": "Id",
+            "Number": 1,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "SeatNumber",
+            "Number": 2,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "Type",
+            "Number": 3,
+            "Type": "Enum",
+            "TypeName": ".flight.SeatType",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "Class",
+            "Number": 4,
+            "Type": "Enum",
+            "TypeName": ".flight.SeatClass",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "FlightId",
+            "Number": 5,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      },
+      {
+        "FullName": "flight.ReserveSeatRequest",
+        "Fields": [
+          {
+            "Name": "FlightId",
+            "Number": 1,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "SeatNumber",
+            "Number": 2,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      }
+    ],
+    "Enums": [
+      {
+        "FullName": "flight.FlightStatus",
+        "Values": [
+          {
+            "Name": "FLIGHT_STATUS_UNKNOWN",
+            "Number": 0
+          },
+          {
+            "Name": "FLIGHT_STATUS_FLYING",
+            "Number": 1
+          },
+          {
+            "Name": "FLIGHT_STATUS_DELAY",
+            "Number": 2
+          },
+          {
+            "Name": "FLIGHT_STATUS_CANCELED",
+            "Number": 3
+          },
+          {
+            "Name": "FLIGHT_STATUS_COMPLETED",
+            "Number": 4
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      },
+      {
+        "FullName": "flight.SeatType",
+        "Values": [
+          {
+            "Name": "SEAT_TYPE_UNKNOWN",
+            "Number": 0
+          },
+          {
+            "Name": "SEAT_TYPE_WINDOW",
+            "Number": 1
+          },
+          {
+            "Name": "SEAT_TYPE_MIDDLE",
+            "Number": 2
+          },
+          {
+            "Name": "SEAT_TYPE_AISLE",
+            "Number": 3
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      },
+      {
+        "FullName": "flight.SeatClass",
+        "Values": [
+          {
+            "Name": "SEAT_CLASS_UNKNOWN",
+            "Number": 0
+          },
+          {
+            "Name": "SEAT_CLASS_FIRST_CLASS",
+            "Number": 1
+          },
+          {
+            "Name": "SEAT_CLASS_BUSINESS",
+            "Number": 2
+          },
+          {
+            "Name": "SEAT_CLASS_ECONOMY",
+            "Number": 3
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      }
+    ]
+  },
+  {
+    "FileName": "Protos/passenger.proto",
+    "Package": "passenger",
+    "Services": [
+      {
+        "Name": "PassengerGrpcService",
+        "Methods": [
+          {
+            "Name": "GetById",
+            "InputType": ".passenger.GetByIdRequest",
+            "OutputType": ".passenger.GetPassengerByIdResult",
+            "ClientStreaming": false,
+            "ServerStreaming": false
+          }
+        ]
+      }
+    ],
+    "Messages": [
+      {
+        "FullName": "passenger.GetByIdRequest",
+        "Fields": [
+          {
+            "Name": "Id",
+            "Number": 1,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      },
+      {
+        "FullName": "passenger.GetPassengerByIdResult",
+        "Fields": [
+          {
+            "Name": "PassengerDto",
+            "Number": 1,
+            "Type": "Message",
+            "TypeName": ".passenger.PassengerResponse",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      },
+      {
+        "FullName": "passenger.PassengerResponse",
+        "Fields": [
+          {
+            "Name": "Id",
+            "Number": 1,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "Name",
+            "Number": 2,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "PassportNumber",
+            "Number": 3,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "PassengerType",
+            "Number": 4,
+            "Type": "Enum",
+            "TypeName": ".passenger.PassengerType",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "Age",
+            "Number": 5,
+            "Type": "Int32",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          },
+          {
+            "Name": "Email",
+            "Number": 6,
+            "Type": "String",
+            "TypeName": "",
+            "Label": "Optional",
+            "Proto3Optional": false,
+            "OneofIndex": null
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      }
+    ],
+    "Enums": [
+      {
+        "FullName": "passenger.PassengerType",
+        "Values": [
+          {
+            "Name": "PASSENGER_TYPE_UNKNOWN",
+            "Number": 0
+          },
+          {
+            "Name": "PASSENGER_TYPE_MALE",
+            "Number": 1
+          },
+          {
+            "Name": "PASSENGER_TYPE_FEMALE",
+            "Number": 2
+          },
+          {
+            "Name": "PASSENGER_TYPE_BABY",
+            "Number": 3
+          }
+        ],
+        "ReservedRanges": [],
+        "ReservedNames": []
+      }
+    ]
+  }
+]

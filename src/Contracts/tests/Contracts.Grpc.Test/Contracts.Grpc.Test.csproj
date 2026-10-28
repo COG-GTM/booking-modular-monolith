@@ -12,4 +12,8 @@
   <ItemGroup>
     <ProjectReference Include="../../Contracts.Grpc/Contracts.Grpc.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="Baselines/protos.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Pacts/*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
