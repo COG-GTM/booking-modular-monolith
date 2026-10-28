@@ -1,3 +1,4 @@
+using Google.Protobuf.WellKnownTypes;
 using Mapster;
 
 namespace Flight.Flights.Features;
@@ -24,10 +25,16 @@ public class FlightMappings : IRegister
 
         config.NewConfig<Models.Flight, FlightReadModel>()
             .Map(d => d.Id, s => NewId.NextGuid())
-            .Map(d => d.FlightId, s => s.Id.Value);
+            .Map(d => d.FlightId, s => s.Id.Value)
+            .Map(d => d.FlightNumber, s => s.FlightNumber.Value);
 
         config.NewConfig<FlightReadModel, FlightDto>()
             .Map(d => d.Id, s => s.FlightId);
+
+        config.NewConfig<FlightDto, global::Contracts.Grpc.Flight.FlightResponse>()
+            .Map(d => d.DepartureDate, s => Timestamp.FromDateTime(s.DepartureDate.ToUniversalTime()))
+            .Map(d => d.ArriveDate, s => Timestamp.FromDateTime(s.ArriveDate.ToUniversalTime()))
+            .Map(d => d.FlightDate, s => Timestamp.FromDateTime(s.FlightDate.ToUniversalTime()));
 
         config.NewConfig<UpdateFlightMongo, FlightReadModel>()
             .Map(d => d.FlightId, s => s.Id);

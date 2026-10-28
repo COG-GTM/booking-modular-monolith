@@ -36,4 +36,14 @@ public class FlightMappingTests
 
         _mapper.Map(instance, source, destination);
     }
+
+    [Fact]
+    public void should_map_flight_number_value_to_read_model()
+    {
+        var flight = global::Flight.Data.Seed.InitialData.Flights[0];
+
+        var readModel = _mapper.Map<global::Flight.Flights.Models.FlightReadModel>(flight);
+
+        Assert.Equal(flight.FlightNumber.Value, readModel.FlightNumber);
+    }
 }
