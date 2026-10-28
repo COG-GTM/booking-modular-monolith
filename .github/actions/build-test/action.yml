@@ -56,4 +56,4 @@ runs:
         reports-output-path: ${{ github.workspace }}/output/test-results
         service-name: ${{ inputs.service-name }}
         token: ${{ inputs.token }}
-        no-restore: true
+        no-restore: false
