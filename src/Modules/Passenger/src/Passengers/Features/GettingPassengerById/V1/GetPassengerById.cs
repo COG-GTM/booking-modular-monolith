@@ -3,7 +3,6 @@ namespace Passenger.Passengers.Features.GettingPassengerById.V1;
 using Ardalis.GuardClauses;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Web;
-using Duende.IdentityServer.EntityFramework.Entities;
 using FluentValidation;
 using Mapster;
 using MapsterMapper;
@@ -27,7 +26,9 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapGet($"{EndpointConfig.BaseApiPath}/passenger/{{id}}",
+        builder
+            .MapGet(
+                $"{EndpointConfig.BaseApiPath}/passenger/{{id}}",
                 async (Guid id, IMediator mediator, CancellationToken cancellationToken) =>
                 {
                     var result = await mediator.Send(new GetPassengerById(id), cancellationToken);
@@ -35,8 +36,9 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
                     var response = result.Adapt<GetPassengerByIdResponseDto>();
 
                     return Results.Ok(response);
-                })
-            .RequireAuthorization(nameof(ApiScope))
+                }
+            )
+            .RequireAuthorization("ApiScope")
             .WithName("GetPassengerById")
             .WithApiVersionSet(builder.NewApiVersionSet("Passenger").Build())
             .Produces<GetPassengerByIdResponseDto>()
@@ -73,9 +75,9 @@ internal class GetPassengerByIdHandler : IQueryHandler<GetPassengerById, GetPass
     {
         Guard.Against.Null(query, nameof(query));
 
-        var passenger =
-            await _passengerReadDbContext.Passenger.AsQueryable()
-                .SingleOrDefaultAsync(x => x.PassengerId == query.Id && x.IsDeleted == false, cancellationToken);
+        var passenger = await _passengerReadDbContext
+            .Passenger.AsQueryable()
+            .SingleOrDefaultAsync(x => x.PassengerId == query.Id && x.IsDeleted == false, cancellationToken);
 
         if (passenger is null)
         {

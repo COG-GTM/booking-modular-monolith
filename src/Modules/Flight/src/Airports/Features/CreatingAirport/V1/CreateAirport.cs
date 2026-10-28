@@ -8,7 +8,6 @@ using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
 using Data;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Exceptions;
 using FluentValidation;
 using Mapster;
@@ -28,8 +27,8 @@ public record CreateAirport(string Name, string Address, string Code) : ICommand
 
 public record CreateAirportResult(Guid Id);
 
-public record AirportCreatedDomainEvent
-    (Guid Id, string Name, string Address, string Code, bool IsDeleted) : IDomainEvent;
+public record AirportCreatedDomainEvent(Guid Id, string Name, string Address, string Code, bool IsDeleted)
+    : IDomainEvent;
 
 public record CreateAirportRequestDto(string Name, string Address, string Code);
 
@@ -39,19 +38,26 @@ public class CreateAirportEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapPost($"{EndpointConfig.BaseApiPath}/flight/airport", async (CreateAirportRequestDto request,
-                IMediator mediator, IMapper mapper,
-                CancellationToken cancellationToken) =>
-            {
-                var command = mapper.Map<CreateAirport>(request);
+        builder
+            .MapPost(
+                $"{EndpointConfig.BaseApiPath}/flight/airport",
+                async (
+                    CreateAirportRequestDto request,
+                    IMediator mediator,
+                    IMapper mapper,
+                    CancellationToken cancellationToken
+                ) =>
+                {
+                    var command = mapper.Map<CreateAirport>(request);
 
-                var result = await mediator.Send(command, cancellationToken);
+                    var result = await mediator.Send(command, cancellationToken);
 
-                var response = result.Adapt<CreateAirportResponseDto>();
+                    var response = result.Adapt<CreateAirportResponseDto>();
 
-                return Results.Ok(response);
-            })
-            .RequireAuthorization(nameof(ApiScope))
+                    return Results.Ok(response);
+                }
+            )
+            .RequireAuthorization("ApiScope")
             .WithName("CreateAirport")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<CreateAirportResponseDto>()
@@ -88,15 +94,22 @@ internal class CreateAirportHandler : IRequestHandler<CreateAirport, CreateAirpo
     {
         Guard.Against.Null(request, nameof(request));
 
-        var airport =
-            await _flightDbContext.Airports.SingleOrDefaultAsync(x => x.Code.Value == request.Code, cancellationToken);
+        var airport = await _flightDbContext.Airports.SingleOrDefaultAsync(
+            x => x.Code.Value == request.Code,
+            cancellationToken
+        );
 
         if (airport is not null)
         {
             throw new AirportAlreadyExistException();
         }
 
-        var airportEntity = Models.Airport.Create(AirportId.Of(request.Id), Name.Of(request.Name), Address.Of(request.Address), Code.Of(request.Code));
+        var airportEntity = Models.Airport.Create(
+            AirportId.Of(request.Id),
+            Name.Of(request.Name),
+            Address.Of(request.Address),
+            Code.Of(request.Code)
+        );
 
         var newAirport = (await _flightDbContext.Airports.AddAsync(airportEntity, cancellationToken)).Entity;
 

@@ -1,6 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Duende.IdentityServer" Version="7.4.6" />
+    <PackageReference Include="Duende.IdentityServer.AspNetIdentity" Version="7.4.6" />
+    <PackageReference Include="Duende.IdentityServer.EntityFramework" Version="7.4.6" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -12,7 +16,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/Core/BuildingBlocks.Core.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/Web/BuildingBlocks.Web.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/Caching/BuildingBlocks.Caching.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/Logging/BuildingBlocks.Logging.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/Mapster/BuildingBlocks.Mapster.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/Validation/BuildingBlocks.Validation.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/EFCore/BuildingBlocks.EFCore.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/PersistMessageProcessor/BuildingBlocks.PersistMessageProcessor.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/Polly/BuildingBlocks.Polly.csproj" />
   </ItemGroup>
   
 </Project>

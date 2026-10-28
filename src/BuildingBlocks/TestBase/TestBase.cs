@@ -7,7 +7,6 @@ using BuildingBlocks.EFCore;
 using BuildingBlocks.Mongo;
 using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Web;
-using Duende.IdentityServer.EntityFramework.Entities;
 using EasyNetQ.Management.Client;
 using Grpc.Net.Client;
 using MassTransit;
@@ -118,7 +117,7 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
                 services.AddAuthorization(options =>
                 {
                     options.AddPolicy(
-                        nameof(ApiScope),
+                        "ApiScope",
                         policy =>
                         {
                             policy.AddAuthenticationSchemes(FakeJwtBearerDefaults.AuthenticationScheme);

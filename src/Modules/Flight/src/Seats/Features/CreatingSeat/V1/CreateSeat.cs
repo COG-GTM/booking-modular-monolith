@@ -8,7 +8,6 @@ using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
 using Data;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Exceptions;
 using Flights.ValueObjects;
 using FluentValidation;
@@ -23,8 +22,8 @@ using Microsoft.EntityFrameworkCore;
 using Models;
 using ValueObjects;
 
-public record CreateSeat
-    (string SeatNumber, Enums.SeatType Type, Enums.SeatClass Class, Guid FlightId) : ICommand<CreateSeatResult>,
+public record CreateSeat(string SeatNumber, Enums.SeatType Type, Enums.SeatClass Class, Guid FlightId)
+    : ICommand<CreateSeatResult>,
         IInternalCommand
 {
     public Guid Id { get; init; } = NewId.NextGuid();
@@ -32,8 +31,14 @@ public record CreateSeat
 
 public record CreateSeatResult(Guid Id);
 
-public record SeatCreatedDomainEvent(Guid Id, string SeatNumber, Enums.SeatType Type, Enums.SeatClass Class,
-    Guid FlightId, bool IsDeleted) : IDomainEvent;
+public record SeatCreatedDomainEvent(
+    Guid Id,
+    string SeatNumber,
+    Enums.SeatType Type,
+    Enums.SeatClass Class,
+    Guid FlightId,
+    bool IsDeleted
+) : IDomainEvent;
 
 public record CreateSeatRequestDto(string SeatNumber, Enums.SeatType Type, Enums.SeatClass Class, Guid FlightId);
 
@@ -43,8 +48,9 @@ public class CreateSeatEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapPost($"{EndpointConfig.BaseApiPath}/flight/seat", CreateSeat)
-            .RequireAuthorization(nameof(ApiScope))
+        builder
+            .MapPost($"{EndpointConfig.BaseApiPath}/flight/seat", CreateSeat)
+            .RequireAuthorization("ApiScope")
             .WithName("CreateSeat")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<CreateSeatResponseDto>()
@@ -57,8 +63,12 @@ public class CreateSeatEndpoint : IMinimalEndpoint
         return builder;
     }
 
-    private async Task<IResult> CreateSeat(CreateSeatRequestDto request, IMediator mediator, IMapper mapper,
-        CancellationToken cancellationToken)
+    private async Task<IResult> CreateSeat(
+        CreateSeatRequestDto request,
+        IMediator mediator,
+        IMapper mapper,
+        CancellationToken cancellationToken
+    )
     {
         var command = mapper.Map<CreateSeat>(request);
 
@@ -76,10 +86,12 @@ public class CreateSeatValidator : AbstractValidator<CreateSeat>
     {
         RuleFor(x => x.SeatNumber).NotEmpty().WithMessage("SeatNumber is required");
         RuleFor(x => x.FlightId).NotEmpty().WithMessage("FlightId is required");
-        RuleFor(x => x.Class).Must(p => (p.GetType().IsEnum &&
-                                         p == Enums.SeatClass.FirstClass) ||
-                                        p == Enums.SeatClass.Business ||
-                                        p == Enums.SeatClass.Economy)
+        RuleFor(x => x.Class)
+            .Must(p =>
+                (p.GetType().IsEnum && p == Enums.SeatClass.FirstClass)
+                || p == Enums.SeatClass.Business
+                || p == Enums.SeatClass.Economy
+            )
             .WithMessage("Status must be FirstClass, Business or Economy");
     }
 }
@@ -104,7 +116,13 @@ internal class CreateSeatCommandHandler : IRequestHandler<CreateSeat, CreateSeat
             throw new SeatAlreadyExistException();
         }
 
-        var seatEntity = Seat.Create(SeatId.Of(command.Id), SeatNumber.Of(command.SeatNumber), command.Type, command.Class, FlightId.Of(command.FlightId));
+        var seatEntity = Seat.Create(
+            SeatId.Of(command.Id),
+            SeatNumber.Of(command.SeatNumber),
+            command.Type,
+            command.Class,
+            FlightId.Of(command.FlightId)
+        );
 
         var newSeat = (await _flightDbContext.Seats.AddAsync(seatEntity, cancellationToken)).Entity;
 

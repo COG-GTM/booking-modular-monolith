@@ -1,3 +1,4 @@
+using BuildingBlocks.Core;
 using BuildingBlocks.Web;
 using Humanizer;
 using Microsoft.AspNetCore.Builder;
@@ -10,7 +11,10 @@ namespace BuildingBlocks.PersistMessageProcessor;
 
 public static class Extensions
 {
-    public static IServiceCollection AddPersistMessageProcessor(this WebApplicationBuilder builder, string? connectionName = "persist-message")
+    public static IServiceCollection AddPersistMessageProcessor(
+        this WebApplicationBuilder builder,
+        string? connectionName = "persist-message"
+    )
     {
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -21,38 +25,39 @@ public static class Extensions
             {
                 var aspireConnectionString = builder.Configuration.GetConnectionString(connectionName.Kebaberize());
 
-                var connectionString = aspireConnectionString ?? sp.GetRequiredService<PersistMessageOptions>().ConnectionString;
+                var connectionString =
+                    aspireConnectionString ?? sp.GetRequiredService<PersistMessageOptions>().ConnectionString;
 
                 ArgumentException.ThrowIfNullOrEmpty(connectionString);
 
-                options.UseNpgsql(
+                options
+                    .UseNpgsql(
                         connectionString,
                         dbOptions =>
                         {
-                            dbOptions.MigrationsAssembly(
-                                typeof(PersistMessageDbContext).Assembly.GetName().Name);
-                        })
+                            dbOptions.MigrationsAssembly(typeof(PersistMessageDbContext).Assembly.GetName().Name);
+                        }
+                    )
                     // https://github.com/efcore/EFCore.NamingConventions
                     .UseSnakeCaseNamingConvention();
 
                 // Todo: follow up the issues of .net 9 to use better approach taht will provide by .net!
-                options.ConfigureWarnings(
-                    w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
-            });
+                options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+            }
+        );
 
-        builder.Services.AddScoped<IPersistMessageDbContext>(
-            provider =>
-            {
-                var persistMessageDbContext =
-                    provider.GetRequiredService<PersistMessageDbContext>();
+        builder.Services.AddScoped<IPersistMessageDbContext>(provider =>
+        {
+            var persistMessageDbContext = provider.GetRequiredService<PersistMessageDbContext>();
 
-                persistMessageDbContext.Database.EnsureCreated();
-                persistMessageDbContext.CreatePersistMessageTableIfNotExists();
+            persistMessageDbContext.Database.EnsureCreated();
+            persistMessageDbContext.CreatePersistMessageTableIfNotExists();
 
-                return persistMessageDbContext;
-            });
+            return persistMessageDbContext;
+        });
 
         builder.Services.AddScoped<IPersistMessageProcessor, PersistMessageProcessor>();
+        builder.Services.AddScoped<IEventPublisher, PersistedEventPublisher>();
 
         builder.Services.AddHostedService<PersistMessageBackgroundService>();
 
