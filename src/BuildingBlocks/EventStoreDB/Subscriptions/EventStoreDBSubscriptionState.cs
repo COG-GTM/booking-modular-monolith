@@ -2,7 +2,7 @@ namespace BuildingBlocks.EventStoreDB.Subscriptions;
 
 public sealed class EventStoreDBSubscriptionState
 {
-    private readonly object sync = new();
+    private readonly System.Threading.Lock sync = new();
     private bool isSubscribed;
     private DateTimeOffset? lastChangedAt;
 
