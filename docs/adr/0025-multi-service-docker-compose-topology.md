@@ -123,9 +123,8 @@ C4Container
 - **AuthN / AuthZ:** The gateway is the public application entry point and validates REST JWTs using
   issuer `http://localhost:5000`. Services retrieve IdentityServer metadata and signing keys from
   `identity-service:8080`. Internal gRPC remains unauthenticated per ADR 0008.
-- **Network exposure:** Application service and gRPC debug ports bind to loopback. Infrastructure
-  ports are published for local development by the existing infrastructure Compose file and must
-  be restricted appropriately outside a developer workstation.
+- **Network exposure:** Application service and gRPC debug ports bind to loopback. Data-store and
+  broker ports also bind to loopback; only the gateway and observability UIs remain published.
 - **Data access:** PostgreSQL databases use per-service roles and credentials as specified in
   ADR 0012; MongoDB read models are separated by service database.
 - **Secrets:** Compose defaults and committed appsettings are for local development only. Use
@@ -175,8 +174,8 @@ C4Container
   existing shared infrastructure, and the optional monolith coexistence path.
 - Positive: Service debug ports are restricted to loopback and the gateway owns public application
   traffic.
-- Negative / risks: The local topology publishes multiple infrastructure ports and uses local
-  development credentials and plaintext internal transport.
+- Negative / risks: The local topology publishes observability UI ports and uses local development
+  credentials and plaintext internal transport; data-store and broker ports are loopback-bound.
 - Negative / risks: The monolith and services share stores while coexisting; monolith background
   processing must remain disabled to prevent duplicate workers.
 

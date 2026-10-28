@@ -39,9 +39,9 @@ Compose file for local development.
 | Flight service / gRPC | `127.0.0.1:5102`, `127.0.0.1:5112` |
 | Passenger service / gRPC | `127.0.0.1:5103`, `127.0.0.1:5113` |
 | Booking service | `127.0.0.1:5104` |
-| PostgreSQL, MongoDB, EventStoreDB | `5432`, `27017`, `2113` |
-| RabbitMQ / management | `5672`, `15672` |
-| Redis | `6379` |
+| PostgreSQL, MongoDB, EventStoreDB | `127.0.0.1:5432`, `127.0.0.1:27017`, `127.0.0.1:2113` |
+| RabbitMQ / management | `127.0.0.1:5672`, `127.0.0.1:15672` |
+| Redis | `127.0.0.1:6379` |
 | Jaeger | `6831/udp`, `16686`, `14268`, `14317`, `14318` |
 | Zipkin | `9411` |
 | OpenTelemetry Collector | `11888`, `8888`, `8889`, `13133`, `4317`, `4318`, `55679` |
@@ -98,5 +98,6 @@ The PostgreSQL initialization SQL creates the service databases and roles only w
 starts with a fresh data volume. To recreate the databases from scratch, stop Compose and remove
 its volumes with `docker compose down -v`; this deletes local database data.
 
-The `identity-signing-keys` volume stores IdentityServer signing keys at `/app/keys`, keeping issued
-tokens verifiable when the Identity container is recreated.
+The `identity-service` sets `AuthOptions__SigningKeyPath=/app/keys/tempkey.jwk`; the
+`identity-signing-keys` volume mounted at `/app/keys` preserves that IdentityServer signing key
+and keeps issued tokens verifiable when the container is recreated.

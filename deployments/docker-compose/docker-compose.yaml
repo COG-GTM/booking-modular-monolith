@@ -61,6 +61,7 @@ services:
       OTEL_SERVICE_NAME: identity-service
       ObservabilityOptions__ServiceName: identity-service
       AuthOptions__IssuerUri: http://localhost:5000
+      AuthOptions__SigningKeyPath: /app/keys/tempkey.jwk
       Jwt__MetadataAddress: http://localhost:8080/.well-known/openid-configuration
       PostgresOptions__ConnectionString__Identity: Server=postgres;Port=5432;Database=identity_service;User Id=identity_service;Password=identity_service;Include Error Detail=true
       PersistMessageOptions__ConnectionString__Identity: Server=postgres;Port=5432;Database=identity_service_persist_message;User Id=identity_service;Password=identity_service;Include Error Detail=true

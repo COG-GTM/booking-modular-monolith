@@ -60,6 +60,7 @@ Jwt__MetadataAddress=http://localhost:5101/.well-known/openid-configuration \
 | `PersistMessageOptions:ConnectionString:Identity` (fallback `ConnectionStrings:identity-persist-message`) | `identity_service_persist_message` DB |
 | `Modules:Identity:BackgroundProcessingEnabled` | `true` (outbox dispatcher runs in this host) |
 | `AuthOptions:IssuerUri` | `http://localhost:5101`; set to the gateway origin when fronted by it |
+| `AuthOptions:SigningKeyPath` | `tempkey.jwk`; set to a shared persistent path for container deployments |
 | `Jwt:Authority`, `Jwt:Audience`, `Jwt:MetadataAddress` | issuer above, `booking-modular-monolith`, unset |
 | `Messaging:Transport`, `Messaging:AllowInMemory` | `RabbitMq` |
 | `ConnectionStrings:rabbitmq` or `RabbitMqOptions:*` | `localhost:5672`, `guest` |
@@ -81,7 +82,8 @@ same broker, both publish `UserCreated` for users registered through them, and P
 in the monolith and in `passenger-service` may both handle it. Give this host its own databases
 (the defaults above), and route `/connect/*` + `/api/v*/identity/*` to only one of the two.
 
-Tokens are signed with Duende's developer signing credential (`tempkey.jwk` and
-`keys/is-signing-key-*.json` in the content root; both git-ignored). Every Identity instance that
-should accept the others' tokens must share those files; see
+Tokens are signed with Duende's developer signing credential (`tempkey.jwk` by default). In
+Compose, `AuthOptions__SigningKeyPath` points to `/app/keys/tempkey.jwk` on the
+`identity-signing-keys` volume so the key survives container recreation. Every Identity instance
+that should accept the others' tokens must share the same signing-key file; see
 [ADR 0013](../../../docs/adr/0013-identity-service-token-issuer.md).
