@@ -10,10 +10,7 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
 {
     private readonly ILogger<PersistMessageDbContext>? _logger;
 
-    public PersistMessageDbContext(
-        DbContextOptions<PersistMessageDbContext> options,
-        ILogger<PersistMessageDbContext>? logger = null
-    )
+    public PersistMessageDbContext(DbContextOptions options, ILogger<PersistMessageDbContext>? logger = null)
         : base(options)
     {
         _logger = logger;
@@ -136,3 +133,8 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
         }
     }
 }
+
+public sealed class PersistMessageDbContext<TModule>(
+    DbContextOptions<PersistMessageDbContext<TModule>> options,
+    ILogger<PersistMessageDbContext>? logger = null
+) : PersistMessageDbContext(options, logger), IPersistMessageDbContext<TModule> { }

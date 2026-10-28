@@ -12,6 +12,7 @@ var pgPassword = builder.AddParameter("pg-password", "postgres", secret: true);
 var postgres = builder.AddPostgres("postgres", pgUsername, pgPassword)
     .WithImage("postgres")
     .WithImageTag("16")
+    .WithBindMount("../../../../deployments/docker-compose/init/postgres", "/docker-entrypoint-initdb.d", isReadOnly: true)
     .WithEndpoint(
         "tcp",
         e =>
@@ -34,10 +35,7 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 
-var flightDb = postgres.AddDatabase("flight");
-var passengerDb = postgres.AddDatabase("passenger");
-var identityDb = postgres.AddDatabase("identity");
-var persistMessageDb = postgres.AddDatabase("persist-message");
+
 
 var mongoUsername = builder.AddParameter("mongo-username", "root", secret: true);
 var mongoPassword = builder.AddParameter("mongo-password", "secret", secret: true);
@@ -307,15 +305,9 @@ if (builder.ExecutionContext.IsPublishMode)
 var api = builder.AddProject<Api>("api")
     .WithEnvironment("AuthOptions__IssuerUri", "http://localhost:5000")
     .WithEnvironment("Jwt__Authority", "http://localhost:5000")
-    .WithReference(persistMessageDb)
-    .WaitFor(persistMessageDb)
-    .WithReference(flightDb)
-    .WaitFor(flightDb)
-    .WithReference(passengerDb)
-    .WaitFor(passengerDb)
-    .WithReference(identityDb)
-    .WaitFor(identityDb)
+    .WaitFor(postgres)
     .WithReference(mongo)
+    .WithEnvironment("MongoOptions__ConnectionString", mongo.Resource.ConnectionStringExpression)
     .WaitFor(mongo)
     .WithReference(eventstore)
     .WaitFor(eventstore)
@@ -323,6 +315,19 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
+
+foreach (var module in new[] { "Flight", "Identity", "Passenger", "Booking" })
+{
+    var role = module.ToLowerInvariant() + "_service";
+    var endpoint = postgres.GetEndpoint("tcp");
+    var host = endpoint.Property(EndpointProperty.Host);
+    var port = endpoint.Property(EndpointProperty.Port);
+    if (module != "Booking")
+        api.WithEnvironment($"PostgresOptions__ConnectionString__{module}",
+            ReferenceExpression.Create($"Host={host};Port={port};Database={role};Username={role};Password={role}"));
+    api.WithEnvironment($"PersistMessageOptions__ConnectionString__{module}",
+        ReferenceExpression.Create($"Host={host};Port={port};Database={role}_persist_message;Username={role};Password={role}"));
+}
 
 api.WithEnvironment("Jwt__MetadataAddress", ReferenceExpression.Create($"{api.GetEndpoint("api-http")}/.well-known/openid-configuration"));
 api.WithEnvironment("Grpc__FlightAddress", api.GetEndpoint("api-https"));

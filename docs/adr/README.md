@@ -44,3 +44,5 @@ bounded contexts (T4), gateway and token-validation changes (T6) and shared cont
 (T8), so these ADRs form its ARB submission. The ARB ticket is **TO BE CREATED** (there is no ARB
 project on the Jira site yet). Implementation PRs reference the ADR they implement; merging the
 epic branch into `main` waits on ARB approval.
+
+- [0012: Per-service data stores](0012-per-service-data-stores.md)

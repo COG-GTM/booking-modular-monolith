@@ -77,7 +77,7 @@ class PackBuildingBlocksTests(unittest.TestCase):
             "Release",
         ]
         if version is not None:
-            invocation.append(f"-p:Version={version}")
+            invocation.extend([f"-p:Version={version}", f"-p:PackageVersion={version}"])
         invocation.extend(["-o", str(self.root / "artifacts/packages"), "--nologo"])
         return invocation
 
@@ -98,7 +98,7 @@ class PackBuildingBlocksTests(unittest.TestCase):
              (PROJECTS[1], PROJECTS[0], PROJECTS[2], PROJECTS[3], PROJECTS[4])],
         )
         self.assertFalse(any(
-            argument.startswith("-p:Version")
+            argument.startswith(("-p:Version", "-p:PackageVersion"))
             for invocation in invocations
             for argument in invocation
         ))
@@ -126,10 +126,11 @@ class PackBuildingBlocksTests(unittest.TestCase):
              (PROJECTS[1], PROJECTS[0], PROJECTS[2], PROJECTS[3], PROJECTS[4])],
         )
         for invocation in invocations:
-            self.assertEqual(
-                sum(argument == "-p:Version=2.3.4" for argument in invocation),
-                1,
-            )
+            for property_name in ("Version", "PackageVersion"):
+                self.assertEqual(
+                    sum(argument == f"-p:{property_name}=2.3.4" for argument in invocation),
+                    1,
+                )
         self.assertIn("(version 2.3.4)", run.stdout)
 
     def test_dotnet_failure_stops_the_script(self):

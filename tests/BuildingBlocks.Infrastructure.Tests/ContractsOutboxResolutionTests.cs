@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
-using PersistMessageProcessorService = BuildingBlocks.PersistMessageProcessor.PersistMessageProcessor;
+using PersistMessageProcessorService = BuildingBlocks.PersistMessageProcessor.PersistMessageProcessor<BuildingBlocks.Infrastructure.Tests.ContractsOutboxResolutionTests>;
 
 namespace BuildingBlocks.Infrastructure.Tests;
 
@@ -33,10 +33,10 @@ public class ContractsOutboxResolutionTests
     [Fact]
     public async Task Outbox_round_trip_publishes_the_moved_contract()
     {
-        var options = new DbContextOptionsBuilder<PersistMessageDbContext>()
+        var options = new DbContextOptionsBuilder<PersistMessageDbContext<ContractsOutboxResolutionTests>>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
-        await using var dbContext = new PersistMessageDbContext(options);
+        await using var dbContext = new PersistMessageDbContext<ContractsOutboxResolutionTests>(options);
         var mediator = Substitute.For<IMediator>();
         var publishEndpoint = Substitute.For<IPublishEndpoint>();
         var processor = new PersistMessageProcessorService(

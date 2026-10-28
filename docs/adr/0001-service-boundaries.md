@@ -16,9 +16,9 @@ project, its own EF Core `DbContext` (Booking uses EventStoreDB instead) and its
 
 | Module | Owns | Write store today | Talks to other modules |
 | --- | --- | --- | --- |
-| Identity | users, roles, Duende IdentityServer (tokens) | Postgres `identity_modular_monolith` | publishes `UserCreated` |
-| Flight | aircraft, airports, flights, seats | Postgres `flight_modular_monolith` | gRPC server `flight.FlightGrpcService` |
-| Passenger | passenger profiles | Postgres `passenger_modular_monolith` | consumes `UserCreated`; gRPC server `passenger.PassengerGrpcService` |
+| Identity | users, roles, Duende IdentityServer (tokens) | Postgres `identity_service` | publishes `UserCreated` |
+| Flight | aircraft, airports, flights, seats | Postgres `flight_service` | gRPC server `flight.FlightGrpcService` |
+| Passenger | passenger profiles | Postgres `passenger_service` | consumes `UserCreated`; gRPC server `passenger.PassengerGrpcService` |
 | Booking | bookings (event sourced) | EventStoreDB | gRPC client of Flight and Passenger |
 
 The single process means a fault or a deploy in one module affects all of them, and the modules

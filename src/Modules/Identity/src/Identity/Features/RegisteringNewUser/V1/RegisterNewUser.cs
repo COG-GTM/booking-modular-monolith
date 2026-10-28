@@ -89,11 +89,11 @@ public class RegisterNewUserValidator : AbstractValidator<RegisterNewUser>
 
 internal class RegisterNewUserHandler : ICommandHandler<RegisterNewUser, RegisterNewUserResult>
 {
-    private readonly IEventDispatcher _eventDispatcher;
+    private readonly IEventDispatcher<IdentityRoot> _eventDispatcher;
     private readonly UserManager<User> _userManager;
 
     public RegisterNewUserHandler(UserManager<User> userManager,
-        IEventDispatcher eventDispatcher)
+        IEventDispatcher<IdentityRoot> eventDispatcher)
     {
         _userManager = userManager;
         _eventDispatcher = eventDispatcher;

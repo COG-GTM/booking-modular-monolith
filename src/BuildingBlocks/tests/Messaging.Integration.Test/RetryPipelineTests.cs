@@ -68,7 +68,7 @@ public class RetryPipelineTests
             env.EnvironmentName.Returns("test");
             var state = new ProbeState();
             var calls = new ConcurrentQueue<(Guid, string)>();
-            var processor = Substitute.For<IPersistMessageProcessor>();
+            var processor = Substitute.For<IPersistMessageProcessor<ProbeEvent>>();
             processor
                 .ExecuteInboxAsync(
                     Arg.Any<Guid>(),
@@ -83,6 +83,7 @@ public class RetryPipelineTests
                 });
             var services = new ServiceCollection().AddLogging();
             services.AddSingleton(state);
+            services.AddSingleton(new ModulePersistenceRegistration("Probe", typeof(ProbeEvent)));
             services.AddScoped(_ => processor);
             services.AddCustomMassTransit(
                 env,

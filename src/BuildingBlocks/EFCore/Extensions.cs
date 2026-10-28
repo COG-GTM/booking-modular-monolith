@@ -15,6 +15,11 @@ namespace BuildingBlocks.EFCore;
 
 public static class Extensions
 {
+    public static string ResolvePostgresConnectionString(this IConfiguration configuration, string moduleName) =>
+        configuration.GetConnectionString(moduleName.Kebaberize())
+        ?? configuration[$"PostgresOptions:ConnectionString:{moduleName}"]
+        ?? throw new ArgumentException($"Connection string '{moduleName}' not found.");
+
     public static IServiceCollection AddCustomDbContext<TContext>(
         this WebApplicationBuilder builder,
         string? connectionName = ""
@@ -24,15 +29,14 @@ public static class Extensions
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
         builder.Services.AddValidateOptions<PostgresOptions>();
+        if (!string.IsNullOrEmpty(connectionName))
+            builder.Services.AddSingleton(new PostgresModuleRegistration(connectionName));
 
         builder.Services.AddDbContext<TContext>(
             (sp, options) =>
             {
-                var aspireConnectionString = builder.Configuration.GetConnectionString(connectionName.Kebaberize());
-
-                var connectionString =
-                    aspireConnectionString
-                    ?? builder.Configuration.GetSection($"PostgresOptions:ConnectionString:{connectionName}").Value;
+                var connectionString = sp.GetRequiredService<IConfiguration>()
+                    .ResolvePostgresConnectionString(connectionName);
 
                 if (string.IsNullOrEmpty(connectionString))
                 {
@@ -64,7 +68,7 @@ public static class Extensions
     {
         MigrateAsync<TContext>(app.ApplicationServices).GetAwaiter().GetResult();
 
-        SeedAsync(app.ApplicationServices).GetAwaiter().GetResult();
+        SeedAsync<TContext>(app.ApplicationServices).GetAwaiter().GetResult();
 
         return app;
     }
@@ -141,12 +145,19 @@ public static class Extensions
         }
     }
 
-    private static async Task SeedAsync(IServiceProvider serviceProvider)
+    private static async Task SeedAsync<TContext>(IServiceProvider serviceProvider)
     {
         await using var scope = serviceProvider.CreateAsyncScope();
-
-        var seedersManager = scope.ServiceProvider.GetRequiredService<ISeedManager>();
-
-        await seedersManager.ExecuteSeedAsync();
+        var environment = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+        if (environment.EnvironmentName == "test")
+            return;
+        foreach (
+            var seeder in scope
+                .ServiceProvider.GetServices<IDataSeeder>()
+                .Where(seeder => seeder.GetType().Assembly == typeof(TContext).Assembly)
+        )
+        {
+            await seeder.SeedAllAsync();
+        }
     }
 }

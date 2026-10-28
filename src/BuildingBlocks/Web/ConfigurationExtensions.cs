@@ -8,6 +8,9 @@ using Microsoft.Extensions.Options;
 
 public static class ConfigurationExtensions
 {
+    public static bool IsModuleBackgroundProcessingEnabled(this IConfiguration configuration, string moduleName) =>
+        configuration.GetValue<bool?>($"Modules:{moduleName}:BackgroundProcessingEnabled") ?? true;
+
     public static TModel GetOptions<TModel>(this IConfiguration configuration, string section)
         where TModel : new()
     {

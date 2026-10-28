@@ -41,6 +41,7 @@ services:
       - "max_prepared_transactions=100"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./init/postgres:/docker-entrypoint-initdb.d:ro
     networks:
       - booking
 
@@ -360,10 +361,6 @@ services:
       - Jwt__MetadataAddress=http://booking_modular_monolith/.well-known/openid-configuration
       - MongoOptions__ConnectionString=mongodb://mongo:27017
       - EventStoreOptions__ConnectionString=esdb://eventstore:2113?tls=false
-      - ConnectionStrings__flight=Host=postgres;Database=flight_modular_monolith;Username=postgres;Password=postgres
-      - ConnectionStrings__identity=Host=postgres;Database=identity_modular_monolith;Username=postgres;Password=postgres
-      - ConnectionStrings__passenger=Host=postgres;Database=passenger_modular_monolith;Username=postgres;Password=postgres
-      - ConnectionStrings__persist-message=Host=postgres;Database=persist_message;Username=postgres;Password=postgres
       - RabbitMqOptions__HostName=rabbitmq
       - RabbitMqOptions__UserName=${RABBITMQ_USERNAME:-guest}
       - RabbitMqOptions__Password=${RABBITMQ_PASSWORD:-guest}

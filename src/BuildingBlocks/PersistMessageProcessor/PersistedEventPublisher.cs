@@ -3,7 +3,8 @@ using BuildingBlocks.Core.Event;
 
 namespace BuildingBlocks.PersistMessageProcessor;
 
-public sealed class PersistedEventPublisher(IPersistMessageProcessor processor) : IEventPublisher
+public sealed class PersistedEventPublisher<TModule>(IPersistMessageProcessor<TModule> processor)
+    : IEventPublisher<TModule>
 {
     public Task PublishAsync(MessageEnvelope message, CancellationToken cancellationToken = default) =>
         processor.PublishMessageAsync(message, cancellationToken);

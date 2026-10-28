@@ -2,6 +2,7 @@
   <Import Project="../../Contracts/Contracts.Messages.Reference.props" />
   <PropertyGroup>
     <Version>1.1.0</Version>
+    <PackageVersion>1.2.0</PackageVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Ardalis.GuardClauses" Version="5.0.0" />

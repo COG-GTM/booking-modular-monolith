@@ -26,17 +26,17 @@ public class InboxDatabaseFixture : IAsyncLifetime
 
     public Task DisposeAsync() => _postgres.DisposeAsync().AsTask();
 
-    public PersistMessageDbContext CreateContext(string? connectionString = null) =>
+    public PersistMessageDbContext<ProbeEvent> CreateContext(string? connectionString = null) =>
         new(
-            new DbContextOptionsBuilder<PersistMessageDbContext>()
+            new DbContextOptionsBuilder<PersistMessageDbContext<ProbeEvent>>()
                 .UseNpgsql(connectionString ?? ConnectionString)
                 .UseSnakeCaseNamingConvention()
                 .Options
         );
 
-    public static PersistMessageProcessor CreateProcessor(PersistMessageDbContext db) =>
+    public static PersistMessageProcessor<ProbeEvent> CreateProcessor(PersistMessageDbContext<ProbeEvent> db) =>
         new(
-            NullLogger<PersistMessageProcessor>.Instance,
+            NullLogger<PersistMessageProcessor<ProbeEvent>>.Instance,
             Substitute.For<IMediator>(),
             db,
             Substitute.For<IPublishEndpoint>()

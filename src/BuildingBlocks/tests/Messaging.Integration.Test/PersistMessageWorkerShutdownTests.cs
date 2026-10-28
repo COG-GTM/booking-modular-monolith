@@ -13,7 +13,7 @@ public class PersistMessageWorkerShutdownTests
     [Fact]
     public async Task Shutdown_during_a_poll_stops_the_worker_without_logging_a_delivery_failure()
     {
-        var processor = Substitute.For<IPersistMessageProcessor>();
+        var processor = Substitute.For<IPersistMessageProcessor<ProbeEvent>>();
         var polling = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         processor
             .ProcessAllAsync(Arg.Any<CancellationToken>())
@@ -24,7 +24,7 @@ public class PersistMessageWorkerShutdownTests
             });
         var logger = new RecordingLogger();
         await using var provider = new ServiceCollection().AddScoped(_ => processor).BuildServiceProvider();
-        using var worker = new PersistMessageBackgroundService(
+        using var worker = new PersistMessageBackgroundService<ProbeEvent>(
             logger,
             provider,
             Options.Create(new PersistMessageOptions { Interval = 1 })
@@ -42,7 +42,7 @@ public class PersistMessageWorkerShutdownTests
     [Fact]
     public async Task Cancellation_not_caused_by_shutdown_is_logged_and_the_next_poll_still_runs()
     {
-        var processor = Substitute.For<IPersistMessageProcessor>();
+        var processor = Substitute.For<IPersistMessageProcessor<ProbeEvent>>();
         var recovered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var attempts = 0;
         processor
@@ -56,7 +56,7 @@ public class PersistMessageWorkerShutdownTests
             });
         var logger = new RecordingLogger();
         await using var provider = new ServiceCollection().AddScoped(_ => processor).BuildServiceProvider();
-        using var worker = new PersistMessageBackgroundService(
+        using var worker = new PersistMessageBackgroundService<ProbeEvent>(
             logger,
             provider,
             Options.Create(new PersistMessageOptions { Interval = 1 })
@@ -75,7 +75,7 @@ public class PersistMessageWorkerShutdownTests
         }
     }
 
-    private sealed class RecordingLogger : ILogger<PersistMessageBackgroundService>
+    private sealed class RecordingLogger : ILogger<PersistMessageBackgroundService<ProbeEvent>>
     {
         public ConcurrentQueue<LogLevel> Levels { get; } = new();
 

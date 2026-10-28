@@ -45,3 +45,5 @@ public interface IPersistMessageProcessor
 
     Task ProcessAllAsync(CancellationToken cancellationToken = default);
 }
+
+public interface IPersistMessageProcessor<TModule> : IPersistMessageProcessor { }

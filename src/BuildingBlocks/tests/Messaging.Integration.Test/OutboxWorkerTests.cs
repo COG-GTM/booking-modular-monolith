@@ -12,7 +12,7 @@ public class OutboxWorkerTests
     [Fact]
     public async Task Worker_retries_pending_delivery_after_a_poll_fails()
     {
-        var processor = Substitute.For<IPersistMessageProcessor>();
+        var processor = Substitute.For<IPersistMessageProcessor<ProbeEvent>>();
         var recovered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var attempts = 0;
         processor
@@ -25,8 +25,8 @@ public class OutboxWorkerTests
                 return Task.CompletedTask;
             });
         await using var provider = new ServiceCollection().AddScoped(_ => processor).BuildServiceProvider();
-        using var worker = new PersistMessageBackgroundService(
-            NullLogger<PersistMessageBackgroundService>.Instance,
+        using var worker = new PersistMessageBackgroundService<ProbeEvent>(
+            NullLogger<PersistMessageBackgroundService<ProbeEvent>>.Instance,
             provider,
             Options.Create(new PersistMessageOptions { Interval = 1 })
         );

@@ -27,7 +27,7 @@ with the former assembly.
 
 The integration events and `IEvent` / `IIntegrationEvent` now live in the
 `BookingModularMonolith.Contracts.Messages` package. Core references that package and forwards
-the types for binary compatibility; Core is version 1.1.0.
+the types for binary compatibility (introduced in Core 1.1.0).
 
 Core retains MassTransit **abstractions** for existing event topology attributes and IDs,
 and Protobuf for the existing typed envelope; it does not depend on a transport.

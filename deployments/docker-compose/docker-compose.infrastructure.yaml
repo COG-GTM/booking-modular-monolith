@@ -27,7 +27,7 @@ services:
   #  postgres
   #######################################################
   postgres:
-    image: postgres:latest
+    image: postgres:16
     container_name: postgres
     restart: unless-stopped
     ports:
@@ -40,9 +40,10 @@ services:
       - "-c"
       - "wal_level=logical"
       - "-c"
-      - "max_prepared_transactions=10"
+      - "max_prepared_transactions=100"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./init/postgres:/docker-entrypoint-initdb.d:ro
     networks:
       - infrastructure
 

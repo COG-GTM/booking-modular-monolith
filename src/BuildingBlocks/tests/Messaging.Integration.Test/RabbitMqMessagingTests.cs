@@ -27,8 +27,8 @@ public class BrokerFixture : IAsyncLifetime
     {
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
         await Task.WhenAll(Postgres.StartAsync(), Rabbit.StartAsync());
-        await using var db = new PersistMessageDbContext(
-            new DbContextOptionsBuilder<PersistMessageDbContext>()
+        await using var db = new PersistMessageDbContext<ProbeEvent>(
+            new DbContextOptionsBuilder<PersistMessageDbContext<ProbeEvent>>()
                 .UseNpgsql(Postgres.GetConnectionString())
                 .UseSnakeCaseNamingConvention()
                 .Options
@@ -62,12 +62,15 @@ public class BrokerFixture : IAsyncLifetime
             };
         var services = new ServiceCollection().AddLogging();
         services.AddSingleton(state);
+        services.AddSingleton(new ModulePersistenceRegistration("Probe", typeof(ProbeEvent)));
         services.AddSingleton(Substitute.For<IMediator>());
-        services.AddDbContext<PersistMessageDbContext>(options =>
+        services.AddDbContext<PersistMessageDbContext<ProbeEvent>>(options =>
             options.UseNpgsql(Postgres.GetConnectionString()).UseSnakeCaseNamingConvention()
         );
-        services.AddScoped<IPersistMessageDbContext>(sp => sp.GetRequiredService<PersistMessageDbContext>());
-        services.AddScoped<IPersistMessageProcessor, PersistMessageProcessor>();
+        services.AddScoped<IPersistMessageDbContext<ProbeEvent>>(sp =>
+            sp.GetRequiredService<PersistMessageDbContext<ProbeEvent>>()
+        );
+        services.AddScoped<IPersistMessageProcessor<ProbeEvent>, PersistMessageProcessor<ProbeEvent>>();
         services.AddCustomMassTransit(
             env,
             new ConfigurationBuilder().AddInMemoryCollection(settings).Build(),
@@ -125,7 +128,7 @@ public class RabbitMqMessagingTests(BrokerFixture fixture) : IClassFixture<Broke
         var routable = new ProbeEvent(Guid.NewGuid());
         await using (var scope = provider.CreateAsyncScope())
         {
-            var processor = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor>();
+            var processor = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor<ProbeEvent>>();
             await processor.PublishMessageAsync(new MessageEnvelope(unroutable));
             await processor.PublishMessageAsync(new MessageEnvelope(routable));
             await processor.ProcessAllAsync();
@@ -133,7 +136,7 @@ public class RabbitMqMessagingTests(BrokerFixture fixture) : IClassFixture<Broke
         await fixture.WaitForQueue(prefix + "-probe", 1);
         await using (var scope = provider.CreateAsyncScope())
         {
-            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext<ProbeEvent>>();
             Assert.Equal(
                 MessageStatus.InProgress,
                 (await db.PersistMessage.SingleAsync(x => x.Id == unroutable.EventId)).MessageStatus
@@ -157,21 +160,21 @@ public class RabbitMqMessagingTests(BrokerFixture fixture) : IClassFixture<Broke
         var message = new ProbeEvent(Guid.NewGuid());
         await using (var scope = provider.CreateAsyncScope())
         {
-            var processor = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor>();
+            var processor = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor<ProbeEvent>>();
             await processor.PublishMessageAsync(new MessageEnvelope(message));
             await processor.ProcessAsync(message.EventId, MessageDeliveryType.Outbox);
         }
         await fixture.WaitForQueue(prefix + "-probe", 1);
         await using (var scope = provider.CreateAsyncScope())
         {
-            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext<ProbeEvent>>();
             var row = await db.PersistMessage.SingleAsync(x => x.Id == message.EventId);
             Assert.Equal(MessageStatus.Processed, row.MessageStatus);
             Assert.True(await db.InboxMessages.AnyAsync(x => x.MessageId == message.EventId));
             row.ChangeState(MessageStatus.InProgress);
             await db.SaveChangesAsync();
             await scope
-                .ServiceProvider.GetRequiredService<IPersistMessageProcessor>()
+                .ServiceProvider.GetRequiredService<IPersistMessageProcessor<ProbeEvent>>()
                 .ProcessAsync(message.EventId, MessageDeliveryType.Outbox);
         }
         await fixture.WaitForQueue(prefix + "-probe", 2);
@@ -193,7 +196,7 @@ public class RabbitMqMessagingTests(BrokerFixture fixture) : IClassFixture<Broke
         await using var scope = provider.CreateAsyncScope();
         Assert.True(
             await scope
-                .ServiceProvider.GetRequiredService<PersistMessageDbContext>()
+                .ServiceProvider.GetRequiredService<PersistMessageDbContext<ProbeEvent>>()
                 .InboxMessages.AnyAsync(x => x.MessageId == state.MessageIds[message.EventId])
         );
         await provider.GetRequiredService<IBusControl>().StopAsync();
@@ -212,7 +215,7 @@ public class RabbitMqMessagingTests(BrokerFixture fixture) : IClassFixture<Broke
         await using var scope = provider.CreateAsyncScope();
         Assert.False(
             await scope
-                .ServiceProvider.GetRequiredService<PersistMessageDbContext>()
+                .ServiceProvider.GetRequiredService<PersistMessageDbContext<ProbeEvent>>()
                 .InboxMessages.AnyAsync(x => x.MessageId == state.MessageIds[message.EventId])
         );
         await provider.GetRequiredService<IBusControl>().StopAsync();
@@ -272,20 +275,20 @@ public class PublisherStartupTests(BrokerFixture fixture) : IClassFixture<Broker
         var message = new ProbeEvent(Guid.NewGuid());
         await using (var scope = publisher.CreateAsyncScope())
         {
-            var processor = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor>();
+            var processor = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor<ProbeEvent>>();
             await processor.PublishMessageAsync(new MessageEnvelope(message));
             await Assert.ThrowsAnyAsync<System.Exception>(
                 () => processor.ProcessAsync(message.EventId, MessageDeliveryType.Outbox)
             );
-            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext<ProbeEvent>>();
             Assert.Equal(MessageStatus.InProgress, (await db.PersistMessage.SingleAsync()).MessageStatus);
         }
 
         await using var consumer = await fixture.StartBus("late-passenger", state);
         await using (var scope = publisher.CreateAsyncScope())
         {
-            await scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor>().ProcessAllAsync();
-            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
+            await scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor<ProbeEvent>>().ProcessAllAsync();
+            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext<ProbeEvent>>();
             Assert.Equal(MessageStatus.Processed, (await db.PersistMessage.SingleAsync()).MessageStatus);
         }
         await fixture.WaitForQueue("late-passenger-probe", 1);
@@ -293,7 +296,7 @@ public class PublisherStartupTests(BrokerFixture fixture) : IClassFixture<Broker
         Assert.Equal(message.EventId, state.MessageIds[message.EventId]);
         await using (var scope = consumer.CreateAsyncScope())
         {
-            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext<ProbeEvent>>();
             Assert.True(await db.InboxMessages.AnyAsync(x => x.MessageId == message.EventId));
         }
         await consumer.GetRequiredService<IBusControl>().StopAsync();

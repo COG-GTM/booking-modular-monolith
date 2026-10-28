@@ -39,7 +39,7 @@ public static class TestContainers
         var builder = baseBuilder
             .WithImage(PostgresContainerConfiguration.ImageName)
             .WithName(PostgresContainerConfiguration.Name)
-            .WithCommand(new string[2] { "-c", "max_prepared_transactions=10" })
+            .WithCommand(new string[2] { "-c", "max_prepared_transactions=100" })
             .WithPortBinding(PostgresContainerConfiguration.Port, true)
             .Build();
 
@@ -56,7 +56,7 @@ public static class TestContainers
         var builder = baseBuilder
             .WithImage(PostgresPersistContainerConfiguration.ImageName)
             .WithName(PostgresPersistContainerConfiguration.Name)
-            .WithCommand(new string[2] { "-c", "max_prepared_transactions=10" })
+            .WithCommand(new string[2] { "-c", "max_prepared_transactions=100" })
             .WithPortBinding(PostgresPersistContainerConfiguration.Port, true)
             .Build();
 

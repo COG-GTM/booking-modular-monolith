@@ -32,10 +32,28 @@ public static class Extensions
 
         ArgumentException.ThrowIfNullOrWhiteSpace(serviceName);
         services.AddScoped(typeof(ConsumeFilter<>));
+        var formatter = new KebabCaseEndpointNameFormatter(serviceName, false);
+        foreach (
+            var consumer in consumerAssemblies
+                .Distinct()
+                .SelectMany(x => x.GetTypes())
+                .Where(x =>
+                    x is { IsClass: true, IsAbstract: false, ContainsGenericParameters: false }
+                    && typeof(IConsumer).IsAssignableFrom(x)
+                )
+        )
+        {
+            var endpoint = (string)
+                typeof(IEndpointNameFormatter)
+                    .GetMethod(nameof(IEndpointNameFormatter.Consumer))!
+                    .MakeGenericMethod(consumer)
+                    .Invoke(formatter, null)!;
+            services.AddSingleton(new ConsumerModuleRegistration(endpoint, consumer.Assembly));
+        }
 
         void Configure(IBusRegistrationConfigurator registration)
         {
-            registration.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter(serviceName, false));
+            registration.SetEndpointNameFormatter(formatter);
             // An empty assembly list makes MassTransit scan every loaded assembly.
             if (consumerAssemblies.Length > 0)
                 registration.AddConsumers(consumerAssemblies.Distinct().ToArray());
