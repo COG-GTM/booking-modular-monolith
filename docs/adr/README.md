@@ -22,12 +22,13 @@ The target state is drawn in [docs/architecture/target-architecture.md](../archi
 | 0010 | BuildingBlocks package boundaries — added by AB-500 | Lands in a sibling PR |
 | [0011](0011-service-artifact-publishing.md) | Independent service artifact publishing (AB-490) | Proposed |
 | [0014](0014-grpc-contracts-package-and-service-addressing.md) | Shared gRPC contracts and service addressing (AB-494) | Proposed |
+| [0018](0018-passenger-service-host.md) | Passenger service host (AB-498) | Proposed |
 
 ## Conventions
 
 - File name: `NNNN-<kebab-case-title>.md`, numbered in sequence. Numbers are never reused.
 - Numbers for epic AB-488: 0001–0009 belong to AB-499 (architecture), 0010 to AB-500 (BuildingBlocks
-  package boundaries), 0011 to AB-490 (CI/CD and package publishing).
+  package boundaries), 0011 to AB-490 (CI/CD and package publishing), and 0018 to AB-498 (Passenger host).
 - Every ADR uses the org ADR template (Context, Decision, Alternatives, Architecture, NFRs, Security,
   Cost, Operations, Policy exceptions, Consequences, Open questions). A section that does not apply
   says `N/A — <reason>` instead of being removed.
@@ -46,3 +47,4 @@ project on the Jira site yet). Implementation PRs reference the ADR they impleme
 epic branch into `main` waits on ARB approval.
 
 - [0012: Per-service data stores](0012-per-service-data-stores.md)
+- [0018: Passenger service host](0018-passenger-service-host.md)

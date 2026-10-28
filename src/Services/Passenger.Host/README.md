@@ -2,6 +2,7 @@
 
 `Passenger.Host` runs the Passenger module as a standalone ASP.NET Core service.
 It does not register any of the other modular-monolith modules.
+The architecture decision is documented in [ADR 0018](../../../docs/adr/0018-passenger-service-host.md).
 
 ## Run locally
 
