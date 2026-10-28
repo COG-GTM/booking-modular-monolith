@@ -18,10 +18,15 @@ The target state is drawn in [docs/architecture/target-architecture.md](../archi
 | [0006](0006-repository-layout-for-hosts-and-contracts.md) | Repository layout for the gateway, service hosts, contracts and BuildingBlocks | Proposed |
 | [0007](0007-extraction-order.md) | Extraction order: Flight, then Passenger + Identity, then Booking | Proposed |
 | [0008](0008-defer-service-to-service-grpc-authentication.md) | Defer authentication of service-to-service gRPC | Proposed |
+| 0009 | Reserved for AB-499 (unused) | — |
+| 0010 | BuildingBlocks package boundaries — added by AB-500 | Lands in a sibling PR |
+| 0011 | CI/CD and package publishing — added by AB-490 | Lands in a sibling PR |
 
 ## Conventions
 
 - File name: `NNNN-<kebab-case-title>.md`, numbered in sequence. Numbers are never reused.
+- Numbers for epic AB-488: 0001–0009 belong to AB-499 (architecture), 0010 to AB-500 (BuildingBlocks
+  package boundaries), 0011 to AB-490 (CI/CD and package publishing).
 - Every ADR uses the org ADR template (Context, Decision, Alternatives, Architecture, NFRs, Security,
   Cost, Operations, Policy exceptions, Consequences, Open questions). A section that does not apply
   says `N/A — <reason>` instead of being removed.
