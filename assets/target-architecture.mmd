@@ -1,0 +1,55 @@
+flowchart LR
+    client([API client])
+
+    subgraph edge[Edge]
+      gw[YARP Gateway<br/>src/Gateway<br/>JWT validation, routing]
+    end
+
+    subgraph legacy[Strangler-fig period only]
+      mono[Monolith<br/>src/Api]
+      monodb[(Monolith DBs<br/>*_modular_monolith,<br/>persist_message)]
+      mono --- monodb
+    end
+
+    subgraph services[Service hosts — src/Services]
+      identity[Identity.Host<br/>Duende IdentityServer]
+      flight[Flight.Host]
+      passenger[Passenger.Host]
+      booking[Booking.Host]
+    end
+
+    subgraph data[Data owned per service]
+      idpg[(Postgres identity_service<br/>+ identity_service_persist_message)]
+      fpg[(Postgres flight_service<br/>+ flight_service_persist_message)]
+      ppg[(Postgres passenger_service<br/>+ passenger_service_persist_message)]
+      esdb[(EventStoreDB<br/>booking events)]
+      bpg[(Postgres<br/>booking_service_persist_message)]
+      mongo[(MongoDB read DBs<br/>one per service)]
+    end
+
+    mq{{RabbitMQ<br/>MassTransit}}
+
+    client -->|HTTPS + JWT| gw
+    gw -->|modules not yet extracted| mono
+    gw -->|/api/v1/identity, /connect, /.well-known| identity
+    gw -->|/api/v1/flight| flight
+    gw -->|/api/v1/passenger| passenger
+    gw -->|/api/v1/booking| booking
+
+    booking -->|gRPC flight.FlightGrpcService| flight
+    booking -->|gRPC passenger.PassengerGrpcService| passenger
+
+    identity -->|UserCreated| mq
+    mq -->|UserCreated| passenger
+    flight -.->|Flight events| mq
+    booking -.->|BookingCreated| mq
+
+    identity --- idpg
+    flight --- fpg
+    passenger --- ppg
+    booking --- esdb
+    booking --- bpg
+    identity --- mongo
+    flight --- mongo
+    passenger --- mongo
+    booking --- mongo
