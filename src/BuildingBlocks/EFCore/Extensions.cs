@@ -64,7 +64,7 @@ public static class Extensions
     {
         MigrateAsync<TContext>(app.ApplicationServices).GetAwaiter().GetResult();
 
-        SeedAsync(app.ApplicationServices).GetAwaiter().GetResult();
+        SeedAsync<TContext>(app.ApplicationServices).GetAwaiter().GetResult();
 
         return app;
     }
@@ -141,12 +141,19 @@ public static class Extensions
         }
     }
 
-    private static async Task SeedAsync(IServiceProvider serviceProvider)
+    private static async Task SeedAsync<TContext>(IServiceProvider serviceProvider)
     {
         await using var scope = serviceProvider.CreateAsyncScope();
-
-        var seedersManager = scope.ServiceProvider.GetRequiredService<ISeedManager>();
-
-        await seedersManager.ExecuteSeedAsync();
+        var environment = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+        if (environment.EnvironmentName == "test")
+            return;
+        foreach (
+            var seeder in scope
+                .ServiceProvider.GetServices<IDataSeeder>()
+                .Where(seeder => seeder.GetType().Assembly == typeof(TContext).Assembly)
+        )
+        {
+            await seeder.SeedAllAsync();
+        }
     }
 }

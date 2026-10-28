@@ -27,14 +27,14 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddJwt();
         builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         builder.Services.AddTransient<AuthHeaderHandler>();
-        builder.AddPersistMessageProcessor();
+        builder.AddPersistMessageProcessor<BookingRoot>("Booking");
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddControllers();
         builder.Services.AddAspnetOpenApi();
         builder.Services.AddCustomVersioning();
         builder.Services.AddHttpContextAccessor();
-        builder.Services.AddWebEventDispatcher();
+        builder.Services.AddScoped<IEventHeadersProvider, HttpEventHeadersProvider>();
 
         builder.Services.AddCustomMassTransit(
             builder.Environment,

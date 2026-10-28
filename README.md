@@ -296,3 +296,10 @@ Please follow this [contribution guideline](./CONTRIBUTION.md) to submit a pull 
 
 ## License
 This project is made available under the MIT license. See [LICENSE](https://github.com/meysamhadeli/booking-modular-monolith/blob/main/LICENSE) for details.
+
+### Per-service data stores
+
+See [ADR 0012](docs/adr/0012-per-service-data-stores.md) for module database names,
+connection-string keys and background-processing switches. Fresh Compose PostgreSQL
+volumes initialize module roles and databases automatically; existing-volume data
+migration is deferred to AB-505.

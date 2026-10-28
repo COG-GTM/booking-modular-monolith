@@ -1,3 +1,4 @@
+using Identity;
 using BuildingBlocks.Constants;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.Core;
@@ -12,7 +13,7 @@ namespace Integration.Test;
 public class IdentityTestDataSeeder(
     UserManager<User> userManager,
     RoleManager<Role> roleManager,
-    IEventDispatcher eventDispatcher
+    IEventDispatcher<IdentityRoot> eventDispatcher
 )
     : ITestDataSeeder
 {

@@ -5,12 +5,11 @@ using Microsoft.Extensions.Options;
 
 namespace BuildingBlocks.PersistMessageProcessor;
 
-public class PersistMessageBackgroundService(
-    ILogger<PersistMessageBackgroundService> logger,
+public class PersistMessageBackgroundService<TModule>(
+    ILogger<PersistMessageBackgroundService<TModule>> logger,
     IServiceProvider serviceProvider,
     IOptions<PersistMessageOptions> options
-)
-    : BackgroundService
+) : BackgroundService
 {
     private PersistMessageOptions _options = options.Value;
 
@@ -34,13 +33,13 @@ public class PersistMessageBackgroundService(
         {
             await using (var scope = serviceProvider.CreateAsyncScope())
             {
-                var service = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor>();
+                var service = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor<TModule>>();
                 await service.ProcessAllAsync(stoppingToken);
             }
 
             var delay = _options.Interval is { }
-                            ? TimeSpan.FromSeconds((int)_options.Interval)
-                            : TimeSpan.FromSeconds(30);
+                ? TimeSpan.FromSeconds((int)_options.Interval)
+                : TimeSpan.FromSeconds(30);
 
             await Task.Delay(delay, stoppingToken);
         }

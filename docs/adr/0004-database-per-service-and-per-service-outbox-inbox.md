@@ -9,6 +9,9 @@
 
 ## Context
 
+This context describes the pre-AB-492 baseline. See [ADR 0012](0012-per-service-data-stores.md)
+for the implemented store isolation and current configuration.
+
 Today, on one Postgres server with the `postgres` superuser:
 
 - Write models: `flight_modular_monolith`, `identity_modular_monolith`,

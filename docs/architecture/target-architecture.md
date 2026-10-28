@@ -20,7 +20,7 @@ flowchart LR
 
     subgraph legacy[Strangler-fig period only]
       mono[Monolith<br/>src/Api]
-      monodb[(Monolith DBs<br/>*_modular_monolith,<br/>persist_message)]
+      monodb[(Per-module DBs<br/>*_service,<br/>*_service_persist_message)]
       mono --- monodb
     end
 

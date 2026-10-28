@@ -8,3 +8,5 @@ public interface IPersistMessageDbContext
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task ExecuteTransactionalAsync(CancellationToken cancellationToken = default);
 }
+
+public interface IPersistMessageDbContext<TModule> : IPersistMessageDbContext { }
