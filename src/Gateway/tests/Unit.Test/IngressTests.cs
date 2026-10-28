@@ -1,6 +1,9 @@
 using System.Net;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,6 +15,67 @@ namespace Gateway.Tests;
 
 public class IngressTests
 {
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("invalid", "invalid")]
+    [InlineData("", "")]
+    [InlineData("4d4d8113-18f9-42c4-bcaf-b64308996e61", null)]
+    [InlineData(null, "4d4d8113-18f9-42c4-bcaf-b64308996e61")]
+    public async Task CorrelationIsForwardedAsGuid(string? backendHeader, string? publicHeader)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
+        await using var backend = builder.Build();
+        backend.MapGet(
+            "/capture",
+            (Microsoft.AspNetCore.Http.HttpContext context) => context.Request.Headers["correlationId"].ToString()
+        );
+        await backend.StartAsync();
+        var address = backend
+            .Services.GetRequiredService<IServer>()
+            .Features.Get<IServerAddressesFeature>()!
+            .Addresses.Single();
+        await using var app = new WebApplicationFactory<Program>().WithWebHostBuilder(host =>
+            host.ConfigureAppConfiguration(
+                (_, config) =>
+                    config.AddInMemoryCollection(
+                        new Dictionary<string, string?>
+                        {
+                            ["ReverseProxy:Clusters:monolith:Destinations:primary:Address"] = address,
+                        }
+                    )
+            )
+        );
+        using var client = app.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/capture");
+        if (backendHeader is not null)
+            request.Headers.TryAddWithoutValidation("correlationId", backendHeader);
+        if (publicHeader is not null)
+            request.Headers.TryAddWithoutValidation("X-Correlation-ID", publicHeader);
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var forwarded = await response.Content.ReadAsStringAsync();
+        Assert.True(Guid.TryParse(forwarded, out _));
+        Assert.Equal(forwarded, response.Headers.GetValues("X-Correlation-ID").Single());
+        Assert.Equal(forwarded, response.Headers.GetValues("correlationId").Single());
+        if (Guid.TryParse(backendHeader ?? publicHeader, out var expected))
+            Assert.Equal(expected.ToString(), forwarded);
+    }
+
+    [Theory]
+    [InlineData("identity")]
+    [InlineData("connect")]
+    [InlineData("discovery")]
+    public void IdentityRoutesPreservePublicHost(string routeId)
+    {
+        using var services = CreateServices();
+        var route = Assert.Single(
+            services.GetRequiredService<IProxyConfigProvider>().GetConfig().Routes,
+            route => route.RouteId == routeId
+        );
+        Assert.Contains(route.Transforms!, transform => transform["RequestHeaderOriginalHost"] == "true");
+    }
+
     [Fact]
     public void MetadataOverrideIsUsedByConfigurationManager()
     {

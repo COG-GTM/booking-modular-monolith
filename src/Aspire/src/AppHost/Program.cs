@@ -305,7 +305,8 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 var api = builder.AddProject<Api>("api")
-    .WithEnvironment("AuthOptions__IssuerUri", "https://localhost:3000")
+    .WithEnvironment("AuthOptions__IssuerUri", "http://localhost:5000")
+    .WithEnvironment("Jwt__Authority", "http://localhost:5000")
     .WithReference(persistMessageDb)
     .WaitFor(persistMessageDb)
     .WithReference(flightDb)
@@ -329,7 +330,7 @@ var gateway = builder.AddProject<Gateway>("gateway")
     .WithReference(api)
     .WaitFor(api)
     .WithHttpEndpoint(port: 5000, name: "gateway-http")
-    .WithEnvironment("Jwt__Authority", "https://localhost:3000")
+    .WithEnvironment("Jwt__Authority", "http://localhost:5000")
     .WithEnvironment("Jwt__MetadataAddress", ReferenceExpression.Create($"{api.GetEndpoint("api-http")}/.well-known/openid-configuration"));
 
 foreach (var cluster in new[] { "identity", "flight", "passenger", "booking", "monolith" })

@@ -347,7 +347,8 @@ services:
       - ~/.aspnet/https:/https:ro
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
-      - AuthOptions__IssuerUri=https://localhost:3000
+      - AuthOptions__IssuerUri=http://localhost:5000
+      - Jwt__Authority=http://localhost:5000
       - Jwt__MetadataAddress=http://booking_modular_monolith/.well-known/openid-configuration
       - MongoOptions__ConnectionString=mongodb://mongo:27017
       - EventStoreOptions__ConnectionString=esdb://eventstore:2113?tls=false
@@ -371,7 +372,7 @@ services:
       - "5000:8080"
     environment:
       - ASPNETCORE_URLS=http://+:8080
-      - Jwt__Authority=https://localhost:3000
+      - Jwt__Authority=http://localhost:5000
       - Jwt__MetadataAddress=http://booking_modular_monolith/.well-known/openid-configuration
       - ReverseProxy__Clusters__identity__Destinations__primary__Address=http://booking_modular_monolith/
       - ReverseProxy__Clusters__flight__Destinations__primary__Address=http://booking_modular_monolith/

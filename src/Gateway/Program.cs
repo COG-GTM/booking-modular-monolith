@@ -51,10 +51,15 @@ var app = builder.Build();
 app.Use(
     async (context, next) =>
     {
-        var correlation = context.Request.Headers["X-Correlation-ID"].ToString();
-        if (string.IsNullOrWhiteSpace(correlation) || correlation.Length > 128)
-            correlation = context.TraceIdentifier;
+        if (
+            !Guid.TryParse(context.Request.Headers["correlationId"], out var correlationId)
+            && !Guid.TryParse(context.Request.Headers["X-Correlation-ID"], out correlationId)
+        )
+            correlationId = Guid.NewGuid();
+        var correlation = correlationId.ToString();
+        context.Request.Headers["correlationId"] = correlation;
         context.Request.Headers["X-Correlation-ID"] = correlation;
+        context.Response.Headers["correlationId"] = correlation;
         context.Response.Headers["X-Correlation-ID"] = correlation;
         var started = System.Diagnostics.Stopwatch.StartNew();
         try
