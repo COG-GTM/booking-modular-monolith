@@ -6,6 +6,8 @@ on:
       - main
       - devin/ab-488-v2
     paths:
+      - "global.json"
+      - "Directory.Build.props"
       - "src/**"
       - "tests/CrossService.EndToEnd.Test/**"
       - "deployments/docker-compose/init/**"
@@ -15,6 +17,8 @@ on:
       - main
       - devin/ab-488-v2
     paths:
+      - "global.json"
+      - "Directory.Build.props"
       - "src/**"
       - "tests/CrossService.EndToEnd.Test/**"
       - "deployments/docker-compose/init/**"

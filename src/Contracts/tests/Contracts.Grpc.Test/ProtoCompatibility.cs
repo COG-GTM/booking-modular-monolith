@@ -7,35 +7,44 @@ internal static class ProtoCompatibility
         IEnumerable<ProtoFileSnapshot> currentFiles
     )
     {
-        var current = currentFiles.ToDictionary(file => file.FileName, StringComparer.Ordinal);
+        var baselineSnapshots = baselineFiles.ToArray();
+        var currentSnapshots = currentFiles.ToArray();
+        var baselineServices = GetServices(baselineSnapshots);
+        var currentServices = GetServices(currentSnapshots);
+        var baselineMessages = GetMessages(baselineSnapshots);
+        var currentMessages = GetMessages(currentSnapshots);
+        var baselineEnums = GetEnums(baselineSnapshots);
+        var currentEnums = GetEnums(currentSnapshots);
         var violations = new List<string>();
 
-        foreach (var baseline in baselineFiles)
-        {
-            if (!current.TryGetValue(baseline.FileName, out var actual))
-            {
-                violations.Add($"Proto file removed: {baseline.FileName}");
-                continue;
-            }
-
-            if (!string.Equals(baseline.Package, actual.Package, StringComparison.Ordinal))
-                violations.Add($"{baseline.FileName}: package changed {baseline.Package} -> {actual.Package}");
-
-            CheckServices(baseline, actual, violations);
-            CheckMessages(baseline, actual, violations);
-            CheckEnums(baseline, actual, violations);
-        }
-
+        CheckServices(baselineServices, currentServices, violations);
+        CheckMessages(baselineMessages, currentMessages, violations);
+        CheckEnums(baselineEnums, currentEnums, violations);
         return violations;
     }
 
-    private static void CheckServices(ProtoFileSnapshot baseline, ProtoFileSnapshot current, List<string> violations)
+    private static Dictionary<string, ProtoServiceSnapshot> GetServices(IEnumerable<ProtoFileSnapshot> files) =>
+        files
+            .SelectMany(file =>
+                file.Services.Select(service => (FullName: Qualify(file.Package, service.Name), Service: service))
+            )
+            .ToDictionary(item => item.FullName, item => item.Service, StringComparer.Ordinal);
+
+    private static Dictionary<string, ProtoMessageSnapshot> GetMessages(IEnumerable<ProtoFileSnapshot> files) =>
+        files.SelectMany(file => file.Messages).ToDictionary(message => message.FullName, StringComparer.Ordinal);
+
+    private static Dictionary<string, ProtoEnumSnapshot> GetEnums(IEnumerable<ProtoFileSnapshot> files) =>
+        files.SelectMany(file => file.Enums).ToDictionary(value => value.FullName, StringComparer.Ordinal);
+
+    private static void CheckServices(
+        IReadOnlyDictionary<string, ProtoServiceSnapshot> baselineServices,
+        IReadOnlyDictionary<string, ProtoServiceSnapshot> currentServices,
+        List<string> violations
+    )
     {
-        var currentServices = current.Services.ToDictionary(service => service.Name, StringComparer.Ordinal);
-        foreach (var service in baseline.Services)
+        foreach (var (serviceName, service) in baselineServices)
         {
-            var serviceName = $"{baseline.Package}.{service.Name}";
-            if (!currentServices.TryGetValue(service.Name, out var actual))
+            if (!currentServices.TryGetValue(serviceName, out var actual))
             {
                 violations.Add($"Service removed or renamed: {serviceName}");
                 continue;
@@ -67,14 +76,17 @@ internal static class ProtoCompatibility
         }
     }
 
-    private static void CheckMessages(ProtoFileSnapshot baseline, ProtoFileSnapshot current, List<string> violations)
+    private static void CheckMessages(
+        IReadOnlyDictionary<string, ProtoMessageSnapshot> baselineMessages,
+        IReadOnlyDictionary<string, ProtoMessageSnapshot> currentMessages,
+        List<string> violations
+    )
     {
-        var currentMessages = current.Messages.ToDictionary(message => message.FullName, StringComparer.Ordinal);
-        foreach (var message in baseline.Messages)
+        foreach (var (messageName, message) in baselineMessages)
         {
-            if (!currentMessages.TryGetValue(message.FullName, out var actual))
+            if (!currentMessages.TryGetValue(messageName, out var actual))
             {
-                violations.Add($"Message removed: {message.FullName}");
+                violations.Add($"Message removed: {messageName}");
                 continue;
             }
 
@@ -86,29 +98,29 @@ internal static class ProtoCompatibility
                 {
                     if (fieldsByNumber.TryGetValue(field.Number, out var renamedField))
                     {
-                        violations.Add($"{message.FullName}.{field.Name}: field renamed to {renamedField.Name}");
-                        CheckFieldShape(message.FullName, field, renamedField, violations);
+                        violations.Add($"{messageName}.{field.Name}: field renamed to {renamedField.Name}");
+                        CheckFieldShape(messageName, field, renamedField, violations);
                     }
                     else if (!IsReserved(actual, field.Number, field.Name))
                     {
                         violations.Add(
-                            $"Field removed without reserving its number and name: {message.FullName}.{field.Name}"
+                            $"Field removed without reserving its number and name: {messageName}.{field.Name}"
                         );
                     }
 
                     continue;
                 }
 
-                CheckFieldShape(message.FullName, field, currentField, violations);
+                CheckFieldShape(messageName, field, currentField, violations);
             }
 
             foreach (var field in actual.Fields)
             {
                 if (
                     message.ReservedNames.Contains(field.Name, StringComparer.Ordinal)
-                    || message.ReservedRanges.Any(range => Contains(range, field.Number))
+                    || message.ReservedRanges.Any(range => ContainsMessageReservedRange(range, field.Number))
                 )
-                    violations.Add($"{message.FullName}.{field.Name}: reuses a baseline-reserved number or name");
+                    violations.Add($"{messageName}.{field.Name}: reuses a baseline-reserved number or name");
             }
         }
     }
@@ -139,16 +151,19 @@ internal static class ProtoCompatibility
 
     private static bool IsReserved(ProtoMessageSnapshot message, int number, string name) =>
         message.ReservedNames.Contains(name, StringComparer.Ordinal)
-        && message.ReservedRanges.Any(range => Contains(range, number));
+        && message.ReservedRanges.Any(range => ContainsMessageReservedRange(range, number));
 
-    private static void CheckEnums(ProtoFileSnapshot baseline, ProtoFileSnapshot current, List<string> violations)
+    private static void CheckEnums(
+        IReadOnlyDictionary<string, ProtoEnumSnapshot> baselineEnums,
+        IReadOnlyDictionary<string, ProtoEnumSnapshot> currentEnums,
+        List<string> violations
+    )
     {
-        var currentEnums = current.Enums.ToDictionary(value => value.FullName, StringComparer.Ordinal);
-        foreach (var value in baseline.Enums)
+        foreach (var (enumName, value) in baselineEnums)
         {
-            if (!currentEnums.TryGetValue(value.FullName, out var actual))
+            if (!currentEnums.TryGetValue(enumName, out var actual))
             {
-                violations.Add($"Enum removed: {value.FullName}");
+                violations.Add($"Enum removed: {enumName}");
                 continue;
             }
 
@@ -159,16 +174,16 @@ internal static class ProtoCompatibility
                 {
                     if (oldValue.Number != currentValue.Number)
                         violations.Add(
-                            $"{value.FullName}.{oldValue.Name}: enum number changed {oldValue.Number} -> {currentValue.Number}"
+                            $"{enumName}.{oldValue.Name}: enum number changed {oldValue.Number} -> {currentValue.Number}"
                         );
                 }
                 else if (
                     !actual.ReservedNames.Contains(oldValue.Name, StringComparer.Ordinal)
-                    || !actual.ReservedRanges.Any(range => Contains(range, oldValue.Number))
+                    || !actual.ReservedRanges.Any(range => ContainsEnumReservedRange(range, oldValue.Number))
                 )
                 {
                     violations.Add(
-                        $"Enum value removed without reserving its number and name: {value.FullName}.{oldValue.Name}"
+                        $"Enum value removed without reserving its number and name: {enumName}.{oldValue.Name}"
                     );
                 }
             }
@@ -177,12 +192,19 @@ internal static class ProtoCompatibility
             {
                 if (
                     value.ReservedNames.Contains(enumValue.Name, StringComparer.Ordinal)
-                    || value.ReservedRanges.Any(range => Contains(range, enumValue.Number))
+                    || value.ReservedRanges.Any(range => ContainsEnumReservedRange(range, enumValue.Number))
                 )
-                    violations.Add($"{value.FullName}.{enumValue.Name}: reuses a baseline-reserved number or name");
+                    violations.Add($"{enumName}.{enumValue.Name}: reuses a baseline-reserved number or name");
             }
         }
     }
 
-    private static bool Contains(ProtoReservedRange range, int number) => number >= range.Start && number < range.End;
+    private static string Qualify(string package, string name) =>
+        string.IsNullOrEmpty(package) ? name : $"{package}.{name}";
+
+    private static bool ContainsMessageReservedRange(ProtoReservedRange range, int number) =>
+        number >= range.Start && number < range.End;
+
+    private static bool ContainsEnumReservedRange(ProtoReservedRange range, int number) =>
+        number >= range.Start && number <= range.End;
 }

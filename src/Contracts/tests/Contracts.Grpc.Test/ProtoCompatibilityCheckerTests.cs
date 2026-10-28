@@ -118,7 +118,15 @@ public sealed class ProtoCompatibilityCheckerTests
         var index = Array.FindIndex(current, file => file.Package == "flight");
         current[index] = current[index] with { Package = "flight.v2" };
 
-        AssertViolation(current, "package changed flight -> flight.v2");
+        AssertViolation(current, "Service removed or renamed: flight.FlightGrpcService");
+    }
+
+    [Fact]
+    public void Allows_proto_file_rename()
+    {
+        var current = CloneBaseline().Select(file => file with { FileName = $"renamed/{file.FileName}" }).ToArray();
+
+        Assert.Empty(ProtoCompatibility.Check(Baseline, current));
     }
 
     [Fact]
@@ -128,6 +136,56 @@ public sealed class ProtoCompatibilityCheckerTests
         current = UpdateEnum(current, "flight.FlightStatus", value => value with { Values = value.Values[..^1] });
 
         AssertViolation(current, "Enum value removed without reserving");
+    }
+
+    [Fact]
+    public void Detects_enum_value_reusing_final_reserved_number()
+    {
+        var baseline = CloneBaseline();
+        baseline = UpdateEnum(
+            baseline,
+            "flight.FlightStatus",
+            value => value with { ReservedRanges = [.. value.ReservedRanges, new ProtoReservedRange(100, 200)] }
+        );
+        var current = CloneBaseline();
+        current = UpdateEnum(
+            current,
+            "flight.FlightStatus",
+            value => value with { Values = [.. value.Values, new ProtoEnumValueSnapshot("REUSED", 200)] }
+        );
+
+        Assert.Contains(
+            ProtoCompatibility.Check(baseline, current),
+            violation => violation.Contains("reuses a baseline-reserved number or name", StringComparison.Ordinal)
+        );
+    }
+
+    [Fact]
+    public void Allows_enum_value_removal_with_reserved_final_number()
+    {
+        var baseline = CloneBaseline();
+        var lastValue = baseline
+            .SelectMany(file => file.Enums)
+            .Single(value => value.FullName == "flight.FlightStatus")
+            .Values[^1];
+        var current = CloneBaseline();
+        current = UpdateEnum(
+            current,
+            "flight.FlightStatus",
+            value =>
+                value with
+                {
+                    Values = value.Values[..^1],
+                    ReservedRanges =
+                    [
+                        .. value.ReservedRanges,
+                        new ProtoReservedRange(lastValue.Number, lastValue.Number),
+                    ],
+                    ReservedNames = [.. value.ReservedNames, lastValue.Name],
+                }
+        );
+
+        Assert.Empty(ProtoCompatibility.Check(baseline, current));
     }
 
     [Fact]
