@@ -6,12 +6,18 @@ on:
     paths:
       - 'src/BuildingBlocks/**'
       - 'src/Api/**'
+      - 'src/Modules/**'
+      - 'src/Services/**'
+      - 'src/Contracts/**'
       - '.github/workflows/messaging.yml'
   push:
     branches: [main, devin/ab-488-v2]
     paths:
       - 'src/BuildingBlocks/**'
       - 'src/Api/**'
+      - 'src/Modules/**'
+      - 'src/Services/**'
+      - 'src/Contracts/**'
       - '.github/workflows/messaging.yml'
 
 permissions:
