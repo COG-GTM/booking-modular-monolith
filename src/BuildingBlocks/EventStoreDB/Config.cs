@@ -6,6 +6,7 @@ using BuildingBlocks.EventStoreDB.Subscriptions;
 using EventStore.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace BuildingBlocks.EventStoreDB;
@@ -49,6 +50,8 @@ public static class EventStoreDBConfigExtensions
         EventStoreDBSubscriptionToAllOptions? subscriptionOptions = null,
         bool checkpointToEventStoreDB = true)
     {
+        services.TryAddSingleton<EventStoreDBSubscriptionState>();
+
         if (checkpointToEventStoreDB)
             services.AddTransient<ISubscriptionCheckpointRepository, EventStoreDBSubscriptionCheckpointRepository>();
 
