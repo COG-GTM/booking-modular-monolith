@@ -1,6 +1,7 @@
 syntax = "proto3";
 
-package bookingPassenger;
+package passenger;
+option csharp_namespace = "Contracts.Grpc.Passenger";
 
 service PassengerGrpcService {
 
@@ -31,4 +32,3 @@ message PassengerResponse {
         PASSENGER_TYPE_FEMALE = 2;
         PASSENGER_TYPE_BABY = 3;
     }
-

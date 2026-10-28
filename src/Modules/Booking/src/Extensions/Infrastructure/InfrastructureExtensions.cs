@@ -20,16 +20,16 @@ public static class InfrastructureExtensions
         builder.AddMongoDbContext<BookingReadDbContext>();
 
         // ref: https://github.com/oskardudycz/EventSourcing.NetCore/tree/main/Sample/EventStoreDB/ECommerce
-        builder.Services.AddEventStore(builder.Configuration, typeof(BookingRoot).Assembly)
+        builder
+            .Services.AddEventStore(builder.Configuration, typeof(BookingRoot).Assembly)
             .AddEventStoreDBSubscriptionToAll();
 
-        builder.Services.AddGrpcClients();
+        builder.Services.AddGrpcClients(builder.Configuration);
 
         builder.Services.AddCustomMediatR();
 
         return builder;
     }
-
 
     public static WebApplication UseBookingModules(this WebApplication app)
     {

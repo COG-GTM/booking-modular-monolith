@@ -7,6 +7,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Figgle.Fonts" Version="0.6.5" />
+    <PackageReference Include="Grpc.AspNetCore.HealthChecks" Version="2.76.0" />
     <ProjectReference Include="..\..\Aspire\src\ServiceDefaults\ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\Modules\Booking\src\Booking.csproj" />
     <ProjectReference Include="..\..\Modules\Flight\src\Flight.csproj" />

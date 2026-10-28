@@ -1,4 +1,7 @@
+using Flight.Flights.ValueObjects;
 using Flight.Seats.Dtos;
+using Flight.Seats.Models;
+using Flight.Seats.ValueObjects;
 using MapsterMapper;
 using Unit.Test.Common;
 using Xunit;
@@ -36,5 +39,21 @@ public class SeatMappingTests
         var instance = Activator.CreateInstance(source, parameters);
 
         _mapper.Map(instance, source, destination);
+    }
+
+    [Fact]
+    public void should_map_seat_number_value_to_read_model()
+    {
+        var seat = global::Flight.Seats.Models.Seat.Create(
+            SeatId.Of(Guid.NewGuid()),
+            SeatNumber.Of("12A"),
+            global::Flight.Seats.Enums.SeatType.Window,
+            global::Flight.Seats.Enums.SeatClass.Economy,
+            FlightId.Of(Guid.NewGuid())
+        );
+
+        var readModel = _mapper.Map<SeatReadModel>(seat);
+
+        Assert.Equal("12A", readModel.SeatNumber);
     }
 }
