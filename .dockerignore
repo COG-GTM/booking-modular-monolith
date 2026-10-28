@@ -15,6 +15,7 @@
 **/bin/
 **/charts
 **/docker-compose*
+!deployments/docker-compose/init/
 **/Dockerfile*
 **/node_modules
 **/npm-debug.log
