@@ -27,6 +27,7 @@ The target state is drawn in [docs/architecture/target-architecture.md](../archi
 | [0018](0018-passenger-service-host.md) | Passenger service host (AB-498) | Proposed |
 | [0021](0021-rabbitmq-delivery-and-messageid-inbox.md) | RabbitMQ delivery and MessageId-based endpoint inbox (AB-501) | Proposed |
 | [0022](0022-flight-service-host.md) | Flight service host (AB-502) | Proposed |
+| [0024](0024-aspire-local-orchestration.md) | Aspire local orchestration (AB-497) | Proposed |
 
 ## Conventions
 
