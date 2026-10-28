@@ -8,6 +8,7 @@ using Grafana.OpenTelemetry;
 using MassTransit.Logging;
 using MassTransit.Monitoring;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -146,21 +147,7 @@ public static class Extensions
                     {
                         options.RecordException = true;
                         // Don't trace requests to the health endpoint to avoid filling the dashboard with noise
-                        options.Filter = httpContext =>
-                            !(
-                                httpContext.Request.Path.Value?.StartsWith(
-                                    HealthEndpointPath,
-                                    StringComparison.OrdinalIgnoreCase
-                                ) == true
-                                || httpContext.Request.Path.StartsWithSegments(
-                                    "/metrics",
-                                    StringComparison.OrdinalIgnoreCase
-                                )
-                                || httpContext.Request.Path.StartsWithSegments(
-                                    AlivenessEndpointPath,
-                                    StringComparison.OrdinalIgnoreCase
-                                )
-                            );
+                        options.Filter = httpContext => !IsDiagnosticEndpoint(httpContext.Request.Path);
                     })
                     .AddGrpcClientInstrumentation(options => options.SuppressDownstreamInstrumentation = true)
                     .AddHttpClientInstrumentation(instrumentationOptions =>
@@ -192,7 +179,7 @@ public static class Extensions
             async (context, next) =>
             {
                 var metricsFeature = context.Features.Get<IHttpMetricsTagsFeature>();
-                if (metricsFeature != null && context.Request.Path is { Value: "/metrics" or "/health" })
+                if (metricsFeature != null && IsDiagnosticEndpoint(context.Request.Path))
                 {
                     metricsFeature.MetricsDisabled = true;
                 }
@@ -210,6 +197,11 @@ public static class Extensions
 
         return app;
     }
+
+    private static bool IsDiagnosticEndpoint(PathString path) =>
+        path.Value?.StartsWith(HealthEndpointPath, StringComparison.OrdinalIgnoreCase) == true
+        || path.StartsWithSegments("/metrics", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments(AlivenessEndpointPath, StringComparison.OrdinalIgnoreCase);
 
     private static void AddTracingExporter(ObservabilityOptions observabilityOptions, TracerProviderBuilder tracing)
     {
