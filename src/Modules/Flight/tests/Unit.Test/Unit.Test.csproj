@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../../../BuildingBlocks/TestBase/BuildingBlocks.TestBase.csproj" />
+    <ProjectReference Include="../../../../BuildingBlocks/Jwt/BuildingBlocks.Jwt.csproj" />
     <None Update="xunit.runner.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
