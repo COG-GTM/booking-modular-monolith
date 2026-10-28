@@ -38,7 +38,20 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Test contracts
+        run: dotnet test src/Contracts/tests/Contracts.Messages.Test
+      - name: Test packaged contracts
+        run: bash scripts/test-contracts-package.sh
+
   pack:
+    needs: contracts
     runs-on: ubuntu-latest
     outputs:
       count: ${{ steps.select.outputs.count }}

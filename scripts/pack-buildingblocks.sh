@@ -6,6 +6,13 @@ version="${1:-1.0.0}"
 feed="$root/artifacts/packages"
 mkdir -p "$feed"
 
+for project in "$root"/src/Contracts/*/Contracts.*.csproj; do
+    case "$project" in
+        */tests/*) continue ;;
+    esac
+    dotnet pack "$project" -c Release -p:Version="$version" -o "$feed" --nologo
+done
+
 for project in "$root"/src/BuildingBlocks/*/BuildingBlocks.*.csproj "$root"/src/BuildingBlocks/BuildingBlocks.csproj; do
     dotnet pack "$project" -c Release -p:Version="$version" -o "$feed" --nologo
 done

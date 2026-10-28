@@ -1,0 +1,156 @@
+[
+  {
+    "FullName": "BuildingBlocks.Contracts.EventBus.Messages.AircraftCreated",
+    "Urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:AircraftCreated",
+    "Properties": [
+      {
+        "Name": "Id",
+        "Type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "FullName": "BuildingBlocks.Contracts.EventBus.Messages.AirportCreated",
+    "Urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:AirportCreated",
+    "Properties": [
+      {
+        "Name": "Id",
+        "Type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "FullName": "BuildingBlocks.Contracts.EventBus.Messages.BookingCreated",
+    "Urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:BookingCreated",
+    "Properties": [
+      {
+        "Name": "Id",
+        "Type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "FullName": "BuildingBlocks.Contracts.EventBus.Messages.FlightCreated",
+    "Urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:FlightCreated",
+    "Properties": [
+      {
+        "Name": "Id",
+        "Type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "FullName": "BuildingBlocks.Contracts.EventBus.Messages.FlightDeleted",
+    "Urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:FlightDeleted",
+    "Properties": [
+      {
+        "Name": "Id",
+        "Type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "FullName": "BuildingBlocks.Contracts.EventBus.Messages.FlightUpdated",
+    "Urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:FlightUpdated",
+    "Properties": [
+      {
+        "Name": "Id",
+        "Type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "FullName": "BuildingBlocks.Contracts.EventBus.Messages.PassengerCreated",
+    "Urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:PassengerCreated",
+    "Properties": [
+      {
+        "Name": "Id",
+        "Type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "FullName": "BuildingBlocks.Contracts.EventBus.Messages.PassengerRegistrationCompleted",
+    "Urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:PassengerRegistrationCompleted",
+    "Properties": [
+      {
+        "Name": "Id",
+        "Type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "FullName": "BuildingBlocks.Contracts.EventBus.Messages.SeatCreated",
+    "Urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:SeatCreated",
+    "Properties": [
+      {
+        "Name": "Id",
+        "Type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "FullName": "BuildingBlocks.Contracts.EventBus.Messages.SeatReserved",
+    "Urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:SeatReserved",
+    "Properties": [
+      {
+        "Name": "Id",
+        "Type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "FullName": "BuildingBlocks.Contracts.EventBus.Messages.UserCreated",
+    "Urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:UserCreated",
+    "Properties": [
+      {
+        "Name": "Id",
+        "Type": "System.Guid"
+      },
+      {
+        "Name": "Name",
+        "Type": "System.String"
+      },
+      {
+        "Name": "PassportNumber",
+        "Type": "System.String"
+      }
+    ]
+  },
+  {
+    "FullName": "BuildingBlocks.Core.Event.IEvent",
+    "Urn": "urn:message:BuildingBlocks.Core.Event:IEvent",
+    "Properties": [
+      {
+        "Name": "EventId",
+        "Type": "System.Guid"
+      },
+      {
+        "Name": "OccurredOn",
+        "Type": "System.DateTime"
+      },
+      {
+        "Name": "EventType",
+        "Type": "System.String"
+      }
+    ]
+  },
+  {
+    "FullName": "BuildingBlocks.Core.Event.IIntegrationEvent",
+    "Urn": "urn:message:BuildingBlocks.Core.Event:IIntegrationEvent",
+    "Properties": [
+      {
+        "Name": "EventId",
+        "Type": "System.Guid"
+      },
+      {
+        "Name": "OccurredOn",
+        "Type": "System.DateTime"
+      },
+      {
+        "Name": "EventType",
+        "Type": "System.String"
+      }
+    ]
+  }
+]

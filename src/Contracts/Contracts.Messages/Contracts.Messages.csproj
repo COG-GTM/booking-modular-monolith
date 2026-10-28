@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>BookingModularMonolith.Contracts.Messages</PackageId>
+    <Version Condition="'$(Version)' == ''">1.0.0</Version>
+    <IsPackable>true</IsPackable>
+    <Authors>Booking Modular Monolith contributors</Authors>
+    <Description>Versioned integration-event contracts for Booking Modular Monolith.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/COG-GTM/booking-modular-monolith</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <!-- Set PackageValidationBaselineVersion to the previous version on the next release. -->
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="MassTransit.Abstractions" Version="8.5.8" />
+    <PackageReference Include="MediatR.Contracts" Version="2.0.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>
