@@ -1,53 +1,52 @@
-﻿name: "Publish and Build Docker"
-description: "Publish and Build Docker "
-
-# Input parameters allow you to specify data that the action expects to use during runtime. GitHub stores input parameters as environment variables.(so they are just string)
-# https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#inputs
+name: Build and publish Docker image
+description: Build on every call; authenticate and publish only when explicitly requested
 inputs:
   tag-name:
-    description: "Tag Name"
+    description: Version tag (service pipelines use sha-<full commit SHA>)
     required: true
   image-name:
-    description: "Image Name"
+    description: Image repository including namespace, e.g. cog-gtm/booking-flight
     required: true
+  registry:
+    description: Container registry hostname
+    default: docker.io
   registry-username:
-    description: "Registry username"
-    required: true
+    description: Registry username (only needed when publishing)
+    required: false
   registry-password:
-    description: "Registry password"
-    required: true
+    description: Registry password (only needed when publishing)
+    required: false
   dockerfile-path:
-    description: "Dockerfile path"
+    description: Dockerfile path relative to repository root
     required: true
+  push:
+    description: Explicit opt-in to publishing; PR callers must leave this false
+    default: 'false'
 
-# https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#runs-for-composite-actions
 runs:
-  using: "composite"
+  using: composite
   steps:
-
-    ##ref: https://docs.docker.com/language/golang/configure-ci-cd/
-    ##ref: https://event-driven.io/en/how_to_buid_and_push_docker_image_with_github_actions
-    - name: Login to DockerHub
-      uses: docker/login-action@v2
-      if: ${{ github.ref == 'refs/heads/main' && success() }}
+    - name: Login to registry
+      if: inputs.push == 'true' && github.event_name != 'pull_request'
+      uses: docker/login-action@v3
       with:
+        registry: ${{ inputs.registry }}
         username: ${{ inputs.registry-username }}
         password: ${{ inputs.registry-password }}
-
-    - name: Docker Tag Info
+    - name: Build image
       shell: bash
-      run:
-        echo "Docker tag version is:" ${{ inputs.tag-name }}
-
-    - name: Build Docker Image
-      if: ${{ github.ref == 'refs/heads/main' && success() }}
-      shell: bash
+      env:
+        IMAGE: ${{ inputs.registry }}/${{ inputs.image-name }}:${{ inputs.tag-name }}
+        DOCKERFILE: ${{ inputs.dockerfile-path }}
       run: |
-        docker build -t ${{ inputs.registry-username }}/${{ inputs.image-name }}:${{ inputs.tag-name }} -f "${{ github.workspace }}/${{ inputs.dockerfile-path }}" .
-
-    - name: Publish Docker Image
-      if: ${{ github.ref == 'refs/heads/main' && success() }}
+        docker build --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+          --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+          --tag "$IMAGE" --file "$DOCKERFILE" .
+    - name: Publish image
+      if: inputs.push == 'true' && github.event_name != 'pull_request'
       shell: bash
+      env:
+        IMAGE: ${{ inputs.registry }}/${{ inputs.image-name }}:${{ inputs.tag-name }}
       run: |
-        docker push ${{ inputs.registry-username }}/${{ inputs.image-name }}:${{ inputs.tag-name }}
-
+        docker push "$IMAGE"
+        printf 'Published `%s`\n' "$IMAGE" >> "$GITHUB_STEP_SUMMARY"

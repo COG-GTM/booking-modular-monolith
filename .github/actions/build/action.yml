@@ -46,8 +46,9 @@ runs:
     - name: Restore NuGet packages
       shell: bash
       if: success()
-      # restore root solution
-      run: dotnet restore
+      env:
+        PROJECT: ${{ inputs.project-path }}
+      run: dotnet restore "$PROJECT"
 
     # npm install, runs `prepare` script automatically in the initialize step
     - name: Install NPM Dependencies
@@ -64,6 +65,7 @@ runs:
     - name: Build Service
       shell: bash
       if: ${{ success()}}
-      working-directory: ${{ inputs.project-path }}
+      env:
+        PROJECT: ${{ inputs.project-path }}
       run: |
-        dotnet build -c Release --no-restore
+        dotnet build "$PROJECT" -c Release --no-restore

@@ -1,0 +1,105 @@
+name: Shared NuGet packages
+
+on:
+  push:
+    branches: [main, devin/ab-488-v2]
+    paths:
+      - 'src/Contracts/**'
+      - 'src/BuildingBlocks/**'
+      - 'Directory.*.props'
+      - 'Directory.*.targets'
+      - 'global.json'
+      - '**/[Nn]u[Gg]et.[Cc]onfig'
+      - '.github/scripts/shared_packages.py'
+      - '.github/workflows/shared-packages.yml'
+  pull_request:
+    branches: [main, devin/ab-488-v2]
+    paths:
+      - 'src/Contracts/**'
+      - 'src/BuildingBlocks/**'
+      - 'Directory.*.props'
+      - 'Directory.*.targets'
+      - 'global.json'
+      - '**/[Nn]u[Gg]et.[Cc]onfig'
+      - '.github/scripts/shared_packages.py'
+      - '.github/workflows/shared-packages.yml'
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Commit to compare versions against (default previous commit)
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: packages-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    outputs:
+      count: ${{ steps.select.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Select new or version-bumped packages
+        id: select
+        env:
+          BASE: ${{ inputs.base || github.event.pull_request.base.sha || github.event.before }}
+        run: python3 .github/scripts/shared_packages.py --base "$BASE" --output packages.json
+      - name: Pack selected projects
+        if: steps.select.outputs.count != '0'
+        env:
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          for package in json.load(open("packages.json")):
+              subprocess.run([
+                  "dotnet", "pack", package["project"], "-c", "Release",
+                  "--output", "artifacts/packages",
+                  f"-p:RepositoryUrl={os.environ['REPOSITORY_URL']}",
+              ], check=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: steps.select.outputs.count != '0'
+        with:
+          name: shared-packages
+          path: artifacts/packages/*.nupkg
+          if-no-files-found: error
+
+  publish:
+    needs: pack
+    if: >-
+      needs.pack.outputs.count != '0' &&
+      github.event_name != 'pull_request' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devin/ab-488-v2')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: shared-packages
+          path: artifacts/packages
+      - name: Publish versioned NuGet artifacts
+        env:
+          NUGET_TOKEN: ${{ github.token }}
+        run: |
+          for package in artifacts/packages/*.nupkg; do
+            dotnet nuget push "$package" --api-key "$NUGET_TOKEN" \
+              --source https://nuget.pkg.github.com/COG-GTM/index.json --skip-duplicate
+          done

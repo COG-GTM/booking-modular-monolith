@@ -1,0 +1,59 @@
+name: Identity service
+
+on:
+  push:
+    branches: [main, devin/ab-488-v2]
+    paths:
+      - 'src/Services/Identity.Host/**'
+      - 'src/Modules/Identity/**'
+      - 'src/Contracts/**'
+      - 'src/BuildingBlocks/**'
+      - 'src/Aspire/src/ServiceDefaults/**'
+      - 'Directory.*.props'
+      - 'Directory.*.targets'
+      - 'global.json'
+      - '**/[Nn]u[Gg]et.[Cc]onfig'
+      - '.config/dotnet-tools.json'
+      - 'package*.json'
+      - '.dockerignore'
+      - '.github/actions/**'
+      - '.github/workflows/service-identity.yml'
+      - '.github/workflows/service-pipeline.yml'
+  pull_request:
+    branches: [main, devin/ab-488-v2]
+    paths:
+      - 'src/Services/Identity.Host/**'
+      - 'src/Modules/Identity/**'
+      - 'src/Contracts/**'
+      - 'src/BuildingBlocks/**'
+      - 'src/Aspire/src/ServiceDefaults/**'
+      - 'Directory.*.props'
+      - 'Directory.*.targets'
+      - 'global.json'
+      - '**/[Nn]u[Gg]et.[Cc]onfig'
+      - '.config/dotnet-tools.json'
+      - 'package*.json'
+      - '.dockerignore'
+      - '.github/actions/**'
+      - '.github/workflows/service-identity.yml'
+      - '.github/workflows/service-pipeline.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: identity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pipeline:
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/service-pipeline.yml
+    with:
+      service: identity
+      project: src/Services/Identity.Host/Identity.Host.csproj
+      dockerfile: src/Services/Identity.Host/Dockerfile
+      tests: src/Modules/Identity/tests
