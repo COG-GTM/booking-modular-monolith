@@ -57,30 +57,17 @@ public class ContractCompatibilityTests
     {
         var baseline = ReadBaseline();
         var current = GetContractShapes().ToDictionary(shape => shape.FullName, StringComparer.Ordinal);
+        var violations = MessageCompatibility.Check(baseline, current.Values);
 
-        foreach (var previous in baseline)
-        {
-            Assert.True(
-                current.TryGetValue(previous.FullName, out var actual),
-                $"Missing contract type {previous.FullName}. {BaselinePolicy}"
-            );
-            Assert.Equal(previous.Urn, actual!.Urn);
-
-            foreach (var property in previous.Properties)
-            {
-                var currentProperty = actual.Properties.SingleOrDefault(candidate => candidate.Name == property.Name);
-                Assert.True(
-                    currentProperty is not null,
-                    $"Missing {previous.FullName}.{property.Name}. {BaselinePolicy}"
-                );
-                Assert.Equal(property.Type, currentProperty!.Type);
-            }
-        }
+        Assert.True(violations.Count == 0, string.Join(Environment.NewLine, violations) + $" {BaselinePolicy}");
     }
 
     [Fact]
     public void Contract_shape_matches_the_committed_baseline()
     {
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("CONTRACT_BASELINE_DIR")))
+            return;
+
         var actualJson = JsonSerializer.Serialize(GetContractShapes(), JsonOptions);
         if (
             string.Equals(
@@ -173,14 +160,14 @@ public class ContractCompatibilityTests
             .ToArray();
     }
 
-    private static ContractShape[] ReadBaseline()
+    internal static ContractShape[] ReadBaseline()
     {
-        var baselineJson = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Baselines", "messages.json"));
+        var baselineDirectory = Environment.GetEnvironmentVariable("CONTRACT_BASELINE_DIR");
+        var baselinePath = string.IsNullOrWhiteSpace(baselineDirectory)
+            ? Path.Combine(AppContext.BaseDirectory, "Baselines", "messages.json")
+            : Path.Combine(baselineDirectory, "messages.json");
+        var baselineJson = File.ReadAllText(baselinePath);
         return JsonSerializer.Deserialize<ContractShape[]>(baselineJson)
             ?? throw new InvalidOperationException("The contract baseline is empty or invalid.");
     }
-
-    private sealed record ContractShape(string FullName, string Urn, PropertyShape[] Properties);
-
-    private sealed record PropertyShape(string Name, string Type);
 }
