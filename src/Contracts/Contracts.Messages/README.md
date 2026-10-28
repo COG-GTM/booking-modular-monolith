@@ -17,12 +17,15 @@ for the full policy.
 
 Set the package version in `Contracts.Messages.csproj` for a release. Use a minor bump for
 additive changes and a major bump for a breaking release after the V2 migration. To pack and
-consume version `1.0.0` from the repository-local feed:
+consume a local prerelease from the repository-local feed:
 
 ```sh
-bash scripts/pack-buildingblocks.sh 1.0.0
+bash scripts/pack-buildingblocks.sh 1.1.0-local
 dotnet restore MyService.csproj --source ./artifacts/packages --source https://api.nuget.org/v3/index.json
 ```
+
+Without an argument, each package uses its declared version; overrides should include a
+prerelease suffix so they do not reuse a published package identity.
 
 For package-mode checks of this package and its consumers, run:
 

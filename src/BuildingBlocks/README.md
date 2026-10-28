@@ -57,16 +57,17 @@ No publisher is silently supplied by Core: the host must choose its delivery sem
 ## Local NuGet feed
 
 ```sh
-bash scripts/pack-buildingblocks.sh 1.0.0
+bash scripts/pack-buildingblocks.sh 1.1.0-local
 dotnet restore MyService.csproj --source ./artifacts/packages --source https://api.nuget.org/v3/index.json
 ```
 
 Package IDs are `BookingModularMonolith.BuildingBlocks.<Area>` (the aggregate is
 `BookingModularMonolith.BuildingBlocks`) and `BookingModularMonolith.Contracts.Messages`,
 targeting the repository's net10.0 runtime. The script argument overrides versions for the local
-feed; individual packages use their declared SemVer when packed independently. The local folder
-is the feed; nothing is published to a remote registry.
+feed. Without an argument, each package uses its declared version; overrides should include a
+prerelease suffix so they do not reuse a published package identity. The local folder is the feed;
+nothing is published to a remote registry.
 
-Run `bash scripts/test-buildingblocks-packages.sh 1.0.0` after packing to restore and execute
+Run `bash scripts/test-buildingblocks-packages.sh 1.1.0-local` after packing to restore and execute
 a package-only consumer with Core/Web/Mongo/EventStoreDB and assert its graph excludes EF Core.
 That fixture is intentionally outside the solution because its packages must be packed first.
