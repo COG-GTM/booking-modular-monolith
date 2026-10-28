@@ -15,6 +15,9 @@ public class SeatMappings : IRegister
         config.NewConfig<Seat, SeatDto>()
             .ConstructUsing(x => new SeatDto(x.Id.Value, x.SeatNumber.Value, x.Type, x.Class, x.FlightId.Value));
 
+        config.NewConfig<SeatReadModel, SeatDto>()
+            .Map(d => d.Id, s => s.SeatId);
+
         config.NewConfig<CreateSeatMongo, SeatReadModel>()
             .Map(d => d.Id, s => NewId.NextGuid())
             .Map(d => d.SeatId, s => s.Id);
