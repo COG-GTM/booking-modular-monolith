@@ -348,6 +348,13 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
       - AuthOptions__IssuerUri=https://localhost:3000
+      - Jwt__MetadataAddress=http://booking_modular_monolith/.well-known/openid-configuration
+      - MongoOptions__ConnectionString=mongodb://mongo:27017
+      - EventStoreOptions__ConnectionString=esdb://eventstore:2113?tls=false
+      - ConnectionStrings__flight=Host=postgres;Database=flight_modular_monolith;Username=postgres;Password=postgres
+      - ConnectionStrings__identity=Host=postgres;Database=identity_modular_monolith;Username=postgres;Password=postgres
+      - ConnectionStrings__passenger=Host=postgres;Database=passenger_modular_monolith;Username=postgres;Password=postgres
+      - ConnectionStrings__persist-message=Host=postgres;Database=persist_message;Username=postgres;Password=postgres
       - ASPNETCORE_URLS=https://+;http://+
       - ASPNETCORE_HTTPS_PORT=3000
       - ASPNETCORE_HTTP_PORT=3001

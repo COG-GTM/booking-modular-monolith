@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 var builder = WebApplication.CreateBuilder(args);
 builder.AddCustomObservability();
 builder.Services.AddJwt();
-builder.Services.PostConfigure<JwtBearerOptions>(
+builder.Services.Configure<JwtBearerOptions>(
     JwtBearerDefaults.AuthenticationScheme,
     options =>
     {

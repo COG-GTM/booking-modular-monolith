@@ -1,8 +1,10 @@
 using System.Net;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Xunit;
 using Yarp.ReverseProxy.Configuration;
 
@@ -10,6 +12,30 @@ namespace Gateway.Tests;
 
 public class IngressTests
 {
+    [Fact]
+    public void MetadataOverrideIsUsedByConfigurationManager()
+    {
+        const string metadataAddress = "http://identity-internal/.well-known/openid-configuration";
+        using var app = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration(
+                (_, config) =>
+                    config.AddInMemoryCollection(
+                        new Dictionary<string, string?> { ["Jwt:MetadataAddress"] = metadataAddress }
+                    )
+            )
+        );
+        var options = app
+            .Services.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>()
+            .Get(JwtBearerDefaults.AuthenticationScheme);
+        Assert.Equal(metadataAddress, options.MetadataAddress);
+        var manager =
+            Assert.IsType<Microsoft.IdentityModel.Protocols.ConfigurationManager<Microsoft.IdentityModel.Protocols.OpenIdConnect.OpenIdConnectConfiguration>>(
+                options.ConfigurationManager
+            );
+        Assert.Equal(metadataAddress, manager.MetadataAddress);
+        Assert.False(options.RequireHttpsMetadata);
+    }
+
     [Theory]
     [InlineData("identity")]
     [InlineData("flight")]

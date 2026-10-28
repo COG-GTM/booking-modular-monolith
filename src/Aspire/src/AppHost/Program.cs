@@ -10,7 +10,8 @@ var pgUsername = builder.AddParameter("pg-username", "postgres", secret: true);
 var pgPassword = builder.AddParameter("pg-password", "postgres", secret: true);
 
 var postgres = builder.AddPostgres("postgres", pgUsername, pgPassword)
-    .WithImage("postgres:latest")
+    .WithImage("postgres")
+    .WithImageTag("16")
     .WithEndpoint(
         "tcp",
         e =>
@@ -24,7 +25,7 @@ var postgres = builder.AddPostgres("postgres", pgUsername, pgPassword)
         "-c",
         "wal_level=logical",
         "-c",
-        "max_prepared_transactions=10");
+        "max_prepared_transactions=100");
 
 if (builder.ExecutionContext.IsPublishMode)
 {
@@ -322,10 +323,12 @@ var api = builder.AddProject<Api>("api")
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
 
+api.WithEnvironment("Jwt__MetadataAddress", ReferenceExpression.Create($"{api.GetEndpoint("api-http")}/.well-known/openid-configuration"));
+
 var gateway = builder.AddProject<Gateway>("gateway")
     .WithReference(api)
     .WaitFor(api)
-    .WithHttpEndpoint(port: 5000, targetPort: 8080, name: "gateway-http")
+    .WithHttpEndpoint(port: 5000, name: "gateway-http")
     .WithEnvironment("Jwt__Authority", "https://localhost:3000")
     .WithEnvironment("Jwt__MetadataAddress", ReferenceExpression.Create($"{api.GetEndpoint("api-http")}/.well-known/openid-configuration"));
 
