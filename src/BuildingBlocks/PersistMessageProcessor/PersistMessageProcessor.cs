@@ -231,6 +231,7 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
         if (data is not IEvent)
             return false;
 
+        using var activity = PersistMessageTracing.Start(messageEnvelope, message.DataType, MessageDeliveryType.Outbox);
         await _publishEndpoint.Publish(
             data,
             context =>
@@ -238,7 +239,10 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
                 context.MessageId = message.Id;
                 context.Mandatory = true;
                 foreach (var header in messageEnvelope.Headers)
-                    context.Headers.Set(header.Key, header.Value);
+                {
+                    if (header.Key is not ("traceparent" or "tracestate"))
+                        context.Headers.Set(header.Key, header.Value);
+                }
             },
             cancellationToken
         );
@@ -267,6 +271,11 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
         if (data is not IInternalCommand internalCommand)
             return false;
 
+        using var activity = PersistMessageTracing.Start(
+            messageEnvelope,
+            message.DataType,
+            MessageDeliveryType.Internal
+        );
         await _mediator.Send(internalCommand, cancellationToken);
 
         _logger.LogInformation(
@@ -285,6 +294,7 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
     )
     {
         Guard.Against.Null(messageEnvelope.Message, nameof(messageEnvelope.Message));
+        PersistMessageTracing.Capture(messageEnvelope);
 
         Guid id;
         if (messageEnvelope.Message is IEvent message)
