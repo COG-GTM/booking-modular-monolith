@@ -7,7 +7,6 @@ using Ardalis.GuardClauses;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Flight.Data;
 using Flight.Seats.Exceptions;
 using FluentValidation;
@@ -23,8 +22,14 @@ public record ReserveSeat(Guid FlightId, string SeatNumber) : ICommand<ReserveSe
 
 public record ReserveSeatResult(Guid Id);
 
-public record SeatReservedDomainEvent(Guid Id, string SeatNumber, Enums.SeatType Type, Enums.SeatClass Class,
-    Guid FlightId, bool IsDeleted) : IDomainEvent;
+public record SeatReservedDomainEvent(
+    Guid Id,
+    string SeatNumber,
+    Enums.SeatType Type,
+    Enums.SeatClass Class,
+    Guid FlightId,
+    bool IsDeleted
+) : IDomainEvent;
 
 public record ReserveSeatRequestDto(Guid FlightId, string SeatNumber);
 
@@ -34,8 +39,9 @@ public class ReserveSeatEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapPost($"{EndpointConfig.BaseApiPath}/flight/reserve-seat", ReserveSeat)
-            .RequireAuthorization(nameof(ApiScope))
+        builder
+            .MapPost($"{EndpointConfig.BaseApiPath}/flight/reserve-seat", ReserveSeat)
+            .RequireAuthorization("ApiScope")
             .WithName("ReserveSeat")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<ReserveSeatResponseDto>()
@@ -48,8 +54,12 @@ public class ReserveSeatEndpoint : IMinimalEndpoint
         return builder;
     }
 
-    private async Task<IResult> ReserveSeat(ReserveSeatRequestDto request, IMediator mediator, IMapper mapper,
-        CancellationToken cancellationToken)
+    private async Task<IResult> ReserveSeat(
+        ReserveSeatRequestDto request,
+        IMediator mediator,
+        IMapper mapper,
+        CancellationToken cancellationToken
+    )
     {
         var command = mapper.Map<ReserveSeat>(request);
 
@@ -84,8 +94,9 @@ internal class ReserveSeatCommandHandler : IRequestHandler<ReserveSeat, ReserveS
         Guard.Against.Null(command, nameof(command));
 
         var seat = await _flightDbContext.Seats.SingleOrDefaultAsync(
-            x => x.SeatNumber.Value == command.SeatNumber &&
-                 x.FlightId == command.FlightId, cancellationToken);
+            x => x.SeatNumber.Value == command.SeatNumber && x.FlightId == command.FlightId,
+            cancellationToken
+        );
 
         if (seat is null)
         {

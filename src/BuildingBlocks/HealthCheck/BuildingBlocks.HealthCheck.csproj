@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Core/BuildingBlocks.Core.csproj" />
+    <ProjectReference Include="../Web/BuildingBlocks.Web.csproj" />
+    <ProjectReference Include="../EFCore/BuildingBlocks.EFCore.csproj" />
+    <ProjectReference Include="../Mongo/BuildingBlocks.Mongo.csproj" />
+    <ProjectReference Include="../EventStoreDB/BuildingBlocks.EventStoreDB.csproj" />
+    <ProjectReference Include="../MassTransit/BuildingBlocks.MassTransit.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="AspNetCore.HealthChecks.UI" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.EventStore" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.Rabbitmq" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.MongoDb" Version="9.0.0" />
+  </ItemGroup>
+</Project>

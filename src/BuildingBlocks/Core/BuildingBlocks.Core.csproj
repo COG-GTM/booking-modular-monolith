@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Ardalis.GuardClauses" Version="5.0.0" />
+    <PackageReference Include="MediatR" Version="14.0.0" />
+    <PackageReference Include="MassTransit.Abstractions" Version="8.5.8" />
+    <PackageReference Include="Google.Protobuf" Version="3.33.5" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.3" />
+    <PackageReference Include="Sieve" Version="2.5.5" />
+    <PackageReference Include="System.Linq.Async" Version="7.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Constants/**/*.cs" LinkBase="Shared" />
+    <!-- TODO AB-506: extract the shared integration-event contracts into Contracts.Messages. -->
+    <Compile Include="../Contracts/**/*.cs" LinkBase="Shared" />
+    <Compile Include="../Exception/**/*.cs" Exclude="../Exception/GrpcExceptionInterceptor.cs;../Exception/ProblemDetailsWithCode.cs" LinkBase="Shared" />
+    <Compile Include="../Utils/ServiceLocator.cs" LinkBase="Shared" />
+    <Compile Include="../Utils/NoSynchronizationContextScope.cs" LinkBase="Shared" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <BuildingBlocksVersion Condition="'$(BuildingBlocksVersion)' == ''">1.0.0</BuildingBlocksVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="BookingModularMonolith.BuildingBlocks.Core" Version="$(BuildingBlocksVersion)" />
+    <PackageReference Include="BookingModularMonolith.BuildingBlocks.Web" Version="$(BuildingBlocksVersion)" />
+    <PackageReference Include="BookingModularMonolith.BuildingBlocks.Mongo" Version="$(BuildingBlocksVersion)" />
+    <PackageReference Include="BookingModularMonolith.BuildingBlocks.EventStoreDB" Version="$(BuildingBlocksVersion)" />
+  </ItemGroup>
+</Project>

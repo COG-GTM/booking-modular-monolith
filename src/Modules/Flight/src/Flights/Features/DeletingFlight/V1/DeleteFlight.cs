@@ -2,7 +2,6 @@ using Ardalis.GuardClauses;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Flight.Data;
 using Flight.Flights.Exceptions;
 using FluentValidation;
@@ -37,15 +36,17 @@ public class DeleteFlightEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapDelete(
+        builder
+            .MapDelete(
                 $"{EndpointConfig.BaseApiPath}/flight/{{id}}",
                 async (Guid id, IMediator mediator, CancellationToken cancellationToken) =>
                 {
                     await mediator.Send(new DeleteFlight(id), cancellationToken);
 
                     return Results.NoContent();
-                })
-            .RequireAuthorization(nameof(ApiScope))
+                }
+            )
+            .RequireAuthorization("ApiScope")
             .WithName("DeleteFlight")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces(StatusCodes.Status204NoContent)
@@ -76,10 +77,7 @@ internal class DeleteFlightHandler : ICommandHandler<DeleteFlight, DeleteFlightR
         _flightDbContext = flightDbContext;
     }
 
-    public async Task<DeleteFlightResult> Handle(
-        DeleteFlight request,
-        CancellationToken cancellationToken
-    )
+    public async Task<DeleteFlightResult> Handle(DeleteFlight request, CancellationToken cancellationToken)
     {
         Guard.Against.Null(request, nameof(request));
 
@@ -101,7 +99,8 @@ internal class DeleteFlightHandler : ICommandHandler<DeleteFlight, DeleteFlightR
             flight.DurationMinutes,
             flight.FlightDate,
             flight.Status,
-            flight.Price);
+            flight.Price
+        );
 
         var deleteFlight = _flightDbContext.Flights.Update(flight).Entity;
 

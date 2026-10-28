@@ -34,7 +34,7 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddAspnetOpenApi();
         builder.Services.AddCustomVersioning();
         builder.Services.AddHttpContextAccessor();
-        builder.Services.AddScoped<IEventDispatcher, EventDispatcher>();
+        builder.Services.AddWebEventDispatcher();
 
         builder.Services.AddCustomMassTransit(
             builder.Environment,
@@ -55,18 +55,10 @@ public static class SharedInfrastructureExtensions
         });
         builder.Services.AddProblemDetails();
 
-        builder.Services.AddScoped<IEventMapper>(sp =>
-        {
-            var mappers = new IEventMapper[]
-            {
-                sp.GetRequiredService<FlightEventMapper>(),
-                sp.GetRequiredService<IdentityEventMapper>(),
-                sp.GetRequiredService<PassengerEventMapper>(),
-                sp.GetRequiredService<BookingEventMapper>(),
-            };
-
-            return new CompositeEventMapper(mappers);
-        });
+        builder.Services.AddEventMapper<FlightEventMapper>();
+        builder.Services.AddEventMapper<IdentityEventMapper>();
+        builder.Services.AddEventMapper<PassengerEventMapper>();
+        builder.Services.AddEventMapper<BookingEventMapper>();
 
         return builder;
     }
