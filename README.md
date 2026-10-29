@@ -245,15 +245,15 @@ scripts/smoke/compose-e2e.sh
 docker compose -f deployments/docker-compose/docker-compose.yaml ps
 ```
 
-For a quick monolith API and gateway check, start the application graph and its core dependencies:
+To run the full monolith topology, including the gateway and shared observability stack:
 
 ```bash
-docker compose -f deployments/docker-compose/docker-compose.monolith.yaml up -d --build booking_gateway postgres mongo eventstore rabbitmq redis
+docker compose -f deployments/docker-compose/docker-compose.monolith.yaml up -d --build
 curl --fail http://localhost:5000/health
 ```
 
-The monolith keeps its existing HTTPS binding on host port `3000`, which is also Grafana's host port. This targeted
-command avoids starting the unused observability services during the monolith check.
+The monolith publishes HTTP on `3001` and HTTPS on `3443`; Grafana continues to use `3000`, so the full topology can run
+without a host-port conflict.
 
 The topology files share the same project, named containers, and host ports. Stop one before starting the other:
 
@@ -269,6 +269,7 @@ docker compose -f deployments/docker-compose/docker-compose.yaml down --remove-o
 | Flight HTTP / h2c gRPC | `127.0.0.1:5107` / `127.0.0.1:5106` |
 | Passenger HTTP / h2c gRPC | `127.0.0.1:5102` / `127.0.0.1:5202` |
 | Booking | `127.0.0.1:5004` |
+| Monolith API (monolith topology) | HTTP `3001`; HTTPS `3443` |
 | Shared infrastructure | PostgreSQL `5432`, MongoDB `27017`, EventStoreDB `2113`, RabbitMQ `5672` / `15672`, Redis `6379` |
 | Observability | Grafana `3000`, Prometheus `9090`, Jaeger `6831/udp`, `14268`, `14317` / `14318`, `16686`; Zipkin `9411`; OTLP Collector `11888`, `8888`, `8889`, `13133`, `4317` / `4318`, `55679`; Tempo `24317` / `24318`; Loki `3100`; Elasticsearch `9200` / `9300`; Kibana `5601`; cAdvisor `${CADVISOR_HOST_PORT:-8080}` |
 

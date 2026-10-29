@@ -47,18 +47,17 @@ scripts/smoke/compose-e2e.sh
 ### Monolith
 
 ```bash
-docker compose -f deployments/docker-compose/docker-compose.monolith.yaml up -d --build booking_gateway postgres mongo eventstore rabbitmq redis
+docker compose -f deployments/docker-compose/docker-compose.monolith.yaml up -d --build
 curl --fail http://localhost:5000/health
 ```
 
 The `booking_modular_monolith` API is routed by the same gateway. The app environment and HTTPS certificate settings
-are unchanged from the prior Compose launcher. Grafana and the monolith HTTPS binding both use host port `3000`, so this
-quick-start targets the app graph and its core dependencies rather than the full observability stack. To switch
-topologies:
+are unchanged from the prior Compose launcher. The monolith publishes HTTP on `3001` and HTTPS on `3443`; Grafana uses
+`3000`, so the complete topology, including observability, starts without a host-port conflict. To switch topologies:
 
 ```bash
 docker compose -f deployments/docker-compose/docker-compose.yaml down --remove-orphans
-docker compose -f deployments/docker-compose/docker-compose.monolith.yaml up -d --build booking_gateway postgres mongo eventstore rabbitmq redis
+docker compose -f deployments/docker-compose/docker-compose.monolith.yaml up -d --build
 ```
 
 Use the corresponding Compose file for `down`. Avoid `down -v` unless intentionally removing local databases.
@@ -111,6 +110,7 @@ HTTP 404. Tokens are supplied to API requests through curl config input rather t
 | Docker Hub returns `429 Too Many Requests` | Pull a mirror copy and retag it before retrying Compose. For example: `docker pull mirror.gcr.io/library/postgres:16 && docker tag mirror.gcr.io/library/postgres:16 postgres:16`. Use the equivalent `mirror.gcr.io/<org>/<image>:<tag>` path for public observability images; EventStoreDB's image path is `mirror.gcr.io/eventstore/eventstore:23.10.0-bookworm-slim`. |
 | cAdvisor cannot bind port `8080` | Set `CADVISOR_HOST_PORT=18080` in the shell before `docker compose up`; the container still listens on `8080`. |
 | PostgreSQL roles/databases are missing | `01-service-databases.sql` runs only when PostgreSQL initializes a fresh volume. Existing volumes are not modified. Do not remove a volume containing wanted data; back it up and apply an approved migration or create the missing local role/database explicitly. |
+| Mongo read models are missing after recreating the container | MongoDB now stores `/data/db` in the named `mongo-data` volume, which ordinary `down` preserves. Existing anonymous Mongo volumes are not migrated automatically; preserve/copy wanted data before switching to the named volume. `down -v` deletes Mongo and PostgreSQL data volumes. |
 | A topology fails because a container/port is already in use | Stop the other topology with its Compose file and `down --remove-orphans` before switching. The two topologies intentionally share names and ports. |
 | Service health remains starting/unhealthy | Inspect `docker compose ... ps` and `logs <service>`. Check PostgreSQL init output, RabbitMQ credentials, MongoDB database name, EventStoreDB, and gRPC readiness dependencies. |
 | Events or outbox work is duplicated | Run one replica of each service with background processing. In particular, Booking's EventStoreDB subscription and outbox worker are not configured for concurrent replicas. |

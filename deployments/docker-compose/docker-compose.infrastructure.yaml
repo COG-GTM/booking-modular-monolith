@@ -101,6 +101,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+    volumes:
+      - mongo-data:/data/db
     networks:
       - infrastructure
 
@@ -387,4 +389,5 @@ networks:
     
 volumes:
   elastic-data:
+  mongo-data:
   postgres-data:

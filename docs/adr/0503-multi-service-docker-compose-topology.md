@@ -106,14 +106,16 @@ C4Container
 
 | Area | Requirement |
 |---|---|
-| Availability | Dependency health gates prevent application startup before required stores, brokers, and downstream services are ready. |
+| Availability | Best-effort local/CI availability; target all application health checks report healthy within 5 minutes on a functioning Docker host. No production SLA is provided. |
 | Operability | `docker compose ps` reports health; logs identify failed initialization; the smoke script validates the public booking flow. |
 | Buildability | The gateway and four service images each build from repository root with their own Dockerfile. |
 | Performance | Local-only topology; no production latency target is introduced. |
-| Recovery | Persistent local database volumes are preserved by ordinary `down`; initialization SQL applies only to a fresh PostgreSQL volume. |
+| Recovery | RPO is unbounded if local volumes are deleted or the host is lost; no backup/HA is provided. Target RTO is 30 minutes for manual Compose restart/reinitialization when images are available. Ordinary `down` preserves named database volumes; PostgreSQL initialization SQL applies only to a fresh volume. |
 | Scale | Run one active instance of each service in this local topology. Booking background processing and EventStoreDB subscription are not intended for multiple replicas. |
+| Data classification | Seeded, synthetic, or developer-generated non-production data only. Do not load production personal, payment-card, or other regulated data. |
+| Expected load | One developer workstation or one CI runner, one replica per application service, and the single-request smoke flow; no production throughput target is defined. |
 
-## Security
+## Security and compliance
 
 - The gateway is the only non-loopback application ingress. Identity, Flight, Passenger, and Booking diagnostic
   application ports are loopback-bound.
@@ -127,13 +129,16 @@ C4Container
   Production mutual authentication or equivalent service identity remains a follow-up.
 - The smoke script passes access tokens through curl config input and does not put bearer tokens on the process command
   line or print them.
+- No compliance certification or regulated-data controls are provided by this local topology. It is not approved for
+  production or regulated-data processing.
 
 ## Cost and ownership
 
-- **Infrastructure cost:** no new services, stores, or external vendors. The topology reuses existing local
-  PostgreSQL, MongoDB, EventStoreDB, RabbitMQ, Redis, and observability images.
-- **Runtime cost:** local container CPU, memory, and disk only; no production cloud estimate applies.
+- **Cost estimate:** $0 incremental cloud or managed-service spend; no new services, stores, vendors, or licenses.
+  Local CPU, memory, disk, and existing CI runner minutes are consumed.
 - **Ownership:** Booking platform team owns the Compose files, health gating, smoke script, and runbook. Module owners
   remain responsible for service configuration and health semantics.
+- **Runbook:** operational procedures and troubleshooting are maintained in
+  [`docs/runbooks/docker-compose.md`](../runbooks/docker-compose.md).
 - **Maintenance:** update the shared infrastructure once in `docker-compose.infrastructure.yaml`; keep Docker image
   builds and compose workflow aligned with the service Dockerfiles.
