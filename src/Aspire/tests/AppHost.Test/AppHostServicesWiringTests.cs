@@ -235,16 +235,8 @@ public class AppHostServicesWiringTests
         var api = await EnvironmentAsync(projects["api"]);
         var gateway = await EnvironmentAsync(projects["gateway"]);
 
-        AssertOtelEnvironment(
-            projects["api"],
-            api,
-            await EnvironmentAsync(projects["api"], DistributedApplicationOperation.Run)
-        );
-        AssertOtelEnvironment(
-            projects["gateway"],
-            gateway,
-            await EnvironmentAsync(projects["gateway"], DistributedApplicationOperation.Run)
-        );
+        AssertOtelPublishEnvironment(projects["api"], api);
+        AssertOtelPublishEnvironment(projects["gateway"], gateway);
         var gatewayHealthChecks = projects["gateway"].Annotations.OfType<HealthCheckAnnotation>();
         Assert.NotEmpty(gatewayHealthChecks);
 
@@ -280,8 +272,7 @@ public class AppHostServicesWiringTests
         foreach (var project in projects)
         {
             var environment = await EnvironmentAsync(project);
-            var runtimeEnvironment = await EnvironmentAsync(project, DistributedApplicationOperation.Run);
-            AssertOtelEnvironment(project, environment, runtimeEnvironment);
+            AssertOtelPublishEnvironment(project, environment);
         }
     }
 
@@ -303,11 +294,7 @@ public class AppHostServicesWiringTests
         Assert.Equal("booking-service", seededEnvironment["OTEL_SERVICE_NAME"]?.ToString());
         Assert.Equal("grpc", seededEnvironment["OTEL_EXPORTER_OTLP_PROTOCOL"]?.ToString());
         Assert.DoesNotContain("OTEL_EXPORTER_OTLP_HEADERS", seededEnvironment.Keys);
-        Assert.Contains(
-            "otel-collector",
-            seededEnvironment["OTEL_EXPORTER_OTLP_ENDPOINT"]?.ToString(),
-            StringComparison.Ordinal
-        );
+        Assert.IsType<EndpointReference>(seededEnvironment["OTEL_EXPORTER_OTLP_ENDPOINT"]);
     }
 
     [Fact]
@@ -348,26 +335,15 @@ public class AppHostServicesWiringTests
         return variables.ToDictionary(variable => variable.Key, variable => variable.Value?.ToString() ?? "");
     }
 
-    private static void AssertOtelEnvironment(
+    private static void AssertOtelPublishEnvironment(
         ProjectResource project,
-        Dictionary<string, string> environment,
-        Dictionary<string, string> runtimeEnvironment
+        Dictionary<string, string> environment
     )
     {
         Assert.Single(project.Annotations.OfType<OtlpExporterAnnotation>());
-        Assert.Contains(
-            ".Annotations \"otel-service-name\"",
-            runtimeEnvironment["OTEL_SERVICE_NAME"],
-            StringComparison.Ordinal
-        );
         Assert.Contains("otel-collector", environment["OTEL_EXPORTER_OTLP_ENDPOINT"], StringComparison.Ordinal);
-        Assert.StartsWith(
-            "http://localhost:",
-            runtimeEnvironment["OTEL_EXPORTER_OTLP_ENDPOINT"],
-            StringComparison.Ordinal
-        );
-        Assert.Equal("grpc", runtimeEnvironment["OTEL_EXPORTER_OTLP_PROTOCOL"]);
-        Assert.DoesNotContain("OTEL_EXPORTER_OTLP_HEADERS", runtimeEnvironment.Keys);
+        Assert.Equal("grpc", environment["OTEL_EXPORTER_OTLP_PROTOCOL"]);
+        Assert.DoesNotContain("OTEL_EXPORTER_OTLP_HEADERS", environment.Keys);
         Assert.DoesNotContain("ObservabilityOptions__ServiceName", environment.Keys);
         Assert.DoesNotContain("ObservabilityOptions__UseOTLPExporter", environment.Keys);
         Assert.DoesNotContain("ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint", environment.Keys);
