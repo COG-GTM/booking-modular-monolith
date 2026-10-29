@@ -45,7 +45,6 @@ the `restricted` profile. Normal installation uses `-n booking --create-namespac
 | `eventstore.{connectionString,existingSecret,connectionStringKey}` | Booking EventStoreDB connection-string Secret contract. |
 | `identity.signingKey.{existingSecret,key}` | Secret mounted read-only at `/app/keys/tempkey.jwk`; Duende key-management files use the writable pod-local `/app/keys` workspace. |
 | `gateway.ingress.{enabled,className,host,annotations,tls}` | Public Ingress configuration; optional annotations and TLS entries are rendered onto the Ingress. |
-| `gateway.monolithAddress` | Optional YARP catch-all rollback destination for clusters still running the monolith. It defaults to empty and should stay empty once the monolith is decommissioned. |
 | `infrastructure.enabled` | Enables development-only single-instance PostgreSQL, MongoDB, RabbitMQ, and EventStoreDB. Defaults off. |
 | `infrastructure.persistence.{enabled,size,storageClass}` | PVC settings for development infrastructure; disable only for disposable environments. |
 | `namespace.create` | Optional namespace resource with Pod Security Admission labels. |

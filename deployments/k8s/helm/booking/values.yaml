@@ -166,8 +166,6 @@ gateway:
     className: nginx
     host: localhost
     tls: []
-  # Optional rollback fallback for clusters still running the monolith; leave empty once decommissioned.
-  monolithAddress: ""
 
 infrastructure:
   # These single-instance StatefulSets are for disposable development environments only.

@@ -34,9 +34,6 @@
 {{- range $cluster := list "identity" "flight" "passenger" "booking" }}
 {{- $_ := set $data (printf "ReverseProxy__Clusters__%s__Destinations__primary__Address" $cluster) (printf "http://%s:8080/" (include "booking.serviceName" (dict "root" $ "key" $cluster))) -}}
 {{- end }}
-{{- if $.Values.gateway.monolithAddress }}
-{{- $_ := set $data "ReverseProxy__Clusters__monolith__Destinations__primary__Address" $.Values.gateway.monolithAddress -}}
-{{- end }}
 {{- else }}
 {{- if $service.database.mongoDatabase }}
 {{- $_ := set $data (printf "MongoOptions__%s__DatabaseName" (title $key)) $service.database.mongoDatabase -}}
