@@ -23,9 +23,54 @@ strangler-fig split (gateway + Identity/Flight/Passenger/Booking hosts beside th
 
 ### Architecture review triage
 
-**ARB_LIGHT** — no new service, data store, vendor or auth/network boundary. It changes cross-cutting operability
-contracts every service depends on (telemetry resource identity, probe endpoints, trace context persisted in the outbox
-row) and pins the Tempo image. Merging into the integration branch is allowed; the epic merge to `main` waits on ARB.
+```
+ARB triage: ARB_REQUIRED
+Triggers:
+- T4 Async contract change: PersistMessageProcessor stores W3C traceparent/tracestate in every outbox/internal-command
+  envelope header (additive, no wire rename); /health/live, /health/ready become a probe contract for all services
+- T8 Spans >1 team: shared BuildingBlocks.HealthCheck / OpenTelemetryCollector / PersistMessageProcessor behaviour
+  changes for gateway, monolith and the Identity/Flight/Passenger/Booking hosts
+Not triggered: T1 (detector hit on docker-compose.yaml is healthchecks/env on existing services only), T2, T3 (detector
+hit is a pre-existing grafana.com link in dashboards.md), T5, T6, T7 (Tempo pinned 2.7.2, not an upgrade), T9
+Required next steps: ADR (this file), ARB ticket, diagram, NFRs, cost estimate
+```
+
+### Telemetry flow
+
+```mermaid
+C4Container
+    Person(user, "Client")
+    System_Boundary(platform, "Booking platform") {
+        Container(gw, "booking-gateway", "YARP")
+        Container(bk, "booking-service", "Booking.Host")
+        Container(fl, "flight-service", "Flight.Host")
+        Container(ps, "passenger-service", "Passenger.Host")
+        Container(id, "identity-service", "Identity.Host")
+        ContainerQueue(mq, "RabbitMQ", "MassTransit")
+    }
+    System_Boundary(obs, "Observability stack") {
+        Container(col, "otel-collector", "OTLP 4317/4318")
+        Container(jg, "Jaeger / Tempo", "traces")
+        Container(pr, "Prometheus", "metrics")
+        Container(lk, "Loki", "logs")
+        Container(gf, "Grafana", "dashboards")
+    }
+    Rel(user, gw, "HTTP + traceparent")
+    Rel(gw, bk, "HTTP, W3C traceparent")
+    Rel(bk, fl, "gRPC h2c, traceparent metadata")
+    Rel(bk, ps, "gRPC h2c, traceparent metadata")
+    Rel(bk, mq, "outbox publish, traceparent header (restored from outbox row)")
+    Rel(mq, ps, "consume")
+    Rel(gw, col, "OTLP")
+    Rel(bk, col, "OTLP")
+    Rel(fl, col, "OTLP")
+    Rel(ps, col, "OTLP")
+    Rel(id, col, "OTLP")
+    Rel(col, jg, "traces")
+    Rel(col, pr, "metrics (service_name label)")
+    Rel(col, lk, "logs")
+    Rel(gf, pr, "query")
+```
 
 ## Decision
 
@@ -61,6 +106,14 @@ row) and pins the Tempo image. Merging into the integration branch is allowed; t
 - Deployment manifests must use `/health/live` for liveness and `/health/ready` for readiness/startup.
 - Additional label cardinality per service in Prometheus (bounded: one series set per service instance).
 - The Booking EventStoreDB `$all` projection still starts its own traces (follow-up).
+
+## Non-functional requirements
+
+- Availability: telemetry export is best-effort and asynchronous (batch exporters); a collector outage must not fail requests.
+  Probes have no external dependency beyond the checks each host already registered.
+- Data classification: telemetry is operational metadata (Internal). Trace headers carry only IDs; no PII is added to spans,
+  probe bodies or the persisted envelope. RPO/RTO: not applicable (telemetry is not system of record).
+- Expected load: one health gauge series per check per instance every 30 s; outbox adds one span per published row.
 
 ## Security, cost, ownership
 
