@@ -14,8 +14,8 @@ public class PersistMessagePublisherTests
     [Fact]
     public async Task publishes_the_original_envelope_and_cancellation_token_to_the_outbox()
     {
-        var processor = Substitute.For<IPersistMessageProcessor>();
-        var publisher = new PersistMessageIntegrationEventPublisher(processor);
+        var processor = Substitute.For<IPersistMessageProcessor<global::Flight.FlightRoot>>();
+        var publisher = new PersistMessageIntegrationEventPublisher<global::Flight.FlightRoot>(processor);
         var envelope = new MessageEnvelope(
             new PublishedEvent(Guid.NewGuid()),
             new Dictionary<string, object?> { ["CorrelationId"] = Guid.NewGuid() }
@@ -31,8 +31,8 @@ public class PersistMessagePublisherTests
     [Fact]
     public async Task stores_the_original_internal_command_and_cancellation_token()
     {
-        var processor = Substitute.For<IPersistMessageProcessor>();
-        var publisher = new PersistMessageIntegrationEventPublisher(processor);
+        var processor = Substitute.For<IPersistMessageProcessor<global::Flight.FlightRoot>>();
+        var publisher = new PersistMessageIntegrationEventPublisher<global::Flight.FlightRoot>(processor);
         var command = new ReserveStock(Guid.NewGuid());
         using var cancellation = new CancellationTokenSource();
 
@@ -47,7 +47,7 @@ public class PersistMessagePublisherTests
     [InlineData(true)]
     public async Task storage_failure_is_not_swallowed(bool internalCommand)
     {
-        var processor = Substitute.For<IPersistMessageProcessor>();
+        var processor = Substitute.For<IPersistMessageProcessor<global::Flight.FlightRoot>>();
         var failure = new InvalidOperationException("Outbox unavailable");
         processor
             .PublishMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<CancellationToken>())
@@ -55,7 +55,7 @@ public class PersistMessagePublisherTests
         processor
             .AddInternalMessageAsync(Arg.Any<ReserveStock>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(failure));
-        var publisher = new PersistMessageIntegrationEventPublisher(processor);
+        var publisher = new PersistMessageIntegrationEventPublisher<global::Flight.FlightRoot>(processor);
 
         Func<Task> act = () =>
             internalCommand
@@ -71,34 +71,47 @@ public class PersistMessagePublisherTests
     public async Task registration_resolves_the_scoped_adapter_and_preserves_a_custom_publisher(bool customPublisher)
     {
         var builder = WebApplication.CreateBuilder();
-        var custom = Substitute.For<IIntegrationEventPublisher>();
+        var custom = Substitute.For<IIntegrationEventPublisher<global::Flight.FlightRoot>>();
         if (customPublisher)
             builder.Services.AddSingleton(custom);
 
-        builder.AddPersistMessageProcessor();
-        builder.Services.AddScoped<IPersistMessageProcessor>(_ => Substitute.For<IPersistMessageProcessor>());
+        builder.AddPersistMessageProcessor<global::Flight.FlightRoot>("Flight");
+        builder.Services.AddScoped<IPersistMessageProcessor<global::Flight.FlightRoot>>(_ =>
+            Substitute.For<IPersistMessageProcessor<global::Flight.FlightRoot>>()
+        );
         await using var provider = builder.Services.BuildServiceProvider(
             new ServiceProviderOptions { ValidateScopes = true }
         );
         await using var first = provider.CreateAsyncScope();
         await using var second = provider.CreateAsyncScope();
 
-        var publisher = first.ServiceProvider.GetRequiredService<IIntegrationEventPublisher>();
+        var publisher = first.ServiceProvider.GetRequiredService<
+            IIntegrationEventPublisher<global::Flight.FlightRoot>
+        >();
 
-        first.ServiceProvider.GetServices<IIntegrationEventPublisher>().Should().ContainSingle();
+        first
+            .ServiceProvider.GetServices<IIntegrationEventPublisher<global::Flight.FlightRoot>>()
+            .Should()
+            .ContainSingle();
         if (customPublisher)
         {
             publisher.Should().BeSameAs(custom);
         }
         else
         {
-            publisher.Should().BeOfType<PersistMessageIntegrationEventPublisher>();
-            first.ServiceProvider.GetRequiredService<IIntegrationEventPublisher>().Should().BeSameAs(publisher);
-            second.ServiceProvider.GetRequiredService<IIntegrationEventPublisher>().Should().NotBeSameAs(publisher);
+            publisher.Should().BeOfType<PersistMessageIntegrationEventPublisher<global::Flight.FlightRoot>>();
+            first
+                .ServiceProvider.GetRequiredService<IIntegrationEventPublisher<global::Flight.FlightRoot>>()
+                .Should()
+                .BeSameAs(publisher);
+            second
+                .ServiceProvider.GetRequiredService<IIntegrationEventPublisher<global::Flight.FlightRoot>>()
+                .Should()
+                .NotBeSameAs(publisher);
             var envelope = new MessageEnvelope(new PublishedEvent(Guid.NewGuid()));
             await publisher.PublishAsync(envelope);
             await first
-                .ServiceProvider.GetRequiredService<IPersistMessageProcessor>()
+                .ServiceProvider.GetRequiredService<IPersistMessageProcessor<global::Flight.FlightRoot>>()
                 .Received(1)
                 .PublishMessageAsync(envelope, CancellationToken.None);
         }

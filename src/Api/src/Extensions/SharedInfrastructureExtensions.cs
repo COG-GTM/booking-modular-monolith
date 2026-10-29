@@ -27,7 +27,7 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddJwt();
         builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         builder.Services.AddTransient<AuthHeaderHandler>();
-        builder.AddPersistMessageProcessor();
+        builder.AddPersistMessageProcessor<BookingRoot>("Booking");
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddControllers();
@@ -37,10 +37,15 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddEventDispatcher();
         builder.Services.AddHttpContextEventHeaders();
 
+        // Transport from MessagingOptions:Transport (RabbitMq by default); consumers only from the module assemblies.
         builder.Services.AddCustomMassTransit(
+            builder.Configuration,
             builder.Environment,
-            TransportType.InMemory,
-            AppDomain.CurrentDomain.GetAssemblies()
+            configureBus: null,
+            typeof(IdentityRoot).Assembly,
+            typeof(FlightRoot).Assembly,
+            typeof(PassengerRoot).Assembly,
+            typeof(BookingRoot).Assembly
         );
 
         builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);

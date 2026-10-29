@@ -15,13 +15,12 @@ public class EventDispatcherTests
         await using var provider = BuildProvider(services => services.AddEventMapper<OrderEventMapper>());
         await using var scope = provider.CreateAsyncScope();
 
-        var dispatcher = scope.ServiceProvider.GetRequiredService<IEventDispatcher>();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IEventDispatcher<EventDispatcherTests>>();
         var publisher = scope.ServiceProvider.GetRequiredService<RecordingPublisher>();
 
         await dispatcher.SendAsync(new OrderPlaced(Guid.NewGuid()));
 
-        publisher.Published.Should().ContainSingle()
-            .Which.Message.Should().BeOfType<OrderPlacedIntegration>();
+        publisher.Published.Should().ContainSingle().Which.Message.Should().BeOfType<OrderPlacedIntegration>();
         scope.ServiceProvider.GetServices<IEventMapper>().Should().ContainSingle();
     }
 
@@ -36,12 +35,16 @@ public class EventDispatcherTests
         });
         await using var scope = provider.CreateAsyncScope();
 
-        var dispatcher = scope.ServiceProvider.GetRequiredService<IEventDispatcher>();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IEventDispatcher<EventDispatcherTests>>();
         var publisher = scope.ServiceProvider.GetRequiredService<RecordingPublisher>();
 
-        await dispatcher.SendAsync(new IDomainEvent[] { new OrderPlaced(Guid.NewGuid()), new PaymentTaken(Guid.NewGuid()) });
+        await dispatcher.SendAsync(
+            new IDomainEvent[] { new OrderPlaced(Guid.NewGuid()), new PaymentTaken(Guid.NewGuid()) }
+        );
 
-        publisher.Published.Select(x => x.Message!.GetType()).Should()
+        publisher
+            .Published.Select(x => x.Message!.GetType())
+            .Should()
             .BeEquivalentTo(new[] { typeof(OrderPlacedIntegration), typeof(PaymentTakenIntegration) });
         scope.ServiceProvider.GetServices<IEventMapper>().Should().HaveCount(2);
     }
@@ -52,7 +55,9 @@ public class EventDispatcherTests
         await using var provider = BuildProvider(services => services.AddEventMapper<OrderEventMapper>());
         await using var scope = provider.CreateAsyncScope();
 
-        await scope.ServiceProvider.GetRequiredService<IEventDispatcher>().SendAsync(new PaymentTaken(Guid.NewGuid()));
+        await scope
+            .ServiceProvider.GetRequiredService<IEventDispatcher<EventDispatcherTests>>()
+            .SendAsync(new PaymentTaken(Guid.NewGuid()));
 
         scope.ServiceProvider.GetRequiredService<RecordingPublisher>().Published.Should().BeEmpty();
     }
@@ -63,7 +68,10 @@ public class EventDispatcherTests
         await using var provider = BuildProvider(_ => { });
         await using var scope = provider.CreateAsyncScope();
 
-        var act = () => scope.ServiceProvider.GetRequiredService<IEventDispatcher>().SendAsync(new OrderPlaced(Guid.NewGuid()));
+        var act = () =>
+            scope
+                .ServiceProvider.GetRequiredService<IEventDispatcher<EventDispatcherTests>>()
+                .SendAsync(new OrderPlaced(Guid.NewGuid()));
 
         await act.Should().NotThrowAsync();
         scope.ServiceProvider.GetRequiredService<RecordingPublisher>().Published.Should().BeEmpty();
@@ -75,11 +83,16 @@ public class EventDispatcherTests
         await using var provider = BuildProvider(services => services.AddEventMapper<OrderEventMapper>());
         await using var scope = provider.CreateAsyncScope();
 
-        await scope.ServiceProvider.GetRequiredService<IEventDispatcher>()
+        await scope
+            .ServiceProvider.GetRequiredService<IEventDispatcher<EventDispatcherTests>>()
             .SendAsync(new OrderPlaced(Guid.NewGuid()), typeof(IInternalCommand));
 
-        scope.ServiceProvider.GetRequiredService<RecordingPublisher>().InternalCommands.Should().ContainSingle()
-            .Which.Should().BeOfType<ReserveStock>();
+        scope
+            .ServiceProvider.GetRequiredService<RecordingPublisher>()
+            .InternalCommands.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeOfType<ReserveStock>();
     }
 
     [Fact]
@@ -93,7 +106,9 @@ public class EventDispatcherTests
         });
         await using var scope = provider.CreateAsyncScope();
 
-        await scope.ServiceProvider.GetRequiredService<IEventDispatcher>().SendAsync(new OrderPlaced(Guid.NewGuid()));
+        await scope
+            .ServiceProvider.GetRequiredService<IEventDispatcher<EventDispatcherTests>>()
+            .SendAsync(new OrderPlaced(Guid.NewGuid()));
 
         var headers = scope.ServiceProvider.GetRequiredService<RecordingPublisher>().Published.Single().Headers;
         headers.Should().Contain("CorrelationId", "abc").And.Contain("Tenant", "t1");
@@ -103,11 +118,15 @@ public class EventDispatcherTests
     public void add_event_dispatcher_does_not_override_a_custom_dispatcher()
     {
         var services = new ServiceCollection();
-        services.AddScoped<IEventDispatcher, NoopDispatcher>();
+        services.AddScoped<IEventDispatcher<EventDispatcherTests>, NoopDispatcher>();
         services.AddEventDispatcher();
 
-        services.Where(x => x.ServiceType == typeof(IEventDispatcher)).Should().ContainSingle()
-            .Which.ImplementationType.Should().Be<NoopDispatcher>();
+        services
+            .Where(x => x.ServiceType == typeof(IEventDispatcher<EventDispatcherTests>))
+            .Should()
+            .ContainSingle()
+            .Which.ImplementationType.Should()
+            .Be<NoopDispatcher>();
     }
 
     private static ServiceProvider BuildProvider(Action<IServiceCollection> configure)
@@ -115,10 +134,14 @@ public class EventDispatcherTests
         var services = new ServiceCollection();
         services.AddSingleton(typeof(Microsoft.Extensions.Logging.ILogger<>), typeof(NullLogger<>));
         services.AddScoped<RecordingPublisher>();
-        services.AddScoped<IIntegrationEventPublisher>(sp => sp.GetRequiredService<RecordingPublisher>());
+        services.AddScoped<IIntegrationEventPublisher<EventDispatcherTests>>(sp =>
+            sp.GetRequiredService<RecordingPublisher>()
+        );
         services.AddEventDispatcher();
         configure(services);
-        return services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+        return services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true }
+        );
     }
 
     private sealed record OrderPlaced(Guid Id) : IDomainEvent;
@@ -148,7 +171,7 @@ public class EventDispatcherTests
         public IInternalCommand? MapToInternalCommand(IDomainEvent @event) => null;
     }
 
-    private sealed class RecordingPublisher : IIntegrationEventPublisher
+    private sealed class RecordingPublisher : IIntegrationEventPublisher<EventDispatcherTests>
     {
         public List<MessageEnvelope> Published { get; } = new();
 
@@ -160,7 +183,10 @@ public class EventDispatcherTests
             return Task.CompletedTask;
         }
 
-        public Task AddInternalCommandAsync<TCommand>(TCommand internalCommand, CancellationToken cancellationToken = default)
+        public Task AddInternalCommandAsync<TCommand>(
+            TCommand internalCommand,
+            CancellationToken cancellationToken = default
+        )
             where TCommand : class, IInternalCommand
         {
             InternalCommands.Add(internalCommand);
@@ -173,9 +199,13 @@ public class EventDispatcherTests
         public IReadOnlyDictionary<string, object?> GetHeaders() => new Dictionary<string, object?> { [key] = value };
     }
 
-    private sealed class NoopDispatcher : IEventDispatcher
+    private sealed class NoopDispatcher : IEventDispatcher<EventDispatcherTests>
     {
-        public Task SendAsync<T>(IReadOnlyList<T> events, Type? type = null, CancellationToken cancellationToken = default)
+        public Task SendAsync<T>(
+            IReadOnlyList<T> events,
+            Type? type = null,
+            CancellationToken cancellationToken = default
+        )
             where T : IEvent => Task.CompletedTask;
 
         public Task SendAsync<T>(T @event, Type? type = null, CancellationToken cancellationToken = default)

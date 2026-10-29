@@ -1,4 +1,4 @@
-# 0002. Independent service CI and GitHub Packages publishing
+# 0103. Independent service CI and GitHub Packages publishing
 
 - **Status:** Proposed
 - **Date:** 2026-10-29

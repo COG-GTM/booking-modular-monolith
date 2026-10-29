@@ -28,11 +28,14 @@ public static class Extensions
         builder.Services.AddDbContext<TContext>(
             (sp, options) =>
             {
-                var aspireConnectionString = builder.Configuration.GetConnectionString(connectionName.Kebaberize());
+                var aspireConnectionString = sp.GetRequiredService<IConfiguration>()
+                    .GetConnectionString(connectionName.Kebaberize());
 
                 var connectionString =
                     aspireConnectionString
-                    ?? builder.Configuration.GetSection($"PostgresOptions:ConnectionString:{connectionName}").Value;
+                    ?? sp.GetRequiredService<IConfiguration>()
+                        .GetSection($"PostgresOptions:ConnectionString:{connectionName}")
+                        .Value;
 
                 if (string.IsNullOrEmpty(connectionString))
                 {
@@ -64,7 +67,7 @@ public static class Extensions
     {
         MigrateAsync<TContext>(app.ApplicationServices).GetAwaiter().GetResult();
 
-        SeedAsync(app.ApplicationServices).GetAwaiter().GetResult();
+        SeedAsync<TContext>(app.ApplicationServices).GetAwaiter().GetResult();
 
         return app;
     }
@@ -141,12 +144,12 @@ public static class Extensions
         }
     }
 
-    private static async Task SeedAsync(IServiceProvider serviceProvider)
+    private static async Task SeedAsync<TContext>(IServiceProvider serviceProvider)
     {
         await using var scope = serviceProvider.CreateAsyncScope();
 
         var seedersManager = scope.ServiceProvider.GetRequiredService<ISeedManager>();
 
-        await seedersManager.ExecuteSeedAsync();
+        await seedersManager.ExecuteSeedAsync(typeof(TContext).Assembly);
     }
 }
