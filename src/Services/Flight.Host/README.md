@@ -6,10 +6,11 @@
 
 | Protocol | Local | Docker |
 | --- | --- | --- |
-| HTTP REST, OpenAPI, health | `http://localhost:5102` | `http://localhost:80` |
-| h2c gRPC | `http://localhost:5103` | `http://localhost:81` |
+| HTTP REST, OpenAPI, health | `http://localhost:5102` | `http://localhost:5104` |
+| h2c gRPC | `http://localhost:5103` | `http://localhost:5105` |
 
 The gRPC listener is HTTP/2-only because h2c does not negotiate HTTP/2 when a clear-text endpoint also supports HTTP/1.1.
+Service-to-service h2c gRPC is unauthenticated under the shared epic decision (ARB follow-up); keep port 81 on the internal network and never expose it publicly.
 
 ## Configuration
 
@@ -59,7 +60,7 @@ Build and run the standalone image from the repository root:
 ```bash
 docker build -f src/Services/Flight.Host/Dockerfile -t flight-host:local .
 docker run --rm --name flight-host --network booking \
-  -p 5102:80 -p 5103:81 flight-host:local
+  -p 127.0.0.1:5104:80 -p 127.0.0.1:5105:81 flight-host:local
 ```
 
 For side-by-side routing, worker ownership, and rollback guidance, see the [Flight service runbook](../../../docs/runbooks/flight-service.md) and [ADR 0502](../../../docs/adr/0502-standalone-flight-service-host.md).

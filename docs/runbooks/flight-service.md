@@ -6,8 +6,8 @@
 
 | Endpoint | Local | Docker |
 | --- | --- | --- |
-| REST, OpenAPI, liveness, readiness | `http://localhost:5102` | `http://localhost:80` |
-| Flight gRPC and `grpc.health.v1.Health` | `http://localhost:5103` | `http://localhost:81` |
+| REST, OpenAPI, liveness, readiness | `http://localhost:5102` | `http://localhost:5104` |
+| Flight gRPC and `grpc.health.v1.Health` | `http://localhost:5103` | `http://localhost:5105` |
 
 The service needs PostgreSQL, MongoDB, and RabbitMQ. Local configuration uses the `flight_service` PostgreSQL role/database and `flight_service_read` Mongo database; Docker connects to Compose services `postgres`, `mongo`, and `rabbitmq`. Supply deployment credentials through the environment/secret manager rather than using development role-name passwords.
 
@@ -29,10 +29,12 @@ The monolith supplies local identity discovery/token issuance; Flight.Host valid
 ```bash
 docker build -f src/Services/Flight.Host/Dockerfile -t flight-host:local .
 docker run --rm --name flight-host --network booking \
-  -p 5102:80 -p 5103:81 flight-host:local
+  -p 127.0.0.1:5104:80 -p 127.0.0.1:5105:81 flight-host:local
 ```
 
-The image selects the `docker` environment: HTTP is on container port 80 and HTTP/2-only h2c is on port 81. Verify `/health/ready` on port 80 and gRPC `flight.FlightGrpcService` health on port 81. Replace the example network name if the Compose project/network has been renamed.
+The image selects the `docker` environment: HTTP is on container port 80 and HTTP/2-only h2c is on port 81. Verify `/health/ready` on port 5104 and gRPC `flight.FlightGrpcService` health on port 5105. Replace the example network name if the Compose project/network has been renamed.
+
+Service-to-service h2c gRPC is unauthenticated under the shared epic decision (ARB follow-up); keep port 81 on the internal network and never expose it publicly.
 
 ## Running beside the monolith
 
