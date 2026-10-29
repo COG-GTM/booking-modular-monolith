@@ -59,18 +59,6 @@ public static class HostInfrastructureExtensions
         app.UseServiceDefaults();
         app.UseCustomProblemDetails();
         app.UseCorrelationId();
-        app.MapHealthChecks(
-            "/health/live",
-            new HealthCheckOptions
-            {
-                Predicate = registration => registration.Tags.Contains("live"),
-                ResponseWriter = WriteHealthResponseAsync,
-            }
-        );
-        app.MapHealthChecks(
-            "/health/ready",
-            new HealthCheckOptions { Predicate = IsReadinessCheck, ResponseWriter = WriteHealthResponseAsync }
-        );
         app.MapGet("/", () => appOptions.Name);
 
         if (app.Environment.IsDevelopment())
@@ -78,18 +66,4 @@ public static class HostInfrastructureExtensions
 
         return app;
     }
-
-    private static bool IsReadinessCheck(HealthCheckRegistration registration) => !registration.Tags.Contains("live");
-
-    private static Task WriteHealthResponseAsync(HttpContext context, HealthReport report) =>
-        context.Response.WriteAsJsonAsync(
-            new
-            {
-                status = report.Status.ToString(),
-                checks = report.Entries.ToDictionary(
-                    entry => entry.Key,
-                    entry => new { status = entry.Value.Status.ToString(), description = entry.Value.Description }
-                ),
-            }
-        );
 }

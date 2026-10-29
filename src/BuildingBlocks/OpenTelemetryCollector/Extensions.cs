@@ -8,7 +8,9 @@ using Grafana.OpenTelemetry;
 using MassTransit.Logging;
 using MassTransit.Monitoring;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -31,6 +33,41 @@ public static class Extensions
 {
     private const string HealthEndpointPath = "/health";
     private const string AlivenessEndpointPath = "/alive";
+    private const string MetricsEndpointPath = "/metrics";
+    private const string BuildingBlocksSourcePrefix = "BuildingBlocks.*";
+
+    public const string OtelServiceNameKey = "OTEL_SERVICE_NAME";
+    public const string OtelExporterEndpointKey = "OTEL_EXPORTER_OTLP_ENDPOINT";
+
+    // OTEL_SERVICE_NAME (standard SDK env var) > ObservabilityOptions:ServiceName > the host's application name.
+    public static string ResolveServiceName(
+        IConfiguration configuration,
+        ObservabilityOptions options,
+        IHostEnvironment environment
+    )
+    {
+        var fromEnvironment = configuration[OtelServiceNameKey];
+        if (!string.IsNullOrWhiteSpace(fromEnvironment))
+            return fromEnvironment;
+
+        return string.IsNullOrWhiteSpace(options.ServiceName) ? environment.ApplicationName : options.ServiceName;
+    }
+
+    // OTEL_EXPORTER_OTLP_ENDPOINT (set by compose/K8s/Aspire) wins over the appsettings collector endpoint.
+    public static void ApplyOtlpEndpointOverride(IConfiguration configuration, ObservabilityOptions options)
+    {
+        var endpoint = configuration[OtelExporterEndpointKey];
+        if (string.IsNullOrWhiteSpace(endpoint))
+            return;
+
+        options.OTLPOptions ??= new OTLPOptions();
+        options.OTLPOptions.OTLPGrpcExporterEndpoint = endpoint;
+    }
+
+    public static bool IsProbeOrScrapePath(PathString path) =>
+        path.StartsWithSegments(HealthEndpointPath, StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments(AlivenessEndpointPath, StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments(MetricsEndpointPath, StringComparison.OrdinalIgnoreCase);
 
     public static WebApplicationBuilder AddCustomObservability(this WebApplicationBuilder builder)
     {
@@ -50,20 +87,29 @@ public static class Extensions
             return builder;
         }
 
+        var serviceName = ResolveServiceName(builder.Configuration, observabilityOptions, builder.Environment);
+        var serviceVersion = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "unknown";
+        ApplyOtlpEndpointOverride(builder.Configuration, observabilityOptions);
+
         void ConfigureResourceBuilder(ResourceBuilder resourceBuilder)
         {
-            resourceBuilder.AddAttributes([new("service.environment", builder.Environment.EnvironmentName)]);
-
-            resourceBuilder.AddService(
-                serviceName: observabilityOptions.ServiceName ?? builder.Environment.ApplicationName,
-                serviceVersion: Assembly.GetCallingAssembly().GetName().Version?.ToString() ?? "unknown",
-                serviceInstanceId: Environment.MachineName
-            );
+            resourceBuilder
+                .AddService(
+                    serviceName: serviceName,
+                    serviceNamespace: observabilityOptions.ServiceNamespace,
+                    serviceVersion: serviceVersion,
+                    serviceInstanceId: Environment.MachineName
+                )
+                .AddAttributes(
+                    [
+                        new("service.environment", builder.Environment.EnvironmentName),
+                        new("deployment.environment.name", builder.Environment.EnvironmentName),
+                    ]
+                );
         }
 
         if (observabilityOptions.LoggingEnabled)
         {
-            // logging
             // opentelemtry logging works with .net default logging providers and doesn't work for `serilog`, in serilog we should enable `WriteToProviders=true`
             builder.Logging.AddOpenTelemetry(options =>
             {
@@ -71,23 +117,11 @@ public static class Extensions
                 ConfigureResourceBuilder(resourceBuilder);
                 options.SetResourceBuilder(resourceBuilder);
 
-                options.IncludeFormattedMessage = true;
                 options.IncludeScopes = true;
                 // this allows the state value passed to the logger.Log method to be parsed, in case it isn't a collection of KeyValuePair<string, object?>, which is the case when we use things like logger.LogInformation.
                 options.ParseStateValues = true;
                 // which means the message wouldn't have the placeholders replaced
                 options.IncludeFormattedMessage = true;
-
-                // add some metadata to exported logs
-                options.SetResourceBuilder(
-                    ResourceBuilder
-                        .CreateDefault()
-                        .AddService(
-                            observabilityOptions.ServiceName ?? builder.Environment.ApplicationName,
-                            serviceVersion: Assembly.GetCallingAssembly().GetName().Version?.ToString() ?? "unknown",
-                            serviceInstanceId: Environment.MachineName
-                        )
-                );
 
                 options.AddLoggingExporters(observabilityOptions);
             });
@@ -118,6 +152,7 @@ public static class Extensions
                     .AddRuntimeInstrumentation()
                     .AddMeter(InstrumentationOptions.MeterName)
                     .AddMeter(observabilityOptions.InstrumentationName)
+                    .AddMeter(BuildingBlocksSourcePrefix)
                     // metrics provides by ASP.NET Core in .NET 8
                     .AddView(
                         "http.server.request.duration",
@@ -150,12 +185,7 @@ public static class Extensions
                     {
                         options.RecordException = true;
                         // Don't trace requests to the health endpoint to avoid filling the dashboard with noise
-                        options.Filter = httpContext =>
-                                             !(httpContext.Request.Path.StartsWithSegments(
-                                                   HealthEndpointPath, StringComparison.OrdinalIgnoreCase) ||
-                                               httpContext.Request.Path.StartsWithSegments(
-                                                   AlivenessEndpointPath, StringComparison.OrdinalIgnoreCase
-                                               ));
+                        options.Filter = httpContext => !IsProbeOrScrapePath(httpContext.Request.Path);
                     })
                     .AddGrpcClientInstrumentation()
                     .AddHttpClientInstrumentation(instrumentationOptions =>
@@ -167,6 +197,8 @@ public static class Extensions
                     .AddNpgsql()
                     // `AddSource` for adding custom activity sources
                     .AddSource(observabilityOptions.InstrumentationName)
+                    // BuildingBlocks activity sources, e.g. the outbox publish span that re-attaches a stored trace context
+                    .AddSource(BuildingBlocksSourcePrefix)
                     // metrics provides by ASP.NET Core in .NET 8
                     .AddSource("Microsoft.AspNetCore.Hosting")
                     .AddSource("Microsoft.AspNetCore.Server.Kestrel");
@@ -187,7 +219,7 @@ public static class Extensions
             async (context, next) =>
             {
                 var metricsFeature = context.Features.Get<IHttpMetricsTagsFeature>();
-                if (metricsFeature != null && context.Request.Path is { Value: "/metrics" or "/health" })
+                if (metricsFeature != null && IsProbeOrScrapePath(context.Request.Path))
                 {
                     metricsFeature.MetricsDisabled = true;
                 }
