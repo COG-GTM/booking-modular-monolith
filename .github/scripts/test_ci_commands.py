@@ -52,7 +52,7 @@ class CommandTests(unittest.TestCase):
             ["src/Modules/Flight/src/Deleted.cs"], "1.0.0", "1.0.0",
             "--base", "before", "--head", "after",
         )
-        self.assertEqual({"services": ["flight"], "shared": False, "apphost": False, "packages": False}, result)
+        self.assertEqual({"services": ["flight"], "shared": False, "apphost": True, "packages": False}, result)
         self.assertEqual([
             call("diff", "--name-only", "--no-renames", "before", "after"),
             call("show", "before:Directory.Build.props"),

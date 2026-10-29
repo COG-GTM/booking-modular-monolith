@@ -12,6 +12,11 @@ AppHost orchestration builds independently when its sources or global build inpu
 change. Shared package metadata is checked on Linux and Windows. Main pushes keep
 the existing Release Drafter update after the aggregate CI check succeeds.
 
+Module changes also compile AppHost, whose project references build the monolith
+API, guarding its calls into module APIs during migration. Only the affected
+service's tests/image jobs run; unrelated service pipelines and shared packing
+remain skipped. Standalone-host-only changes do not need this compatibility build.
+
 | Change | Selected services |
 | --- | --- |
 | `src/Modules/Flight/**` or `src/Services/Flight.Host/**` | Flight only (same rule for Identity, Passenger, Booking) |

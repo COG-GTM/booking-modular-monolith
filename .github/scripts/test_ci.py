@@ -25,7 +25,18 @@ class SelectionTests(unittest.TestCase):
         self.assertTrue(result["apphost"])
         self.assertEqual([], result["services"])
         self.assertFalse(result["shared"])
-        self.assertFalse(self.choose("src/Modules/Flight/src/Feature.cs")["apphost"])
+
+    def test_module_changes_compile_the_monolith_consumer_without_other_service_jobs(self):
+        for module in MODULES:
+            with self.subTest(module=module):
+                result = self.choose(f"src/Modules/{module.title()}/src/Feature.cs")
+                self.assertTrue(result["apphost"])
+                self.assertEqual([module], result["services"])
+                self.assertFalse(result["shared"])
+
+    def test_independent_host_changes_do_not_compile_the_monolith(self):
+        self.assertFalse(self.choose("src/Services/Flight.Host/Program.cs")["apphost"])
+        self.assertFalse(self.choose("src/Gateway/src/Program.cs")["apphost"])
 
     def test_global_changes_build_apphost(self):
         self.assertTrue(self.choose("Directory.Build.props")["apphost"])
