@@ -25,6 +25,13 @@ public static class Extensions
             // so health checks don't need a reference to those libraries.
             var postgresOptions = services.GetOptions<ConnectionStringOptions>("PostgresOptions");
             var rabbitMqOptions = services.GetOptions<RabbitMqHealthOptions>("RabbitMqOptions");
+            var rabbitMqUri = RabbitMqHealthUri.Resolve(
+                services.GetOptions<RabbitMqConnectionStringOptions>("ConnectionStrings").RabbitMq,
+                rabbitMqOptions.HostName,
+                rabbitMqOptions.Port,
+                rabbitMqOptions.VirtualHost,
+                rabbitMqOptions.UserName,
+                rabbitMqOptions.Password);
             var eventStoreOptions = services.GetOptions<ConnectionStringOptions>("EventStoreOptions");
             var mongoOptions = services.GetOptions<ConnectionStringOptions>("MongoOptions");
 
@@ -36,7 +43,7 @@ public static class Extensions
                     {
                         var factory = new ConnectionFactory
                         {
-                            Uri = new Uri($"amqp://{rabbitMqOptions.UserName}:{rabbitMqOptions.Password}@{rabbitMqOptions.HostName}"),
+                            Uri = rabbitMqUri,
                         };
                         return factory.CreateConnectionAsync();
                     });
