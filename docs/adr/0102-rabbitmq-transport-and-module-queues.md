@@ -27,7 +27,8 @@ on every access.
    list registers nothing). `ModuleEndpointNameFormatter` names each receive endpoint
    `<module-assembly>.<consumer>`, e.g. `passenger.register-new-user-handler`. When the monolith and a
    `Passenger.Host` run side by side they bind the **same** queue (competing consumers) rather than each receiving a copy;
-   `Modules:<Module>:BackgroundProcessingEnabled` (shared decision) decides which process consumes.
+   `Modules:<Module>:BackgroundProcessingEnabled` controls only the polling worker, not consumers. Consumer handover
+   requires stopping the old host or removing its consumer registration.
    Exchange names are unchanged (MassTransit message URNs, e.g. `BuildingBlocks.Contracts.EventBus.Messages:UserCreated`).
 4. **Outbox.** `PersistMessageProcessor` keeps publishing through `IPublishEndpoint`, so it publishes to RabbitMQ when the
    bus does. The published `MessageId` is the outbox row id, so a re-publish after a crash carries the same id.
