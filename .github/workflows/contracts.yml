@@ -1,0 +1,39 @@
+name: Contracts
+
+on:
+  push:
+    branches: ["main", "devin/ab-488-v3"]
+  pull_request:
+    branches: ["main", "devin/ab-488-v3"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  messages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build contracts standalone
+        run: dotnet build src/Contracts/Contracts.Messages/Contracts.Messages.csproj -c Release -nologo -v quiet
+
+      - name: Contract tests (dependency surface, compatibility baseline, UserCreated flow)
+        run: dotnet test src/Contracts/tests/Contracts.Messages.Tests -c Release -nologo
+
+      - name: Pack to local feed
+        run: scripts/pack-contracts.sh 1.0.0-ci.${{ github.run_number }}
+
+      - name: Consumers against the packaged contract
+        run: scripts/verify-contracts-consumer.sh 1.0.0-ci.${{ github.run_number }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: contracts-nuget
+          path: artifacts/nuget/*.nupkg
