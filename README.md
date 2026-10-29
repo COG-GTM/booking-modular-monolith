@@ -241,10 +241,11 @@ aspire run
 
 > ### Docker Compose
 
-To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-compose/docker-compose.yaml) and execute the below command at the `root` of the application:
+To run the gateway and four service hosts with their shared infrastructure, see the [Docker Compose guide](./deployments/docker-compose/README.md):
 
 ```bash
-docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
+cd deployments/docker-compose
+docker compose up -d --build
 ```
 
 > ### Build

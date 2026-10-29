@@ -27,6 +27,7 @@ The target state is drawn in [docs/architecture/target-architecture.md](../archi
 | [0018](0018-passenger-service-host.md) | Passenger service host (AB-498) | Proposed |
 | [0021](0021-rabbitmq-delivery-and-messageid-inbox.md) | RabbitMQ delivery and MessageId-based endpoint inbox (AB-501) | Proposed |
 | [0022](0022-flight-service-host.md) | Flight service host (AB-502) | Proposed |
+| [0025](0025-multi-service-docker-compose-topology.md) | Multi-service Docker Compose topology (AB-503) | Proposed |
 | [0023](0023-per-service-observability.md) | Per-service observability (AB-495) | Proposed |
 | [0024](0024-aspire-local-orchestration.md) | Aspire local orchestration (AB-497) | Proposed |
 
@@ -35,8 +36,8 @@ The target state is drawn in [docs/architecture/target-architecture.md](../archi
 - File name: `NNNN-<kebab-case-title>.md`, numbered in sequence. Numbers are never reused.
 - Numbers for epic AB-488: 0001–0009 belong to AB-499 (architecture), 0010 to AB-500 (BuildingBlocks
   package boundaries), 0011 to AB-490 (CI/CD and package publishing), 0016 to AB-496 (Booking
-  host), 0018 to AB-498 (Passenger host), 0022 to AB-502 (Flight host), and 0023 to AB-495
-  (per-service observability).
+  host), 0018 to AB-498 (Passenger host), 0022 to AB-502 (Flight host), 0023 to AB-495
+  (per-service observability), and 0025 to AB-503 (multi-service compose).
 - Every ADR uses the org ADR template (Context, Decision, Alternatives, Architecture, NFRs, Security,
   Cost, Operations, Policy exceptions, Consequences, Open questions). A section that does not apply
   says `N/A — <reason>` instead of being removed.
@@ -59,3 +60,4 @@ epic branch into `main` waits on ARB approval.
 - [0018: Passenger service host](0018-passenger-service-host.md)
 - [0022: Flight service host](0022-flight-service-host.md)
 - [0023: Per-service observability](0023-per-service-observability.md)
+- [0025: Multi-service Docker Compose topology](0025-multi-service-docker-compose-topology.md)
