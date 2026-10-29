@@ -80,6 +80,10 @@ monitoring endpoints can be inspected in the dashboard.
 Identity owns only its Postgres database and RabbitMQ. Flight and Passenger additionally use Mongo. Booking additionally
 uses Mongo, EventStoreDB and downstream gRPC. Each owns its Postgres outbox. AppHost wires gateway destinations, metadata,
 and gRPC discovery from endpoint expressions, not manually configured host addresses.
+Services mode leaves the `monolith` cluster at its default destination; unmatched paths must not be forwarded to
+Identity through the anonymous catch-all. `/connect/**` and `/.well-known/**` use dedicated Identity routes.
+Publish mode binds every project listener to `0.0.0.0` on its published target port (Identity/Gateway `Urls`, other hosts'
+Kestrel endpoint URLs); gRPC stays HTTP/2-only. These overrides do not affect local run-mode listeners.
 
 ## Switching topology
 

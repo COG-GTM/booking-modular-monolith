@@ -51,14 +51,49 @@ public class TopologyTests
         Assert.Equal("{passenger.bindings.Grpc.url}", booking["services__passenger__grpc__0"]);
         Assert.Contains("EventStoreOptions__ConnectionString", booking.Keys);
         var gateway = await Environment(builder, projects["gateway"]);
-        foreach (var name in new[] { "identity", "flight", "passenger", "booking", "monolith" })
+        Assert.DoesNotContain("ReverseProxy__Clusters__monolith__Destinations__primary__Address", gateway.Keys);
+        foreach (var name in new[] { "identity", "flight", "passenger", "booking" })
         {
-            var target = name == "monolith" ? "identity" : name;
-            var endpoint = target == "identity" ? "http" : "Http";
+            var endpoint = name == "identity" ? "http" : "Http";
             Assert.Equal(
-                $"{{{target}.bindings.{endpoint}.url}}",
+                $"{{{name}.bindings.{endpoint}.url}}",
                 gateway[$"ReverseProxy__Clusters__{name}__Destinations__primary__Address"]
             );
+        }
+    }
+
+    [Theory]
+    [InlineData("Services", true)]
+    [InlineData("Services", false)]
+    [InlineData("Monolith", true)]
+    [InlineData("Monolith", false)]
+    public async Task Published_listeners_bind_all_interfaces_without_changing_local_bindings(
+        string topology,
+        bool publish
+    )
+    {
+        await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
+            publish ? [$"--AppHost:Topology={topology}", "--publisher", "manifest"] : [$"--AppHost:Topology={topology}"]
+        );
+        Assert.Equal(publish, builder.ExecutionContext.IsPublishMode);
+        foreach (var project in builder.Resources.OfType<ProjectResource>())
+        {
+            var env = await Environment(builder, project);
+            foreach (var endpoint in project.Annotations.OfType<EndpointAnnotation>())
+            {
+                var key = project.Name is "identity" or "gateway"
+                    ? "Urls"
+                    : $"Kestrel__Endpoints__{endpoint.Name}__Url";
+                if (publish)
+                {
+                    Assert.Equal($"{endpoint.UriScheme}://0.0.0.0:{endpoint.TargetPort}", env[key]);
+                    Assert.Equal(endpoint.Port, endpoint.TargetPort);
+                    if (endpoint.Name == "Grpc")
+                        Assert.Equal("Http2", env["Kestrel__Endpoints__Grpc__Protocols"]);
+                }
+                else if (env.TryGetValue(key, out var localUrl))
+                    Assert.DoesNotContain("0.0.0.0", localUrl, StringComparison.Ordinal);
+            }
         }
     }
 

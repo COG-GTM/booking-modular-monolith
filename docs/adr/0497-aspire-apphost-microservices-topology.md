@@ -83,7 +83,9 @@ C4Container
    Disable launch profiles on child projects and replace inferred endpoint annotations with only the listeners each
    host actually binds. Flight and Passenger gRPC endpoints are HTTP/2-only.
 4. **Gateway and identity.** Gateway cluster destinations use each host's HTTP endpoint expression, never literal
-   loopback service addresses. Services-mode `monolith` fallback points to Identity. The issuer and JWT authority
+   loopback service addresses. Services mode does not override the `monolith` cluster: unmatched paths fail against its
+   default destination instead of reaching Identity through the anonymous fallback. Dedicated `/connect/**` and
+   `/.well-known/**` routes still target Identity. The issuer and JWT authority
    remain the public gateway URL `http://localhost:5000`; metadata is derived from Identity's endpoint plus
    `/.well-known/openid-configuration`. Audience stays `booking-modular-monolith`.
 5. **Observability and health.** Keep the existing monitoring containers and per-host health probes. The named
@@ -95,6 +97,10 @@ C4Container
 6. **Compatible infrastructure.** Pin PostgreSQL to `postgres:16` with `max_prepared_transactions=100` and Tempo to
    `grafana/tempo:2.6.1`, verified with `deployments/configs/tempo.yaml`. This avoids PostgreSQL 18 image layout changes
    and incompatible Tempo configuration changes in newer images.
+7. **Published listener bindings.** Publish mode overrides each declared project listener to `0.0.0.0` on its published
+   target port. Identity and Gateway use `Urls`; Kestrel-based hosts use endpoint-specific URL overrides, with gRPC
+   explicitly HTTP/2-only. Local run-mode bindings are unchanged. This prevents Development localhost settings from
+   overriding container-reachable listeners in the Docker Compose output.
 
 ## Alternatives considered
 

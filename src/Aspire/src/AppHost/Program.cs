@@ -384,7 +384,6 @@ if (string.Equals(topology, "Services", StringComparison.OrdinalIgnoreCase))
             ("flight", flight, "Http"),
             ("passenger", passenger, "Http"),
             ("booking", booking, "Http"),
-            ("monolith", identity, "http"),
         }
     )
     {
@@ -472,6 +471,22 @@ IResourceBuilder<ProjectResource> ConfigureService(
 
 foreach (var project in builder.Resources.OfType<ProjectResource>().ToList())
 {
+    if (builder.ExecutionContext.IsPublishMode)
+    {
+        var endpoints = project.Annotations.OfType<EndpointAnnotation>().ToList();
+        var resource = builder.CreateResourceBuilder(project);
+        foreach (var endpoint in endpoints)
+        {
+            endpoint.TargetPort ??= endpoint.Port;
+            var url = $"{endpoint.UriScheme}://0.0.0.0:{endpoint.TargetPort}";
+            resource.WithEnvironment(
+                project.Name is "identity" or "gateway" ? "Urls" : $"Kestrel__Endpoints__{endpoint.Name}__Url",
+                url
+            );
+            if (endpoint.Name == "Grpc")
+                resource.WithEnvironment("Kestrel__Endpoints__Grpc__Protocols", "Http2");
+        }
+    }
     builder
         .CreateResourceBuilder(project)
         .WithEnvironment("ObservabilityOptions__ServiceName", project.Name)
