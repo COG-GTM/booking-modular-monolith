@@ -147,9 +147,21 @@ for attempt in $(seq 1 60); do
     authorized_request "$GATEWAY/api/v1/flight/get-available-seats/$FLIGHT_ID"
     if [[ "$HTTP_STATUS" == 200 ]]; then
         seats_after="$(jq --exit-status '(.seatDtos // .SeatDtos) | length' <<<"$HTTP_BODY")"
-        if (( seats_after < seats_before )); then
+        if (( seats_after == seats_before - 1 )); then
             booking_effect_confirmed=true
         fi
+    elif (( seats_before == 1 )) &&
+        [[ "$HTTP_STATUS" == 400 ]] &&
+        jq --exit-status '
+            (.title // .Title) == "AllSeatsFullException"
+            and (.detail // .Detail) == "All seats are full!"
+            and (.status // .Status) == 400
+        ' <<<"$HTTP_BODY" >/dev/null; then
+        seats_after=0
+        booking_effect_confirmed=true
+        printf 'Final seat reservation confirmed by response: HTTP %s %s\n' \
+            "$HTTP_STATUS" \
+            "$(jq --compact-output '{title: (.title // .Title), detail: (.detail // .Detail), status: (.status // .Status)}' <<<"$HTTP_BODY")"
     fi
 
     if [[ "$read_model_confirmed" == false && -n "$booking_count_before" ]] &&
