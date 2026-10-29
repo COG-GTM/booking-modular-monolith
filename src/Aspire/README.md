@@ -19,6 +19,13 @@ The gateway is available at `http://localhost:5000` and the Aspire dashboard at
 `http://localhost:18888`. Service and infrastructure ports are otherwise dynamic except for
 ports already configured by the service hosts.
 
+Aspire sets `OTEL_SERVICE_NAME` to each project resource name. AppHost sends OTLP telemetry to the
+AB-495 `otel-collector` endpoint using `OTEL_EXPORTER_OTLP_ENDPOINT` and
+`OTEL_EXPORTER_OTLP_PROTOCOL=grpc`. The collector forwards traces to Tempo and Jaeger, metrics to
+Prometheus, and logs to Loki; Grafana is available at `http://localhost:3030`. The Aspire dashboard
+shows resources, health, and console logs, but not service traces or metrics. Forwarding collector
+telemetry to the Aspire dashboard is a follow-up owned by AB-495's collector configuration.
+
 In Services topology, the gateway's `monolith` fallback points to Identity because no monolith
 process is started. The fallback requires authentication so unmatched Identity paths cannot bypass
 gateway authorization; `/connect/**` and `/.well-known/**` keep their dedicated anonymous routes.

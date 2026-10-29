@@ -235,8 +235,16 @@ public class AppHostServicesWiringTests
         var api = await EnvironmentAsync(projects["api"]);
         var gateway = await EnvironmentAsync(projects["gateway"]);
 
-        Assert.Equal("api", api["ObservabilityOptions__ServiceName"]);
-        Assert.Equal("true", api["ObservabilityOptions__UseOTLPExporter"]);
+        AssertOtelEnvironment(
+            projects["api"],
+            api,
+            await EnvironmentAsync(projects["api"], DistributedApplicationOperation.Run)
+        );
+        AssertOtelEnvironment(
+            projects["gateway"],
+            gateway,
+            await EnvironmentAsync(projects["gateway"], DistributedApplicationOperation.Run)
+        );
         var gatewayHealthChecks = projects["gateway"].Annotations.OfType<HealthCheckAnnotation>();
         Assert.NotEmpty(gatewayHealthChecks);
 
@@ -264,7 +272,7 @@ public class AppHostServicesWiringTests
     }
 
     [Fact]
-    public async Task Observability_extension_configures_every_services_project()
+    public async Task Observability_extension_uses_ab495_environment_for_every_services_project()
     {
         await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>([]);
         var projects = builder.Resources.OfType<ProjectResource>();
@@ -272,35 +280,33 @@ public class AppHostServicesWiringTests
         foreach (var project in projects)
         {
             var environment = await EnvironmentAsync(project);
-            Assert.Equal("true", environment["ObservabilityOptions__UseOTLPExporter"]);
-            Assert.Equal("true", environment["ObservabilityOptions__UseAspireOTLPExporter"]);
-            var endpoint = environment["ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint"];
-            Assert.Contains("otel-collector", endpoint, StringComparison.Ordinal);
-            Assert.Contains("otel-grpc", endpoint, StringComparison.Ordinal);
+            var runtimeEnvironment = await EnvironmentAsync(project, DistributedApplicationOperation.Run);
+            AssertOtelEnvironment(project, environment, runtimeEnvironment);
         }
     }
 
     [Fact]
-    public async Task Dashboard_otlp_callback_copies_existing_endpoint_only()
+    public async Task Collector_otlp_callback_overrides_aspire_endpoint_and_removes_dashboard_headers()
     {
         await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>([]);
         var booking = builder
             .Resources.OfType<ProjectResource>()
             .Single(resource => resource.Name == "booking-service");
-        var endpoint = "http://localhost:4999";
 
-        var seededEnvironment = new Dictionary<string, object> { ["OTEL_EXPORTER_OTLP_ENDPOINT"] = endpoint };
+        var seededEnvironment = new Dictionary<string, object>
+        {
+            ["OTEL_SERVICE_NAME"] = "booking-service",
+            ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://localhost:4999",
+            ["OTEL_EXPORTER_OTLP_HEADERS"] = "x-otlp-api-key=dashboard-key",
+        };
         await RunEnvironmentCallbacksAsync(booking, seededEnvironment);
-        Assert.Equal(
-            endpoint,
-            seededEnvironment["ObservabilityOptions__AspireDashboardOTLPOptions__OTLPGrpcExporterEndpoint"]?.ToString()
-        );
-
-        var emptyEnvironment = new Dictionary<string, object>();
-        await RunEnvironmentCallbacksAsync(booking, emptyEnvironment);
-        Assert.DoesNotContain(
-            "ObservabilityOptions__AspireDashboardOTLPOptions__OTLPGrpcExporterEndpoint",
-            emptyEnvironment.Keys
+        Assert.Equal("booking-service", seededEnvironment["OTEL_SERVICE_NAME"]?.ToString());
+        Assert.Equal("grpc", seededEnvironment["OTEL_EXPORTER_OTLP_PROTOCOL"]?.ToString());
+        Assert.DoesNotContain("OTEL_EXPORTER_OTLP_HEADERS", seededEnvironment.Keys);
+        Assert.Contains(
+            "otel-collector",
+            seededEnvironment["OTEL_EXPORTER_OTLP_ENDPOINT"]?.ToString(),
+            StringComparison.Ordinal
         );
     }
 
@@ -317,7 +323,7 @@ public class AppHostServicesWiringTests
         Assert.Equal(3000, grafanaHttp.TargetPort);
 
         var tempoImage = resources["tempo"].Annotations.OfType<ContainerImageAnnotation>().Single();
-        Assert.Equal("2.6.1", tempoImage.Tag);
+        Assert.Equal("2.7.2", tempoImage.Tag);
         foreach (var nameAndPort in new[] { ("otlp-grpc", 4317), ("otlp-http", 4318) })
         {
             var endpoint = resources["tempo"]
@@ -333,10 +339,43 @@ public class AppHostServicesWiringTests
         Assert.Equal("8.17.0", elasticsearchImage.Tag);
     }
 
-    private static async Task<Dictionary<string, string>> EnvironmentAsync(ProjectResource resource)
+    private static async Task<Dictionary<string, string>> EnvironmentAsync(
+        ProjectResource resource,
+        DistributedApplicationOperation applicationOperation = DistributedApplicationOperation.Publish
+    )
     {
-        var variables = await resource.GetEnvironmentVariableValuesAsync(DistributedApplicationOperation.Publish);
+        var variables = await resource.GetEnvironmentVariableValuesAsync(applicationOperation);
         return variables.ToDictionary(variable => variable.Key, variable => variable.Value?.ToString() ?? "");
+    }
+
+    private static void AssertOtelEnvironment(
+        ProjectResource project,
+        Dictionary<string, string> environment,
+        Dictionary<string, string> runtimeEnvironment
+    )
+    {
+        Assert.Single(project.Annotations.OfType<OtlpExporterAnnotation>());
+        Assert.Contains(
+            ".Annotations \"otel-service-name\"",
+            runtimeEnvironment["OTEL_SERVICE_NAME"],
+            StringComparison.Ordinal
+        );
+        Assert.Contains("otel-collector", environment["OTEL_EXPORTER_OTLP_ENDPOINT"], StringComparison.Ordinal);
+        Assert.StartsWith(
+            "http://localhost:",
+            runtimeEnvironment["OTEL_EXPORTER_OTLP_ENDPOINT"],
+            StringComparison.Ordinal
+        );
+        Assert.Equal("grpc", runtimeEnvironment["OTEL_EXPORTER_OTLP_PROTOCOL"]);
+        Assert.DoesNotContain("OTEL_EXPORTER_OTLP_HEADERS", runtimeEnvironment.Keys);
+        Assert.DoesNotContain("ObservabilityOptions__ServiceName", environment.Keys);
+        Assert.DoesNotContain("ObservabilityOptions__UseOTLPExporter", environment.Keys);
+        Assert.DoesNotContain("ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint", environment.Keys);
+        Assert.DoesNotContain("ObservabilityOptions__UseAspireOTLPExporter", environment.Keys);
+        Assert.DoesNotContain(
+            "ObservabilityOptions__AspireDashboardOTLPOptions__OTLPGrpcExporterEndpoint",
+            environment.Keys
+        );
     }
 
     private static void AssertConnectionValue(string value, string database, string username)
@@ -364,7 +403,7 @@ public class AppHostServicesWiringTests
         var executionContext = new DistributedApplicationExecutionContext(DistributedApplicationOperation.Publish);
         var context = new EnvironmentCallbackContext(executionContext, resource, environmentVariables);
 
-        foreach (var annotation in resource.Annotations.OfType<EnvironmentCallbackAnnotation>())
+        foreach (var annotation in resource.Annotations.OfType<EnvironmentCallbackAnnotation>().ToList())
         {
             await annotation.Callback(context);
         }

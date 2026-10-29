@@ -175,7 +175,14 @@ var otelCollector = builder.AddContainer("otel-collector", "otel/opentelemetry-c
     .WithEndpoint(port: 8888, targetPort: 8888, name: "otel-metrics", isProxied: true, isExternal: true)
     .WithEndpoint(port: 8889, targetPort: 8889, name: "otel-exporter-metrics", isProxied: true, isExternal: true)
     .WithEndpoint(port: 13133, targetPort: 13133, name: "otel-health", isProxied: true, isExternal: true)
-    .WithEndpoint(port: 4317, targetPort: 4317, name: "otel-grpc", isProxied: true, isExternal: true)
+    .WithEndpoint(
+        port: 4317,
+        targetPort: 4317,
+        name: "otel-grpc",
+        isProxied: true,
+        isExternal: true,
+        scheme: "http"
+    )
     .WithEndpoint(port: 4318, targetPort: 4318, name: "otel-http", isProxied: true, isExternal: true)
     .WithEndpoint(port: 55679, targetPort: 55679, name: "otel-zpages", isProxied: true, isExternal: true);
 
@@ -229,7 +236,7 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 var tempo = builder.AddContainer("tempo", "grafana/tempo")
-    .WithImageTag("2.6.1")
+    .WithImageTag("2.7.2")
     .WithBindMount("../../../../deployments/configs/tempo.yaml", "/etc/tempo.yaml", isReadOnly: true)
     .WithArgs("--config.file=/etc/tempo.yaml")
     .WithEndpoint(port: 3200, targetPort: 3200, name: "http", isProxied: true, isExternal: false)

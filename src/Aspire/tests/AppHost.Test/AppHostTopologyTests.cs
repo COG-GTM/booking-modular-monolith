@@ -171,14 +171,36 @@ public class AppHostTopologyTests
             var project = projects[name];
             var healthChecks = project.Annotations.OfType<HealthCheckAnnotation>().ToList();
             Assert.NotEmpty(healthChecks);
+            Assert.Single(project.Annotations.OfType<OtlpExporterAnnotation>());
+            Assert.Equal(name, project.Name);
             var environment = await EnvironmentAsync(project);
-            Assert.Equal(name, environment["ObservabilityOptions__ServiceName"]);
+            var runtimeEnvironment = await EnvironmentAsync(project, DistributedApplicationOperation.Run);
+            Assert.Contains(
+                ".Annotations \"otel-service-name\"",
+                runtimeEnvironment["OTEL_SERVICE_NAME"],
+                StringComparison.Ordinal
+            );
+            Assert.Contains(
+                "otel-collector",
+                environment["OTEL_EXPORTER_OTLP_ENDPOINT"],
+                StringComparison.Ordinal
+            );
+            Assert.StartsWith(
+                "http://localhost:",
+                runtimeEnvironment["OTEL_EXPORTER_OTLP_ENDPOINT"],
+                StringComparison.Ordinal
+            );
+            Assert.Equal("grpc", runtimeEnvironment["OTEL_EXPORTER_OTLP_PROTOCOL"]);
+            Assert.DoesNotContain("OTEL_EXPORTER_OTLP_HEADERS", runtimeEnvironment.Keys);
         }
     }
 
-    private static async Task<Dictionary<string, string>> EnvironmentAsync(ProjectResource resource)
+    private static async Task<Dictionary<string, string>> EnvironmentAsync(
+        ProjectResource resource,
+        DistributedApplicationOperation applicationOperation = DistributedApplicationOperation.Publish
+    )
     {
-        var variables = await resource.GetEnvironmentVariableValuesAsync(DistributedApplicationOperation.Publish);
+        var variables = await resource.GetEnvironmentVariableValuesAsync(applicationOperation);
         return variables.ToDictionary(variable => variable.Key, variable => variable.Value?.ToString() ?? "");
     }
 

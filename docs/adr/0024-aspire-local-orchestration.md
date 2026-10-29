@@ -29,10 +29,16 @@ where every YARP cluster points to the API.
 Each service receives only its own PostgreSQL database and persist-message connection strings, using
 its `<module>_service` role. Aspire service discovery resolves Booking's gRPC addresses; endpoint
 references configure the gateway's YARP clusters. A shared AppHost helper configures service names
-and exports telemetry to the OpenTelemetry Collector and Aspire dashboard. The `monolith` YARP
-fallback points to Identity while Services topology is active because no monolith process runs, and
-requires authentication so unmatched Identity paths cannot bypass gateway authorization. Dedicated
-`/connect/**` and `/.well-known/**` routes remain anonymous.
+and uses AB-495's `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and
+`OTEL_EXPORTER_OTLP_PROTOCOL` environment contract to send telemetry to the OpenTelemetry Collector.
+The collector forwards traces to Tempo and Jaeger, metrics to Prometheus, and logs to Loki; Grafana
+is available at port 3030. The Aspire dashboard shows resources, health, and console logs, but not
+service traces or metrics. Forwarding collector telemetry to the Aspire dashboard is a follow-up
+owned by AB-495's collector configuration.
+
+The `monolith` YARP fallback points to Identity while Services topology is active because no monolith
+process runs, and requires authentication so unmatched Identity paths cannot bypass gateway
+authorization. Dedicated `/connect/**` and `/.well-known/**` routes remain anonymous.
 
 This is local-development orchestration only; it does not define production infrastructure.
 
@@ -101,8 +107,9 @@ N/A — no production resources are provisioned.
 
 ## Operations
 
-ServiceDefaults is not used by the hosts; AppHost configures their observability through environment
-variables. `Monolith` remains available for the existing single-process workflow.
+ServiceDefaults is not used by the hosts; AppHost configures their observability through AB-495's
+`OTEL_*` environment variables. `Monolith` remains available for the existing single-process
+workflow.
 
 ## Policy exceptions
 
@@ -112,6 +119,7 @@ N/A — this decision defines local orchestration only.
 
 - Developers can run the four service hosts and gateway together from Aspire.
 - Gateway YARP service discovery remains a follow-up; endpoint references are used for now.
+- Forwarding collector telemetry to the Aspire dashboard remains a follow-up in AB-495's collector configuration.
 - Do not run Monolith and Services topologies against the same databases simultaneously.
 
 ## Open questions

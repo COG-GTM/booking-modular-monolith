@@ -6,20 +6,10 @@ static class AppHostObservabilityExtensions
         this IResourceBuilder<ProjectResource> project,
         IResourceBuilder<ContainerResource> otelCollector
     ) =>
-        project
-            .WithEnvironment("ObservabilityOptions__ServiceName", project.Resource.Name)
-            .WithEnvironment("ObservabilityOptions__UseOTLPExporter", "true")
-            .WithEnvironment(
-                "ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint",
-                otelCollector.GetEndpoint("otel-grpc"))
-            .WithEnvironment("ObservabilityOptions__UseAspireOTLPExporter", "true")
-            .WithEnvironment(context =>
-            {
-                if (context.EnvironmentVariables.TryGetValue("OTEL_EXPORTER_OTLP_ENDPOINT", out var endpoint))
-                {
-                    context.EnvironmentVariables[
-                        "ObservabilityOptions__AspireDashboardOTLPOptions__OTLPGrpcExporterEndpoint"
-                    ] = endpoint;
-                }
-            });
+        project.WithEnvironment(context =>
+        {
+            context.EnvironmentVariables["OTEL_EXPORTER_OTLP_ENDPOINT"] = otelCollector.GetEndpoint("otel-grpc");
+            context.EnvironmentVariables["OTEL_EXPORTER_OTLP_PROTOCOL"] = "grpc";
+            context.EnvironmentVariables.Remove("OTEL_EXPORTER_OTLP_HEADERS");
+        });
 }
