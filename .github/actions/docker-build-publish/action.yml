@@ -2,7 +2,7 @@ name: Build and publish Docker image
 description: Build from the repository root; publish only when explicitly requested
 inputs:
   tag-name:
-    description: Immutable image version (sha-<full commit>)
+    description: Source image version (sha-<full commit>); pin digests for immutable deployments
     required: true
   image-name:
     description: Image path below the registry namespace

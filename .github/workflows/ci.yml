@@ -80,7 +80,7 @@ jobs:
           path: artifacts/packages/*.nupkg
           if-no-files-found: error
   publish-packages:
-    needs: [changes, shared-packages]
+    needs: [changes, shared-packages, package-metadata, service, apphost]
     if: >-
       needs.changes.outputs.packages == 'true' && github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devin/ab-488-v3')

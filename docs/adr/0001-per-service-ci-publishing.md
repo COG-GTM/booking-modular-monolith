@@ -55,7 +55,7 @@ flowchart LR
 | --- | --- | --- |
 | Availability SLO | TBD — owner to confirm before ARB | GitHub Actions/Packages dependency; no runtime SLO change |
 | p95 latency | N/A for application requests | CI does not enter request path |
-| RPO / RTO | TBD — owner to confirm registry recovery/retention | Source rebuild and immutable SHA references |
+| RPO / RTO | TBD — owner to confirm registry recovery/retention | Source rebuild and digest-pinned artifact references |
 | Peak load | Up to five service jobs per commit | Path selection; no fail-fast coupling |
 | Scaling model | GitHub-hosted jobs | PR cancellation; trusted pushes finish publication |
 | Data retention | Owner to set artifact/image retention | No destructive cleanup workflow introduced |
@@ -65,13 +65,13 @@ flowchart LR
 - **Data classification:** private source/build artifacts; no customer data intentionally published.
 - **Encryption at rest:** GitHub-managed; no new customer-managed keys.
 - **Encryption in transit:** HTTPS registry APIs; Docker layer transport uses registry TLS.
-- **AuthN / AuthZ:** read-only contents; package writes only in publisher/shared-pack jobs.
+- **AuthN / AuthZ:** read-only validation; package writes only in trusted publisher jobs.
 - **Secrets:** short-lived `GITHUB_TOKEN`; no external PAT, plaintext credential file or cluster credential.
 - **Audit logging:** GitHub Actions run logs and package history; source/revision OCI labels.
 - **Data residency / regions:** existing GitHub account policy; owner to confirm before ARB.
 - **Policy sections satisfied:** no Terraform/CDK/CloudFormation resource added; approved-infra resource policy not applicable.
 - **Threats considered:** untrusted PR publication (blocked by event/ref gates), mutable release tags
-  (no latest), silent test failure (propagated), stale NuGet overwrite (new versions only).
+  (no latest; deployments pin digests), silent test failure (propagated), stale NuGet overwrite (new versions only).
 
 ## Cost
 
@@ -86,7 +86,7 @@ flowchart LR
 - **On-call rotation:** Booking platform maintainers; named rotation TBD.
 - **Runbook:** `docs/runbooks/service-ci.md`.
 - **Dashboards / alarms:** Actions CI result and package publish logs.
-- **Rollback plan:** redeploy previous image SHA/digest; pin prior shared NuGet version.
+- **Rollback plan:** redeploy previous image digest; pin prior shared NuGet version.
 - **Migration / cut-over plan:** host Dockerfiles activate image publishing as siblings merge;
   production rollout/rollback is owned by AB-505, not automatic in CI.
 

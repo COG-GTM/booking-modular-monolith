@@ -60,7 +60,7 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-      - name: Publish immutable service image
+      - name: Publish source-versioned service image
         uses: ./.github/actions/docker-build-publish
         with:
           dockerfile-path: ${{ needs.build-test.outputs.dockerfile }}

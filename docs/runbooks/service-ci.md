@@ -36,8 +36,11 @@ gateway tests, if provided, belong under `src/Gateway/tests`.
 ## Registry, credentials and versions
 
 Images: `ghcr.io/<lowercase-owner>/booking-modular-monolith/<service>:sha-<full-commit>`.
-No mutable `latest` tag is pushed. Use the exact SHA tag or registry digest for
-Helm values/rollback; pushing a commit never automatically deploys it.
+No `latest` tag is pushed. SHA tags identify source, not guaranteed immutable
+artifacts: rerunning a build can replace the tag if base images or dependencies
+change. Pin the registry digest for immutable Helm values/rollback. Read the
+digest from the registry or `docker buildx imagetools inspect <image>:sha-<commit>`.
+Pushing a commit never automatically deploys it.
 
 NuGet feed: `https://nuget.pkg.github.com/<owner>/index.json`. Shared solution
 projects under `src/BuildingBlocks` and `src/Contracts` are packed on shared changes.
@@ -60,6 +63,8 @@ Both registries use the run's short-lived `GITHUB_TOKEN`; no PAT or stored regis
 password is required. Build/test/pack jobs explicitly use read-only tokens. Only
 trusted-push image and package publishing jobs receive `packages: write`; the
 shared package publisher downloads the already-validated pack artifact. The
+publisher waits for selected service tests, AppHost and both metadata checks.
+The
 main-only Release Drafter retains its scoped `contents: write` permission.
 New GitHub packages default to
 private; keep that visibility, link them to this repository and grant Actions access
