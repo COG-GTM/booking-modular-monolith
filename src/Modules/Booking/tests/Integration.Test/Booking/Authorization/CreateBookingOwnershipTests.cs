@@ -1,16 +1,19 @@
 using System;
 using System.Linq;
 using System.Net;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Booking.Booking.Exceptions;
 using Booking.Booking.Features.CreatingBook.V1;
+using Booking.Booking.ValueObjects;
 using BookingFlight;
 using BookingPassenger;
 using BuildingBlocks.Constants;
 using BuildingBlocks.Core;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.EventStoreDB.Repository;
+using BuildingBlocks.EventStoreDB.Serialization;
 using BuildingBlocks.Exception;
 using BuildingBlocks.Web;
 using FluentAssertions;
@@ -87,6 +90,7 @@ public class CreateBookingOwnershipTests
     public async Task owner_can_create_booking_for_their_own_passenger()
     {
         var command = new FakeCreateBookingCommand().Generate();
+        command.Id.Should().NotBeEmpty();
         SignInAs(command.PassengerId, isAdmin: false);
 
         var result = await CreateHandler().Handle(command, CancellationToken.None);
@@ -100,7 +104,39 @@ public class CreateBookingOwnershipTests
                 Arg.Any<DateTime?>(),
                 Arg.Any<CancellationToken>()
             );
-        _ = _repository.Received(1).Add(Arg.Any<BookingModel>(), Arg.Any<CancellationToken>());
+        _ = _repository
+            .Received(1)
+            .Add(
+                Arg.Is<BookingModel>(booking => booking.Id == command.Id),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public void booking_created_event_round_trips_through_event_store_serializer()
+    {
+        var now = DateTime.UtcNow;
+        var @event = new BookingCreatedDomainEvent(
+            Guid.NewGuid(),
+            PassengerInfo.Of("Test Passenger"),
+            Trip.Of("AB123", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), now, 100, "description", "1A")
+        )
+        {
+            CreatedAt = now,
+            CreatedBy = 123,
+            IsDeleted = true
+        };
+
+        var eventData = @event.ToJsonEventData();
+        var serializedEvent = Encoding.UTF8.GetString(eventData.Data.Span);
+        var deserializedEvent = serializedEvent.FromJson<BookingCreatedDomainEvent>();
+
+        deserializedEvent.Id.Should().Be(@event.Id);
+        deserializedEvent.CreatedAt.Should().Be(@event.CreatedAt);
+        deserializedEvent.CreatedBy.Should().Be(@event.CreatedBy);
+        deserializedEvent.IsDeleted.Should().Be(@event.IsDeleted);
+        deserializedEvent.PassengerInfo.Should().BeEquivalentTo(@event.PassengerInfo);
+        deserializedEvent.Trip.Should().BeEquivalentTo(@event.Trip);
     }
 
     [Fact]
