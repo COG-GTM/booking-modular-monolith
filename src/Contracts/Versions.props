@@ -5,5 +5,7 @@
   <PropertyGroup>
     <ContractsVersionsImported>true</ContractsVersionsImported>
     <ContractsMessagesVersion Condition="'$(ContractsMessagesVersion)' == ''">1.0.0</ContractsMessagesVersion>
+    <!-- gRPC wire contract (Contracts.Grpc): MINOR = additive fields/RPCs, MAJOR = new proto package. -->
+    <ContractsGrpcVersion Condition="'$(ContractsGrpcVersion)' == ''">1.0.0</ContractsGrpcVersion>
   </PropertyGroup>
 </Project>

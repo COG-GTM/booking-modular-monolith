@@ -8,7 +8,7 @@ COPY global.json .
 COPY Directory.Build.props .
 
 # Copy project files first (better Docker layer caching)
-COPY src/Contracts/Directory.Build.props src/Contracts/Versions.props src/Contracts/Contracts.Messages.Reference.props src/Contracts/
+COPY src/Contracts/Directory.Build.props src/Contracts/Versions.props src/Contracts/Contracts.Messages.Reference.props src/Contracts/Contracts.Grpc.Reference.props src/Contracts/
 COPY src/Contracts/Contracts.Messages/Contracts.Messages.csproj src/Contracts/Contracts.Messages/
 COPY src/BuildingBlocks/Directory.Build.props src/BuildingBlocks/
 COPY src/BuildingBlocks/BuildingBlocks.csproj src/BuildingBlocks/
@@ -33,6 +33,7 @@ COPY src/BuildingBlocks/TestBase/BuildingBlocks.TestBase.csproj src/BuildingBloc
 COPY src/BuildingBlocks/Utils/BuildingBlocks.Utils.csproj src/BuildingBlocks/Utils/
 COPY src/BuildingBlocks/Validation/BuildingBlocks.Validation.csproj src/BuildingBlocks/Validation/
 COPY src/BuildingBlocks/Web/BuildingBlocks.Web.csproj src/BuildingBlocks/Web/
+COPY src/Contracts/Contracts.Grpc/Contracts.Grpc.csproj src/Contracts/Contracts.Grpc/
 COPY src/Modules/Booking/src/Booking.csproj src/Modules/Booking/src/
 COPY src/Modules/Flight/src/Flight.csproj src/Modules/Flight/src/
 COPY src/Modules/Identity/src/Identity.csproj src/Modules/Identity/src/
@@ -62,5 +63,7 @@ ENV ASPNETCORE_URLS=http://+:80
 ENV ASPNETCORE_ENVIRONMENT=docker
 
 EXPOSE 80
+# h2c gRPC (Flight/Passenger servers); see appsettings.docker.json
+EXPOSE 81
 
 ENTRYPOINT ["dotnet", "Api.dll"]

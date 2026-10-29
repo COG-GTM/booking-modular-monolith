@@ -1,6 +1,12 @@
 syntax = "proto3";
 
-package bookingPassenger;
+// Canonical passenger gRPC contract (single source of truth, owned by the Passenger service).
+// Wire identity: the proto package `passenger` and the service/method names form the gRPC path
+// (`/passenger.PassengerGrpcService/<Method>`); never rename them, change field numbers/types or reuse
+// removed tags. See docs/adr/0103-shared-grpc-contracts-and-service-addressing.md.
+package passenger;
+
+option csharp_namespace = "Passenger";
 
 service PassengerGrpcService {
 

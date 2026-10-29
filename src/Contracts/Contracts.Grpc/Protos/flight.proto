@@ -1,7 +1,14 @@
 syntax = "proto3";
 
-package bookingFlight;
+// Canonical flight gRPC contract (single source of truth, owned by the Flight service).
+// Wire identity: the proto package `flight` and the service/method names form the gRPC path
+// (`/flight.FlightGrpcService/<Method>`); never rename them, change field numbers/types or reuse
+// removed tags. See docs/adr/0103-shared-grpc-contracts-and-service-addressing.md.
+package flight;
+
 import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "Flight";
 
 service FlightGrpcService {
 

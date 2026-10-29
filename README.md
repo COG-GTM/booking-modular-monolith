@@ -281,6 +281,15 @@ ReverseProxy__Clusters__flight__Destinations__primary__Address=http://flight-ser
 
 See the [gateway runbook](./docs/runbooks/gateway.md) and [ADR 0001](./docs/adr/0001-yarp-api-gateway-single-ingress.md).
 
+## gRPC contracts and service addressing
+
+Booking calls Flight and Passenger over gRPC using the single shared contract in
+[`src/Contracts/Contracts.Grpc`](./src/Contracts/Contracts.Grpc/README.md) (packages `flight`, `passenger`).
+Endpoints come from configuration/service discovery (`Grpc:Flight:Address=http://_grpc.flight` resolved from
+`Services:flight:grpc:0`), idempotent reads retry on `Unavailable`, every call gets a default deadline, and
+`/health/ready` includes the downstream gRPC health. The monolith serves h2c gRPC on `3002` (`81` in docker). See the
+[runbook](./docs/runbooks/grpc-service-addressing.md) and [ADR 0103](./docs/adr/0103-shared-grpc-contracts-and-service-addressing.md).
+
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
 ```bash

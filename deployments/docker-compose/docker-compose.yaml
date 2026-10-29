@@ -358,6 +358,9 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
       - ASPNETCORE_URLS=https://+;http://+
+      # appsettings.docker.json declares Kestrel:Endpoints (http :80, h2c gRPC :81), which replaces ASPNETCORE_URLS;
+      # the HTTPS endpoint is added here because only this launcher mounts the certificate.
+      - Kestrel__Endpoints__Https__Url=https://+:443
       - ASPNETCORE_HTTPS_PORT=3000
       - ASPNETCORE_HTTP_PORT=3001
       - ASPNETCORE_Kestrel__Certificates__Default__Password=password

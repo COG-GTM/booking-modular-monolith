@@ -26,6 +26,14 @@ public static class Extensions
             // Bound from the same sections as BuildingBlocks.EFCore/MassTransit/EventStoreDB/Mongo options,
             // so health checks don't need a reference to those libraries.
             var rabbitMqOptions = services.GetOptions<RabbitMqHealthOptions>("RabbitMqOptions");
+            var rabbitMqUri = RabbitMqHealthUri.Resolve(
+                services.GetOptions<RabbitMqConnectionStringOptions>("ConnectionStrings").RabbitMq,
+                rabbitMqOptions.HostName,
+                rabbitMqOptions.Port,
+                rabbitMqOptions.VirtualHost,
+                rabbitMqOptions.UserName,
+                rabbitMqOptions.Password
+            );
             var eventStoreOptions = services.GetOptions<ConnectionStringOptions>("EventStoreOptions");
             var configuration = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
 
@@ -35,12 +43,7 @@ public static class Extensions
                 .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"])
                 .AddRabbitMQ(serviceProvider =>
                 {
-                    var factory = new ConnectionFactory
-                    {
-                        Uri = new Uri(
-                            $"amqp://{rabbitMqOptions.UserName}:{rabbitMqOptions.Password}@{rabbitMqOptions.HostName}"
-                        ),
-                    };
+                    var factory = new ConnectionFactory { Uri = rabbitMqUri };
                     return factory.CreateConnectionAsync();
                 });
 
