@@ -1,7 +1,7 @@
 using Duende.IdentityServer;
 using Duende.IdentityServer.Models;
 using Identity.Identity.Constants;
-using IdentityModel;
+using Duende.IdentityModel;
 
 namespace Identity.Configurations;
 
