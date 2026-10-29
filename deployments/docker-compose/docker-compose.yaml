@@ -23,7 +23,6 @@ services:
       AuthOptions__IssuerUri: http://localhost:5000
       Jwt__Authority: http://localhost:5000
       Jwt__MetadataAddress: http://localhost:80/.well-known/openid-configuration
-      Modules__Identity__BackgroundProcessingEnabled: ${IDENTITY_SERVICE_BACKGROUND:-false}
       PostgresOptions__ConnectionString__Identity: Server=postgres;Port=5432;Database=identity_service;User Id=identity_service;Password=identity_service;Include Error Detail=true
       RabbitMqOptions__HostName: rabbitmq
       RabbitMqOptions__Port: "5672"
@@ -62,7 +61,6 @@ services:
       Jwt__Audience: booking-modular-monolith
       Jwt__MetadataAddress: http://identity-service:80/.well-known/openid-configuration
       PostgresOptions__ConnectionString__Flight: Server=postgres;Port=5432;Database=flight_service;User Id=flight_service;Password=flight_service;Include Error Detail=true
-      Modules__Flight__BackgroundProcessingEnabled: ${FLIGHT_SERVICE_BACKGROUND:-false}
       MongoOptions__ConnectionString: mongodb://mongo:27017
       MongoOptions__Flight__DatabaseName: flight_service_read
       RabbitMqOptions__HostName: rabbitmq
@@ -106,7 +104,6 @@ services:
       Jwt__Audience: booking-modular-monolith
       Jwt__MetadataAddress: http://identity-service:80/.well-known/openid-configuration
       PostgresOptions__ConnectionString__Passenger: Server=postgres;Port=5432;Database=passenger_service;User Id=passenger_service;Password=passenger_service;Include Error Detail=true
-      Modules__Passenger__BackgroundProcessingEnabled: ${PASSENGER_SERVICE_BACKGROUND:-false}
       MongoOptions__ConnectionString: mongodb://mongo:27017
       MongoOptions__Passenger__DatabaseName: passenger_service_read
       RabbitMqOptions__HostName: rabbitmq
@@ -149,7 +146,6 @@ services:
       Jwt__Audience: booking-modular-monolith
       Jwt__MetadataAddress: http://identity-service:80/.well-known/openid-configuration
       PostgresOptions__ConnectionString__Booking: Server=postgres;Port=5432;Database=booking_service;User Id=booking_service;Password=booking_service;Include Error Detail=true
-      Modules__Booking__BackgroundProcessingEnabled: ${BOOKING_SERVICE_BACKGROUND:-false}
       MongoOptions__ConnectionString: mongodb://mongo:27017
       MongoOptions__Booking__DatabaseName: booking_service_read
       EventStoreOptions__ConnectionString: esdb://eventstore:2113?tls=false
@@ -157,8 +153,8 @@ services:
       RabbitMqOptions__Port: "5672"
       RabbitMqOptions__UserName: booking
       RabbitMqOptions__Password: booking
-      Services__flight__grpc__0: ${FLIGHT_GRPC_ADDRESS_FOR_SERVICES:-http://flight-service:81}
-      Services__passenger__grpc__0: ${PASSENGER_GRPC_ADDRESS_FOR_SERVICES:-http://passenger-service:81}
+      Services__flight__grpc__0: http://flight-service:81
+      Services__passenger__grpc__0: http://passenger-service:81
       ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
       ObservabilityOptions__UseAspireOTLPExporter: "false"
       OTEL_SERVICE_NAME: booking-service

@@ -103,7 +103,30 @@
 1. **Modular Design**: The application is divided into modules, each responsible for a specific functionality.
 2. **Loose Coupling**: Modules interact through well-defined interfaces, improving maintainability.
 3. **Independent Service Hosts**: Each module runs in its own service host behind the gateway.
-4. **Shared Database**: Typically uses a single database, but modules can have their own schemas or tables.
+4. **Per-Service Data Ownership**: Each service owns a PostgreSQL database and its read models; Booking uses the shared EventStoreDB.
+
+## Architecture after cutover
+
+```mermaid
+flowchart LR
+  Client --> Gateway
+  Gateway --> Identity
+  Gateway --> Flight
+  Gateway --> Passenger
+  Gateway --> Booking
+  Booking -->|gRPC| Flight
+  Booking -->|gRPC| Passenger
+  Identity --> PGi[(Identity PostgreSQL)]
+  Flight --> PGf[(Flight PostgreSQL)]
+  Flight --> Mf[(Flight Mongo)]
+  Passenger --> PGp[(Passenger PostgreSQL)]
+  Passenger --> Mp[(Passenger Mongo)]
+  Booking --> PGb[(Booking PostgreSQL)]
+  Booking --> Mb[(Booking Mongo read model)]
+  Booking --> ESDB[(EventStoreDB)]
+  Identity --> RabbitMQ
+  RabbitMQ --> Passenger
+```
 
 
 ## When to Use

@@ -39,6 +39,75 @@ valid.
 - A failed or interrupted flip can leave a route frozen; operators must inspect the
   recorded stage and resume or safely abort before starting another flip.
 
+## Architecture
+
+```mermaid
+C4Container
+    title Container diagram after the strangler cutover
+    Person(client, "Client", "Calls the public API")
+    Container(gateway, "Gateway", "ASP.NET Core / YARP", "Routes requests and applies cutover overrides and freezes")
+    Container(identity, "Identity host", ".NET", "Issues tokens and publishes UserCreated")
+    Container(flight, "Flight host", ".NET", "Flight API, workers and projections")
+    Container(passenger, "Passenger host", ".NET", "Passenger API, workers and projections")
+    Container(booking, "Booking host", ".NET", "Booking API, workers and projections")
+    ContainerDb(postgres, "PostgreSQL", "PostgreSQL", "Separate database per context")
+    ContainerDb(mongo, "MongoDB", "MongoDB", "Context read models")
+    ContainerDb(eventstore, "EventStoreDB", "EventStoreDB", "Shared Booking event store")
+    ContainerQueue(rabbit, "RabbitMQ", "AMQP", "Integration events")
+    Rel(client, gateway, "HTTPS")
+    Rel(gateway, identity, "HTTP")
+    Rel(gateway, flight, "HTTP")
+    Rel(gateway, passenger, "HTTP")
+    Rel(gateway, booking, "HTTP")
+    Rel(booking, flight, "gRPC")
+    Rel(booking, passenger, "gRPC")
+    Rel(identity, postgres, "Reads/writes Identity database")
+    Rel(flight, postgres, "Reads/writes Flight database")
+    Rel(passenger, postgres, "Reads/writes Passenger database")
+    Rel(booking, postgres, "Reads/writes Booking database")
+    Rel(flight, mongo, "Updates Flight read model")
+    Rel(passenger, mongo, "Updates Passenger read model")
+    Rel(booking, mongo, "Updates Booking read model")
+    Rel(booking, eventstore, "Reads/writes events")
+    Rel(identity, rabbit, "Publishes UserCreated")
+    Rel(rabbit, passenger, "Delivers UserCreated")
+```
+
+## Non-functional requirements
+
+- **Availability:** A context is unavailable for approximately its freeze window while
+  ownership changes; the other contexts continue serving traffic.
+- **Recovery point objective:** RPO is 0 within the freeze because writes are blocked
+  until the copy and verification complete.
+- **Recovery time objective:** RTO is approximately the duration of the owner flip,
+  including copy, validation, health checks, and route reload.
+- **Data classification:** Identity and Passenger contain PII; treat their copies,
+  logs, backups, and retained source databases accordingly.
+
+## Security and compliance
+
+- Production data copies remain inside the PostgreSQL container/environment boundary;
+  the process does not expose a new copy endpoint.
+- Gateway route freeze is existing middleware/configuration and adds no public endpoint.
+- Identity signing and Data Protection volumes contain key material and must be protected
+  and backed up with restricted access.
+- Development credentials in Compose and scripts are local-only and must not be reused in
+  production.
+
+## Cost
+
+No new production infrastructure or external service is introduced. The additional
+recurring cost is storage for the retained legacy image in the private registry.
+
+## Operations
+
+- **Owner:** Service platform/on-call team coordinates the flip; each bounded-context
+  owner validates its data and service behavior.
+- **Runbook:** `docs/runbooks/cutover.md`.
+- **CI drill:** `.github/workflows/cutover.yml` builds the legacy image and service images,
+  exercises rollback and token continuity, cuts over all contexts, decommissions the
+  monolith, and runs the Compose smoke test.
+
 ## Alternatives considered
 
 - Keep the monolith as the permanent fallback for all routes: rejected because it leaves

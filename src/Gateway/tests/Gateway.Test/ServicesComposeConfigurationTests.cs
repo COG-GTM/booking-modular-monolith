@@ -105,6 +105,63 @@ public class ServicesComposeConfigurationTests
     }
 
     [Fact]
+    public void base_services_topology_uses_host_defaults_without_cutover_state()
+    {
+        var root = FindRepositoryRoot();
+        var compose = File.ReadAllText(Path.Combine(root.FullName, "deployments/docker-compose/docker-compose.yaml"));
+
+        foreach (var service in AppServices)
+        {
+            var section = ServiceSection(compose, service);
+            Assert.DoesNotContain("BackgroundProcessingEnabled", section, StringComparison.Ordinal);
+            Assert.DoesNotContain("${", section, StringComparison.Ordinal);
+            Assert.DoesNotContain("monolith", section, StringComparison.OrdinalIgnoreCase);
+        }
+
+        var booking = ServiceSection(compose, "booking-service");
+        Assert.Contains("Services__flight__grpc__0: http://flight-service:81", booking, StringComparison.Ordinal);
+        Assert.Contains("Services__passenger__grpc__0: http://passenger-service:81", booking, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void cutover_overlay_sets_state_driven_background_and_monolith_grpc_overrides()
+    {
+        var root = FindRepositoryRoot();
+        var overlay = File.ReadAllText(
+            Path.Combine(root.FullName, "deployments/docker-compose/docker-compose.cutover.yaml")
+        );
+        var expected = new Dictionary<string, string>
+        {
+            ["identity-service"] = "IDENTITY",
+            ["flight-service"] = "FLIGHT",
+            ["passenger-service"] = "PASSENGER",
+            ["booking-service"] = "BOOKING",
+        };
+
+        foreach (var (service, module) in expected)
+        {
+            var section = ServiceSection(overlay, service);
+            Assert.Contains(
+                $"Modules__{module}__BackgroundProcessingEnabled: ${{{module}_SERVICE_BACKGROUND:-false}}",
+                section,
+                StringComparison.Ordinal
+            );
+        }
+
+        var booking = ServiceSection(overlay, "booking-service");
+        Assert.Contains(
+            "Services__flight__grpc__0: ${FLIGHT_GRPC_ADDRESS_FOR_SERVICES:-http://monolith:81}",
+            booking,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            "Services__passenger__grpc__0: ${PASSENGER_GRPC_ADDRESS_FOR_SERVICES:-http://monolith:81}",
+            booking,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public void app_services_use_readiness_probes_and_configured_otel_names()
     {
         var compose = File.ReadAllText(

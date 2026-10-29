@@ -305,7 +305,7 @@ public sealed class CrossServiceEndToEndFixture : IAsyncLifetime
                     ["client_secret"] = "secret",
                     ["username"] = "samh",
                     ["password"] = "Admin@123456",
-                    ["scope"] = "identity-api flight-api passenger-api booking-api",
+                    ["scope"] = "booking-modular-monolith identity-api flight-api passenger-api booking-api",
                 }
             )
         );

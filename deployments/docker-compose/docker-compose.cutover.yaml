@@ -1,4 +1,22 @@
 services:
+  identity-service:
+    environment:
+      Modules__Identity__BackgroundProcessingEnabled: ${IDENTITY_SERVICE_BACKGROUND:-false}
+
+  flight-service:
+    environment:
+      Modules__Flight__BackgroundProcessingEnabled: ${FLIGHT_SERVICE_BACKGROUND:-false}
+
+  passenger-service:
+    environment:
+      Modules__Passenger__BackgroundProcessingEnabled: ${PASSENGER_SERVICE_BACKGROUND:-false}
+
+  booking-service:
+    environment:
+      Modules__Booking__BackgroundProcessingEnabled: ${BOOKING_SERVICE_BACKGROUND:-false}
+      Services__flight__grpc__0: ${FLIGHT_GRPC_ADDRESS_FOR_SERVICES:-http://monolith:81}
+      Services__passenger__grpc__0: ${PASSENGER_GRPC_ADDRESS_FOR_SERVICES:-http://monolith:81}
+
   monolith:
     image: ${MONOLITH_IMAGE:-booking-modular-monolith:legacy}
     container_name: booking_modular_monolith
