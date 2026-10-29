@@ -15,7 +15,7 @@ public class FlightHostConfigurationTests
         var local = LoadConfiguration(root, docker: false);
         var docker = LoadConfiguration(root, docker: true);
 
-        AssertKestrel(local, "http://localhost:5102", "http://localhost:5103");
+        AssertKestrel(local, "http://localhost:5102", "http://localhost:5106");
         AssertKestrel(docker, "http://+:80", "http://+:81");
         AssertPostgres(local, "localhost");
         AssertPostgres(docker, "postgres");

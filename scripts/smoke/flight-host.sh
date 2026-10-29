@@ -2,7 +2,7 @@
 set -euo pipefail
 
 FLIGHT_HTTP="${FLIGHT_HTTP:-http://localhost:5102}"
-FLIGHT_GRPC="${FLIGHT_GRPC:-localhost:5103}"
+FLIGHT_GRPC="${FLIGHT_GRPC:-localhost:5106}"
 TOKEN_URL="${TOKEN_URL:-http://localhost:3001/connect/token}"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"

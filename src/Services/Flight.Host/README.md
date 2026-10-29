@@ -7,7 +7,7 @@
 | Protocol | Local | Docker |
 | --- | --- | --- |
 | HTTP REST, OpenAPI, health | `http://localhost:5102` | `http://localhost:5104` |
-| h2c gRPC | `http://localhost:5103` | `http://localhost:5105` |
+| h2c gRPC | `http://localhost:5106` | `http://localhost:5105` |
 
 The gRPC listener is HTTP/2-only because h2c does not negotiate HTTP/2 when a clear-text endpoint also supports HTTP/1.1.
 Service-to-service h2c gRPC is unauthenticated under the shared epic decision (ARB follow-up); keep port 81 on the internal network and never expose it publicly.

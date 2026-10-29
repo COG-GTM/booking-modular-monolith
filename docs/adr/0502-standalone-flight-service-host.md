@@ -16,7 +16,7 @@ This introduces a new service process and HTTP/2 network listener, with dedicate
 
 1. Add `src/Services/Flight.Host` as a standalone ASP.NET Core host and reuse `ServiceDefaults`, focused shared BuildingBlocks, the canonical gRPC contracts, and the existing Flight module.
 2. Keep module lifecycle and persistence registrations owned by `AddFlightModules()` / `UseFlightModules()`. The host registers only shared host services, JWT, Flight-only MassTransit consumer scanning, gRPC health, and Flight-specific readiness checks.
-3. Serve REST, health, and Development OpenAPI on HTTP port 5102 locally / port 80 in Docker. Serve h2c gRPC on the HTTP/2-only port 5103 locally / port 81 in Docker. Keep internal gRPC unauthenticated as in ADR 0103.
+3. Serve REST, health, and Development OpenAPI on HTTP port 5102 locally / port 80 in Docker. Serve h2c gRPC on the HTTP/2-only port 5106 locally / port 81 in Docker. Keep internal gRPC unauthenticated as in ADR 0103.
 4. Give the host its own `flight_service` PostgreSQL database/outbox and `flight_service_read` Mongo read database. Reuse the existing RabbitMQ transport and `booking-modular-monolith` audience. Keep monolith defaults and gateway/Booking defaults unchanged.
 5. Map `/health/live` to liveness-only checks and `/health/ready` to all non-live checks in every environment. Expose `grpc.health.v1.Health` for overall service and `flight.FlightGrpcService`, excluding liveness checks.
 6. Keep one active Flight background processor per Flight store. Side-by-side routing and worker handoff are configuration-only follow-up work; existing-data migration is deferred to AB-505.
@@ -26,7 +26,7 @@ This introduces a new service process and HTTP/2 network listener, with dedicate
 ```mermaid
 flowchart LR
     GW["Gateway"] -->|"HTTP :5102 / :80"| FH["Flight.Host"]
-    BK["Booking"] -->|"h2c gRPC :5103 / :81"| FH
+    BK["Booking"] -->|"h2c gRPC :5106 / :81"| FH
     FH --> FDB[("PostgreSQL: flight_service + outbox")]
     FH --> MDB[("MongoDB: flight_service_read")]
     FH --> RMQ["RabbitMQ: booking transport"]

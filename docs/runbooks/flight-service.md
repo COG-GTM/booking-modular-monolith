@@ -7,7 +7,9 @@
 | Endpoint | Local | Docker |
 | --- | --- | --- |
 | REST, OpenAPI, liveness, readiness | `http://localhost:5102` | `http://localhost:5104` |
-| Flight gRPC and `grpc.health.v1.Health` | `http://localhost:5103` | `http://localhost:5105` |
+| Flight gRPC and `grpc.health.v1.Health` | `http://localhost:5106` | `http://localhost:5105` |
+
+Identity.Host uses local port `5103`, so Flight.Host uses HTTP `5102` and h2c gRPC `5106` to allow both hosts to run side by side.
 
 The service needs PostgreSQL, MongoDB, and RabbitMQ. Local configuration uses the `flight_service` PostgreSQL role/database and `flight_service_read` Mongo database; Docker connects to Compose services `postgres`, `mongo`, and `rabbitmq`. Supply deployment credentials through the environment/secret manager rather than using development role-name passwords.
 
@@ -50,7 +52,7 @@ During the AB-505 cutover, configure both hosts so each module's writes and back
 3. Route Booking's Flight gRPC client to the h2c listener:
 
    ```text
-   Services__flight__grpc__0=http://localhost:5103
+   Services__flight__grpc__0=http://localhost:5106
    ```
 
 4. Use the standalone stores `flight_service` and `flight_service_read`; do not point the host at the monolith's `flight_modular_monolith` or `flight_modular_monolith_read` stores. Existing data migration/reconciliation is deferred to AB-505.
