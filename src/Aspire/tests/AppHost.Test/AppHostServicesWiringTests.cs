@@ -277,6 +277,20 @@ public class AppHostServicesWiringTests
         Assert.Equal("8.17.0", elasticsearchImage.Tag);
     }
 
+    [Fact]
+    public async Task Otel_collector_grpc_endpoint_uses_http_scheme()
+    {
+        await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>([]);
+        var collector = builder.Resources.Single(resource => resource.Name == "otel-collector");
+
+        var grpc = collector
+            .Annotations.OfType<EndpointAnnotation>()
+            .Single(annotation => annotation.Name == "otel-grpc");
+        Assert.Equal("http", grpc.UriScheme);
+        Assert.Equal(4317, grpc.Port);
+        Assert.Equal(4317, grpc.TargetPort);
+    }
+
     private static async Task<Dictionary<string, string>> EnvironmentAsync(
         ProjectResource resource,
         DistributedApplicationOperation applicationOperation = DistributedApplicationOperation.Publish
