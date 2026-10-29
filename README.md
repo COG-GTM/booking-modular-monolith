@@ -236,16 +236,52 @@ aspire run
 
 > ### Docker Compose
 
-To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-compose/docker-compose.yaml) and execute the below command at the `root` of the application:
+Compose provides two mutually exclusive topologies. The default is the gateway plus four service hosts and shared
+infrastructure:
 
 ```bash
-docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
+docker compose -f deployments/docker-compose/docker-compose.yaml up -d --build
+scripts/smoke/compose-e2e.sh
+docker compose -f deployments/docker-compose/docker-compose.yaml ps
+```
+
+For a quick monolith API and gateway check, start the application graph and its core dependencies:
+
+```bash
+docker compose -f deployments/docker-compose/docker-compose.monolith.yaml up -d --build booking_gateway postgres mongo eventstore rabbitmq redis
+curl --fail http://localhost:5000/health
+```
+
+The monolith keeps its existing HTTPS binding on host port `3000`, which is also Grafana's host port. This targeted
+command avoids starting the unused observability services during the monolith check.
+
+The topology files share the same project, named containers, and host ports. Stop one before starting the other:
+
+```bash
+docker compose -f deployments/docker-compose/docker-compose.yaml down --remove-orphans
+# use docker-compose.monolith.yaml for the monolith topology
+```
+
+| Component | Published host ports |
+|---|---|
+| Gateway | `5000` (the public application ingress) |
+| Identity | `127.0.0.1:5103` |
+| Flight HTTP / h2c gRPC | `127.0.0.1:5107` / `127.0.0.1:5106` |
+| Passenger HTTP / h2c gRPC | `127.0.0.1:5102` / `127.0.0.1:5202` |
+| Booking | `127.0.0.1:5004` |
+| Shared infrastructure | PostgreSQL `5432`, MongoDB `27017`, EventStoreDB `2113`, RabbitMQ `5672` / `15672`, Redis `6379` |
+| Observability | Grafana `3000`, Prometheus `9090`, Jaeger `6831/udp`, `14268`, `14317` / `14318`, `16686`; Zipkin `9411`; OTLP Collector `11888`, `8888`, `8889`, `13133`, `4317` / `4318`, `55679`; Tempo `24317` / `24318`; Loki `3100`; Elasticsearch `9200` / `9300`; Kibana `5601`; cAdvisor `${CADVISOR_HOST_PORT:-8080}` |
+
+The infrastructure file is included by both topologies, so infrastructure-only startup remains available:
+
+```bash
+docker compose -f deployments/docker-compose/docker-compose.infrastructure.yaml up -d postgres mongo eventstore rabbitmq
 ```
 
 > ### Local API with infrastructure in Docker
 
 ```bash
-docker compose -f deployments/docker-compose/docker-compose.yaml up -d postgres mongo eventstore
+docker compose -f deployments/docker-compose/docker-compose.infrastructure.yaml up -d postgres mongo eventstore
 export PATH="$HOME/.dotnet:$PATH"
 dotnet run --project src/Api/src
 ```
@@ -266,6 +302,10 @@ the same per-module roles with host `postgres`. PostgreSQL 16 enables
 `max_prepared_transactions=100` for Flight's transactional outbox.
 Mongo read databases are separate: `flight_modular_monolith_read`,
 `passenger_modular_monolith_read`, and `booking_modular_monolith_read`.
+
+See the [Docker Compose runbook](./docs/runbooks/docker-compose.md) and
+[ADR 0503: multi-service Compose topology](./docs/adr/0503-multi-service-docker-compose-topology.md) for service
+configuration, health gating, smoke checks, and troubleshooting.
 
 See [ADR 0002: per-service data ownership](./docs/adr/0002-per-service-data-ownership.md)
 and the [data ownership runbook](./docs/runbooks/per-service-data.md) for config
