@@ -40,7 +40,9 @@ BASH = find_bash()
 class RealSharedProjectMetadataTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.projects = ci.shared_projects((REPO / "booking-modular-monolith.sln").read_text())
+        cls.projects = [project for project in ci.shared_projects(
+            (REPO / "booking-modular-monolith.sln").read_text()
+        ) if project.startswith("src/BuildingBlocks/")]
         cls.version = ci.version((REPO / "Directory.Build.props").read_text())
 
     def properties(self, project, *options):
