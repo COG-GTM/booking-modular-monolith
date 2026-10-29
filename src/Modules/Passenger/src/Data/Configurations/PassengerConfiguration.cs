@@ -12,10 +12,15 @@ public class PassengerConfiguration : IEntityTypeConfiguration<Passengers.Models
         builder.ToTable(nameof(Passengers.Models.Passenger));
 
         builder.HasKey(r => r.Id);
-        builder.Property(r => r.Id).ValueGeneratedNever()
+        builder
+            .Property(r => r.Id)
+            .ValueGeneratedNever()
             .HasConversion<Guid>(passengerId => passengerId.Value, dbId => PassengerId.Of(dbId));
 
         builder.Property(r => r.Version).IsConcurrencyToken();
+
+        builder.Property(r => r.UserId).IsRequired();
+        builder.HasIndex(r => r.UserId);
 
         builder.OwnsOne(
             x => x.Name,
@@ -50,11 +55,13 @@ public class PassengerConfiguration : IEntityTypeConfiguration<Passengers.Models
             }
         );
 
-        builder.Property(x => x.PassengerType)
+        builder
+            .Property(x => x.PassengerType)
             .IsRequired()
             .HasDefaultValue(Passengers.Enums.PassengerType.Unknown)
             .HasConversion(
                 x => x.ToString(),
-                x => (Passengers.Enums.PassengerType)Enum.Parse(typeof(Passengers.Enums.PassengerType), x));
+                x => (Passengers.Enums.PassengerType)Enum.Parse(typeof(Passengers.Enums.PassengerType), x)
+            );
     }
 }
