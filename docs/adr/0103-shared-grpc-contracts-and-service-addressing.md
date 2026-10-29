@@ -1,4 +1,4 @@
-# 0102. Shared gRPC contracts and config/discovery-driven service addressing
+# 0103. Shared gRPC contracts and config/discovery-driven service addressing
 
 - **Status:** Proposed
 - **Date:** 2026-10-29

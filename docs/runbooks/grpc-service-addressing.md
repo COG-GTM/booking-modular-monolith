@@ -1,6 +1,6 @@
 # Runbook: gRPC contracts and service addressing
 
-Booking -> Flight / Passenger gRPC (ADR [0101](../adr/0102-shared-grpc-contracts-and-service-addressing.md)).
+Booking -> Flight / Passenger gRPC (ADR [0101](../adr/0103-shared-grpc-contracts-and-service-addressing.md)).
 
 ## Configuration
 

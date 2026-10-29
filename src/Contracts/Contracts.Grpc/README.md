@@ -10,7 +10,7 @@ Single source of truth for the synchronous service-to-service contracts:
 The project generates both client and server stubs (C# namespaces `Flight` / `Passenger`) and ships the `.proto`
 files under `protos/` in the NuGet package (`BookingModularMonolith.Contracts.Grpc`) for non-.NET tooling.
 
-Rules (ADR 0102):
+Rules (ADR 0103):
 
 - Never change a proto package, service or RPC name, field number or field type, or reuse a removed tag.
 - Additive changes (new optional fields, new RPCs) bump the minor `ContractsGrpcVersion` in `src/Contracts/Versions.props` and update
