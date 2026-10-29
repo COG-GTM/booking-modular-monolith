@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 using NSubstitute;
 using Xunit;
 
-namespace BuildingingBlocks.Tests;
+namespace BuildingBlocks.Tests;
 
 public class PersistMessageBackgroundServiceTests
 {
