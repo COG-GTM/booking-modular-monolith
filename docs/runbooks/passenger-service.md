@@ -31,7 +31,7 @@ deferred to AB-505.
 | `ConnectionStrings__rabbitmq` | Optional AMQP URI; takes precedence over `RabbitMqOptions`. |
 | `RabbitMqOptions__HostName`, `RabbitMqOptions__Port`, `RabbitMqOptions__VirtualHost`, `RabbitMqOptions__UserName`, `RabbitMqOptions__Password` | Broker connection details; local defaults are `localhost`, `5672`, `/`, `booking`, `booking`. |
 | `PersistMessageOptions__Enabled`, `PersistMessageOptions__Interval` | Outbox worker enablement and poll interval in seconds. |
-| `Modules__Passenger__BackgroundProcessingEnabled` | Defaults to `true`; enables the Passenger outbox worker in this host. |
+| `Modules__Passenger__BackgroundProcessingEnabled` | Defaults to `true`; enables the Passenger outbox worker and consumer registration in this host. |
 | `HealthOptions__Enabled` | `false` to prevent the shared health extension from adding duplicate/eager checks; host-local readiness checks remain enabled. |
 
 The host resolves Passenger Mongo options using the module-specific settings,
@@ -54,9 +54,9 @@ initialization creates `passenger_service` and its service role on a fresh volum
 
 ## Run alongside the monolith
 
-To transfer Passenger queue ownership to the standalone host, start the monolith
-with Passenger background processing disabled and leave it enabled in the
-Passenger host:
+To transfer Passenger queue ownership to the standalone host, disable Passenger
+background processing in the monolith and leave it enabled in the Passenger
+host:
 
 ```bash
 docker compose -f deployments/docker-compose/docker-compose.infrastructure.yaml up -d postgres mongo rabbitmq eventstore
@@ -64,9 +64,10 @@ Modules__Passenger__BackgroundProcessingEnabled=false dotnet run --project src/A
 dotnet run --project src/Services/Passenger.Host/Passenger.Host.csproj
 ```
 
-The module setting in the monolith disables both its Passenger outbox worker and
-its Passenger MassTransit consumers. Do not run two active Passenger consumer
-sets against the shared queue.
+The module setting applies independently to the monolith and standalone host:
+`false` disables that host's Passenger outbox worker and MassTransit consumer
+registration. Keep it `false` in the monolith and `true` in the standalone host;
+do not run two active Passenger consumer sets against the shared queue.
 
 Configure gateway routing to the local Passenger HTTP endpoint:
 

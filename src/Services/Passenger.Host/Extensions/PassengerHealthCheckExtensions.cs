@@ -29,6 +29,20 @@ public static class PassengerHealthCheckExtensions
             timeout: TimeSpan.FromSeconds(10)
         );
 
+        healthChecks.AddNpgSql(
+            serviceProvider =>
+            {
+                var config = serviceProvider.GetRequiredService<IConfiguration>();
+                return config.GetConnectionString("passenger-persist-message")
+                    ?? config["PersistMessageOptions:ConnectionString:Passenger"]
+                    ?? config.GetConnectionString("passenger")
+                    ?? config["PostgresOptions:ConnectionString:Passenger"]
+                    ?? string.Empty;
+            },
+            name: "passenger-persist-message",
+            timeout: TimeSpan.FromSeconds(10)
+        );
+
         healthChecks.AddMongoDb(
             clientFactory: serviceProvider =>
             {

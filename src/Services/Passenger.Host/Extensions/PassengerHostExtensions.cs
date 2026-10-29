@@ -1,3 +1,4 @@
+using System.Reflection;
 using BuildingBlocks.Core;
 using BuildingBlocks.Exception;
 using BuildingBlocks.Jwt;
@@ -8,6 +9,7 @@ using BuildingBlocks.Web;
 using Figgle.Fonts;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Passenger;
 using Passenger.Host.Health;
 
@@ -35,7 +37,7 @@ public static class PassengerHostExtensions
             builder.Configuration,
             builder.Environment,
             configureBus: null,
-            typeof(global::Passenger.PassengerRoot).Assembly
+            PassengerConsumerAssemblies(builder.Configuration)
         );
         builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);
         builder.Services.AddGrpc(options =>
@@ -54,6 +56,12 @@ public static class PassengerHostExtensions
 
         return builder;
     }
+
+    internal static Assembly[] PassengerConsumerAssemblies(IConfiguration configuration) =>
+        ModuleBackgroundProcessing.ConsumerAssemblies(
+            configuration,
+            ("Passenger", typeof(global::Passenger.PassengerRoot).Assembly)
+        );
 
     public static WebApplication UsePassengerHostInfrastructure(this WebApplication app)
     {
