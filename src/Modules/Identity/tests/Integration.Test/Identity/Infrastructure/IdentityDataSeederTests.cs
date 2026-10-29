@@ -169,6 +169,73 @@ public class IdentityDataSeederTests
         harness.Events.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task should_seed_admin_on_rerun_when_admin_password_is_added_after_user_was_seeded()
+    {
+        await using var harness = await SeederHarness.CreateAsync(
+            new IdentitySeedOptions { UserPassword = UserPassword }
+        );
+        await harness.Seeder.SeedAllAsync();
+        (await harness.UserManager.FindByNameAsync("samh")).Should().BeNull();
+
+        await harness
+            .CreateSeeder(new IdentitySeedOptions { AdminPassword = AdminPassword, UserPassword = UserPassword })
+            .SeedAllAsync();
+
+        var admin = await harness.UserManager.FindByNameAsync("samh");
+        admin.Should().NotBeNull();
+        (await harness.UserManager.CheckPasswordAsync(admin!, AdminPassword)).Should().BeTrue();
+        (await harness.UserManager.GetRolesAsync(admin!)).Should().BeEquivalentTo(IdentityConstant.Role.Admin);
+        (await harness.Context.Users.CountAsync()).Should().Be(2);
+        harness.Events.OfType<UserCreated>().Select(userCreated => userCreated.Name).Should().Equal("Sam2 H2", "Sam H");
+    }
+
+    [Fact]
+    public async Task should_seed_user_on_rerun_when_user_password_is_added_after_admin_was_seeded()
+    {
+        await using var harness = await SeederHarness.CreateAsync(
+            new IdentitySeedOptions { AdminPassword = AdminPassword }
+        );
+        await harness.Seeder.SeedAllAsync();
+        (await harness.UserManager.FindByNameAsync("samh2")).Should().BeNull();
+
+        await harness
+            .CreateSeeder(new IdentitySeedOptions { AdminPassword = AdminPassword, UserPassword = UserPassword })
+            .SeedAllAsync();
+
+        var user = await harness.UserManager.FindByNameAsync("samh2");
+        user.Should().NotBeNull();
+        (await harness.UserManager.CheckPasswordAsync(user!, UserPassword)).Should().BeTrue();
+        (await harness.UserManager.GetRolesAsync(user!)).Should().BeEquivalentTo(IdentityConstant.Role.User);
+        (await harness.Context.Users.CountAsync()).Should().Be(2);
+        harness.Events.OfType<UserCreated>().Select(userCreated => userCreated.Name).Should().Equal("Sam H", "Sam2 H2");
+    }
+
+    [Fact]
+    public async Task should_not_recreate_or_reset_passwords_of_already_seeded_users_on_rerun()
+    {
+        await using var harness = await SeederHarness.CreateAsync(
+            new IdentitySeedOptions { AdminPassword = AdminPassword, UserPassword = UserPassword }
+        );
+        await harness.Seeder.SeedAllAsync();
+
+        await harness
+            .CreateSeeder(
+                new IdentitySeedOptions { AdminPassword = "rotated-admin-pass", UserPassword = "rotated-user-pass" }
+            )
+            .SeedAllAsync();
+
+        var admin = await harness.UserManager.FindByNameAsync("samh");
+        var user = await harness.UserManager.FindByNameAsync("samh2");
+        (await harness.Context.Users.CountAsync()).Should().Be(2);
+        (await harness.UserManager.CheckPasswordAsync(admin!, AdminPassword)).Should().BeTrue();
+        (await harness.UserManager.CheckPasswordAsync(admin!, "rotated-admin-pass")).Should().BeFalse();
+        (await harness.UserManager.CheckPasswordAsync(user!, UserPassword)).Should().BeTrue();
+        (await harness.UserManager.CheckPasswordAsync(user!, "rotated-user-pass")).Should().BeFalse();
+        harness.Events.OfType<UserCreated>().Should().HaveCount(2);
+        harness.Logger.Entries.Should().NotContain(entry => entry.Level >= LogLevel.Warning);
+    }
+
     private sealed class SeederHarness : IAsyncDisposable
     {
         private readonly SqliteConnection _connection;
@@ -193,6 +260,27 @@ public class IdentityDataSeederTests
         public IdentityDataSeeder Seeder { get; }
         public List<object> Events { get; }
         public RecordingLogger<IdentityDataSeeder> Logger { get; }
+
+        public IdentityDataSeeder CreateSeeder(IdentitySeedOptions seedOptions) =>
+            new(
+                UserManager,
+                _scope.ServiceProvider.GetRequiredService<RoleManager<Role>>(),
+                _scope.ServiceProvider.GetRequiredService<IEventDispatcher>(),
+                Context,
+                BuildConfiguration(seedOptions),
+                Logger
+            );
+
+        private static IConfiguration BuildConfiguration(IdentitySeedOptions seedOptions) =>
+            new ConfigurationBuilder()
+                .AddInMemoryCollection(
+                    new Dictionary<string, string?>
+                    {
+                        ["IdentitySeedOptions:AdminPassword"] = seedOptions.AdminPassword,
+                        ["IdentitySeedOptions:UserPassword"] = seedOptions.UserPassword,
+                    }
+                )
+                .Build();
 
         public static async Task<SeederHarness> CreateAsync(
             IdentitySeedOptions seedOptions,
