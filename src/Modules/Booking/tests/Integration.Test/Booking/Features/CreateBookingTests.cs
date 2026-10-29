@@ -3,8 +3,11 @@ using Api;
 using Booking.Data;
 using BookingFlight;
 using BookingPassenger;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.TestBase;
+using BuildingBlocks.Web;
+using Booking.Booking.Exceptions;
 using FluentAssertions;
 using Grpc.Core;
 using Grpc.Core.Testing;
@@ -26,6 +29,7 @@ namespace Integration.Test.Booking.Features
 
         protected override void RegisterTestsServices(IServiceCollection services)
         {
+            services.Replace(ServiceDescriptor.Singleton<ICurrentUserProvider>(_ => Substitute.For<ICurrentUserProvider>()));
             MockFlightGrpcServices(services);
             MockPassengerGrpcServices(services);
         }
@@ -35,6 +39,9 @@ namespace Integration.Test.Booking.Features
         {
             // Arrange
             var command = new FakeCreateBookingCommand().Generate();
+            var currentUserProvider = Fixture.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
+            currentUserProvider.GetCurrentUserGuid().Returns(command.PassengerId);
+            currentUserProvider.IsInRole(IdentityConstant.Role.Admin).Returns(false);
 
             // Act
             var response = await Fixture.SendAsync(command);
@@ -45,6 +52,44 @@ namespace Integration.Test.Booking.Features
             (await Fixture.WaitForPublishing<BookingCreated>()).Should().Be(true);
         }
 
+        [Fact]
+        public async Task should_throw_forbidden_when_booking_for_another_passenger()
+        {
+            var command = new FakeCreateBookingCommand().Generate();
+            var currentUserProvider = Fixture.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
+            currentUserProvider.GetCurrentUserGuid().Returns(Guid.NewGuid());
+            currentUserProvider.IsInRole(IdentityConstant.Role.Admin).Returns(false);
+
+            var act = () => Fixture.SendAsync(command);
+
+            await act.Should().ThrowAsync<PassengerBookingForbiddenException>();
+        }
+
+        [Fact]
+        public async Task should_throw_forbidden_when_user_is_unauthenticated()
+        {
+            var command = new FakeCreateBookingCommand().Generate();
+            var currentUserProvider = Fixture.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
+            currentUserProvider.GetCurrentUserGuid().Returns((Guid?)null);
+            currentUserProvider.IsInRole(IdentityConstant.Role.Admin).Returns(false);
+
+            var act = () => Fixture.SendAsync(command);
+
+            await act.Should().ThrowAsync<PassengerBookingForbiddenException>();
+        }
+
+        [Fact]
+        public async Task should_allow_admin_to_create_booking_for_another_passenger()
+        {
+            var command = new FakeCreateBookingCommand().Generate();
+            var currentUserProvider = Fixture.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
+            currentUserProvider.GetCurrentUserGuid().Returns(Guid.NewGuid());
+            currentUserProvider.IsInRole(IdentityConstant.Role.Admin).Returns(true);
+
+            var response = await Fixture.SendAsync(command);
+
+            response?.Id.Should().BeGreaterThanOrEqualTo(0);
+        }
 
         private void MockPassengerGrpcServices(IServiceCollection services)
         {
