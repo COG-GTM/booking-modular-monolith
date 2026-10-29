@@ -24,12 +24,11 @@ service ownership of database connections and allows their cross-service gRPC de
 
 **Superseded in part by [ADR 0027](0027-cutover-and-monolith-decommission.md) (AB-505):**
 AppHost is now Services-only. The topology selector, legacy API project and gateway
-monolith cluster/fallback described below have been removed. Unknown paths return 404;
+monolith cluster/fallback have been removed. Unknown paths return 404;
 previous-release recovery uses the Compose rollback overlay instead of AppHost.
 
-`AppHost:Topology` selects the local topology. The default `Services` topology starts the gateway and
-four service hosts, with no `api` process. `Monolith` preserves the legacy API and gateway topology,
-where every YARP cluster points to the API.
+Services is the only AppHost topology. It starts the gateway and four service hosts, with no `api`
+process or topology selector. ADR 0027/AB-505 removed the former Monolith topology.
 
 Each service receives only its own PostgreSQL database and persist-message connection strings, using
 its `<module>_service` role. Aspire service discovery resolves Booking's gRPC addresses; endpoint
@@ -41,9 +40,8 @@ is available at port 3030. The Aspire dashboard shows resources, health, and con
 service traces or metrics. Forwarding collector telemetry to the Aspire dashboard is a follow-up
 owned by AB-495's collector configuration.
 
-The `monolith` YARP fallback points to Identity while Services topology is active because no monolith
-process runs, and requires authentication so unmatched Identity paths cannot bypass gateway
-authorization. Dedicated `/connect/**` and `/.well-known/**` routes remain anonymous.
+The gateway has only the four service clusters and no catch-all fallback. Unknown paths return 404.
+Dedicated `/connect/**` and `/.well-known/**` routes remain anonymous.
 
 This is local-development orchestration only; it does not define production infrastructure.
 
@@ -72,7 +70,7 @@ C4Container
         Container(collector, "OpenTelemetry Collector", "OTel Collector", "Local telemetry forwarding")
     }
     Rel(developer, gateway, "Uses", "HTTP :5000")
-    Rel(gateway, identity, "Routes identity and fallback traffic", "HTTP")
+    Rel(gateway, identity, "Routes identity traffic", "HTTP")
     Rel(gateway, flight, "Routes Flight traffic", "HTTP")
     Rel(gateway, passenger, "Routes Passenger traffic", "HTTP")
     Rel(gateway, booking, "Routes Booking traffic", "HTTP")
@@ -113,8 +111,8 @@ N/A — no production resources are provisioned.
 ## Operations
 
 ServiceDefaults is not used by the hosts; AppHost configures their observability through AB-495's
-`OTEL_*` environment variables. `Monolith` remains available for the existing single-process
-workflow.
+`OTEL_*` environment variables. Services is the only topology; previous-release recovery uses the
+[Compose rollback overlay](../runbooks/cutover/decommission.md), not AppHost.
 
 ## Policy exceptions
 
@@ -125,7 +123,7 @@ N/A — this decision defines local orchestration only.
 - Developers can run the four service hosts and gateway together from Aspire.
 - Gateway YARP service discovery remains a follow-up; endpoint references are used for now.
 - Forwarding collector telemetry to the Aspire dashboard remains a follow-up in AB-495's collector configuration.
-- Do not run Monolith and Services topologies against the same databases simultaneously.
+- Previous-release monolith recovery is outside AppHost and follows ADR 0027's cutover runbook.
 
 ## Open questions
 

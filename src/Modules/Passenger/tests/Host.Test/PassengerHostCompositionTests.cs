@@ -91,7 +91,7 @@ public class PassengerHostCompositionTests
     }
 
     [Theory]
-    [InlineData("Production", "https://localhost:3000", "https://localhost:3000/.well-known/openid-configuration")]
+    [InlineData("Production", "http://localhost:5101", "http://localhost:5101/.well-known/openid-configuration")]
     [InlineData("docker", "http://localhost:5000", "http://identity-service:8080/.well-known/openid-configuration")]
     public async Task jwt_uses_the_configured_authority_audience_and_metadata(
         string environment,
@@ -126,10 +126,10 @@ public class PassengerHostCompositionTests
             .GetRequiredService<IOptionsMonitor<JwtBearerOptions>>()
             .Get(JwtBearerDefaults.AuthenticationScheme);
 
-        options.Authority.Should().Be("https://localhost:3000");
+        options.Authority.Should().Be("http://localhost:5101");
         options
             .MetadataAddress.Should()
-            .Be(string.IsNullOrEmpty(metadata) ? "https://localhost:3000/.well-known/openid-configuration" : metadata);
+            .Be(string.IsNullOrEmpty(metadata) ? "http://localhost:5101/.well-known/openid-configuration" : metadata);
     }
 
     [Theory]
