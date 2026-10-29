@@ -182,6 +182,38 @@ public class AppHostServicesWiringTests
         );
     }
 
+    [Theory]
+    [InlineData("Monolith")]
+    [InlineData("monolith")]
+    public async Task Legacy_monolith_topology_argument_does_not_restore_the_api(string topology)
+    {
+        await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
+            [$"--AppHost:Topology={topology}"]
+        );
+        var projects = builder.Resources.OfType<ProjectResource>().ToDictionary(resource => resource.Name);
+
+        Assert.Equal(
+            new[] { "booking-service", "flight-service", "gateway", "identity-service", "passenger-service" },
+            projects.Keys.OrderBy(name => name, StringComparer.Ordinal).ToArray()
+        );
+
+        var gateway = await EnvironmentAsync(projects["gateway"]);
+        Assert.DoesNotContain(
+            gateway.Keys,
+            key =>
+                key.StartsWith("ReverseProxy__Clusters__monolith__", StringComparison.Ordinal)
+                || key.StartsWith("ReverseProxy__Routes__fallback__", StringComparison.Ordinal)
+        );
+        foreach (var cluster in new[] { "identity", "flight", "passenger", "booking" })
+        {
+            Assert.Contains(
+                $"{cluster}-service",
+                gateway[$"ReverseProxy__Clusters__{cluster}__Destinations__primary__Address"],
+                StringComparison.Ordinal
+            );
+        }
+    }
+
     [Fact]
     public async Task Observability_extension_uses_ab495_environment_for_every_services_project()
     {
