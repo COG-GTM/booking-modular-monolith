@@ -319,6 +319,32 @@ var api = builder.AddProject<Api>("api")
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3001, name: "api-http")
-    .WithHttpsEndpoint(port: 3000, name: "api-https");
+    .WithHttpsEndpoint(port: 3000, name: "api-https")
+    // Tokens are issued for, and validated against, the gateway's public URL (single ingress).
+    .WithEnvironment("AuthOptions__IssuerUri", GatewayPublicUrl)
+    .WithEnvironment("Jwt__Authority", GatewayPublicUrl)
+    .WithEnvironment("Jwt__MetadataAddress", "http://localhost:3001/.well-known/openid-configuration");
+
+// 3. Gateway (YARP) - single ingress. Every cluster starts on the monolith; repoint one by
+// overriding ReverseProxy__Clusters__<cluster>__Destinations__primary__Address.
+var gateway = builder.AddProject<Gateway>("gateway")
+    .WithReference(api)
+    .WaitFor(api)
+    .WithHttpEndpoint(port: 5000, name: "gateway-http")
+    .WithEnvironment("Jwt__Authority", GatewayPublicUrl)
+    .WithEnvironment("Jwt__MetadataAddress", "http://localhost:3001/.well-known/openid-configuration");
+
+foreach (var cluster in new[] { "identity", "flight", "passenger", "booking", "monolith" })
+{
+    gateway.WithEnvironment(
+        $"ReverseProxy__Clusters__{cluster}__Destinations__primary__Address",
+        api.GetEndpoint("api-http")
+    );
+}
 
 builder.Build().Run();
+
+public partial class Program
+{
+    private const string GatewayPublicUrl = "http://localhost:5000";
+}
