@@ -2,12 +2,14 @@
 set -euo pipefail
 
 GATEWAY="${GATEWAY:-http://localhost:5000}"
+MONGO_SHELL="${MONGO_SHELL:-docker exec mongo mongosh}"
+read -r -a MONGO_SHELL_COMMAND <<<"$MONGO_SHELL"
 FLIGHT_ID="3c5c0000-97c6-fc34-2eb9-08db322230c9"
 TOKEN=""
 HTTP_STATUS=""
 HTTP_BODY=""
 
-for tool in curl jq docker; do
+for tool in curl jq "${MONGO_SHELL_COMMAND[0]}"; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         printf 'Required command not found: %s\n' "$tool" >&2
         exit 1
@@ -86,7 +88,7 @@ printf 'Registered identity user %s with passport %s\n' "$user_id" "$passport_nu
 
 passenger_count=""
 for attempt in $(seq 1 60); do
-    if passenger_count="$(docker exec mongo mongosh --quiet passenger_service_read --eval \
+    if passenger_count="$("${MONGO_SHELL_COMMAND[@]}" --quiet passenger_service_read --eval \
         "db.passenger.countDocuments({passportNumber: '$passport_number'})" 2>/dev/null)" &&
         [[ "$passenger_count" =~ ^[0-9]+$ ]] &&
         (( passenger_count > 0 )); then
@@ -123,7 +125,7 @@ if (( seats_before == 0 )); then
     exit 1
 fi
 
-if booking_count_before="$(docker exec mongo mongosh --quiet booking_service_read --eval \
+if booking_count_before="$("${MONGO_SHELL_COMMAND[@]}" --quiet booking_service_read --eval \
     'db.booking.countDocuments({})' 2>/dev/null)" &&
     [[ "$booking_count_before" =~ ^[0-9]+$ ]]; then
     :
@@ -165,7 +167,7 @@ for attempt in $(seq 1 60); do
     fi
 
     if [[ "$read_model_confirmed" == false && -n "$booking_count_before" ]] &&
-        booking_count_after="$(docker exec mongo mongosh --quiet booking_service_read --eval \
+        booking_count_after="$("${MONGO_SHELL_COMMAND[@]}" --quiet booking_service_read --eval \
             'db.booking.countDocuments({})' 2>/dev/null)" &&
         [[ "$booking_count_after" =~ ^[0-9]+$ ]] &&
         (( booking_count_after > booking_count_before )); then

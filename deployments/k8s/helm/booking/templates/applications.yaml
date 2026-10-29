@@ -1,0 +1,288 @@
+{{- $root := . -}}
+{{- $serviceKeys := list "identity" "flight" "passenger" "booking" "gateway" -}}
+{{- $backgroundKeys := list "identity" "flight" "passenger" "booking" -}}
+{{- $ownedEnvKeys := list
+  "ASPNETCORE_ENVIRONMENT"
+  "AuthOptions__IssuerUri"
+  "Jwt__Authority"
+  "Jwt__Audience"
+  "Jwt__MetadataAddress"
+  "RabbitMqOptions__HostName"
+  "RabbitMqOptions__Port"
+  "RabbitMqOptions__VirtualHost"
+  "RabbitMqOptions__UserName"
+  "RabbitMqOptions__Password"
+  "PostgresOptions__ConnectionString__Identity"
+  "PostgresOptions__ConnectionString__Flight"
+  "PostgresOptions__ConnectionString__Passenger"
+  "PostgresOptions__ConnectionString__Booking"
+  "MongoOptions__ConnectionString"
+  "MongoOptions__Flight__DatabaseName"
+  "MongoOptions__Passenger__DatabaseName"
+  "MongoOptions__Booking__DatabaseName"
+  "EventStoreOptions__ConnectionString"
+  "Services__flight__grpc__0"
+  "Services__passenger__grpc__0"
+  "ObservabilityOptions__UseAspireOTLPExporter"
+  "ObservabilityOptions__UseOTLPExporter"
+  "ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint"
+  "OTEL_SERVICE_NAME"
+  "OTEL_EXPORTER_OTLP_ENDPOINT"
+  "ReverseProxy__Clusters__identity__Destinations__primary__Address"
+  "ReverseProxy__Clusters__flight__Destinations__primary__Address"
+  "ReverseProxy__Clusters__passenger__Destinations__primary__Address"
+  "ReverseProxy__Clusters__booking__Destinations__primary__Address"
+  "ReverseProxy__Clusters__monolith__Destinations__primary__Address"
+  "ReverseProxy__Routes__api-fallback__Transforms__0__PathSet"
+  "ReverseProxy__Routes__monolith-fallback__Transforms__0__PathSet"
+-}}
+{{- range $key := $serviceKeys -}}
+{{- $service := index $root.Values.services $key -}}
+{{- if has $key $backgroundKeys -}}
+  {{- if and $service.backgroundProcessing (or (gt (int $service.replicas) 1) $service.hpa.enabled) -}}
+    {{- fail (printf "services.%s.backgroundProcessing cannot run with replicas > 1 or HPA enabled: the outbox has no row locking and Booking ESDB uses a single-consumer subscription, so only one replica may run background processing" $key) -}}
+  {{- end -}}
+  {{- if not $root.Values.global.allowInsecureDefaults -}}
+    {{- if not $service.existingSecret -}}
+      {{- fail (printf "global.allowInsecureDefaults=false requires services.%s.existingSecret; chart-generated credentials are for local development only" $key) -}}
+    {{- end -}}
+  {{- end -}}
+  {{- range $identifier := list $service.database.name $service.database.user -}}
+    {{- if not (regexMatch "^[a-z_][a-z0-9_]{0,62}$" (toString $identifier)) -}}
+      {{- fail (printf "services.%s database identifiers must match ^[a-z_][a-z0-9_]{0,62}$ (invalid value %q)" $key $identifier) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- if eq $key "identity" -}}
+  {{- if and (not $root.Values.global.allowInsecureDefaults) (not $service.signingKey.existingSecret) -}}
+    {{- fail "global.allowInsecureDefaults=false requires services.identity.signingKey.existingSecret for a stable IdentityServer signing key" -}}
+  {{- end -}}
+  {{- if and (not $service.signingKey.existingSecret) (gt (int $service.replicas) 1) -}}
+    {{- fail "services.identity.signingKey.existingSecret is required when identity replicas exceed 1 because developer signing keys are generated per pod" -}}
+  {{- end -}}
+{{- end -}}
+{{- range $envKey, $_ := $service.extraEnv -}}
+  {{- if or (has $envKey $ownedEnvKeys) (regexMatch "^Modules__.*__BackgroundProcessingEnabled$" $envKey) (regexMatch "^(PostgresOptions__ConnectionString__.*|MongoOptions__.*|EventStoreOptions__.*|Services__.*|ReverseProxy__.*|ObservabilityOptions__.*|Cors__AllowedOrigins__.*)$" $envKey) -}}
+    {{- fail (printf "services.%s.extraEnv key %q is chart-owned and cannot override the chart configuration" $key $envKey) -}}
+  {{- end -}}
+{{- end -}}
+{{- if $service.enabled -}}
+{{- $ctx := dict "root" $root "service" $service "key" $key -}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-config" $service.name }}
+  namespace: {{ $root.Release.Namespace }}
+  labels:
+    {{- include "booking.labels" (dict "root" $root "component" $key) | nindent 4 }}
+data:
+  {{- include "booking.appEnv" $ctx | nindent 2 }}
+{{- if has $key $backgroundKeys }}
+{{- if not $service.existingSecret }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ printf "%s-secret" $service.name }}
+  namespace: {{ $root.Release.Namespace }}
+  labels:
+    {{- include "booking.labels" (dict "root" $root "component" $key) | nindent 4 }}
+type: Opaque
+stringData:
+  {{- include "booking.appSecret" $ctx | nindent 2 }}
+{{- end }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $service.name }}
+  namespace: {{ $root.Release.Namespace }}
+  labels:
+    {{- include "booking.labels" (dict "root" $root "component" $key) | nindent 4 }}
+spec:
+  replicas: {{ $service.replicas }}
+  strategy:
+    {{- if $service.backgroundProcessing }}
+    type: Recreate
+    {{- else }}
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+    {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $root.Release.Name | quote }}
+      app.kubernetes.io/component: {{ $key | quote }}
+  template:
+    metadata:
+      labels:
+        {{- include "booking.labels" (dict "root" $root "component" $key) | nindent 8 }}
+      annotations:
+        checksum/config: {{ include "booking.appEnv" $ctx | sha256sum | quote }}
+        checksum/secret: {{ include "booking.appSecret" $ctx | sha256sum | quote }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      containers:
+        - name: {{ $key }}
+          image: {{ include "booking.image" $ctx | quote }}
+          imagePullPolicy: {{ $root.Values.global.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            {{- if $service.grpc.enabled }}
+            - name: grpc
+              containerPort: 81
+              protocol: TCP
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ printf "%s-config" $service.name }}
+            {{- if has $key $backgroundKeys }}
+            - secretRef:
+                name: {{ default (printf "%s-secret" $service.name) $service.existingSecret }}
+            {{- end }}
+          resources:
+            {{- toYaml $service.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+            seccompProfile:
+              type: RuntimeDefault
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- if eq $key "identity" }}
+          volumeMounts:
+            {{- if $service.signingKey.existingSecret }}
+            - name: identity-signing-key
+              mountPath: /app/tempkey.jwk
+              subPath: {{ default "tempkey.jwk" $service.signingKey.key | quote }}
+              readOnly: true
+            {{- end }}
+            - name: identity-keys
+              mountPath: /app/keys
+          {{- end }}
+      {{- if eq $key "identity" }}
+      volumes:
+        {{- if $service.signingKey.existingSecret }}
+        - name: identity-signing-key
+          secret:
+            secretName: {{ $service.signingKey.existingSecret }}
+        {{- end }}
+        - name: identity-keys
+          emptyDir: {}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $service.name }}
+  namespace: {{ $root.Release.Namespace }}
+  labels:
+    {{- include "booking.labels" (dict "root" $root "component" $key) | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: {{ $root.Release.Name | quote }}
+    app.kubernetes.io/component: {{ $key | quote }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+    {{ if $service.grpc.enabled }}
+    - name: grpc
+      port: 81
+      targetPort: grpc
+      protocol: TCP
+      appProtocol: kubernetes.io/h2c
+    {{ end }}
+{{ if $service.hpa.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $service.name }}
+  namespace: {{ $root.Release.Namespace }}
+  labels:
+    {{- include "booking.labels" (dict "root" $root "component" $key) | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $service.name }}
+  minReplicas: {{ $service.hpa.minReplicas }}
+  maxReplicas: {{ $service.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $service.hpa.targetCPUUtilizationPercentage }}
+{{ end }}
+{{ end }}
+{{ end }}
+{{ if $root.Values.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: booking
+  namespace: {{ $root.Release.Namespace }}
+  labels:
+    {{- include "booking.labels" (dict "root" $root "component" "gateway") | nindent 4 }}
+  {{- with $root.Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with $root.Values.ingress.className }}
+  ingressClassName: {{ . | quote }}
+  {{- end }}
+  {{- if $root.Values.ingress.tls }}
+  tls:
+    {{- toYaml $root.Values.ingress.tls | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range $host := $root.Values.ingress.hosts }}
+    - {{- if $host }}
+      host: {{ $host | quote }}
+      {{- end }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $root.Values.services.gateway.name }}
+                port:
+                  number: 80
+    {{- end }}
+{{- end }}

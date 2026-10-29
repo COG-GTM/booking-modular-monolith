@@ -1,0 +1,10 @@
+Booking services are installed in namespace {{ .Release.Namespace }}.
+
+Only the gateway is exposed through the configured Ingress. Resolve internal
+services by their configured DNS names, for example:
+  {{ .Values.services.identity.name }}:80
+  {{ .Values.services.flight.name }}:80 and :81 (h2c)
+  {{ .Values.services.passenger.name }}:80 and :81 (h2c)
+  {{ .Values.services.booking.name }}:80
+
+For kind, use the ingress URL http://localhost:8088.

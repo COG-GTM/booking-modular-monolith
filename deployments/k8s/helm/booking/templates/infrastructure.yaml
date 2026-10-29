@@ -1,0 +1,235 @@
+{{- if .Values.infrastructure.enabled }}
+{{- $root := . -}}
+{{- $components := list
+  (dict "key" "postgres" "port" 5432)
+  (dict "key" "mongo" "port" 27017)
+  (dict "key" "rabbitmq" "port" 5672)
+  (dict "key" "eventstore" "port" 2113)
+-}}
+{{- range $component := $components -}}
+{{- $key := $component.key -}}
+{{- $config := index $root.Values.infrastructure $key -}}
+{{- $labels := dict "root" $root "component" $key -}}
+{{- if eq $key "postgres" }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: {{ $root.Release.Namespace }}
+  labels:
+    {{- include "booking.labels" $labels | nindent 4 }}
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: {{ $config.auth.password | quote }}
+  01-service-databases.sql: |
+    {{- include "booking.postgresInitSql" $root | nindent 4 }}
+{{- else if eq $key "rabbitmq" }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rabbitmq-secret
+  namespace: {{ $root.Release.Namespace }}
+  labels:
+    {{- include "booking.labels" $labels | nindent 4 }}
+type: Opaque
+stringData:
+  RABBITMQ_DEFAULT_USER: {{ $config.auth.username | quote }}
+  RABBITMQ_DEFAULT_PASS: {{ $config.auth.password | quote }}
+{{- end }}
+{{- if $root.Values.infrastructure.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $key }}-data
+  namespace: {{ $root.Release.Namespace }}
+  labels:
+    {{- include "booking.labels" $labels | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ $root.Values.infrastructure.persistence.size }}
+  {{- with $root.Values.infrastructure.persistence.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $key }}
+  namespace: {{ $root.Release.Namespace }}
+  labels:
+    {{- include "booking.labels" $labels | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $root.Release.Name | quote }}
+      app.kubernetes.io/component: {{ $key | quote }}
+  template:
+    metadata:
+      labels:
+        {{- include "booking.labels" $labels | nindent 8 }}
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: {{ $key }}
+          image: {{ $config.image | quote }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: tcp
+              containerPort: {{ $component.port }}
+              protocol: TCP
+          {{- if eq $key "postgres" }}
+          args:
+            - -c
+            - max_prepared_transactions=100
+            - -c
+            - wal_level=logical
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+          {{- else if eq $key "rabbitmq" }}
+          envFrom:
+            - secretRef:
+                name: rabbitmq-secret
+          env:
+            - name: RABBITMQ_DEFAULT_VHOST
+              value: {{ $config.virtualHost | quote }}
+          {{- else if eq $key "eventstore" }}
+          env:
+            - name: EVENTSTORE_CLUSTER_SIZE
+              value: "1"
+            - name: EVENTSTORE_RUN_PROJECTIONS
+              value: All
+            - name: EVENTSTORE_START_STANDARD_PROJECTIONS
+              value: "True"
+            - name: EVENTSTORE_HTTP_PORT
+              value: "2113"
+            - name: EVENTSTORE_INSECURE
+              value: "True"
+            - name: EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP
+              value: "True"
+          {{- end }}
+          {{- if eq $key "postgres" }}
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            periodSeconds: 5
+          {{- else if eq $key "mongo" }}
+          livenessProbe:
+            exec:
+              command:
+                - mongosh
+                - --quiet
+                - --eval
+                - db.adminCommand('ping')
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - mongosh
+                - --quiet
+                - --eval
+                - db.adminCommand('ping')
+            periodSeconds: 5
+          {{- else if eq $key "rabbitmq" }}
+          livenessProbe:
+            exec:
+              command:
+                - rabbitmq-diagnostics
+                - -q
+                - ping
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - rabbitmq-diagnostics
+                - -q
+                - ping
+            periodSeconds: 5
+          {{- else }}
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 2113
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/live
+              port: 2113
+            periodSeconds: 5
+          {{- end }}
+          volumeMounts:
+            {{- if eq $key "postgres" }}
+            - name: postgres-init
+              mountPath: /docker-entrypoint-initdb.d/01-service-databases.sql
+              subPath: 01-service-databases.sql
+              readOnly: true
+            {{- end }}
+            {{- if $root.Values.infrastructure.persistence.enabled }}
+            - name: data
+              mountPath: {{ if eq $key "postgres" }}/var/lib/postgresql/data{{ else if eq $key "mongo" }}/data/db{{ else if eq $key "rabbitmq" }}/var/lib/rabbitmq{{ else }}/var/lib/eventstore{{ end }}
+            {{- else }}
+            - name: data
+              mountPath: {{ if eq $key "postgres" }}/var/lib/postgresql/data{{ else if eq $key "mongo" }}/data/db{{ else if eq $key "rabbitmq" }}/var/lib/rabbitmq{{ else }}/var/lib/eventstore{{ end }}
+            {{- end }}
+      volumes:
+        {{- if eq $key "postgres" }}
+        - name: postgres-init
+          secret:
+            secretName: postgres-secret
+        {{- end }}
+        - name: data
+          {{- if $root.Values.infrastructure.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ $key }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $key }}
+  namespace: {{ $root.Release.Namespace }}
+  labels:
+    {{- include "booking.labels" $labels | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: {{ $root.Release.Name | quote }}
+    app.kubernetes.io/component: {{ $key | quote }}
+  ports:
+    - name: tcp
+      port: {{ $component.port }}
+      targetPort: tcp
+      protocol: TCP
+{{- end }}
+{{- end }}

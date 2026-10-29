@@ -1,0 +1,187 @@
+global:
+  publicUrl: http://localhost:5000
+  image:
+    registry: ""
+    tag: local
+    pullPolicy: IfNotPresent
+  allowInsecureDefaults: false
+  observability:
+    otlpEndpoint: ""
+
+services:
+  identity:
+    enabled: true
+    name: identity-service
+    image:
+      repository: booking-identity-service
+    replicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 768Mi
+    grpc:
+      enabled: false
+    backgroundProcessing: true
+    hpa:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 5
+      targetCPUUtilizationPercentage: 70
+    database:
+      name: identity_service
+      user: identity_service
+      password: identity_service
+    existingSecret: ""
+    signingKey:
+      existingSecret: ""
+      key: tempkey.jwk
+    extraEnv: {}
+  flight:
+    enabled: true
+    name: flight-service
+    image:
+      repository: booking-flight-service
+    replicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 768Mi
+    grpc:
+      enabled: true
+    backgroundProcessing: true
+    hpa:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 5
+      targetCPUUtilizationPercentage: 70
+    database:
+      name: flight_service
+      user: flight_service
+      password: flight_service
+    mongoDatabase: flight_service_read
+    existingSecret: ""
+    extraEnv: {}
+  passenger:
+    enabled: true
+    name: passenger-service
+    image:
+      repository: booking-passenger-service
+    replicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 768Mi
+    grpc:
+      enabled: true
+    backgroundProcessing: true
+    hpa:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 5
+      targetCPUUtilizationPercentage: 70
+    database:
+      name: passenger_service
+      user: passenger_service
+      password: passenger_service
+    mongoDatabase: passenger_service_read
+    existingSecret: ""
+    extraEnv: {}
+  booking:
+    enabled: true
+    name: booking-service
+    image:
+      repository: booking-booking-service
+    replicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 768Mi
+    grpc:
+      enabled: false
+    backgroundProcessing: true
+    hpa:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 5
+      targetCPUUtilizationPercentage: 70
+    database:
+      name: booking_service
+      user: booking_service
+      password: booking_service
+    mongoDatabase: booking_service_read
+    existingSecret: ""
+    extraEnv: {}
+  gateway:
+    enabled: true
+    name: gateway
+    image:
+      repository: booking-gateway
+    replicas: 2
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 768Mi
+    grpc:
+      enabled: false
+    hpa:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 5
+      targetCPUUtilizationPercentage: 70
+    cors:
+      allowedOrigins: []
+    existingSecret: ""
+    extraEnv: {}
+
+infrastructure:
+  enabled: false
+  persistence:
+    enabled: false
+    storageClassName: ""
+    size: 8Gi
+  postgres:
+    host: postgres
+    port: 5432
+    image: mirror.gcr.io/library/postgres:16
+    auth:
+      password: postgres
+    sslMode: Disable
+  mongo:
+    host: mongo
+    port: 27017
+    image: mirror.gcr.io/library/mongo:7
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    image: mirror.gcr.io/library/rabbitmq:4.0.5-management
+    auth:
+      username: booking
+      password: booking
+    virtualHost: /
+  eventstore:
+    host: eventstore
+    port: 2113
+    image: mirror.gcr.io/eventstore/eventstore:23.10.0-bookworm-slim
+
+ingress:
+  enabled: false
+  className: traefik
+  hosts:
+    - ""
+  tls: []
+  annotations: {}
