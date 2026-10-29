@@ -89,6 +89,9 @@ ephemeral kind clusters.
   required dependencies; pods restart naturally while dependencies are unavailable.
 - Flight and Passenger expose HTTP on port 80 and h2c gRPC on port 81. Booking's gRPC client addresses and the
   gateway cluster destinations derive from the configured service DNS names.
+- The gateway ConfigMap contains only the four service destination clusters. It has no legacy `monolith`
+  cluster or `api-fallback` / `monolith-fallback` PathSet overrides; do not restore these retired values
+  through `extraEnv`. Unmatched requests remain unmatched rather than falling back to the removed host.
 - Configure gateway CORS with `services.gateway.cors.allowedOrigins`; an empty list leaves the appsettings defaults
   in effect, while the production overlay sets the public HTTPS origin.
 - All chart pods set `enableServiceLinks: false`; injected variables such as `EVENTSTORE_SERVICE_PORT` can collide

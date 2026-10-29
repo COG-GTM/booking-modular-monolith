@@ -52,6 +52,24 @@ production_cors_origin="$(yq -r 'select(.kind == "ConfigMap" and .metadata.name 
 [[ "$production_cors_origin" == "https://booking.example.com" ]] || fail "production gateway CORS origin is missing"
 printf 'PASS gateway CORS origins follow environment values\n'
 
+for stale_key in \
+    ReverseProxy__Clusters__monolith__Destinations__primary__Address \
+    ReverseProxy__Routes__api-fallback__Transforms__0__PathSet \
+    ReverseProxy__Routes__monolith-fallback__Transforms__0__PathSet; do
+    if yq -e "select(.kind == \"ConfigMap\" and .metadata.name == \"gateway-config\") | .data | has(\"${stale_key}\")" "${TMP_DIR}/kind.yaml" >/dev/null; then
+        fail "gateway ConfigMap unexpectedly contains retired key ${stale_key}"
+    fi
+done
+printf 'PASS gateway ConfigMap has no retired monolith cluster or fallback route keys\n'
+
+for mapping in identity:Identity flight:Flight passenger:Passenger booking:Booking; do
+    service="${mapping%%:*}-service"
+    module="${mapping#*:}"
+    yq -e "select(.kind == \"ConfigMap\" and .metadata.name == \"${service}-config\") | .data.\"Modules__${module}__BackgroundProcessingEnabled\" == \"true\"" "${TMP_DIR}/kind.yaml" >/dev/null ||
+        fail "${service} should enable background processing by default"
+done
+printf 'PASS service hosts enable background processing by default\n'
+
 expect_failure "base values require explicit production secrets" \
     "global.allowInsecureDefaults=false requires services.identity.existingSecret" \
     helm template booking "$CHART" --namespace booking

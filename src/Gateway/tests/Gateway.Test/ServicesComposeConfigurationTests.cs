@@ -90,16 +90,8 @@ public class ServicesComposeConfigurationTests
         }
 
         var booking = ServiceSection(compose, "booking-service");
-        Assert.Contains(
-            "FLIGHT_GRPC_ADDRESS_FOR_SERVICES:-http://flight-service:81",
-            booking,
-            StringComparison.Ordinal
-        );
-        Assert.Contains(
-            "PASSENGER_GRPC_ADDRESS_FOR_SERVICES:-http://passenger-service:81",
-            booking,
-            StringComparison.Ordinal
-        );
+        Assert.Contains("Services__flight__grpc__0: http://flight-service:81", booking, StringComparison.Ordinal);
+        Assert.Contains("Services__passenger__grpc__0: http://passenger-service:81", booking, StringComparison.Ordinal);
         Assert.Contains("flight-service", compose, StringComparison.Ordinal);
         Assert.Contains("passenger-service", compose, StringComparison.Ordinal);
     }
@@ -115,7 +107,9 @@ public class ServicesComposeConfigurationTests
             var section = ServiceSection(compose, service);
             Assert.DoesNotContain("BackgroundProcessingEnabled", section, StringComparison.Ordinal);
             Assert.DoesNotContain("${", section, StringComparison.Ordinal);
-            Assert.DoesNotContain("monolith", section, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("http://monolith", section, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("monolith:81", section, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("ReverseProxy__Clusters__monolith", section, StringComparison.OrdinalIgnoreCase);
         }
 
         var booking = ServiceSection(compose, "booking-service");
@@ -130,19 +124,19 @@ public class ServicesComposeConfigurationTests
         var overlay = File.ReadAllText(
             Path.Combine(root.FullName, "deployments/docker-compose/docker-compose.cutover.yaml")
         );
-        var expected = new Dictionary<string, string>
+        var expected = new Dictionary<string, (string Module, string EnvironmentPrefix)>
         {
-            ["identity-service"] = "IDENTITY",
-            ["flight-service"] = "FLIGHT",
-            ["passenger-service"] = "PASSENGER",
-            ["booking-service"] = "BOOKING",
+            ["identity-service"] = ("Identity", "IDENTITY"),
+            ["flight-service"] = ("Flight", "FLIGHT"),
+            ["passenger-service"] = ("Passenger", "PASSENGER"),
+            ["booking-service"] = ("Booking", "BOOKING"),
         };
 
-        foreach (var (service, module) in expected)
+        foreach (var (service, (module, environmentPrefix)) in expected)
         {
             var section = ServiceSection(overlay, service);
             Assert.Contains(
-                $"Modules__{module}__BackgroundProcessingEnabled: ${{{module}_SERVICE_BACKGROUND:-false}}",
+                $"Modules__{module}__BackgroundProcessingEnabled: ${{{environmentPrefix}_SERVICE_BACKGROUND:-false}}",
                 section,
                 StringComparison.Ordinal
             );
