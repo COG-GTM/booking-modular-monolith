@@ -1,11 +1,14 @@
 using Booking.Data;
 using BuildingBlocks.Core;
 using BuildingBlocks.EventStoreDB;
+using BuildingBlocks.EventStoreDB.Subscriptions;
 using BuildingBlocks.Mapster;
+using BuildingBlocks.MassTransit;
 using BuildingBlocks.Mongo;
 using BuildingBlocks.Web;
 using FluentValidation;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Booking.Extensions.Infrastructure;
@@ -21,9 +24,17 @@ public static class InfrastructureExtensions
         builder.AddMongoDbContext<BookingReadDbContext>("Booking");
 
         // ref: https://github.com/oskardudycz/EventSourcing.NetCore/tree/main/Sample/EventStoreDB/ECommerce
-        builder
-            .Services.AddEventStore(builder.Configuration, typeof(BookingRoot).Assembly)
-            .AddEventStoreDBSubscriptionToAll();
+        builder.Services.AddEventStore(builder.Configuration, typeof(BookingRoot).Assembly);
+
+        if (ModuleBackgroundProcessing.IsEnabled(builder.Configuration, "Booking"))
+        {
+            var subscriptionOptions = new EventStoreDBSubscriptionToAllOptions
+            {
+                SubscriptionId = builder.Configuration["Modules:Booking:SubscriptionId"] ?? "default",
+            };
+            builder.Services.AddSingleton(subscriptionOptions);
+            builder.Services.AddEventStoreDBSubscriptionToAll(subscriptionOptions);
+        }
 
         builder.Services.AddGrpcClients();
 

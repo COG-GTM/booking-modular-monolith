@@ -75,6 +75,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppHost", "src\Aspire\src\A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServiceDefaults", "src\Aspire\src\ServiceDefaults\ServiceDefaults.csproj", "{A3DF22DD-8EC2-484A-9389-FA626FF8225D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Booking.Host", "src\Services\Booking.Host\Booking.Host.csproj", "{D3B8C97E-A19E-49F8-A56D-B0FAF289C9A1}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Identity.Host", "src\Services\Identity.Host\Identity.Host.csproj", "{DA923911-6755-47EF-BF57-B7CE4A4047BB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flight.Host", "src\Services\Flight.Host\Flight.Host.csproj", "{95CA466E-6D8C-499F-8830-52E8E9D65DB6}"
@@ -140,6 +142,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Contracts.Grpc.Tests", "src\Contracts\tests\Contracts.Grpc.Tests\Contracts.Grpc.Tests.csproj", "{C0A7AC75-0494-4C3B-8F1D-0A1B2C3D4E04}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unit.Test", "src\Modules\Booking\tests\Unit.Test\Unit.Test.csproj", "{C0A7AC75-0494-4C3B-8F1D-0A1B2C3D4E05}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Booking.Host.Test", "src\Modules\Booking\tests\Host.Test\Booking.Host.Test.csproj", "{C932EA71-81BF-4E33-9471-8B14B507DAA9}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Contracts", "Contracts", "{C1A5E0B2-4D6F-4A1E-9B3C-0D2E4F6A8B10}"
 EndProject
@@ -233,6 +237,8 @@ Global
 		{95CA466E-6D8C-499F-8830-52E8E9D65DB6} = {822969C2-79E4-4D5F-A2E6-597F60494275}
 		{859E8E2E-7735-4B39-989D-56C5A87468B5} = {78C15374-C6B0-4FD3-B92B-90B9443A2F55}
 		{9E3CC58C-1444-4A03-B4F7-6D29FC0C32E9} = {822969C2-79E4-4D5F-A2E6-597F60494275}
+		{D3B8C97E-A19E-49F8-A56D-B0FAF289C9A1} = {822969C2-79E4-4D5F-A2E6-597F60494275}
+		{C932EA71-81BF-4E33-9471-8B14B507DAA9} = {AEEA57EA-9060-4868-9E33-D8CC57640A13}
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{837B01DA-EB7B-5479-B34F-302BD7FB2AFC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -407,6 +413,14 @@ Global
 		{C1A5E0B2-4D6F-4A1E-9B3C-0D2E4F6A8B12}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C1A5E0B2-4D6F-4A1E-9B3C-0D2E4F6A8B12}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C1A5E0B2-4D6F-4A1E-9B3C-0D2E4F6A8B12}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D3B8C97E-A19E-49F8-A56D-B0FAF289C9A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D3B8C97E-A19E-49F8-A56D-B0FAF289C9A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D3B8C97E-A19E-49F8-A56D-B0FAF289C9A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D3B8C97E-A19E-49F8-A56D-B0FAF289C9A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C932EA71-81BF-4E33-9471-8B14B507DAA9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C932EA71-81BF-4E33-9471-8B14B507DAA9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C932EA71-81BF-4E33-9471-8B14B507DAA9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C932EA71-81BF-4E33-9471-8B14B507DAA9}.Release|Any CPU.Build.0 = Release|Any CPU
 		{46F8D77B-4C72-4E1D-8B7F-2199681BD38B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{46F8D77B-4C72-4E1D-8B7F-2199681BD38B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{46F8D77B-4C72-4E1D-8B7F-2199681BD38B}.Release|Any CPU.ActiveCfg = Release|Any CPU

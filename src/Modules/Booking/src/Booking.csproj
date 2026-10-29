@@ -17,6 +17,7 @@
     <ProjectReference Include="..\..\..\BuildingBlocks\Exception\BuildingBlocks.Exception.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Logging\BuildingBlocks.Logging.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Mapster\BuildingBlocks.Mapster.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\MassTransit\BuildingBlocks.MassTransit.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Mongo\BuildingBlocks.Mongo.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\OpenApi\BuildingBlocks.OpenApi.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Polly\BuildingBlocks.Polly.csproj" />

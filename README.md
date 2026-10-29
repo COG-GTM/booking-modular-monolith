@@ -34,9 +34,11 @@
   - [Aspire](#aspire)
   - [Docker Compose](#docker-compose)
   - [Build](#build)
-  - [Run](#run)
+ - [Run](#run)
   - [Test](#test)
 - [Documentation Apis](#documentation-apis)
+- [Booking service host](#booking-service-host)
+- [Flight service host](#flight-service-host)
 - [Passenger service host](#passenger-service-host)
 - [Support](#support)
 - [Contribution](#contribution)
@@ -291,6 +293,16 @@ Endpoints come from configuration/service discovery (`Grpc:Flight:Address=http:/
 `/health/ready` includes the downstream gRPC health. The monolith serves h2c gRPC on `3002` (`81` in docker). See the
 [runbook](./docs/runbooks/grpc-service-addressing.md) and [ADR 0103](./docs/adr/0103-shared-grpc-contracts-and-service-addressing.md).
 
+## Booking service host
+
+The Booking module can also run in the standalone [`Booking.Host`](./src/Services/Booking.Host/README.md), which
+listens on `http://localhost:5004` in Development and owns its `booking_service` outbox database,
+`booking_service_read` Mongo projection, and `booking-service` EventStoreDB checkpoint. See
+[ADR 0496](./docs/adr/0496-standalone-booking-service-host.md) and the
+[Booking service runbook](./docs/runbooks/booking-service.md) for side-by-side operation and cutover guidance.
+
+## Flight service host
+
 The standalone Flight host uses separate HTTP and h2c gRPC listeners. See the
 [Flight service runbook](./docs/runbooks/flight-service.md) and
 [ADR 0502](./docs/adr/0502-standalone-flight-service-host.md).
@@ -300,7 +312,6 @@ The standalone Flight host uses separate HTTP and h2c gRPC listeners. See the
 The standalone Passenger service composition and operating guidance are documented in
 [ADR 0104](./docs/adr/0104-passenger-service-host.md) and the
 [Passenger service runbook](./docs/runbooks/passenger-service.md).
-
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
 ```bash

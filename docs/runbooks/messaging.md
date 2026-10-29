@@ -20,7 +20,9 @@ builder.Services.AddCustomMassTransit(
     builder.Configuration,
     builder.Environment,
     configureBus: null,
-    typeof(PassengerRoot).Assembly);
+    ModuleBackgroundProcessing.ConsumerAssemblies(
+        builder.Configuration,
+        ("Passenger", typeof(PassengerRoot).Assembly)));
 ```
 
 Passenger's consumer definition attaches its module-owned inbox filter. For consumers without a definition, a
@@ -39,6 +41,9 @@ The gateway does not consume or publish messages and needs no broker settings.
   worker and excludes its consumer assembly. Set it when handing consumption to
   the standalone service host. Run one replica with background processing per
   service (outbox has no row locking).
+- For Booking, the same switch also disables its EventStoreDB subscription.
+  `Modules:Booking:SubscriptionId` selects the checkpoint identity; standalone
+  Booking defaults to `booking-service` while the monolith keeps `default`.
 
 ## Local run
 
