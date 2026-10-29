@@ -72,60 +72,57 @@ public class IdentityDataSeeder : IDataSeeder
 
     private async Task SeedUsers()
     {
-        if (!await _identityContext.Users.AnyAsync())
+        if (string.IsNullOrWhiteSpace(_identitySeedOptions.AdminPassword))
         {
-            if (string.IsNullOrWhiteSpace(_identitySeedOptions.AdminPassword))
+            _logger.LogWarning(
+                "IdentitySeedOptions:AdminPassword is not configured; skipping seeding of default admin user."
+            );
+        }
+        else if (await _userManager.FindByNameAsync(InitialData.Users.First().UserName) == null)
+        {
+            var result = await _userManager.CreateAsync(
+                InitialData.Users.First(),
+                _identitySeedOptions.AdminPassword
+            );
+
+            if (result.Succeeded)
             {
-                _logger.LogWarning(
-                    "IdentitySeedOptions:AdminPassword is not configured; skipping seeding of default admin user."
-                );
+                await _userManager.AddToRoleAsync(InitialData.Users.First(), IdentityConstant.Role.Admin);
+
+                await _eventDispatcher.SendAsync(
+                    new UserCreated(
+                        InitialData.Users.First().Id,
+                        InitialData.Users.First().FirstName +
+                        " " +
+                        InitialData.Users.First().LastName,
+                        InitialData.Users.First().PassPortNumber));
             }
-            else if (await _userManager.FindByNameAsync("samh") == null)
+        }
+
+        if (string.IsNullOrWhiteSpace(_identitySeedOptions.UserPassword))
+        {
+            _logger.LogWarning(
+                "IdentitySeedOptions:UserPassword is not configured; skipping seeding of default user."
+            );
+        }
+        else if (await _userManager.FindByNameAsync(InitialData.Users.Last().UserName) == null)
+        {
+            var result = await _userManager.CreateAsync(
+                InitialData.Users.Last(),
+                _identitySeedOptions.UserPassword
+            );
+
+            if (result.Succeeded)
             {
-                var result = await _userManager.CreateAsync(
-                    InitialData.Users.First(),
-                    _identitySeedOptions.AdminPassword
-                );
+                await _userManager.AddToRoleAsync(InitialData.Users.Last(), IdentityConstant.Role.User);
 
-                if (result.Succeeded)
-                {
-                    await _userManager.AddToRoleAsync(InitialData.Users.First(), IdentityConstant.Role.Admin);
-
-                    await _eventDispatcher.SendAsync(
-                        new UserCreated(
-                            InitialData.Users.First().Id,
-                            InitialData.Users.First().FirstName +
-                            " " +
-                            InitialData.Users.First().LastName,
-                            InitialData.Users.First().PassPortNumber));
-                }
-            }
-
-            if (string.IsNullOrWhiteSpace(_identitySeedOptions.UserPassword))
-            {
-                _logger.LogWarning(
-                    "IdentitySeedOptions:UserPassword is not configured; skipping seeding of default user."
-                );
-            }
-            else if (await _userManager.FindByNameAsync("meysamh2") == null)
-            {
-                var result = await _userManager.CreateAsync(
-                    InitialData.Users.Last(),
-                    _identitySeedOptions.UserPassword
-                );
-
-                if (result.Succeeded)
-                {
-                    await _userManager.AddToRoleAsync(InitialData.Users.Last(), IdentityConstant.Role.User);
-
-                    await _eventDispatcher.SendAsync(
-                        new UserCreated(
-                            InitialData.Users.Last().Id,
-                            InitialData.Users.Last().FirstName +
-                            " " +
-                            InitialData.Users.Last().LastName,
-                            InitialData.Users.Last().PassPortNumber));
-                }
+                await _eventDispatcher.SendAsync(
+                    new UserCreated(
+                        InitialData.Users.Last().Id,
+                        InitialData.Users.Last().FirstName +
+                        " " +
+                        InitialData.Users.Last().LastName,
+                        InitialData.Users.Last().PassPortNumber));
             }
         }
     }

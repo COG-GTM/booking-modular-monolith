@@ -194,9 +194,18 @@ Configure `AuthOptions__ClientSecret` to register the IdentityServer password-gr
 If it is unset or whitespace, no client is registered and the token endpoint cannot issue
 tokens for that client. Set `IdentitySeedOptions__AdminPassword` and
 `IdentitySeedOptions__UserPassword` to seed the default admin and regular users; each user
-is skipped when its password is unset or whitespace. Development has local-only defaults
-in `appsettings.Development.json`. For Docker Compose, use `IDENTITY_CLIENT_SECRET`,
-`IDENTITY_SEED_ADMIN_PASSWORD`, and `IDENTITY_SEED_USER_PASSWORD`.
+is skipped when its password is unset or whitespace. For local Development, configure
+credentials with User Secrets:
+
+```bash
+dotnet user-secrets set "AuthOptions:ClientSecret" "<choose-a-secret>" --project src/Api/src
+dotnet user-secrets set "IdentitySeedOptions:AdminPassword" "<choose-a-password>" --project src/Api/src
+dotnet user-secrets set "IdentitySeedOptions:UserPassword" "<choose-a-password>" --project src/Api/src
+```
+
+Environment variables (`AuthOptions__ClientSecret`, `IdentitySeedOptions__AdminPassword`,
+and `IdentitySeedOptions__UserPassword`) work in every environment. For Docker Compose, use
+`IDENTITY_CLIENT_SECRET`, `IDENTITY_SEED_ADMIN_PASSWORD`, and `IDENTITY_SEED_USER_PASSWORD`.
 
 > ### Config Certificate
 Run the following commands to [Config SSL](https://docs.microsoft.com/en-us/aspnet/core/security/docker-compose-https?view=aspnetcore-6.0) in your system:

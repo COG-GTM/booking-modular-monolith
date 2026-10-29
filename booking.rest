@@ -1,7 +1,7 @@
 
 @booking-modular-monolith-api=https://localhost:3000  
 
-# In Development these are "secret" and "Admin@123456" from appsettings.Development.json.
+# These must match the values you configured (user-secrets or env vars).
 @client-secret = <your-client-secret>
 @admin-password = <your-admin-password>
 
