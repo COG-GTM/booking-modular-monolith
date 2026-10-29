@@ -343,7 +343,6 @@ public sealed class CrossServiceFixture : IAsyncLifetime
         values["ReverseProxy__Clusters__flight__Destinations__primary__Address"] = flightUrl;
         values["ReverseProxy__Clusters__passenger__Destinations__primary__Address"] = passengerUrl;
         values["ReverseProxy__Clusters__booking__Destinations__primary__Address"] = bookingUrl;
-        values["ReverseProxy__Clusters__monolith__Destinations__primary__Address"] = identityUrl;
         values.Remove("Kestrel__Endpoints__Grpc__Url");
         return values;
     }

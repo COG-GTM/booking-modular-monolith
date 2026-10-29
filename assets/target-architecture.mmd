@@ -5,12 +5,6 @@ flowchart LR
       gw[YARP Gateway<br/>src/Gateway<br/>JWT validation, routing]
     end
 
-    subgraph legacy[Strangler-fig period only]
-      mono[Monolith<br/>src/Api]
-      monodb[(Monolith DBs<br/>*_modular_monolith,<br/>persist_message)]
-      mono --- monodb
-    end
-
     subgraph services[Service hosts — src/Services]
       identity[Identity.Host<br/>Duende IdentityServer]
       flight[Flight.Host]
@@ -30,7 +24,6 @@ flowchart LR
     mq{{RabbitMQ<br/>MassTransit}}
 
     client -->|HTTPS + JWT| gw
-    gw -->|modules not yet extracted| mono
     gw -->|/api/v1/identity, /connect, /.well-known| identity
     gw -->|/api/v1/flight| flight
     gw -->|/api/v1/passenger| passenger
@@ -49,7 +42,6 @@ flowchart LR
     passenger --- ppg
     booking --- esdb
     booking --- bpg
-    identity --- mongo
     flight --- mongo
     passenger --- mongo
     booking --- mongo

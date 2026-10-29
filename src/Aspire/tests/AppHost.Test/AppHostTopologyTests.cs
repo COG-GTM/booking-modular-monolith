@@ -10,11 +10,9 @@ namespace AppHost.Test;
 public class AppHostTopologyTests
 {
     [Fact]
-    public async Task Services_is_default_and_monolith_keeps_the_api()
+    public async Task Services_are_the_only_project_topology()
     {
-        await using var servicesBuilder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
-            []
-        );
+        await using var servicesBuilder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>([]);
         await using var servicesApp = servicesBuilder.Build();
         var servicesModel = servicesApp.Services.GetRequiredService<DistributedApplicationModel>();
         var serviceProjects = servicesModel
@@ -29,48 +27,19 @@ public class AppHostTopologyTests
         Assert.Contains("booking-service", serviceProjects);
         Assert.DoesNotContain("api", serviceProjects);
 
-        await using var monolithBuilder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
-            ["--AppHost:Topology=Monolith"]
-        );
-        await using var monolithApp = monolithBuilder.Build();
-        var monolithModel = monolithApp.Services.GetRequiredService<DistributedApplicationModel>();
-        var monolithProjects = monolithModel
-            .Resources.OfType<ProjectResource>()
-            .Select(resource => resource.Name)
-            .ToHashSet();
-
-        Assert.Contains("api", monolithProjects);
-        Assert.Contains("gateway", monolithProjects);
-        Assert.DoesNotContain("identity-service", monolithProjects);
-        Assert.DoesNotContain("flight-service", monolithProjects);
-        Assert.DoesNotContain("passenger-service", monolithProjects);
-        Assert.DoesNotContain("booking-service", monolithProjects);
-
-        var monolithGateway = await EnvironmentAsync(
-            monolithModel.Resources.OfType<ProjectResource>().Single(resource => resource.Name == "gateway")
-        );
-        Assert.DoesNotContain(
-            "ReverseProxy__Routes__fallback__AuthorizationPolicy",
-            monolithGateway.Keys
-        );
-        foreach (var cluster in new[] { "identity", "flight", "passenger", "booking", "monolith" })
-        {
-            var address = monolithGateway[$"ReverseProxy__Clusters__{cluster}__Destinations__primary__Address"];
-            Assert.Contains("api", address, StringComparison.Ordinal);
-            Assert.DoesNotContain("-service", address, StringComparison.Ordinal);
-        }
+        Assert.Equal(5, serviceProjects.Count);
     }
 
     [Fact]
     public async Task Services_receive_only_their_own_postgres_databases()
     {
-        await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
-            []
-        );
+        await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>([]);
         await using var app = builder.Build();
         var model = app.Services.GetRequiredService<DistributedApplicationModel>();
         var projects = model.Resources.OfType<ProjectResource>().ToDictionary(resource => resource.Name);
-        var connectionStrings = model.Resources.OfType<ConnectionStringResource>().ToDictionary(resource => resource.Name);
+        var connectionStrings = model
+            .Resources.OfType<ConnectionStringResource>()
+            .ToDictionary(resource => resource.Name);
         var identity = await EnvironmentAsync(projects["identity-service"]);
         var flight = await EnvironmentAsync(projects["flight-service"]);
         var passenger = await EnvironmentAsync(projects["passenger-service"]);
@@ -89,14 +58,8 @@ public class AppHostTopologyTests
         AssertPostgresConnection(connectionStrings["flight"], "flight_service");
         AssertPostgresConnection(connectionStrings["flight-persist-message"], "flight_service_persist_message");
         AssertPostgresConnection(connectionStrings["passenger"], "passenger_service");
-        AssertPostgresConnection(
-            connectionStrings["passenger-persist-message"],
-            "passenger_service_persist_message"
-        );
-        AssertPostgresConnection(
-            connectionStrings["booking-persist-message"],
-            "booking_service_persist_message"
-        );
+        AssertPostgresConnection(connectionStrings["passenger-persist-message"], "passenger_service_persist_message");
+        AssertPostgresConnection(connectionStrings["booking-persist-message"], "booking_service_persist_message");
 
         Assert.DoesNotContain("ConnectionStrings__flight", identity.Keys);
         Assert.DoesNotContain("ConnectionStrings__identity", flight.Keys);
@@ -110,9 +73,7 @@ public class AppHostTopologyTests
     [Fact]
     public async Task Booking_uses_service_discovery_for_grpc_dependencies()
     {
-        await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
-            []
-        );
+        await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>([]);
         await using var app = builder.Build();
         var model = app.Services.GetRequiredService<DistributedApplicationModel>();
         var bookingProject = model
@@ -129,16 +90,19 @@ public class AppHostTopologyTests
     [Fact]
     public async Task Gateway_routes_to_service_hosts_and_identity_uses_its_public_issuer()
     {
-        await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
-            []
-        );
+        await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>([]);
         await using var app = builder.Build();
         var model = app.Services.GetRequiredService<DistributedApplicationModel>();
         var projects = model.Resources.OfType<ProjectResource>().ToDictionary(resource => resource.Name);
         var gateway = await EnvironmentAsync(projects["gateway"]);
         var identity = await EnvironmentAsync(projects["identity-service"]);
 
-        Assert.Equal("authenticated", gateway["ReverseProxy__Routes__fallback__AuthorizationPolicy"]);
+        Assert.DoesNotContain(
+            gateway.Keys,
+            key =>
+                key.StartsWith("ReverseProxy__Clusters__monolith__", StringComparison.Ordinal)
+                || key.StartsWith("ReverseProxy__Routes__fallback__", StringComparison.Ordinal)
+        );
         AssertClusterDestination(gateway, "identity", "identity-service");
         AssertClusterDestination(gateway, "flight", "flight-service");
         AssertClusterDestination(gateway, "passenger", "passenger-service");
@@ -150,23 +114,23 @@ public class AppHostTopologyTests
     [Fact]
     public async Task Every_services_topology_project_has_health_and_observability_annotations()
     {
-        await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
-            []
-        );
+        await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>([]);
         await using var app = builder.Build();
         var projects = app
             .Services.GetRequiredService<DistributedApplicationModel>()
             .Resources.OfType<ProjectResource>()
             .ToDictionary(resource => resource.Name);
 
-        foreach (var name in new[]
-        {
-            "gateway",
-            "identity-service",
-            "flight-service",
-            "passenger-service",
-            "booking-service"
-        })
+        foreach (
+            var name in new[]
+            {
+                "gateway",
+                "identity-service",
+                "flight-service",
+                "passenger-service",
+                "booking-service",
+            }
+        )
         {
             var project = projects[name];
             var healthChecks = project.Annotations.OfType<HealthCheckAnnotation>().ToList();
@@ -180,11 +144,7 @@ public class AppHostTopologyTests
                 runtimeEnvironment["OTEL_SERVICE_NAME"],
                 StringComparison.Ordinal
             );
-            Assert.Contains(
-                "otel-collector",
-                environment["OTEL_EXPORTER_OTLP_ENDPOINT"],
-                StringComparison.Ordinal
-            );
+            Assert.Contains("otel-collector", environment["OTEL_EXPORTER_OTLP_ENDPOINT"], StringComparison.Ordinal);
             Assert.StartsWith(
                 "http://localhost:",
                 runtimeEnvironment["OTEL_EXPORTER_OTLP_ENDPOINT"],
@@ -204,10 +164,7 @@ public class AppHostTopologyTests
         return variables.ToDictionary(variable => variable.Key, variable => variable.Value?.ToString() ?? "");
     }
 
-    private static void AssertPostgresConnection(
-        ConnectionStringResource resource,
-        string database
-    )
+    private static void AssertPostgresConnection(ConnectionStringResource resource, string database)
     {
         var role = database.Split('_')[0] + "_service";
         var format = resource.ConnectionStringExpression.Format;

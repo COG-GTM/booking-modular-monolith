@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
-using Api;
+using System.Threading;
+using Booking.Host;
 using Booking.Data;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.TestBase;
@@ -51,7 +52,12 @@ namespace Integration.Test.Booking.Features
                     var mockPassenger = Substitute.For<PassengerGrpcService.PassengerGrpcServiceClient>();
 
                     mockPassenger
-                        .GetByIdAsync(Arg.Any<Contracts.Grpc.Passenger.GetByIdRequest>())
+                        .GetByIdAsync(
+                            Arg.Any<Contracts.Grpc.Passenger.GetByIdRequest>(),
+                            Arg.Any<Metadata>(),
+                            Arg.Any<System.DateTime?>(),
+                            Arg.Any<CancellationToken>()
+                        )
                         .Returns(
                             TestCalls.AsyncUnaryCall(
                                 Task.FromResult(FakePassengerResponse.Generate()),
@@ -75,7 +81,12 @@ namespace Integration.Test.Booking.Features
                     var mockFlight = Substitute.For<FlightGrpcService.FlightGrpcServiceClient>();
 
                     mockFlight
-                        .GetByIdAsync(Arg.Any<GetByIdRequest>())
+                        .GetByIdAsync(
+                            Arg.Any<GetByIdRequest>(),
+                            Arg.Any<Metadata>(),
+                            Arg.Any<System.DateTime?>(),
+                            Arg.Any<CancellationToken>()
+                        )
                         .Returns(
                             TestCalls.AsyncUnaryCall(
                                 Task.FromResult(FakeFlightResponse.Generate()),
@@ -87,7 +98,12 @@ namespace Integration.Test.Booking.Features
                         );
 
                     mockFlight
-                        .GetAvailableSeatsAsync(Arg.Any<GetAvailableSeatsRequest>())
+                        .GetAvailableSeatsAsync(
+                            Arg.Any<GetAvailableSeatsRequest>(),
+                            Arg.Any<Metadata>(),
+                            Arg.Any<System.DateTime?>(),
+                            Arg.Any<CancellationToken>()
+                        )
                         .Returns(
                             TestCalls.AsyncUnaryCall(
                                 Task.FromResult(FakeGetAvailableSeatsResponse.Generate()),
@@ -99,7 +115,12 @@ namespace Integration.Test.Booking.Features
                         );
 
                     mockFlight
-                        .ReserveSeatAsync(Arg.Any<ReserveSeatRequest>())
+                        .ReserveSeatAsync(
+                            Arg.Any<ReserveSeatRequest>(),
+                            Arg.Any<Metadata>(),
+                            Arg.Any<System.DateTime?>(),
+                            Arg.Any<CancellationToken>()
+                        )
                         .Returns(
                             TestCalls.AsyncUnaryCall(
                                 Task.FromResult(FakeReserveSeatResponse.Generate()),

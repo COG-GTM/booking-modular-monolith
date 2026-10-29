@@ -3,9 +3,9 @@
 Run the AppHost from the repository root with `dotnet run --project src/Aspire/src/AppHost`, or
 from `src/Aspire/src/AppHost` with `dotnet aspire run`.
 
-`AppHost:Topology` defaults to `Services` and starts the gateway plus the Identity, Flight,
-Passenger, and Booking hosts. Use `--AppHost:Topology=Monolith` to run the existing API plus gateway
-instead. Do not run both topologies against the same databases at once.
+AppHost starts only the gateway plus the Identity, Flight, Passenger, and Booking hosts.
+There is no topology selector or monolith project. Previous-release recovery uses the
+[cutover rollback overlay](../../docs/runbooks/cutover/decommission.md), not AppHost.
 
 | Resource | Configuration supplied by Aspire |
 | --- | --- |
@@ -26,7 +26,5 @@ Prometheus, and logs to Loki; Grafana is available at `http://localhost:3030`. T
 shows resources, health, and console logs, but not service traces or metrics. Forwarding collector
 telemetry to the Aspire dashboard is a follow-up owned by AB-495's collector configuration.
 
-In Services topology, the gateway's `monolith` fallback points to Identity because no monolith
-process is started. The fallback requires authentication so unmatched Identity paths cannot bypass
-gateway authorization; `/connect/**` and `/.well-known/**` keep their dedicated anonymous routes.
-Monolith topology retains the legacy API destination for every gateway cluster.
+The gateway has only the four service clusters and no fallback route. Unknown paths return 404;
+`/connect/**` and `/.well-known/**` keep their dedicated anonymous Identity routes.

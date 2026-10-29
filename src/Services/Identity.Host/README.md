@@ -3,8 +3,7 @@
 Standalone deployable host for the Identity module (`src/Modules/Identity`). It composes only
 Identity: its minimal endpoints, `IdentityContext` (migrations + seed), Duende IdentityServer (the
 token issuer), and its own persist-message outbox/inbox, which publishes `UserCreated` to RabbitMQ.
-`src/Api` still composes the same module through the same `AddIdentityModules()` /
-`UseIdentityModules()` extensions, so the monolith is unchanged.
+The monolith host is retired; this service owns Identity token issuance and registration.
 
 ## Run locally
 
@@ -75,12 +74,12 @@ assembly (Identity has no consumers today; it only publishes `UserCreated`).
 docker build -f src/Services/Identity.Host/Dockerfile -t identity-service .
 ```
 
-## Running next to the monolith
+## Previous-release rollback and signing keys
 
-Until cut-over (AB-505) the monolith still contains the Identity module. If both run against the
-same broker, both publish `UserCreated` for users registered through them, and Passenger consumers
-in the monolith and in `passenger-service` may both handle it. Give this host its own databases
-(the defaults above), and route `/connect/*` + `/api/v*/identity/*` to only one of the two.
+The default topology has no monolith. For recovery, use the
+[previous-release rollback procedure](../../../docs/runbooks/cutover/decommission.md).
+Isolate legacy Passenger consumers before registration writes: module background flags do
+not disable MassTransit consumers. Identity and Passenger must move together.
 
 Tokens are signed with Duende's developer signing credential (`tempkey.jwk` by default). In
 Compose, `AuthOptions__SigningKeyPath` points to `/app/keys/tempkey.jwk` on the

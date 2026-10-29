@@ -1,7 +1,7 @@
 # Gateway
 
 YARP is the public ingress on HTTP port 5000 (container port 8080).
-Compose exposes only the gateway, not the monolith. Use TLS termination in
+Compose exposes only the gateway publicly; service debug ports bind to loopback. Use TLS termination in
 front of the gateway in production.
 
 | Path | Cluster | Gateway authorization |
@@ -11,9 +11,11 @@ front of the gateway in production.
 | /api/v{version}/flight/** | flight | authenticated |
 | /api/v{version}/passenger/** | passenger | authenticated |
 | /api/v{version}/booking/** | booking | authenticated |
-| Everything else | monolith | anonymous (backend retains authorization) |
+| Everything else | none | 404 (not proxied) |
 
-All clusters initially target the monolith at http://localhost:3001/.
+Defaults target local Identity :5101, Flight :5102, Passenger :5103, and Booking :5104.
+Compose overrides them with service DNS addresses on port 8080.
+There is no monolith cluster or fallback route in the default configuration.
 The stable destination name is **primary**. Repoint one module without code changes:
 
 ```sh
@@ -25,8 +27,10 @@ Routes/clusters are loaded from the ReverseProxy configuration section.
 JWT validation reuses BuildingBlocks and requires audience booking-modular-monolith.
 Set Jwt__Authority to the token issuer and optionally Jwt__MetadataAddress to an
 internally reachable discovery URL. The Authorization header remains intact for
-backend authorization. Set the monolith's AuthOptions__IssuerUri to the same
-issuer as Jwt__Authority (Aspire and Compose set both to https://localhost:3000).
+backend authorization. Set Identity's AuthOptions__IssuerUri to the same
+issuer as Jwt__Authority (Compose uses http://localhost:5000).
+Local defaults use Identity.Host's issuer and discovery on http://localhost:5101;
+Compose overrides both issuer and metadata address for its gateway-public issuer.
 Discovery also advertises a signing-key URL, which must
 be reachable by the gateway.
 

@@ -1,0 +1,45 @@
+services:
+  gateway:
+    environment:
+      ReverseProxy__Clusters__monolith__Destinations__primary__Address: http://booking_modular_monolith/
+
+  booking_modular_monolith:
+    image: ${MONOLITH_IMAGE:?set to the previous release image}
+    container_name: booking_modular_monolith
+    restart: unless-stopped
+    expose:
+      - "80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: docker
+      ASPNETCORE_URLS: http://+:80
+      AuthOptions__IssuerUri: http://localhost:5000
+      Jwt__Authority: http://localhost:5000
+      Jwt__MetadataAddress: http://identity-service:8080/.well-known/openid-configuration
+      MongoOptions__ConnectionString: mongodb://mongo:27017
+      EventStoreOptions__ConnectionString: esdb://eventstore:2113?tls=false
+      Grpc__FlightAddress: http://flight-service:8081
+      Grpc__PassengerAddress: http://passenger-service:8081
+      RabbitMqOptions__HostName: rabbitmq
+      RabbitMqOptions__UserName: ${RABBITMQ_USERNAME:-guest}
+      RabbitMqOptions__Password: ${RABBITMQ_PASSWORD:-guest}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: booking-modular-monolith
+      ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
+      ObservabilityOptions__UseAspireOTLPExporter: "false"
+      Modules__Identity__BackgroundProcessingEnabled: "false"
+      Modules__Flight__BackgroundProcessingEnabled: "false"
+      Modules__Passenger__BackgroundProcessingEnabled: "false"
+      Modules__Booking__BackgroundProcessingEnabled: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eventstore:
+        condition: service_healthy
+      identity-service:
+        condition: service_healthy
+    networks:
+      - infrastructure

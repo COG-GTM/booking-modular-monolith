@@ -40,9 +40,9 @@ and all internal service ports are ClusterIP. Flight and Passenger expose their 
 on service port 8081 with Kubernetes `appProtocol: kubernetes.io/h2c`. Internal gRPC remains
 unauthenticated per ADR 0008 and must be network-restricted.
 
-The chart does not deploy the legacy monolith. Its YARP catch-all destination is omitted by default;
-`gateway.monolithAddress` is an optional rollback fallback for clusters still running the monolith
-and should remain empty once it is decommissioned.
+As superseded by [ADR 0027](0027-cutover-and-monolith-decommission.md) (AB-505), the chart
+does not deploy the legacy monolith or expose a monolith destination or catch-all setting.
+Recovery uses the previous-release deployment described in the cutover runbook.
 
 All app containers use the `docker` ASP.NET Core environment, health endpoints, UID/GID 1654,
 `RuntimeDefault` seccomp, dropped capabilities, no privilege escalation, a read-only root

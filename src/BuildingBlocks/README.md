@@ -33,7 +33,8 @@ Core retains MassTransit **abstractions** for existing event topology attributes
 and Protobuf for the existing typed envelope; it does not depend on a transport.
 The aggregate retains TestBase for existing test consumers. Production service hosts should
 avoid the aggregate, HealthCheck and TestBase if they need an EF-free dependency graph.
-The monolith module `Booking.csproj` demonstrates Core/Web/Mongo/EventStoreDB without EF Core.
+The Booking module (`Booking.csproj`, composed by `Services/Booking.Host`) demonstrates
+Core/Web/Mongo/EventStoreDB without EF Core.
 `EfTxBehavior` keeps its CLR namespace but is compiled in PersistMessageProcessor because it
 depends on the durable message processor.
 

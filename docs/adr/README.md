@@ -1,7 +1,7 @@
 # Architecture Decision Records
 
 This folder records the decisions behind epic **AB-488 — Microservices Migration Scaffolding**: moving
-`booking-modular-monolith` from one deployable (`src/Api`) to one service per module, without a
+`booking-modular-monolith` from one deployable (the now-retired monolith host) to one service per module, without a
 big-bang rewrite.
 
 The target state is drawn in [docs/architecture/target-architecture.md](../architecture/target-architecture.md).
@@ -31,6 +31,7 @@ The target state is drawn in [docs/architecture/target-architecture.md](../archi
 | [0026](0026-kubernetes-helm-deployment.md) | Kubernetes deployment with Helm (AB-491) | Proposed |
 | [0023](0023-per-service-observability.md) | Per-service observability (AB-495) | Proposed |
 | [0024](0024-aspire-local-orchestration.md) | Aspire local orchestration (AB-497) | Proposed |
+| [0027](0027-cutover-and-monolith-decommission.md) | Cutover and monolith decommission (AB-505) | Proposed |
 
 ## Conventions
 

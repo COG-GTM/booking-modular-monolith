@@ -2,7 +2,7 @@ name: booking-modular-monolith
 
 # Multi-service topology: gateway + identity/flight/passenger/booking services on top of the shared
 # infrastructure in docker-compose.infrastructure.yaml. Only the gateway is public (:5000).
-# The monolith (src/Api) is optional: `docker compose --profile monolith up`.
+# The monolith is retired; previous-release recovery uses the explicit rollback overlay.
 
 include:
   - docker-compose.infrastructure.yaml
@@ -190,12 +190,10 @@ services:
       ObservabilityOptions__ServiceName: gateway
       ObservabilityOptions__UseOTLPExporter: "true"
       ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
-      ReverseProxy__Clusters__identity__Destinations__primary__Address: http://identity-service:8080/
-      ReverseProxy__Clusters__flight__Destinations__primary__Address: http://flight-service:8080/
-      ReverseProxy__Clusters__passenger__Destinations__primary__Address: http://passenger-service:8080/
-      ReverseProxy__Clusters__booking__Destinations__primary__Address: http://booking-service:8080/
-      # Catch-all route; only answers when the `monolith` profile is running (502 otherwise).
-      ReverseProxy__Clusters__monolith__Destinations__primary__Address: http://booking_modular_monolith/
+      ReverseProxy__Clusters__identity__Destinations__primary__Address: ${IDENTITY_UPSTREAM:-http://identity-service:8080/}
+      ReverseProxy__Clusters__flight__Destinations__primary__Address: ${FLIGHT_UPSTREAM:-http://flight-service:8080/}
+      ReverseProxy__Clusters__passenger__Destinations__primary__Address: ${PASSENGER_UPSTREAM:-http://passenger-service:8080/}
+      ReverseProxy__Clusters__booking__Destinations__primary__Address: ${BOOKING_UPSTREAM:-http://booking-service:8080/}
     depends_on:
       identity-service:
         condition: service_healthy
@@ -209,52 +207,6 @@ services:
     networks:
       - infrastructure
 
-  #######################################################
-  #  booking-modular-monolith (optional: --profile monolith)
-  #  Shares the per-service databases, so all module background work is off;
-  #  the services above own outbox polling, consumers and the EventStoreDB subscription.
-  #######################################################
-  booking_modular_monolith:
-    profiles: ["monolith"]
-    image: booking-modular-monolith:local
-    build:
-      args:
-        Version: "1"
-      context: ../../
-      dockerfile: src/Api/Dockerfile
-    container_name: booking_modular_monolith
-    restart: unless-stopped
-    expose:
-      - "80"
-    environment:
-      ASPNETCORE_ENVIRONMENT: docker
-      ASPNETCORE_URLS: http://+:80
-      AuthOptions__IssuerUri: http://localhost:5000
-      Jwt__Authority: http://localhost:5000
-      Jwt__MetadataAddress: http://identity-service:8080/.well-known/openid-configuration
-      MongoOptions__ConnectionString: mongodb://mongo:27017
-      EventStoreOptions__ConnectionString: esdb://eventstore:2113?tls=false
-      Grpc__FlightAddress: http://flight-service:8081
-      Grpc__PassengerAddress: http://passenger-service:8081
-      RabbitMqOptions__HostName: rabbitmq
-      RabbitMqOptions__UserName: ${RABBITMQ_USERNAME:-guest}
-      RabbitMqOptions__Password: ${RABBITMQ_PASSWORD:-guest}
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
-      OTEL_SERVICE_NAME: booking-modular-monolith
-      ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
-      ObservabilityOptions__UseAspireOTLPExporter: "false"
-      Modules__Identity__BackgroundProcessingEnabled: "false"
-      Modules__Flight__BackgroundProcessingEnabled: "false"
-      Modules__Passenger__BackgroundProcessingEnabled: "false"
-      Modules__Booking__BackgroundProcessingEnabled: "false"
-    depends_on:
-      <<: *infra-dependencies
-      eventstore:
-        condition: service_healthy
-      identity-service:
-        condition: service_healthy
-    networks:
-      - infrastructure
 
 volumes:
   identity-signing-keys:

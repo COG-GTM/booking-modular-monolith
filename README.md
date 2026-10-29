@@ -132,13 +132,13 @@
 
 ## Target Microservices Architecture
 
-The modular monolith is being split into one service per module (Identity, Flight, Passenger,
-Booking) behind a YARP gateway, using the strangler-fig approach: the monolith keeps running
-while modules move out one at a time (Flight first, then Passenger and Identity together, then
-Booking). Booking calls Flight and Passenger over gRPC; integration events such as `UserCreated`
+The monolith host has been retired after extracting Identity, Flight, Passenger, and Booking
+behind a YARP gateway. All routes now use services; unknown paths return 404.
+Recovery uses a previous-release image via the [rollback runbook](docs/runbooks/cutover/decommission.md).
+Booking calls Flight and Passenger over gRPC; integration events such as `UserCreated`
 go over RabbitMQ with MassTransit; each service owns its own databases and its own outbox/inbox.
 
-![Target architecture](./assets/target-architecture.png)
+See the current Mermaid topology in [target architecture](docs/architecture/target-architecture.md).
 
 - Full description and Mermaid source: [docs/architecture/target-architecture.md](./docs/architecture/target-architecture.md)
 - Architecture Decision Records: [docs/adr](./docs/adr/README.md)
@@ -258,9 +258,14 @@ dotnet build
 ```
 
 > ### Run
-To `run` all modules, run this command in the root of the `Api` folder:
+Run the gateway and each service in separate terminals from the repository root
+(with the infrastructure above running):
 ```bash
-dotnet run
+dotnet run --project src/Services/Identity.Host
+dotnet run --project src/Services/Flight.Host
+dotnet run --project src/Services/Passenger.Host
+dotnet run --project src/Services/Booking.Host
+dotnet run --project src/Gateway
 ```
 
 > ### Test
@@ -272,7 +277,8 @@ dotnet test
 
 > ### Documentation Apis
 
-For checking `API documentation`, navigate to `/swagger` for `Swagger OpenAPI` or `/scalar/v1` for `Scalar OpenAPI` to visit list of endpoints.
+In Development, open `/scalar/v1` directly on the relevant service port (5101–5104)
+for its API documentation. The gateway on port 5000 exposes only the explicit API and Identity routes.
 
 As part of API testing, I created the [booking.rest](./booking.rest) file which can be run with the [REST Client](https://github.com/Huachao/vscode-restclient) `VSCode plugin`.
 

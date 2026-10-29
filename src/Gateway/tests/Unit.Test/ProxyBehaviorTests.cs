@@ -15,7 +15,6 @@ public class ProxyBehaviorTests
     [Theory]
     [InlineData("/connect/token", "identity")]
     [InlineData("/.well-known/openid-configuration", "identity")]
-    [InlineData("/unmatched", "monolith")]
     [InlineData("/api/v1/flight/search", "flight")]
     [InlineData("/api/v1/identity/users", "identity")]
     [InlineData("/api/v1/passenger/1", "passenger")]
@@ -29,6 +28,16 @@ public class ProxyBehaviorTests
         using var response = await fixture.Client.SendAsync(request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal($"/clusters/{cluster}{path}", await response.Content.ReadAsStringAsync());
+    }
+
+    [Theory]
+    [InlineData("/some/unknown/path")]
+    [InlineData("/")]
+    public async Task UnknownPathsReturnNotFound(string path)
+    {
+        await using var fixture = await ProxyFixture.CreateAsync();
+        using var response = await fixture.Client.GetAsync(path);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Theory]
@@ -47,7 +56,7 @@ public class ProxyBehaviorTests
     )
     {
         await using var fixture = await ProxyFixture.CreateAsync();
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/unmatched");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/connect/token");
         request.Headers.TryAddWithoutValidation("correlationId", backendHeader);
         request.Headers.TryAddWithoutValidation("X-Correlation-ID", publicHeader);
         using var response = await fixture.Client.SendAsync(request);
@@ -117,7 +126,7 @@ public class ProxyBehaviorTests
             });
             await upstream.StartAsync();
             var settings = new Dictionary<string, string?> { ["RateLimiting:PermitLimit"] = permitLimit.ToString() };
-            foreach (var cluster in new[] { "identity", "flight", "passenger", "booking", "monolith" })
+            foreach (var cluster in new[] { "identity", "flight", "passenger", "booking" })
                 settings[$"ReverseProxy:Clusters:{cluster}:Destinations:primary:Address"] =
                     $"{upstream.Urls.Single()}/clusters/{cluster}/";
             var gateway = new WebApplicationFactory<Program>().WithWebHostBuilder(host =>
@@ -130,7 +139,7 @@ public class ProxyBehaviorTests
 
         public async Task<HttpStatusCode> SendAsync(string? subject, string address)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, "/unmatched");
+            using var request = new HttpRequestMessage(HttpMethod.Get, "/connect/token");
             if (subject is not null)
                 request.Headers.Add("Test-Subject", subject.Length == 0 ? "no-sub" : subject);
             request.Headers.Add("Test-Address", address);

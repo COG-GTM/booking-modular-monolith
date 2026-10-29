@@ -25,7 +25,7 @@ jobs:
         if: success()
         id: build-test-flight-step
         with:
-          project-path: 'src/Modules/Flight/src/'
+          project-path: 'src/Services/Flight.Host/'
           tests-path: 'src/Modules/Flight/tests/'
           # wildcard search for files with the ".cobertura.xml" extension in all subdirectories of the current directory
           # https://www.jamescroft.co.uk/combining-multiple-code-coverage-results-in-azure-devops/
@@ -40,7 +40,7 @@ jobs:
         if: success()
         id: build-test-identity-step
         with:
-          project-path: 'src/Modules/Identity/src/'
+          project-path: 'src/Services/Identity.Host/'
           tests-path: 'src/Modules/Identity/tests/'
           # wildcard search for files with the ".cobertura.xml" extension in all subdirectories of the current directory
           # https://www.jamescroft.co.uk/combining-multiple-code-coverage-results-in-azure-devops/
@@ -55,7 +55,7 @@ jobs:
         if: success()
         id: build-test-passenger-step
         with:
-          project-path: 'src/Modules/Passenger/src/'
+          project-path: 'src/Services/Passenger.Host/'
           tests-path: 'src/Modules/Passenger/tests/'
           # wildcard search for files with the ".cobertura.xml" extension in all subdirectories of the current directory
           # https://www.jamescroft.co.uk/combining-multiple-code-coverage-results-in-azure-devops/
@@ -70,7 +70,7 @@ jobs:
         if: success()
         id: build-test-booking-step
         with:
-          project-path: 'src/Modules/Booking/src/'
+          project-path: 'src/Services/Booking.Host/'
           tests-path: 'src/Modules/Booking/tests/'
           # wildcard search for files with the ".cobertura.xml" extension in all subdirectories of the current directory
           # https://www.jamescroft.co.uk/combining-multiple-code-coverage-results-in-azure-devops/

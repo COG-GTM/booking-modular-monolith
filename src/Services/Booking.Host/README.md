@@ -1,6 +1,6 @@
 # Booking service
 
-Booking can run independently from the modular monolith. Start it locally with:
+Booking is the standalone host for the Booking module; the monolith host is retired. Start it locally with:
 
 ```sh
 dotnet run --project src/Services/Booking.Host/Booking.Host.csproj
@@ -27,7 +27,7 @@ The container listens on port `8080` and sets `ASPNETCORE_ENVIRONMENT=docker` to
   `MongoOptions:Booking:DatabaseName`: MongoDB connection and read database.
 - `EventStoreOptions:ConnectionString`: EventStoreDB connection.
 - `Jwt:Authority` and `Jwt:Audience`: public issuer and token audience. By default the authority
-  is the Gateway at `http://localhost:5000`.
+  is Identity.Host at `http://localhost:5101` locally (`http://localhost:5000` in Compose).
 - `Jwt:MetadataAddress`: internal Identity discovery document (`http://localhost:5101` locally,
   `http://identity-service:8080` in Docker). Configure Identity.Host's `AuthOptions:IssuerUri` as
   `http://localhost:5000` when it issues tokens through the Gateway.
@@ -52,4 +52,5 @@ and the Booking Mongo projection performs a check-then-insert. Only one process
 (the monolith or this host) may run with Booking background processing enabled
 against the same EventStoreDB and MongoDB. While this host is active, set
 `Modules__Booking__BackgroundProcessingEnabled=false` on the monolith. This
-separation is intended for the AB-505 cut-over.
+separation is mandatory during [previous-release recovery](../../../docs/runbooks/cutover/decommission.md);
+the default topology runs only this host.

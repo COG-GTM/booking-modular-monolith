@@ -23,7 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Api\src\Api.csproj" />
     <ProjectReference Include="..\..\..\Gateway\Gateway.csproj" />
     <ProjectReference Include="..\..\..\Services\Identity.Host\Identity.Host.csproj" />
     <ProjectReference Include="..\..\..\Services\Flight.Host\Flight.Host.csproj" />

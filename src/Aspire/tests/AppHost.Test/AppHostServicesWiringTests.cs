@@ -9,50 +9,6 @@ namespace AppHost.Test;
 public class AppHostServicesWiringTests
 {
     [Fact]
-    public async Task Topology_is_case_insensitive()
-    {
-        await using var monolithBuilder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
-            ["--AppHost:Topology=monolith"]
-        );
-        var monolithProjects = monolithBuilder
-            .Resources.OfType<ProjectResource>()
-            .Select(resource => resource.Name)
-            .ToHashSet();
-
-        Assert.Contains("api", monolithProjects);
-        Assert.DoesNotContain("identity-service", monolithProjects);
-
-        await using var servicesBuilder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
-            ["--AppHost:Topology=services"]
-        );
-        var servicesProjects = servicesBuilder
-            .Resources.OfType<ProjectResource>()
-            .Select(resource => resource.Name)
-            .ToHashSet();
-
-        Assert.Contains("gateway", servicesProjects);
-        Assert.Contains("identity-service", servicesProjects);
-        Assert.Contains("flight-service", servicesProjects);
-        Assert.Contains("passenger-service", servicesProjects);
-        Assert.Contains("booking-service", servicesProjects);
-        Assert.DoesNotContain("api", servicesProjects);
-    }
-
-    [Fact]
-    public async Task Unsupported_topology_throws()
-    {
-        var exception = await Assert.ThrowsAnyAsync<Exception>(async () =>
-        {
-            await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
-                ["--AppHost:Topology=Bogus"]
-            );
-        });
-
-        var exceptionMessage = exception.ToString();
-        Assert.Contains("Unsupported AppHost topology 'Bogus'", exceptionMessage, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public async Task Service_hosts_expose_only_pinned_endpoints()
     {
         await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>([]);
@@ -218,48 +174,43 @@ public class AppHostServicesWiringTests
         }
 
         var gateway = await EnvironmentAsync(projects["gateway"]);
-        Assert.Contains(
-            "identity-service",
-            gateway["ReverseProxy__Clusters__monolith__Destinations__primary__Address"],
-            StringComparison.Ordinal
+        Assert.DoesNotContain(
+            gateway.Keys,
+            key =>
+                key.StartsWith("ReverseProxy__Clusters__monolith__", StringComparison.Ordinal)
+                || key.StartsWith("ReverseProxy__Routes__fallback__", StringComparison.Ordinal)
         );
     }
 
-    [Fact]
-    public async Task Monolith_topology_wires_module_options_and_health_checks()
+    [Theory]
+    [InlineData("Monolith")]
+    [InlineData("monolith")]
+    public async Task Legacy_monolith_topology_argument_does_not_restore_the_api(string topology)
     {
         await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
-            ["--AppHost:Topology=Monolith"]
+            [$"--AppHost:Topology={topology}"]
         );
         var projects = builder.Resources.OfType<ProjectResource>().ToDictionary(resource => resource.Name);
-        var api = await EnvironmentAsync(projects["api"]);
+
+        Assert.Equal(
+            new[] { "booking-service", "flight-service", "gateway", "identity-service", "passenger-service" },
+            projects.Keys.OrderBy(name => name, StringComparer.Ordinal).ToArray()
+        );
+
         var gateway = await EnvironmentAsync(projects["gateway"]);
-
-        AssertOtelPublishEnvironment(projects["api"], api);
-        AssertOtelPublishEnvironment(projects["gateway"], gateway);
-        var gatewayHealthChecks = projects["gateway"].Annotations.OfType<HealthCheckAnnotation>();
-        Assert.NotEmpty(gatewayHealthChecks);
-
-        foreach (var environment in new[] { api, gateway })
+        Assert.DoesNotContain(
+            gateway.Keys,
+            key =>
+                key.StartsWith("ReverseProxy__Clusters__monolith__", StringComparison.Ordinal)
+                || key.StartsWith("ReverseProxy__Routes__fallback__", StringComparison.Ordinal)
+        );
+        foreach (var cluster in new[] { "identity", "flight", "passenger", "booking" })
         {
-            var metadataAddress = environment["Jwt__MetadataAddress"];
-            Assert.Contains("api", metadataAddress, StringComparison.Ordinal);
-            Assert.EndsWith("/.well-known/openid-configuration", metadataAddress, StringComparison.Ordinal);
-        }
-
-        Assert.Contains("api-https", api["Grpc__FlightAddress"], StringComparison.Ordinal);
-        Assert.Contains("api-https", api["Grpc__PassengerAddress"], StringComparison.Ordinal);
-
-        foreach (var module in new[] { "Flight", "Identity", "Passenger" })
-        {
-            Assert.Contains($"PostgresOptions__ConnectionString__{module}", api.Keys);
-        }
-
-        Assert.DoesNotContain("PostgresOptions__ConnectionString__Booking", api.Keys);
-
-        foreach (var module in new[] { "Flight", "Identity", "Passenger", "Booking" })
-        {
-            Assert.Contains($"PersistMessageOptions__ConnectionString__{module}", api.Keys);
+            Assert.Contains(
+                $"{cluster}-service",
+                gateway[$"ReverseProxy__Clusters__{cluster}__Destinations__primary__Address"],
+                StringComparison.Ordinal
+            );
         }
     }
 
@@ -335,10 +286,7 @@ public class AppHostServicesWiringTests
         return variables.ToDictionary(variable => variable.Key, variable => variable.Value?.ToString() ?? "");
     }
 
-    private static void AssertOtelPublishEnvironment(
-        ProjectResource project,
-        Dictionary<string, string> environment
-    )
+    private static void AssertOtelPublishEnvironment(ProjectResource project, Dictionary<string, string> environment)
     {
         Assert.Single(project.Annotations.OfType<OtlpExporterAnnotation>());
         Assert.Contains("otel-collector", environment["OTEL_EXPORTER_OTLP_ENDPOINT"], StringComparison.Ordinal);

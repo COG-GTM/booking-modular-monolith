@@ -438,6 +438,10 @@ fabric.properties
 # Monitoring
 **/grafana-data
 
+# Local gateway cutover state
+deployments/docker-compose/.cutover.env
+deployments/docker-compose/.cutover.env.lock
+
 # EventStore
 **/eventstore
 
