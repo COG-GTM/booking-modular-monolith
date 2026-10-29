@@ -31,10 +31,20 @@ public class PersistMessageBackgroundService<TModule>(
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await using (var scope = serviceProvider.CreateAsyncScope())
+            try
             {
+                await using var scope = serviceProvider.CreateAsyncScope();
                 var service = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor<TModule>>();
                 await service.ProcessAllAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                // e.g. broker or database unavailable: rows stay pending and are retried on the next poll.
+                logger.LogError(ex, "PersistMessage processing failed; retrying on the next poll");
             }
 
             var delay = _options.Interval is { }

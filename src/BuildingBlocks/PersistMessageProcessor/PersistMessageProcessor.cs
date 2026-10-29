@@ -49,6 +49,43 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
         return SavePersistMessageAsync(messageEnvelope, MessageDeliveryType.Inbox, cancellationToken);
     }
 
+    public async Task<bool> TryAddReceivedMessageAsync<TMessageEnvelope>(
+        TMessageEnvelope messageEnvelope,
+        Guid inboxId,
+        CancellationToken cancellationToken = default
+    )
+        where TMessageEnvelope : MessageEnvelope
+    {
+        try
+        {
+            await SavePersistMessageAsync(messageEnvelope, MessageDeliveryType.Inbox, cancellationToken, inboxId);
+            return true;
+        }
+        catch (DbUpdateException)
+        {
+            var rejected = _persistMessageDbContext.PersistMessage.Local.FirstOrDefault(x => x.Id == inboxId);
+            if (rejected is not null)
+                _persistMessageDbContext.PersistMessage.Entry(rejected).State = EntityState.Detached;
+
+            var claimed = await _persistMessageDbContext
+                .PersistMessage.AsNoTracking()
+                .AnyAsync(x => x.Id == inboxId, cancellationToken);
+
+            if (claimed)
+                return false;
+
+            throw;
+        }
+    }
+
+    public Task<PersistMessage?> GetInboxMessageAsync(Guid inboxId, CancellationToken cancellationToken = default)
+    {
+        return _persistMessageDbContext.PersistMessage.FirstOrDefaultAsync(
+            x => x.Id == inboxId && x.DeliveryType == MessageDeliveryType.Inbox,
+            cancellationToken
+        )!;
+    }
+
     public async Task AddInternalMessageAsync<TCommand>(
         TCommand internalCommand,
         CancellationToken cancellationToken = default
@@ -128,7 +165,9 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
     public async Task ProcessAllAsync(CancellationToken cancellationToken = default)
     {
         var messages = await _persistMessageDbContext
-            .PersistMessage.Where(x => x.MessageStatus != MessageStatus.Processed)
+            .PersistMessage.Where(x =>
+                x.MessageStatus != MessageStatus.Processed && x.DeliveryType != MessageDeliveryType.Inbox
+            )
             .ToListAsync(cancellationToken);
 
         foreach (var message in messages)
@@ -169,6 +208,8 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
             data,
             context =>
             {
+                // Stable MessageId: a re-publish after a crash is deduplicated by the consumer's inbox.
+                context.MessageId = message.Id;
                 foreach (var header in messageEnvelope.Headers)
                     context.Headers.Set(header.Key, header.Value);
             },
@@ -213,13 +254,16 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
     private async Task<Guid> SavePersistMessageAsync(
         MessageEnvelope messageEnvelope,
         MessageDeliveryType deliveryType,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        Guid? explicitId = null
     )
     {
         Guard.Against.Null(messageEnvelope.Message, nameof(messageEnvelope.Message));
 
         Guid id;
-        if (
+        if (explicitId is { } given)
+            id = given;
+        else if (
             deliveryType == MessageDeliveryType.Inbox
             && messageEnvelope.Headers.TryGetValue("MessageId", out var messageId)
             && Guid.TryParse(messageId?.ToString(), out var receivedId)
@@ -232,6 +276,7 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
 
         if (
             deliveryType == MessageDeliveryType.Inbox
+            && explicitId is null
             && await _persistMessageDbContext.PersistMessage.AnyAsync(x => x.Id == id, cancellationToken)
         )
             return id;
@@ -257,8 +302,11 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
         return id;
     }
 
-    private async Task ChangeMessageStatusAsync(PersistMessage message, CancellationToken cancellationToken)
+    private async Task ChangeMessageStatusAsync(PersistMessage? message, CancellationToken cancellationToken)
     {
+        if (message is null)
+            return;
+
         message.ChangeState(MessageStatus.Processed);
 
         _persistMessageDbContext.PersistMessage.Update(message);

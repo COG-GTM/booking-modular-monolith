@@ -79,6 +79,7 @@ public class RegisterNewUserDefinition : ConsumerDefinition<RegisterNewUserHandl
 }
 
 public class PassengerInboxFilter<T>(
-    BuildingBlocks.PersistMessageProcessor.IPersistMessageProcessor<PassengerRoot> processor
-) : BuildingBlocks.MassTransit.ConsumeFilter<PassengerRoot, T>(processor)
+    BuildingBlocks.PersistMessageProcessor.IPersistMessageProcessor<PassengerRoot> processor,
+    Microsoft.Extensions.Logging.ILogger<BuildingBlocks.MassTransit.ConsumeFilter<PassengerRoot, T>> logger
+) : BuildingBlocks.MassTransit.ConsumeFilter<PassengerRoot, T>(processor, logger)
     where T : class;

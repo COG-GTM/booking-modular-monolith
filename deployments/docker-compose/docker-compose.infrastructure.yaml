@@ -15,6 +15,15 @@ services:
     image: rabbitmq:management
     container_name: rabbitmq
     restart: unless-stopped
+    # guest is loopback-only on a stock broker; services connect as booking/booking (local-dev default).
+    environment:
+      - RABBITMQ_DEFAULT_USER=booking
+      - RABBITMQ_DEFAULT_PASS=booking
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     ports:
       - "5672:5672"
       - "15672:15672"

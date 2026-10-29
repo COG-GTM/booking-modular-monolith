@@ -150,6 +150,15 @@ services:
     image: rabbitmq:management
     container_name: rabbitmq
     restart: unless-stopped
+    # guest is loopback-only on a stock broker; services connect as booking/booking (local-dev default).
+    environment:
+      - RABBITMQ_DEFAULT_USER=booking
+      - RABBITMQ_DEFAULT_PASS=booking
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -357,6 +366,14 @@ services:
       - AuthOptions__IssuerUri=http://localhost:5000
       - Jwt__Authority=http://localhost:5000
       - Jwt__MetadataAddress=http://localhost:80/.well-known/openid-configuration
+      - MessagingOptions__Transport=RabbitMq
+      - RabbitMqOptions__HostName=rabbitmq
+      - RabbitMqOptions__Port=5672
+      - RabbitMqOptions__UserName=booking
+      - RabbitMqOptions__Password=booking
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     networks:
       - booking
 

@@ -22,33 +22,31 @@ public class ConsumeFilterHeaderTests
 
         _ = processor
             .Received(1)
-            .AddReceivedMessageAsync(
+            .TryAddReceivedMessageAsync(
                 Arg.Is<MessageEnvelope>(envelope =>
                     Equals(envelope.Headers["MessageId"], context.MessageId.Value)
                     && Equals(envelope.Headers["x-correlation"], "abc")
                 ),
+                InboxMessageId.For(context),
                 Arg.Any<CancellationToken>()
             );
     }
 
     [Fact]
-    public async Task null_message_id_does_not_add_a_message_id_header()
+    public async Task null_message_id_is_rejected_before_recording_or_consuming()
     {
         var processor = CreateProcessor(out _);
         var filter = new ConsumeFilter<First, Received>(processor);
         var context = Context(null, new HeaderValue("x-correlation", "abc"));
         var next = Substitute.For<IPipe<ConsumeContext<Received>>>();
 
-        await filter.Send(context, next);
+        var act = () => filter.Send(context, next);
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("Inbox requires a MessageId.");
+        await next.DidNotReceive().Send(context);
 
         _ = processor
-            .Received(1)
-            .AddReceivedMessageAsync(
-                Arg.Is<MessageEnvelope>(envelope =>
-                    !envelope.Headers.ContainsKey("MessageId") && Equals(envelope.Headers["x-correlation"], "abc")
-                ),
-                Arg.Any<CancellationToken>()
-            );
+            .DidNotReceive()
+            .TryAddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -56,14 +54,11 @@ public class ConsumeFilterHeaderTests
     {
         var processor = Substitute.For<IPersistMessageProcessor<First>>();
         var id = Guid.NewGuid();
-        processor
-            .AddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(id));
         var processed = new PersistMessage(id, nameof(Received), "{}", MessageDeliveryType.Inbox);
         processed.ChangeState(MessageStatus.Processed);
-        processor.ExistMessageAsync(id, Arg.Any<CancellationToken>()).Returns(Task.FromResult(processed));
+        processor.GetInboxMessageAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(processed);
         var filter = new ConsumeFilter<First, Received>(processor);
-        var context = Context(null);
+        var context = Context(id);
         var next = Substitute.For<IPipe<ConsumeContext<Received>>>();
 
         await filter.Send(context, next);
@@ -78,17 +73,16 @@ public class ConsumeFilterHeaderTests
         var processor = Substitute.For<IPersistMessageProcessor<First>>();
         var id = Guid.NewGuid();
         processor
-            .AddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(id));
-        processor.ExistMessageAsync(id, Arg.Any<CancellationToken>()).Returns(Task.FromResult<PersistMessage>(null!));
+            .TryAddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         var filter = new ConsumeFilter<First, Received>(processor);
-        var context = Context(null);
+        var context = Context(id);
         var next = Substitute.For<IPipe<ConsumeContext<Received>>>();
 
         await filter.Send(context, next);
 
         await next.Received(1).Send(context);
-        _ = processor.Received(1).ProcessInboxAsync(id, Arg.Any<CancellationToken>());
+        _ = processor.Received(1).ProcessInboxAsync(InboxMessageId.For(context), Arg.Any<CancellationToken>());
     }
 
     private static IPersistMessageProcessor<First> CreateProcessor(out Guid id)
@@ -96,9 +90,8 @@ public class ConsumeFilterHeaderTests
         var processor = Substitute.For<IPersistMessageProcessor<First>>();
         id = Guid.NewGuid();
         processor
-            .AddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(id));
-        processor.ExistMessageAsync(id, Arg.Any<CancellationToken>()).Returns(Task.FromResult<PersistMessage>(null!));
+            .TryAddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         return processor;
     }
 

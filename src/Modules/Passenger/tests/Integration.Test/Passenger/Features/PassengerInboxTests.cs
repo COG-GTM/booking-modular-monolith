@@ -1,5 +1,6 @@
 using Api;
 using BuildingBlocks.Contracts.EventBus.Messages;
+using BuildingBlocks.MassTransit;
 using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
@@ -35,7 +36,8 @@ public class PassengerInboxTests(TestFixture<Program, PassengerDbContext, Passen
         var store = scope.ServiceProvider.GetRequiredService<
             PersistMessageDbContext<global::Passenger.PassengerRoot>
         >();
-        (await store.PersistMessage.CountAsync(x => x.Id == id)).Should().Be(1);
+        var inboxId = InboxMessageId.For("passenger.register-new-user-handler", id);
+        (await store.PersistMessage.CountAsync(x => x.Id == inboxId)).Should().Be(1);
         var passengers = scope.ServiceProvider.GetRequiredService<PassengerDbContext>();
         (await passengers.Passengers.CountAsync(x => x.PassportNumber.Value == "987654321")).Should().Be(1);
         (await passengers.Passengers.AnyAsync(x => x.PassportNumber.Value == "987654322")).Should().BeFalse();
@@ -47,6 +49,7 @@ public class PassengerInboxTests(TestFixture<Program, PassengerDbContext, Passen
 
     private async Task WaitForProcessed(Guid id)
     {
+        id = InboxMessageId.For("passenger.register-new-user-handler", id);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         while (true)
         {

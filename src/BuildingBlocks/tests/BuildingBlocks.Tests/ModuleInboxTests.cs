@@ -26,7 +26,7 @@ public class ModuleInboxTests
         await filter.Send(Context(id), next);
         await next.Received(1).Send(Arg.Any<ConsumeContext<Received>>());
         var row = await store.PersistMessage.SingleAsync();
-        row.Id.Should().Be(id);
+        row.Id.Should().Be(InboxMessageId.For(context));
         row.MessageStatus.Should().Be(MessageStatus.Processed);
         row.DeliveryType.Should().Be(MessageDeliveryType.Inbox);
     }

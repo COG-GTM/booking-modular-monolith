@@ -22,6 +22,16 @@ public interface IPersistMessageProcessor
     )
         where TMessageEnvelope : MessageEnvelope;
 
+    // Returns false when another delivery already recorded the same inbox id (concurrent duplicate).
+    Task<bool> TryAddReceivedMessageAsync<TMessageEnvelope>(
+        TMessageEnvelope messageEnvelope,
+        Guid inboxId,
+        CancellationToken cancellationToken = default
+    )
+        where TMessageEnvelope : MessageEnvelope;
+
+    Task<PersistMessage?> GetInboxMessageAsync(Guid inboxId, CancellationToken cancellationToken = default);
+
     Task AddInternalMessageAsync<TCommand>(TCommand internalCommand, CancellationToken cancellationToken = default)
         where TCommand : class, IInternalCommand;
 
