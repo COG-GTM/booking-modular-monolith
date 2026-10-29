@@ -108,6 +108,31 @@ public class TopologyTests
         });
     }
 
+    [Fact]
+    public async Task Monolith_topology_is_rejected()
+    {
+        var exception = await Record.ExceptionAsync(async () =>
+        {
+            await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
+                ["--AppHost:Topology=Monolith"]
+            );
+        });
+
+        Assert.NotNull(exception);
+        Assert.Contains(
+            ExceptionChain(exception).OfType<ArgumentException>(),
+            argumentException =>
+                argumentException.Message.Contains("Unknown AppHost:Topology 'Monolith'", StringComparison.Ordinal)
+                && argumentException.Message.Contains("Expected Services.", StringComparison.Ordinal)
+        );
+    }
+
+    private static IEnumerable<Exception> ExceptionChain(Exception? exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+            yield return current;
+    }
+
     private static async Task<Dictionary<string, string>> Environment(
         IDistributedApplicationTestingBuilder builder,
         ProjectResource project
