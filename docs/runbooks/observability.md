@@ -7,7 +7,6 @@ See [ADR 0495](../adr/0495-per-service-observability-and-trace-propagation.md).
 | Deployable | `service.name` | Local probe base |
 | --- | --- | --- |
 | Gateway (`src/Gateway`) | `booking-gateway` | http://localhost:5000 |
-| Monolith (`src/Api`) | `booking-modular-monolith` | http://localhost:3001 |
 | Identity.Host | `identity-service` | http://localhost:5103 |
 | Flight.Host | `flight-service` | http://localhost:5107 (gRPC h2c 5106) |
 | Passenger.Host | `passenger-service` | http://localhost:5102 (gRPC h2c 5202) |
@@ -26,7 +25,7 @@ Resolution order: `OTEL_SERVICE_NAME` > `ObservabilityOptions:ServiceName` > ass
 | `/health` | all | humans |
 
 Responses are JSON (`{"status":"Healthy","checks":{...}}`), 200 when healthy, 503 otherwise. Check `description`s are only returned in Development (they can name hosts/errors). gRPC `grpc.health.v1`
-stays on the h2c port of Flight/Passenger/monolith.
+stays on the h2c port of Flight/Passenger.
 
 Compose (runtime image has no curl):
 

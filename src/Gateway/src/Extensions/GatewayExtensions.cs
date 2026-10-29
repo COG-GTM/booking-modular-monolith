@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using Yarp.ReverseProxy;
 
 namespace Gateway.Extensions;
 
@@ -16,25 +17,31 @@ public static class GatewayExtensions
     {
         builder.AddServiceDefaults();
 
+        var cutoverConfigFile = builder.Configuration["Cutover:ConfigFile"];
+        if (!string.IsNullOrWhiteSpace(cutoverConfigFile))
+            builder.Configuration.AddJsonFile(cutoverConfigFile, optional: true, reloadOnChange: true);
+
         builder.Services.AddJwt();
 
         // Bound lazily (IOptions) so CORS/rate-limit settings come from the final configuration, env vars included.
         builder.Services.Configure<GatewayCorsOptions>(builder.Configuration.GetSection("Cors"));
         builder.Services.Configure<GatewayRateLimitOptions>(builder.Configuration.GetSection("RateLimiting"));
+        builder.Services.Configure<CutoverOptions>(builder.Configuration.GetSection("Cutover"));
 
         builder.Services.AddCors();
-        builder.Services
-            .AddOptions<CorsOptions>()
-            .Configure<IOptions<GatewayCorsOptions>>((cors, gatewayCors) =>
-                cors.AddPolicy(
-                    GatewayCorsOptions.PolicyName,
-                    policy =>
-                        policy
-                            .WithOrigins(gatewayCors.Value.AllowedOrigins)
-                            .AllowAnyHeader()
-                            .AllowAnyMethod()
-                            .WithExposedHeaders(CorrelationIdMiddleware.HeaderName)
-                )
+        builder
+            .Services.AddOptions<CorsOptions>()
+            .Configure<IOptions<GatewayCorsOptions>>(
+                (cors, gatewayCors) =>
+                    cors.AddPolicy(
+                        GatewayCorsOptions.PolicyName,
+                        policy =>
+                            policy
+                                .WithOrigins(gatewayCors.Value.AllowedOrigins)
+                                .AllowAnyHeader()
+                                .AllowAnyMethod()
+                                .WithExposedHeaders(CorrelationIdMiddleware.HeaderName)
+                    )
             );
 
         builder.Services.AddGatewayRateLimiting();
@@ -58,7 +65,13 @@ public static class GatewayExtensions
         app.UseAuthorization();
         app.UseRateLimiter();
 
-        app.MapReverseProxy();
+        app.MapReverseProxy(proxyPipeline =>
+        {
+            proxyPipeline.UseCutoverFreeze();
+            proxyPipeline.UseSessionAffinity();
+            proxyPipeline.UseLoadBalancing();
+            proxyPipeline.UsePassiveHealthChecks();
+        });
 
         return app;
     }

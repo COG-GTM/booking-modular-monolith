@@ -12,12 +12,12 @@ using Xunit;
 
 namespace BuildingBlocks.Tests;
 
-public class ApiModuleSettingsResolutionTests
+public class ServiceHostSettingsResolutionTests
 {
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task api_settings_resolve_per_module_data_options(bool dockerSettings)
+    public async Task service_host_settings_resolve_per_module_data_options(bool dockerSettings)
     {
         var builder = CreateBuilder(dockerSettings);
         builder.AddPersistMessageProcessor<IdentityModule>("Identity");
@@ -56,10 +56,17 @@ public class ApiModuleSettingsResolutionTests
             new WebApplicationOptions { EnvironmentName = "test", ContentRootPath = AppContext.BaseDirectory }
         );
         builder.Configuration.Sources.Clear();
-        var apiSettings = Path.Combine(FindRepositoryRoot(), "src", "Api", "src");
-        builder.Configuration.AddJsonFile(Path.Combine(apiSettings, "appsettings.json"), optional: false);
-        if (dockerSettings)
-            builder.Configuration.AddJsonFile(Path.Combine(apiSettings, "appsettings.docker.json"), optional: false);
+        var servicesDirectory = Path.Combine(FindRepositoryRoot(), "src", "Services");
+        foreach (var module in new[] { "Identity", "Flight", "Passenger", "Booking" })
+        {
+            var hostSettings = Path.Combine(servicesDirectory, $"{module}.Host");
+            builder.Configuration.AddJsonFile(Path.Combine(hostSettings, "appsettings.json"), optional: false);
+            if (dockerSettings)
+                builder.Configuration.AddJsonFile(
+                    Path.Combine(hostSettings, "appsettings.docker.json"),
+                    optional: false
+                );
+        }
         return builder;
     }
 
@@ -84,7 +91,7 @@ public class ApiModuleSettingsResolutionTests
     {
         var context = services.GetRequiredService<PersistMessageDbContext<TModule>>();
         var connection = new NpgsqlConnectionStringBuilder(context.Database.GetConnectionString());
-        connection.Database.Should().Be($"{moduleName.ToLowerInvariant()}_modular_monolith");
+        connection.Database.Should().Be($"{moduleName.ToLowerInvariant()}_service");
         if (dockerSettings)
             connection.Username.Should().Be($"{moduleName.ToLowerInvariant()}_service");
     }
@@ -92,7 +99,7 @@ public class ApiModuleSettingsResolutionTests
     private static void AssertMongoOptions(IServiceProvider services, string moduleName, bool dockerSettings)
     {
         var options = services.GetRequiredService<IOptionsSnapshot<MongoOptions>>().Get(moduleName);
-        options.DatabaseName.Should().Be($"{moduleName.ToLowerInvariant()}_modular_monolith_read");
+        options.DatabaseName.Should().Be($"{moduleName.ToLowerInvariant()}_service_read");
         options.ConnectionString.Should().Be(dockerSettings ? "mongodb://mongo:27017" : "mongodb://localhost:27017");
     }
 

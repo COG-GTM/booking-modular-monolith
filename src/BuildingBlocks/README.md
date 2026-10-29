@@ -26,8 +26,8 @@ needs no code changes. Decision record: [ADR 0100](../../docs/adr/0100-buildingb
 | `BuildingBlocks.TestBase` | Core, EFCore, Mongo, PersistMessageProcessor, Web, Constants | xUnit, Testcontainers |
 | `BuildingBlocks` (aggregate) | all of the above | host-level packages (Duende, YARP, Figgle, ...) |
 
-The aggregate `BuildingBlocks.csproj` has no code. It exists so the monolith (`src/Api`) keeps building during the
-strangler-fig transition; new hosts under `src/Services/<Module>.Host` must reference focused libraries only.
+The aggregate `BuildingBlocks.csproj` has no code and is an umbrella reference for projects that need the full set.
+Service hosts should reference only the focused libraries they use.
 `tests/BuildingBlocks.Tests` fails the build if a library references the aggregate, if Core gains infrastructure
 dependencies, or if the Booking module's graph picks up EF Core.
 

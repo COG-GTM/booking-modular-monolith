@@ -57,20 +57,19 @@ monitoring endpoints can be inspected in the dashboard.
 | flight | 5107 | 5106 | /health/ready |
 | passenger | 5102 | 5202 | /health/ready |
 | booking | 5004 | — | /health/ready |
-| api (Monolith only) | 3001; HTTPS 3000 | 3002 | /health |
 
 | Infrastructure | Host ports / stores |
 |---|---|
 | PostgreSQL 16 | 5432; Services: identity_service, flight_service, passenger_service, booking_service |
 | MongoDB | 27017; flight_service_read, passenger_service_read, booking_service_read |
 | RabbitMQ | 5672; management 15672; local booking/booking secret parameters |
-| EventStoreDB | 2113; legacy TCP 1113; Booking only in Services |
+| EventStoreDB | 2113; Booking |
 | Redis | TLS 6379; additional plain endpoint allocated by Aspire |
 | Jaeger | UI 16686; collector 14268 / agent 6831 |
 | Zipkin | 9411 |
 | OTel collector | OTLP gRPC 4317 / HTTP 4318; metrics 8889 |
 | Prometheus | 9090 |
-| Grafana | 3000 in Services, 3005 in Monolith |
+| Grafana | 3000 |
 | Tempo 2.6.1 | 3200 / 9095; OTLP 4317 / 4318 (inspect dashboard bindings) |
 | Loki | 3100 / 9096 |
 | node-exporter | 9101 |
@@ -79,26 +78,15 @@ monitoring endpoints can be inspected in the dashboard.
 
 Identity owns only its Postgres database and RabbitMQ. Flight and Passenger additionally use Mongo. Booking additionally
 uses Mongo, EventStoreDB and downstream gRPC. Each owns its Postgres outbox. AppHost wires gateway destinations, metadata,
-and gRPC discovery from endpoint expressions, not manually configured host addresses.
-Services mode leaves the `monolith` cluster at its default destination; unmatched paths must not be forwarded to
-Identity through the anonymous catch-all. `/connect/**` and `/.well-known/**` use dedicated Identity routes.
+and gRPC discovery from endpoint expressions, not manually configured host addresses. The gateway forwards only
+explicit Identity, Flight, Passenger, and Booking routes; unmatched paths return 404. `/connect/**` and
+`/.well-known/**` use dedicated Identity routes.
 Publish mode binds every project listener to `0.0.0.0` on its published target port (Identity/Gateway `Urls`, other hosts'
 Kestrel endpoint URLs); gRPC stays HTTP/2-only. These overrides do not affect local run-mode listeners.
 
-## Switching topology
-
-Stop the current AppHost before switching. Append the topology setting to either dotnet command:
-
-```bash
-dotnet run --no-build --no-launch-profile -- --AppHost:Topology=Monolith
-# Explicit default:
-dotnet run --no-build --no-launch-profile -- --AppHost:Topology=Services
-```
-
-Use the VM environment exports above when choosing `--no-launch-profile`. Monolith starts only `api` and `gateway`;
-all clusters point to `api`. Its physical Postgres databases are `identity`, `flight`, `passenger`, `booking`, with
-resource names ending in `-db`. There is no data migration between topologies (AB-505). Local run-mode containers are
-ephemeral; publish mode uses persistent volumes for configured stores. Do not rely on local run data surviving shutdown.
+AppHost exposes the service topology only. Local run-mode containers are ephemeral; publish
+mode uses persistent volumes for configured stores. Do not rely on local run data surviving
+shutdown.
 
 ## Smoke flow and evidence
 
@@ -120,9 +108,6 @@ In Jaeger (`http://localhost:16686`), select service `gateway`, operation POST b
 gateway → booking → flight/passenger gRPC. Named `aspire` exporters honor `OTEL_EXPORTER_OTLP_ENDPOINT`; the separate
 collector exporter is configured through `ObservabilityOptions:OTLPOptions`. AppHost sets service names for correlation.
 
-For a Monolith sanity check, verify `http://localhost:3001/health`, `http://localhost:5000/health`, and request a token via
-the gateway using the same password-grant request as the smoke script. Do not run both topologies concurrently.
-
 ## Troubleshooting
 
 - **Duplicate endpoint / frame-size errors:** launchSettings mirrors and Kestrel endpoints can create duplicate pinned
@@ -139,8 +124,7 @@ the gateway using the same password-grant request as the smoke script. Do not ru
 
   Apply the same pattern to Mongo, RabbitMQ, EventStoreDB, Grafana/Prometheus, etc., using the exact tags in the dashboard.
   Elasticsearch uses `docker.elastic.co`, not a Docker Hub mirror. Do not replace the pinned Postgres/Tempo versions.
-- **Port in use:** stop the previous topology first. API HTTPS needs 3000, so Monolith places Grafana on 3005. The VM
-  dashboard command avoids the common 8080 collision. Check listeners with `ss -lntp` on Linux.
+- **Port in use:** check listeners with `ss -lntp` on Linux. The VM dashboard command avoids the common 8080 collision.
 - **Startup failure:** inspect the dashboard console or `/tmp/aspire-dcp*/<resource>-*_out_*`. These files are temporary;
   copy needed evidence to a persistent home-directory location before shutdown.
 - **Missing passenger:** expect asynchronous delivery, not identical Identity/Passenger IDs. Complete by passport and use

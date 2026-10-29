@@ -1,4 +1,3 @@
-using Api;
 using BuildingBlocks.TestBase;
 using Flight.Data;
 using Xunit;
@@ -8,9 +7,8 @@ namespace EndToEnd.Test;
 [Collection(EndToEndTestCollection.Name)]
 public class FlightEndToEndTestBase : TestBase<Program, FlightDbContext, FlightReadDbContext>
 {
-    public FlightEndToEndTestBase(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFixture) : base(integrationTestFixture)
-    {
-    }
+    public FlightEndToEndTestBase(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFixture)
+        : base(integrationTestFixture) { }
 }
 
 [CollectionDefinition(Name)]

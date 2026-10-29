@@ -3,7 +3,7 @@
 The Passenger service is an independently hosted composition of the existing
 Passenger module. See [ADR 0104](../adr/0104-passenger-service-host.md) for the
 decision and boundaries. Data migration and cutover of existing stores are
-deferred to AB-505.
+documented in the [cutover runbook](./cutover.md).
 
 ## Ports and endpoints
 
@@ -52,34 +52,13 @@ dotnet run --project src/Services/Passenger.Host/Passenger.Host.csproj
 The development profile binds HTTP to 5102 and gRPC to 5202. Local PostgreSQL
 initialization creates `passenger_service` and its service role on a fresh volume.
 
-## Run alongside the monolith
+## Ownership changes
 
-To transfer Passenger queue ownership to the standalone host, disable Passenger
-background processing in the monolith and leave it enabled in the Passenger
-host:
-
-```bash
-docker compose -f deployments/docker-compose/docker-compose.infrastructure.yaml up -d postgres mongo rabbitmq eventstore
-Modules__Passenger__BackgroundProcessingEnabled=false dotnet run --project src/Api/src/Api.csproj
-dotnet run --project src/Services/Passenger.Host/Passenger.Host.csproj
-```
-
-The module setting applies independently to the monolith and standalone host:
-`false` disables that host's Passenger outbox worker and MassTransit consumer
-registration. Keep it `false` in the monolith and `true` in the standalone host;
-do not run two active Passenger consumer sets against the shared queue.
-
-Configure gateway routing to the local Passenger HTTP endpoint:
-
-```bash
-ReverseProxy__Clusters__passenger__Destinations__primary__Address=http://localhost:5102/
-```
-
-Configure the Booking module's Passenger gRPC address:
-
-```bash
-Services__passenger__grpc__0=http://localhost:5202
-```
+Use `scripts/cutover/cutover.sh flip passenger service` to move Passenger to this host
+and `scripts/cutover/cutover.sh flip passenger monolith` to roll back. The script adjusts
+the gateway and Booking gRPC destinations, copies and verifies PostgreSQL and Mongo data,
+and ensures only the active owner runs Passenger background processing. See the
+[cutover runbook](./cutover.md) for the full procedure.
 
 ## Container
 

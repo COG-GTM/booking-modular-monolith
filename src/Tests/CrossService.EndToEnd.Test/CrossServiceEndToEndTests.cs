@@ -5,12 +5,12 @@ using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
 using FluentAssertions;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Npgsql;
-using DotNet.Testcontainers.Builders;
-using DotNet.Testcontainers.Containers;
 using Testcontainers.MongoDb;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
@@ -78,7 +78,8 @@ public sealed class CrossServiceEndToEndTests(CrossServiceEndToEndFixture fixtur
         {
             var database = fixture.MongoClient.GetDatabase("booking_service_read");
             var collection = database.GetCollection<BsonDocument>("booking");
-            var filter = Builders<BsonDocument>.Filter.Eq("passengerInfo.name", passenger.Name)
+            var filter =
+                Builders<BsonDocument>.Filter.Eq("passengerInfo.name", passenger.Name)
                 & Builders<BsonDocument>.Filter.Eq("trip.description", "AB-504 cross-service booking");
             var booking = await collection.Find(filter).FirstOrDefaultAsync();
             return booking is not null
@@ -177,13 +178,33 @@ public sealed class CrossServiceEndToEndFixture : IAsyncLifetime
         _bookingPort = FreePort();
         _gatewayPort = FreePort();
 
-        StartHost("identity", "src/Services/Identity.Host/Identity.Host.csproj", "Identity.Host.dll", BuildIdentityEnvironment());
+        StartHost(
+            "identity",
+            "src/Services/Identity.Host/Identity.Host.csproj",
+            "Identity.Host.dll",
+            BuildIdentityEnvironment()
+        );
         await WaitForHostAsync("identity", "/health");
-        StartHost("flight", "src/Services/Flight.Host/Flight.Host.csproj", "Flight.Host.dll", BuildServiceEnvironment("Flight"));
+        StartHost(
+            "flight",
+            "src/Services/Flight.Host/Flight.Host.csproj",
+            "Flight.Host.dll",
+            BuildServiceEnvironment("Flight")
+        );
         await WaitForHostAsync("flight", "/health/ready");
-        StartHost("passenger", "src/Services/Passenger.Host/Passenger.Host.csproj", "Passenger.Host.dll", BuildServiceEnvironment("Passenger"));
+        StartHost(
+            "passenger",
+            "src/Services/Passenger.Host/Passenger.Host.csproj",
+            "Passenger.Host.dll",
+            BuildServiceEnvironment("Passenger")
+        );
         await WaitForHostAsync("passenger", "/health/ready");
-        StartHost("booking", "src/Services/Booking.Host/Booking.Host.csproj", "Booking.Host.dll", BuildBookingEnvironment());
+        StartHost(
+            "booking",
+            "src/Services/Booking.Host/Booking.Host.csproj",
+            "Booking.Host.dll",
+            BuildBookingEnvironment()
+        );
         await WaitForHostAsync("booking", "/health/ready");
         StartHost("gateway", "src/Gateway/src/Gateway.csproj", "Gateway.dll", BuildGatewayEnvironment());
         await WaitForHostAsync("gateway", "/.well-known/openid-configuration");
@@ -199,9 +220,7 @@ public sealed class CrossServiceEndToEndFixture : IAsyncLifetime
                     host.Process.Kill(entireProcessTree: true);
                 await host.Process.WaitForExitAsync();
             }
-            catch (InvalidOperationException)
-            {
-            }
+            catch (InvalidOperationException) { }
             finally
             {
                 host.LogWriter.Dispose();
@@ -317,9 +336,7 @@ public sealed class CrossServiceEndToEndFixture : IAsyncLifetime
                     return response;
                 response.Dispose();
             }
-            catch (HttpRequestException)
-            {
-            }
+            catch (HttpRequestException) { }
 
             await Task.Delay(250);
         }
@@ -342,21 +359,35 @@ public sealed class CrossServiceEndToEndFixture : IAsyncLifetime
 
     private async Task CreateServiceDatabasesAsync()
     {
-        var scriptPath = Path.Combine(_root, "deployments", "docker-compose", "init", "postgres", "01-service-databases.sql");
+        var scriptPath = Path.Combine(
+            _root,
+            "deployments",
+            "docker-compose",
+            "init",
+            "postgres",
+            "01-service-databases.sql"
+        );
         var script = File.ReadAllLines(scriptPath)
             .Where(line => !line.TrimStart().StartsWith("\\", StringComparison.Ordinal))
             .Aggregate(new StringBuilder(), (builder, line) => builder.AppendLine(line))
             .ToString();
         await using var connection = new NpgsqlConnection(_postgres.GetConnectionString());
         await connection.OpenAsync();
-        foreach (var statement in script.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (
+            var statement in script.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        )
         {
             await using var command = new NpgsqlCommand(statement, connection);
             await command.ExecuteNonQueryAsync();
         }
     }
 
-    private void StartHost(string name, string projectPath, string assemblyName, IReadOnlyDictionary<string, string> environment)
+    private void StartHost(
+        string name,
+        string projectPath,
+        string assemblyName,
+        IReadOnlyDictionary<string, string> environment
+    )
     {
         var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name ?? "Debug";
         var projectDirectory = Path.Combine(_root, Path.GetDirectoryName(projectPath)!);
@@ -410,19 +441,17 @@ public sealed class CrossServiceEndToEndFixture : IAsyncLifetime
         {
             var host = _hosts.Single(candidate => candidate.Name == name);
             if (host.Process.HasExited)
-                throw new InvalidOperationException($"{name} host exited with code {host.Process.ExitCode}.{FailureContext()}");
+                throw new InvalidOperationException(
+                    $"{name} host exited with code {host.Process.ExitCode}.{FailureContext()}"
+                );
             try
             {
                 using var response = await client.GetAsync(path);
                 if (response.IsSuccessStatusCode)
                     return;
             }
-            catch (HttpRequestException)
-            {
-            }
-            catch (TaskCanceledException)
-            {
-            }
+            catch (HttpRequestException) { }
+            catch (TaskCanceledException) { }
 
             await Task.Delay(300);
         }
@@ -523,9 +552,9 @@ public sealed class CrossServiceEndToEndFixture : IAsyncLifetime
             ["RateLimiting__Enabled"] = "false",
             ["ReverseProxy__Clusters__identity__Destinations__primary__Address"] = IdentityAddress + "/",
             ["ReverseProxy__Clusters__flight__Destinations__primary__Address"] = $"http://127.0.0.1:{_flightHttpPort}/",
-            ["ReverseProxy__Clusters__passenger__Destinations__primary__Address"] = $"http://127.0.0.1:{_passengerHttpPort}/",
+            ["ReverseProxy__Clusters__passenger__Destinations__primary__Address"] =
+                $"http://127.0.0.1:{_passengerHttpPort}/",
             ["ReverseProxy__Clusters__booking__Destinations__primary__Address"] = $"http://127.0.0.1:{_bookingPort}/",
-            ["ReverseProxy__Clusters__monolith__Destinations__primary__Address"] = IdentityAddress + "/",
         };
         AddTelemetryEnvironment(environment);
         return environment;
@@ -535,7 +564,9 @@ public sealed class CrossServiceEndToEndFixture : IAsyncLifetime
     {
         var environment = new Dictionary<string, string>
         {
-            [$"PostgresOptions__ConnectionString__{CultureInfoInvariantTitle(module)}"] = ServiceConnectionString(module),
+            [$"PostgresOptions__ConnectionString__{CultureInfoInvariantTitle(module)}"] = ServiceConnectionString(
+                module
+            ),
             ["MongoOptions__ConnectionString"] = _mongo.GetConnectionString(),
             ["RabbitMqOptions__HostName"] = _rabbitMq.Hostname,
             ["RabbitMqOptions__Port"] = _rabbitMq.GetMappedPublicPort(5672).ToString(),
@@ -565,8 +596,7 @@ public sealed class CrossServiceEndToEndFixture : IAsyncLifetime
     private string EventStoreConnectionString() =>
         $"esdb://127.0.0.1:{_eventStore.GetMappedPublicPort(2113)}?tls=false";
 
-    private static string CultureInfoInvariantTitle(string value) =>
-        char.ToUpperInvariant(value[0]) + value[1..];
+    private static string CultureInfoInvariantTitle(string value) => char.ToUpperInvariant(value[0]) + value[1..];
 
     private static int FreePort()
     {

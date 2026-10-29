@@ -32,9 +32,6 @@
   "ReverseProxy__Clusters__flight__Destinations__primary__Address"
   "ReverseProxy__Clusters__passenger__Destinations__primary__Address"
   "ReverseProxy__Clusters__booking__Destinations__primary__Address"
-  "ReverseProxy__Clusters__monolith__Destinations__primary__Address"
-  "ReverseProxy__Routes__api-fallback__Transforms__0__PathSet"
-  "ReverseProxy__Routes__monolith-fallback__Transforms__0__PathSet"
 -}}
 {{- range $key := $serviceKeys -}}
 {{- $service := index $root.Values.services $key -}}

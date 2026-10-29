@@ -10,10 +10,16 @@ services:
       context: ../../
       dockerfile: src/Services/Identity.Host/Dockerfile
     restart: unless-stopped
+    working_dir: /var/lib/identity-signing
+    entrypoint: ["dotnet", "/app/Identity.Host.dll"]
     ports:
       - "127.0.0.1:5103:80"
+    volumes:
+      - identity-signing:/var/lib/identity-signing
+      - identity-data-protection-keys:/root/.aspnet/DataProtection-Keys
     environment:
       ASPNETCORE_ENVIRONMENT: docker
+      ASPNETCORE_CONTENTROOT: /app
       AuthOptions__IssuerUri: http://localhost:5000
       Jwt__Authority: http://localhost:5000
       Jwt__MetadataAddress: http://localhost:80/.well-known/openid-configuration
@@ -194,9 +200,6 @@ services:
       ReverseProxy__Clusters__flight__Destinations__primary__Address: http://flight-service:80/
       ReverseProxy__Clusters__passenger__Destinations__primary__Address: http://passenger-service:80/
       ReverseProxy__Clusters__booking__Destinations__primary__Address: http://booking-service:80/
-      ReverseProxy__Clusters__monolith__Destinations__primary__Address: http://identity-service:80/
-      ReverseProxy__Routes__api-fallback__Transforms__0__PathSet: /__gateway/unmatched
-      ReverseProxy__Routes__monolith-fallback__Transforms__0__PathSet: /__gateway/unmatched
       ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
       ObservabilityOptions__UseAspireOTLPExporter: "false"
       OTEL_SERVICE_NAME: booking-gateway
@@ -218,3 +221,7 @@ services:
       start_period: 120s
     networks:
       - infrastructure
+
+volumes:
+  identity-signing:
+  identity-data-protection-keys:

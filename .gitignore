@@ -90,6 +90,7 @@ StyleCopReport.xml
 *.vssscc
 src/Services/**/tempkey.jwk
 src/Services/**/keys/
+deployments/docker-compose/.cutover/
 .builds
 *.pidb
 *.svclog

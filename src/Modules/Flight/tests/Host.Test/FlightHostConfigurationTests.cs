@@ -39,7 +39,7 @@ public class FlightHostConfigurationTests
         local.GetValue<bool>("PersistMessageOptions:Enabled").Should().BeTrue();
         docker.GetValue<bool>("PersistMessageOptions:Enabled").Should().BeTrue();
 
-        new Uri(docker["Jwt:MetadataAddress"]!).Host.Should().Be("booking_modular_monolith");
+        new Uri(docker["Jwt:MetadataAddress"]!).Host.Should().Be("identity-service");
     }
 
     [Fact]
@@ -111,9 +111,7 @@ public class FlightHostConfigurationTests
         dockerfile.Should().Contain("ENV ASPNETCORE_ENVIRONMENT=docker");
         dockerfile.Should().Contain("EXPOSE 80 81");
         dockerfile.Should().Contain("ENTRYPOINT [\"dotnet\", \"Flight.Host.dll\"]");
-        foreach (
-            var forbidden in new[] { "src/Api", "src/Modules/Booking", "src/Modules/Passenger", "src/Modules/Identity" }
-        )
+        foreach (var forbidden in new[] { "src/Modules/Booking", "src/Modules/Passenger", "src/Modules/Identity" })
         {
             lines
                 .Where(line => line.TrimStart().StartsWith("COPY ", StringComparison.Ordinal))

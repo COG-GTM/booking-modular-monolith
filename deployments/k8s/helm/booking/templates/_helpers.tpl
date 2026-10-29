@@ -62,9 +62,6 @@ helm.sh/chart: {{ printf "%s-%s" .root.Chart.Name .root.Chart.Version | replace 
 {{- $destination := index $root.Values.services $cluster -}}
 {{- $_ := set $env (printf "ReverseProxy__Clusters__%s__Destinations__primary__Address" $cluster) (printf "http://%s:80/" $destination.name) -}}
 {{- end -}}
-{{- $_ := set $env "ReverseProxy__Clusters__monolith__Destinations__primary__Address" (printf "http://%s:80/" $identityName) -}}
-{{- $_ := set $env "ReverseProxy__Routes__api-fallback__Transforms__0__PathSet" "/__gateway/unmatched" -}}
-{{- $_ := set $env "ReverseProxy__Routes__monolith-fallback__Transforms__0__PathSet" "/__gateway/unmatched" -}}
 {{- range $index, $origin := $root.Values.services.gateway.cors.allowedOrigins -}}
 {{- $_ := set $env (printf "Cors__AllowedOrigins__%d" $index) (toString $origin) -}}
 {{- end -}}
