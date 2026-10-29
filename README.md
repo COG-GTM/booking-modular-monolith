@@ -8,6 +8,11 @@
 
 > 🚀 **A practical Modular Monolith architecture with the latest technologies and architecture like Vertical Slice Architecture, Event Driven Architecture, CQRS, DDD, gRpc, Masstransit, and Aspire in .Net 10.**
 
+## Service CI and publishing
+
+See the [service CI runbook](docs/runbooks/service-ci.md) for path filtering,
+SHA-versioned GHCR images, shared NuGet version bumps, registry permissions and rollback.
+
 ## You can find other version of this project here:
 - [Booking with Microservices Architecture](https://github.com/meysamhadeli/booking-microservices)
 - [Booking with Monolith Architecture](https://github.com/meysamhadeli/booking-monolith)

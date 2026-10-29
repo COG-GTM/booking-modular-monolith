@@ -1,0 +1,69 @@
+name: Service pipeline
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    env:
+      PostgresContainerOptions__ImageName: postgres:16
+      PostgresPersistContainerOptions__ImageName: postgres:16
+      MongoContainerOptions__ImageName: mongo:7
+      RabbitMqContainerOptions__ImageName: rabbitmq:3.13-management
+      EventStoreContainerOptions__ImageName: eventstore/eventstore:24.10.0-jammy
+    outputs:
+      dockerfile: ${{ steps.layout.outputs.dockerfile }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve service layout
+        id: layout
+        env:
+          SERVICE: ${{ inputs.service }}
+        run: python3 .github/scripts/ci.py layout "$SERVICE" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/build-test
+        with:
+          project-path: ${{ steps.layout.outputs.project }}
+          tests-path: ${{ steps.layout.outputs.tests }}
+          reports-path: '**/*.trx'
+          reports-output-path: output/test-results
+          service-name: ${{ inputs.service }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validate container build
+        if: steps.layout.outputs.dockerfile != ''
+        uses: ./.github/actions/docker-build-publish
+        with:
+          dockerfile-path: ${{ steps.layout.outputs.dockerfile }}
+          image-name: booking-modular-monolith/${{ inputs.service }}
+          tag-name: sha-${{ github.sha }}
+          registry-username: ${{ github.actor }}
+          registry-password: ''
+          push: 'false'
+
+  publish:
+    needs: build-test
+    if: >-
+      needs.build-test.outputs.dockerfile != '' && github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devin/ab-488-v3')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish immutable service image
+        uses: ./.github/actions/docker-build-publish
+        with:
+          dockerfile-path: ${{ needs.build-test.outputs.dockerfile }}
+          image-name: booking-modular-monolith/${{ inputs.service }}
+          tag-name: sha-${{ github.sha }}
+          registry-username: ${{ github.actor }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
+          push: 'true'

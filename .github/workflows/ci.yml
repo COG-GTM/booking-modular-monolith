@@ -2,91 +2,96 @@ name: CI
 
 on:
   push:
-    branches: [ "main"]
-    paths-ignore:
-      - "README.md"
+    branches: [main, devin/ab-488-v3]
   pull_request:
-    branches: [ "main"]
-    paths-ignore:
-      - "README.md"
+    branches: [main, devin/ab-488-v3]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  ci:
+  changes:
     runs-on: ubuntu-latest
-
+    outputs:
+      services: ${{ steps.select.outputs.services }}
+      packages: ${{ steps.select.outputs.packages }}
+      shared: ${{ steps.select.outputs.shared }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Build and Test Flight Microservice
-        uses: ./.github/actions/build-test
-        if: success()
-        id: build-test-flight-step
         with:
-          project-path: 'src/Modules/Flight/src/'
-          tests-path: 'src/Modules/Flight/tests/'
-          # wildcard search for files with the ".cobertura.xml" extension in all subdirectories of the current directory
-          # https://www.jamescroft.co.uk/combining-multiple-code-coverage-results-in-azure-devops/
-          # https://stackoverflow.com/questions/53255065/dotnet-unit-test-with-coverlet-how-to-get-coverage-for-entire-solution-and-not
-          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
-          reports-output-path: ${{ github.workspace }}/output/test-results
-          service-name: 'Flight'
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and Test Identity Microservice
-        uses: ./.github/actions/build-test
-        if: success()
-        id: build-test-identity-step
-        with:
-          project-path: 'src/Modules/Identity/src/'
-          tests-path: 'src/Modules/Identity/tests/'
-          # wildcard search for files with the ".cobertura.xml" extension in all subdirectories of the current directory
-          # https://www.jamescroft.co.uk/combining-multiple-code-coverage-results-in-azure-devops/
-          # https://stackoverflow.com/questions/53255065/dotnet-unit-test-with-coverlet-how-to-get-coverage-for-entire-solution-and-not
-          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
-          reports-output-path: ${{ github.workspace }}/output/test-results
-          service-name: 'Identity'
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and Test Passenger Microservice
-        uses: ./.github/actions/build-test
-        if: success()
-        id: build-test-passenger-step
-        with:
-          project-path: 'src/Modules/Passenger/src/'
-          tests-path: 'src/Modules/Passenger/tests/'
-          # wildcard search for files with the ".cobertura.xml" extension in all subdirectories of the current directory
-          # https://www.jamescroft.co.uk/combining-multiple-code-coverage-results-in-azure-devops/
-          # https://stackoverflow.com/questions/53255065/dotnet-unit-test-with-coverlet-how-to-get-coverage-for-entire-solution-and-not
-          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
-          reports-output-path: ${{ github.workspace }}/output/test-results
-          service-name: 'Passenger'
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and Test Booking Microservice
-        uses: ./.github/actions/build-test
-        if: success()
-        id: build-test-booking-step
-        with:
-          project-path: 'src/Modules/Booking/src/'
-          tests-path: 'src/Modules/Booking/tests/'
-          # wildcard search for files with the ".cobertura.xml" extension in all subdirectories of the current directory
-          # https://www.jamescroft.co.uk/combining-multiple-code-coverage-results-in-azure-devops/
-          # https://stackoverflow.com/questions/53255065/dotnet-unit-test-with-coverlet-how-to-get-coverage-for-entire-solution-and-not
-          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
-          reports-output-path: ${{ github.workspace }}/output/test-results
-          service-name: 'Booking'
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update Release Drafter
-        if: ${{ github.ref == 'refs/heads/main' && success() }}
-        id: last_release
-        uses: release-drafter/release-drafter@v5
+          fetch-depth: 0
+      - name: Test pipeline selection
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+      - name: Select affected services and packages
+        id: select
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BEFORE: ${{ github.event.before || github.event.pull_request.base.sha }}
+          AFTER: ${{ github.event.pull_request.head.sha || github.sha }}
+          FORCE: ${{ github.event_name == 'workflow_dispatch' }}
+        run: python3 .github/scripts/ci.py select --base "$BEFORE" --head "$AFTER" --force "$FORCE" >> "$GITHUB_OUTPUT"
 
-      - name: Release Version Info
-        run:
-          echo "Release version is:" ${{ steps.last_release.outputs.tag_name }}
+  service:
+    needs: changes
+    if: needs.changes.outputs.services != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.changes.outputs.services) }}
+    uses: ./.github/workflows/service.yml
+    with:
+      service: ${{ matrix.service }}
+    permissions:
+      contents: read
+      packages: write
+
+  shared-packages:
+    needs: changes
+    if: needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Pack shared projects (also validates PRs without publishing)
+        run: python3 .github/scripts/ci.py pack --output artifacts/packages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shared-packages
+          path: artifacts/packages/*.nupkg
+          if-no-files-found: error
+      - name: Publish versioned packages
+        if: >-
+          needs.changes.outputs.packages == 'true' && github.event_name == 'push' &&
+          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devin/ab-488-v3')
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+        run: >-
+          dotnet nuget push 'artifacts/packages/*.nupkg'
+          --source "https://nuget.pkg.github.com/$OWNER/index.json"
+          --api-key "$NUGET_AUTH_TOKEN" --skip-duplicate
+
+  ci:
+    name: CI result
+    needs: [changes, service, shared-packages]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful selected pipelines
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          SERVICES: ${{ needs.service.result }}
+          PACKAGES: ${{ needs.shared-packages.result }}
+        run: |
+          test "$CHANGES" = success
+          test "$SERVICES" = success || test "$SERVICES" = skipped
+          test "$PACKAGES" = success || test "$PACKAGES" = skipped
