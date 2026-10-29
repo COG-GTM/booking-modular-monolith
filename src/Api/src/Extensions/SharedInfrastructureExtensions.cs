@@ -45,10 +45,13 @@ public static class SharedInfrastructureExtensions
             builder.Configuration,
             builder.Environment,
             configureBus: null,
-            typeof(IdentityRoot).Assembly,
-            typeof(FlightRoot).Assembly,
-            typeof(PassengerRoot).Assembly,
-            typeof(BookingRoot).Assembly
+            ModuleBackgroundProcessing.ConsumerAssemblies(
+                builder.Configuration,
+                ("Identity", typeof(IdentityRoot).Assembly),
+                ("Flight", typeof(FlightRoot).Assembly),
+                ("Passenger", typeof(PassengerRoot).Assembly),
+                ("Booking", typeof(BookingRoot).Assembly)
+            )
         );
 
         builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);
@@ -91,10 +94,7 @@ public static class SharedInfrastructureExtensions
 
         // Readiness in every environment: every check except liveness-only ones, i.e. the Flight/Passenger gRPC dependencies plus
         // Postgres/Mongo/RabbitMQ/EventStoreDB when HealthOptions:Enabled. /health and /alive stay Development-only.
-        app.MapHealthChecks(ReadinessEndpointPath, new HealthCheckOptions
-        {
-            Predicate = IsReadinessCheck,
-        });
+        app.MapHealthChecks(ReadinessEndpointPath, new HealthCheckOptions { Predicate = IsReadinessCheck });
 
         app.MapGet("/", x => x.Response.WriteAsync(appOptions.Name));
 

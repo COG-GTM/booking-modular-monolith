@@ -1,7 +1,8 @@
 # Runbook: standalone Booking service
 
 Booking.Host is the standalone HTTP host for the existing Booking module. It exposes Booking API endpoints only and
-calls Flight and Passenger over gRPC. Data migration and production gateway cutover sequencing are deferred to AB-505.
+calls Flight and Passenger over gRPC. See [ADR 0496](../adr/0496-standalone-booking-service-host.md) for the
+architecture decision. Data migration and production gateway cutover sequencing are deferred to AB-505.
 
 ## Local setup
 

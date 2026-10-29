@@ -25,7 +25,7 @@ jobs:
         run: dotnet build src/Services/Booking.Host/Booking.Host.csproj -c Release -nologo -v quiet
 
       - name: Booking host tests
-        run: dotnet test src/Modules/Booking/tests/Host.Test -c Release -nologo
+        run: dotnet test src/Modules/Booking/tests/Host.Test/Booking.Host.Test.csproj -c Release -nologo
 
       - name: Build Booking.Host container image
         run: docker build -f src/Services/Booking.Host/Dockerfile .

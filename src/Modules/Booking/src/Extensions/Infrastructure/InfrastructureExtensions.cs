@@ -3,6 +3,7 @@ using BuildingBlocks.Core;
 using BuildingBlocks.EventStoreDB;
 using BuildingBlocks.EventStoreDB.Subscriptions;
 using BuildingBlocks.Mapster;
+using BuildingBlocks.MassTransit;
 using BuildingBlocks.Mongo;
 using BuildingBlocks.Web;
 using FluentValidation;
@@ -25,7 +26,7 @@ public static class InfrastructureExtensions
         // ref: https://github.com/oskardudycz/EventSourcing.NetCore/tree/main/Sample/EventStoreDB/ECommerce
         builder.Services.AddEventStore(builder.Configuration, typeof(BookingRoot).Assembly);
 
-        if (builder.Configuration.GetValue<bool?>("Modules:Booking:BackgroundProcessingEnabled") != false)
+        if (ModuleBackgroundProcessing.IsEnabled(builder.Configuration, "Booking"))
         {
             var subscriptionOptions = new EventStoreDBSubscriptionToAllOptions
             {

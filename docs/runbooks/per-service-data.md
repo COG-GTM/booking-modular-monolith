@@ -29,11 +29,13 @@ are prefixed with their module names.
 `PersistMessageOptions:Enabled=false` disables **all polling workers**, but keeps
 storage and dispatch registration available so commands can continue enqueueing.
 `Modules:<Module>:BackgroundProcessingEnabled=false` disables that module's
-worker. For Booking it also disables the EventStoreDB subscription; the switch
-defaults to true. Restart the host after changing it. The standalone host uses
-`Modules:Booking:SubscriptionId=booking-service`; when unset the module keeps
-the `default` checkpoint for monolith compatibility. A distinct subscription
-starts with an independent checkpoint and can replay from the beginning.
+outbox worker and excludes its consumer assembly from that composition's
+MassTransit registration. For Booking, it also disables the EventStoreDB
+subscription. The switch defaults to true. Restart the host after changing it.
+The standalone host uses `Modules:Booking:SubscriptionId=booking-service`; when
+unset the module keeps the `default` checkpoint for monolith compatibility. A
+distinct subscription starts with an independent checkpoint and can replay from
+the beginning.
 
 Passenger's `RegisterNewUserDefinition` attaches the Passenger inbox filter to its
 consumer endpoint. Inbox identity uses the transport MessageId when present,
@@ -94,9 +96,14 @@ docker exec postgres psql -U postgres -d postgres -c 'SHOW max_prepared_transact
 ```
 
 Run only one polling replica per module, and only one replica with Booking
-background processing enabled. Disabling Passenger's worker does not
-disable its bus consumer/inbox: Identity events still arrive, but Passenger's
-queued internal/outbox work remains unprocessed until its worker starts again.
+background processing enabled. When the standalone Passenger host owns
+processing, set
+`Modules__Passenger__BackgroundProcessingEnabled=false` on the monolith so it
+stops both the Passenger poller and its RabbitMQ consumer. The standalone host
+then consumes the Passenger queue and processes its own inbox and outbox.
+Passenger's queued internal/outbox work remains unprocessed while its worker is
+disabled.
+
 Set `Modules:Booking:BackgroundProcessingEnabled=false` on the monolith during
 side-by-side operation so its Booking outbox worker and EventStoreDB subscription
 do not compete with the standalone host. See the

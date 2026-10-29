@@ -38,7 +38,10 @@ public static class HostInfrastructureExtensions
             builder.Configuration,
             builder.Environment,
             configureBus: null,
-            typeof(BookingRoot).Assembly
+            ModuleBackgroundProcessing.ConsumerAssemblies(
+                builder.Configuration,
+                ("Booking", typeof(BookingRoot).Assembly)
+            )
         );
 
         builder.Services.Configure<ApiBehaviorOptions>(options => options.SuppressModelStateInvalidFilter = true);

@@ -88,6 +88,8 @@ StyleCopReport.xml
 *.log
 *.vspscc
 *.vssscc
+src/Services/**/tempkey.jwk
+src/Services/**/keys/
 .builds
 *.pidb
 *.svclog

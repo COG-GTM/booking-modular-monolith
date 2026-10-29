@@ -1,4 +1,4 @@
-# 0104. Standalone Booking service host
+# 0496. Standalone Booking service host
 
 - **Status:** Proposed
 - **Date:** 2026-10-29
