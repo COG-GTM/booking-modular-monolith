@@ -250,9 +250,12 @@ public static class Extensions
         {
             // we can just one `AddOtlpExporter` and in development use `aspire-dashboard` OTLP endpoint address as `OTLPExporterEndpoint` and in production we can use `otel-collector` OTLP endpoint address
             ArgumentNullException.ThrowIfNull(observabilityOptions.OTLPOptions);
-            tracing.AddOtlpExporter(x =>
+            tracing.AddOtlpExporter("aspire", x =>
             {
-                x.Endpoint = new Uri(observabilityOptions.AspireDashboardOTLPOptions.OTLPGrpcExporterEndpoint);
+                x.Endpoint = new Uri(
+                    Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT")
+                        ?? observabilityOptions.AspireDashboardOTLPOptions.OTLPGrpcExporterEndpoint
+                );
                 x.Protocol = OtlpExportProtocol.Grpc;
             });
         }
@@ -295,9 +298,12 @@ public static class Extensions
         {
             // we can just one `AddOtlpExporter` and in development use `aspire-dashboard` OTLP endpoint address as `OTLPExporterEndpoint` and in production we can use `otel-collector` OTLP endpoint address
             ArgumentNullException.ThrowIfNull(observabilityOptions.OTLPOptions);
-            metrics.AddOtlpExporter(x =>
+            metrics.AddOtlpExporter("aspire", x =>
             {
-                x.Endpoint = new Uri(observabilityOptions.AspireDashboardOTLPOptions.OTLPGrpcExporterEndpoint);
+                x.Endpoint = new Uri(
+                    Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT")
+                        ?? observabilityOptions.AspireDashboardOTLPOptions.OTLPGrpcExporterEndpoint
+                );
                 x.Protocol = OtlpExportProtocol.Grpc;
             });
         }
@@ -331,9 +337,12 @@ public static class Extensions
         {
             // we can just one `AddOtlpExporter` and in development use `aspire-dashboard` OTLP endpoint address as `OTLPExporterEndpoint` and in production we can use `otel-collector` OTLP endpoint address
             ArgumentNullException.ThrowIfNull(observabilityOptions.OTLPOptions);
-            openTelemetryLoggerOptions.AddOtlpExporter(x =>
+            openTelemetryLoggerOptions.AddOtlpExporter("aspire", x =>
             {
-                x.Endpoint = new Uri(observabilityOptions.AspireDashboardOTLPOptions.OTLPGrpcExporterEndpoint);
+                x.Endpoint = new Uri(
+                    Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT")
+                        ?? observabilityOptions.AspireDashboardOTLPOptions.OTLPGrpcExporterEndpoint
+                );
                 x.Protocol = OtlpExportProtocol.Grpc;
             });
         }

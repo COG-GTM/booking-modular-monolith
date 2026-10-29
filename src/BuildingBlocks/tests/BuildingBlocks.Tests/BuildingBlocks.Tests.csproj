@@ -29,6 +29,7 @@
     <ProjectReference Include="..\..\Mongo\BuildingBlocks.Mongo.csproj" />
     <ProjectReference Include="..\..\EventStoreDB\BuildingBlocks.EventStoreDB.csproj" />
     <ProjectReference Include="..\..\MassTransit\BuildingBlocks.MassTransit.csproj" />
+    <ProjectReference Include="..\..\OpenTelemetryCollector\BuildingBlocks.OpenTelemetryCollector.csproj" />
   </ItemGroup>
 
 </Project>
