@@ -56,8 +56,8 @@ public sealed class PassengerHostCompositionTests
             .Should()
             .BeEquivalentTo(
                 rabbitMq
-                    ? new[] { "passenger-db", "passenger-read-db", "rabbitmq" }
-                    : new[] { "passenger-db", "passenger-read-db" }
+                    ? new[] { "passenger-db", "passenger-persist-message", "passenger-read-db", "rabbitmq" }
+                    : new[] { "passenger-db", "passenger-persist-message", "passenger-read-db" }
             );
     }
 
