@@ -24,6 +24,7 @@
 - [When to Use](#when-to-use)
 - [Challenges](#challenges)
 - [The Domain and Bounded Context - Module Boundary](#the-domain-and-bounded-context---module-boundary)
+- [Target Microservices Architecture (AB-488)](#target-microservices-architecture-ab-488)
 - [Structure of Project](#structure-of-project)
 - [Development Setup](#development-setup)
     - [Dotnet Tools Packages](#dotnet-tools-packages)
@@ -154,6 +155,16 @@ I used CQRS to decompose my features into small parts that makes our application
 
 Using the CQRS pattern, we cut each business functionality into vertical slices, for each of these slices we group classes (see [technical folders structure](http://www.kamilgrzybek.com/design/feature-folders)) specific to that feature together (command, handlers, infrastructure, repository, controllers, etc). In our CQRS pattern each command/query handler is a separate slice. This is where you can reduce coupling between layers. Each handler can be a separated code unit, even copy/pasted. Thanks to that, we can tune down the specific method to not follow general conventions (e.g. use custom SQL query or even different storage). In a traditional layered architecture, when we change the core generic mechanism in one layer, it can impact all methods.
 
+
+## Target Microservices Architecture (AB-488)
+
+The migration preserves the Identity, Flight, Passenger, and Booking module boundaries as four independently deployed .NET 10 services. A YARP gateway is the single ingress: the monolith keeps running while routes move to services by configuration (strangler fig). This is the **target design**, not a claim that the extraction is implemented on this branch.
+
+![Target microservices container diagram: gateway, four services, private stores, RabbitMQ, and temporary monolith fallback](assets/target-microservices.svg)
+
+The [architecture decision index](docs/adr/README.md) records boundaries and migration, gRPC/RabbitMQ communication, database ownership, and contract compatibility. The [editable Mermaid diagram](docs/adr/0005-target-services-and-strangler-migration.md#architecture) includes protocol and authentication labels; the existing modular-monolith diagram above describes the starting point.
+
+Key constraints: Booking calls Flight/Passenger over gRPC; Identity publishes to Passenger over RabbitMQ; services never access another service's database. Each service owns isolated Postgres, persist-message, and Mongo databases; Booking also owns its EventStoreDB streams. Only one instance per service may run background processing until concurrency control exists. ADRs remain **Proposed**, pending ARB approval; the architecture review and outstanding security/operational decisions are recorded in the index.
 
 ### Shared libraries (BuildingBlocks)
 

@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="990" viewBox="0 0 1280 990" role="img" aria-labelledby="title desc">
+  <title id="title">AB-488 target microservices architecture</title>
+  <desc id="desc">Clients reach a YARP gateway, which routes to Identity, Flight, Passenger and Booking hosts. Each host owns private Postgres, persist-message and Mongo databases; Booking also owns EventStoreDB streams. Booking calls Flight and Passenger over unauthenticated internal gRPC. Identity publishes UserCreated through RabbitMQ to Passenger. The monolith and its separate stores remain only during migration.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#475569"/></marker>
+    <marker id="sync" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#a21caf"/></marker>
+    <marker id="async" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#0f766e"/></marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #0f172a; font-size: 15px; }
+      .heading { font-size: 26px; font-weight: 700; }
+      .name { font-size: 19px; font-weight: 700; }
+      .small { font-size: 13px; }
+      .muted { fill: #475569; }
+      .edge { fill: none; stroke: #475569; stroke-width: 2; marker-end: url(#arrow); }
+      .grpc { fill: none; stroke: #a21caf; stroke-width: 2; marker-end: url(#sync); }
+      .event { fill: none; stroke: #0f766e; stroke-width: 2.5; marker-end: url(#async); }
+      .service { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; rx: 12; }
+      .store { fill: #f8fafc; stroke: #64748b; stroke-width: 1.5; rx: 10; }
+      .temporary { fill: #fffbeb; stroke: #a16207; stroke-width: 1.5; stroke-dasharray: 6 4; rx: 10; }
+    </style>
+  </defs>
+  <rect width="1280" height="990" fill="#ffffff"/>
+  <text x="40" y="40" class="heading">Target architecture — four domain services, one ingress</text>
+  <text x="40" y="65" class="muted">AB-499 / AB-488 · Proposed; ARB approval pending · .NET 10 retained</text>
+
+  <rect x="510" y="88" width="260" height="48" rx="10" fill="#f1f5f9" stroke="#475569"/>
+  <text x="640" y="119" text-anchor="middle" class="name">Clients</text>
+  <path d="M640 136 V183" class="edge"/>
+  <text x="653" y="165" class="small">HTTPS · OAuth2 / OIDC + JWT</text>
+  <rect x="430" y="184" width="420" height="72" rx="12" fill="#e0e7ff" stroke="#4338ca" stroke-width="2"/>
+  <text x="640" y="212" text-anchor="middle" class="name">YARP gateway · src/Gateway</text>
+  <text x="640" y="239" text-anchor="middle">Config-only destination changes</text>
+
+  <rect x="940" y="145" width="300" height="112" class="temporary"/>
+  <text x="1090" y="172" text-anchor="middle" class="name">Temporary monolith</text>
+  <text x="1090" y="198" text-anchor="middle">src/Api → legacy stores only</text>
+  <text x="1090" y="223" text-anchor="middle" class="small">No shared service databases</text>
+  <text x="1090" y="244" text-anchor="middle" class="small">Remove after AB-505 cutover evidence</text>
+  <path d="M850 205 H940" class="edge" stroke-dasharray="6 4"/>
+  <text x="870" y="180" class="small">HTTP / JWT</text>
+  <text x="870" y="225" class="small">fallback</text>
+
+  <path d="M640 256 V278 H165 V370" class="edge"/>
+  <path d="M640 278 H475 V370" class="edge"/>
+  <path d="M640 278 H785 V370" class="edge"/>
+  <path d="M640 278 H1095 V370" class="edge"/>
+  <text x="42" y="305" class="small muted">Internal HTTP / JWT; Identity also exposes OIDC public endpoints</text>
+  <path d="M1060 370 V325 H500 V370" class="grpc"/>
+  <path d="M1060 325 H810 V370" class="grpc"/>
+  <rect x="510" y="311" width="470" height="24" fill="#ffffff"/>
+  <text x="745" y="328" text-anchor="middle" class="small" style="fill:#a21caf">Booking → Flight / Passenger · gRPC HTTP2 · no auth yet</text>
+
+  <rect x="40" y="370" width="250" height="88" class="service"/>
+  <text x="165" y="401" text-anchor="middle" class="name">Identity.Host</text>
+  <text x="165" y="428" text-anchor="middle">Accounts · OAuth2 / OIDC</text>
+  <rect x="350" y="370" width="250" height="88" class="service"/>
+  <text x="475" y="401" text-anchor="middle" class="name">Flight.Host</text>
+  <text x="475" y="428" text-anchor="middle">Flights · seats · inventory</text>
+  <rect x="660" y="370" width="250" height="88" class="service"/>
+  <text x="785" y="401" text-anchor="middle" class="name">Passenger.Host</text>
+  <text x="785" y="428" text-anchor="middle">Profiles · read projections</text>
+  <rect x="970" y="370" width="250" height="88" class="service"/>
+  <text x="1095" y="401" text-anchor="middle" class="name">Booking.Host</text>
+  <text x="1095" y="428" text-anchor="middle">Reservations · event history</text>
+
+  <path d="M165 458 V510" class="edge"/>
+  <path d="M475 458 V510" class="edge"/>
+  <path d="M785 458 V510" class="edge"/>
+  <path d="M1095 458 V510" class="edge"/>
+  <text x="40" y="493" class="small muted">SQL / Mongo wire / ESDB gRPC · service-private roles and credentials · no cross-service DB access</text>
+  <rect x="40" y="510" width="250" height="140" class="store"/>
+  <text x="165" y="541" text-anchor="middle" font-weight="700">Identity-owned stores</text>
+  <text x="165" y="568" text-anchor="middle">Postgres + private role</text>
+  <text x="165" y="594" text-anchor="middle">Persist-message outbox / inbox</text>
+  <text x="165" y="620" text-anchor="middle">Mongo read database</text>
+  <rect x="350" y="510" width="250" height="140" class="store"/>
+  <text x="475" y="541" text-anchor="middle" font-weight="700">Flight-owned stores</text>
+  <text x="475" y="568" text-anchor="middle">Postgres + private role</text>
+  <text x="475" y="594" text-anchor="middle">Persist-message outbox / inbox</text>
+  <text x="475" y="620" text-anchor="middle">Mongo read database</text>
+  <rect x="660" y="510" width="250" height="140" class="store"/>
+  <text x="785" y="541" text-anchor="middle" font-weight="700">Passenger-owned stores</text>
+  <text x="785" y="568" text-anchor="middle">Postgres + private role</text>
+  <text x="785" y="594" text-anchor="middle">Persist-message outbox / inbox</text>
+  <text x="785" y="620" text-anchor="middle">Mongo read database</text>
+  <rect x="970" y="510" width="250" height="166" class="store"/>
+  <text x="1095" y="541" text-anchor="middle" font-weight="700">Booking-owned stores</text>
+  <text x="1095" y="568" text-anchor="middle">Postgres + private role</text>
+  <text x="1095" y="594" text-anchor="middle">Persist-message outbox / inbox</text>
+  <text x="1095" y="620" text-anchor="middle">Mongo read database</text>
+  <text x="1095" y="648" text-anchor="middle" font-weight="700">EventStoreDB streams</text>
+
+  <rect x="420" y="711" width="440" height="77" rx="12" fill="#f0fdfa" stroke="#0f766e" stroke-width="2"/>
+  <text x="640" y="740" text-anchor="middle" class="name">RabbitMQ · MassTransit</text>
+  <text x="640" y="767" text-anchor="middle">Service-specific queues · at-least-once delivery</text>
+  <path d="M40 414 H20 V749 H420" class="event"/>
+  <text x="40" y="731" class="small" style="fill:#0f766e">Identity outbox → UserCreated</text>
+  <text x="40" y="773" class="small" style="fill:#0f766e">AMQP / broker credentials</text>
+  <path d="M860 749 H935 V414 H910" class="event"/>
+  <text x="642" y="693" text-anchor="middle" class="small" style="fill:#0f766e">AMQP / broker credentials → Passenger inbox</text>
+
+  <rect x="40" y="822" width="1200" height="135" rx="10" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="60" y="850" font-weight="700">Migration and safety constraints</text>
+  <text x="60" y="877">One active background processor per service; outbox has no row locking, Booking subscription is single-consumer.</text>
+  <text x="60" y="902">Disable legacy module workers / consumers / subscriptions before transferring ownership; data migration belongs to AB-505.</text>
+  <text x="60" y="927" class="small muted">Internal protocols show local scaffolding; production TLS, gRPC authentication, SLOs, ownership and cost need ARB disposition.</text>
+  <text x="60" y="946" class="small muted">Hosts: src/Services/&lt;Module&gt;.Host · Contracts: src/Contracts · Details and editable Mermaid source: docs/adr/0001–0004</text>
+</svg>
