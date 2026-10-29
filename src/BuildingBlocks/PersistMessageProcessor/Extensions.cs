@@ -1,3 +1,4 @@
+using BuildingBlocks.Core;
 using BuildingBlocks.Web;
 using Humanizer;
 using Microsoft.AspNetCore.Builder;
@@ -5,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace BuildingBlocks.PersistMessageProcessor;
 
@@ -53,6 +55,7 @@ public static class Extensions
             });
 
         builder.Services.AddScoped<IPersistMessageProcessor, PersistMessageProcessor>();
+        builder.Services.TryAddScoped<IIntegrationEventPublisher, PersistMessageIntegrationEventPublisher>();
 
         builder.Services.AddHostedService<PersistMessageBackgroundService>();
 

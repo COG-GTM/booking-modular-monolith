@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 using Aircrafts.ValueObjects;
 using Ardalis.GuardClauses;
 using BuildingBlocks.Caching;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
 using Data;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Exceptions;
 using Flight.Airports.ValueObjects;
 using Flight.Flights.Features.CreatingFlight.V1;
@@ -56,7 +56,7 @@ public class UpdateFlightEndpoint : IMinimalEndpoint
 
                 return Results.NoContent();
             })
-            .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(IdentityConstant.Policy.ApiScope)
             .WithName("UpdateFlight")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces(StatusCodes.Status204NoContent)

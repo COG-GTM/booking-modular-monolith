@@ -8,7 +8,10 @@
       "launchBrowser": true,
       "applicationUrl": "https://localhost:3000;http://localhost:3001",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "AuthOptions__IssuerUri": "http://localhost:5000",
+        "Jwt__Authority": "http://localhost:5000",
+        "Jwt__MetadataAddress": "http://localhost:3001/.well-known/openid-configuration"
       }
     }
   }

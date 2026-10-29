@@ -80,6 +80,18 @@ jobs:
           service-name: 'Booking'
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build and Test Gateway
+        uses: ./.github/actions/build-test
+        if: success()
+        id: build-test-gateway-step
+        with:
+          project-path: 'src/Gateway/src/'
+          tests-path: 'src/Gateway/tests/'
+          reports-path: ${{ github.workspace }}/**/*.cobertura.xml
+          reports-output-path: ${{ github.workspace }}/output/test-results
+          service-name: 'Gateway'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update Release Drafter
         if: ${{ github.ref == 'refs/heads/main' && success() }}
         id: last_release

@@ -1,6 +1,5 @@
 using BuildingBlocks.Constants;
 using BuildingBlocks.Web;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -20,6 +19,11 @@ namespace BuildingBlocks.Jwt
                 options.Authority = jwtOptions.Authority;
                 options.Audience = jwtOptions.Audience;
                 options.RequireHttpsMetadata = false;
+
+                // Lets a host validate tokens for a public issuer (e.g. the gateway URL) while
+                // fetching discovery/JWKS from an internal address.
+                if (!string.IsNullOrEmpty(jwtOptions.MetadataAddress))
+                    options.MetadataAddress = jwtOptions.MetadataAddress;
 
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
@@ -44,7 +48,7 @@ namespace BuildingBlocks.Jwt
                 options =>
                 {
                     options.AddPolicy(
-                        nameof(ApiScope),
+                        IdentityConstant.Policy.ApiScope,
                         policy =>
                         {
                             policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);

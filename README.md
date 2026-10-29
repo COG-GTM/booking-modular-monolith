@@ -166,6 +166,15 @@ The [architecture decision index](docs/adr/README.md) records boundaries and mig
 
 Key constraints: Booking calls Flight/Passenger over gRPC; Identity publishes to Passenger over RabbitMQ; services never access another service's database. Each service owns isolated Postgres, persist-message, and Mongo databases; Booking also owns its EventStoreDB streams. Only one instance per service may run background processing until concurrency control exists. ADRs remain **Proposed**, pending ARB approval; the architecture review and outstanding security/operational decisions are recorded in the index.
 
+### Shared libraries (BuildingBlocks)
+
+`src/BuildingBlocks` is split into focused, independently packable libraries (`BuildingBlocks.Core`, `.EFCore`, `.Mongo`,
+`.EventStoreDB`, `.MassTransit`, `.PersistMessageProcessor`, `.Jwt`, `.Web`, `.Validation`, `.ProblemDetails`, `.HealthCheck`,
+`.OpenTelemetryCollector`, `.TestBase`, ...). Reference only what a service needs; the code-free `BuildingBlocks.csproj`
+aggregate is kept for the monolith during the migration. See [src/BuildingBlocks/README.md](src/BuildingBlocks/README.md)
+and [ADR 0100](docs/adr/0100-buildingblocks-shared-libraries.md). Pack them to a local feed with
+`scripts/pack-building-blocks.sh [semver]`.
+
 ## Development Setup
 
 ### Dotnet Tools Packages
@@ -232,6 +241,19 @@ To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-
 ```bash
 docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
 ```
+
+> ### API Gateway (single ingress)
+
+All clients should call the [YARP](https://microsoft.github.io/reverse-proxy/) gateway in [src/Gateway](./src/Gateway) (`http://localhost:5000` in Aspire and Docker Compose)
+instead of the monolith directly. The gateway validates JWTs (`ApiScope` policy for `/api/**`), applies CORS and rate limiting,
+propagates `correlationId`/W3C trace context and forwards to the `identity`, `flight`, `passenger`, `booking` and `monolith`
+clusters, which all point at `src/Api` today. Moving a route to an extracted service is a configuration change only:
+
+```bash
+ReverseProxy__Clusters__flight__Destinations__primary__Address=http://flight-service:80/
+```
+
+See the [gateway runbook](./docs/runbooks/gateway.md) and [ADR 0001](./docs/adr/0001-yarp-api-gateway-single-ingress.md).
 
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
