@@ -16,14 +16,16 @@ using Passengers.ValueObjects;
 public class RegisterNewUserHandler : IConsumer<UserCreated>
 {
     private readonly PassengerDbContext _passengerDbContext;
-    private readonly IEventDispatcher _eventDispatcher;
+    private readonly IEventDispatcher<global::Passenger.PassengerRoot> _eventDispatcher;
     private readonly ILogger<RegisterNewUserHandler> _logger;
     private readonly AppOptions _options;
 
-    public RegisterNewUserHandler(PassengerDbContext passengerDbContext,
-        IEventDispatcher eventDispatcher,
+    public RegisterNewUserHandler(
+        PassengerDbContext passengerDbContext,
+        IEventDispatcher<global::Passenger.PassengerRoot> eventDispatcher,
         ILogger<RegisterNewUserHandler> logger,
-        IOptions<AppOptions> options)
+        IOptions<AppOptions> options
+    )
     {
         _passengerDbContext = passengerDbContext;
         _eventDispatcher = eventDispatcher;
@@ -37,16 +39,20 @@ public class RegisterNewUserHandler : IConsumer<UserCreated>
 
         _logger.LogInformation($"consumer for {nameof(UserCreated).Underscore()} in {_options.Name}");
 
-        var passengerExist =
-            await _passengerDbContext.Passengers.AnyAsync(x => x.PassportNumber.Value == context.Message.PassportNumber);
+        var passengerExist = await _passengerDbContext.Passengers.AnyAsync(x =>
+            x.PassportNumber.Value == context.Message.PassportNumber
+        );
 
         if (passengerExist)
         {
             return;
         }
 
-        var passenger = Passengers.Models.Passenger.Create(PassengerId.Of(NewId.NextGuid()), Name.Of(context.Message.Name),
-            PassportNumber.Of(context.Message.PassportNumber));
+        var passenger = Passengers.Models.Passenger.Create(
+            PassengerId.Of(NewId.NextGuid()),
+            Name.Of(context.Message.Name),
+            PassportNumber.Of(context.Message.PassportNumber)
+        );
 
         await _passengerDbContext.AddAsync(passenger);
 
@@ -54,6 +60,25 @@ public class RegisterNewUserHandler : IConsumer<UserCreated>
 
         await _eventDispatcher.SendAsync(
             new PassengerCreatedDomainEvent(passenger.Id, passenger.Name, passenger.PassportNumber),
-            typeof(IInternalCommand));
+            typeof(IInternalCommand)
+        );
     }
 }
+
+public class RegisterNewUserDefinition : ConsumerDefinition<RegisterNewUserHandler>
+{
+    protected override void ConfigureConsumer(
+        IReceiveEndpointConfigurator endpointConfigurator,
+        IConsumerConfigurator<RegisterNewUserHandler> consumerConfigurator,
+        IRegistrationContext context
+    )
+    {
+        endpointConfigurator.ConcurrentMessageLimit = 1;
+        endpointConfigurator.UseConsumeFilter(typeof(PassengerInboxFilter<>), context);
+    }
+}
+
+public class PassengerInboxFilter<T>(
+    BuildingBlocks.PersistMessageProcessor.IPersistMessageProcessor<PassengerRoot> processor
+) : BuildingBlocks.MassTransit.ConsumeFilter<PassengerRoot, T>(processor)
+    where T : class;

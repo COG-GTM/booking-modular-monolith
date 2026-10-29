@@ -27,7 +27,7 @@ services:
   #  postgres
   #######################################################
   postgres:
-    image: postgres:latest
+    image: postgres:16
     container_name: postgres
     restart: unless-stopped
     ports:
@@ -40,9 +40,10 @@ services:
       - "-c"
       - "wal_level=logical"
       - "-c"
-      - "max_prepared_transactions=10"
+      - "max_prepared_transactions=100"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./init/postgres:/docker-entrypoint-initdb.d:ro
     networks:
       - infrastructure
 
@@ -52,7 +53,7 @@ services:
   #######################################################
   eventstore:
       container_name: eventstore
-      image: eventstore/eventstore:latest
+      image: eventstore/eventstore:23.10.0-bookworm-slim
       restart: unless-stopped
       environment:
          - EVENTSTORE_CLUSTER_SIZE=1
@@ -71,7 +72,7 @@ services:
   # #  Mongo
   # #######################################################
   mongo:
-    image: mongo:latest
+    image: mongo:7
     container_name: mongo
     restart: unless-stopped
     # environment:
@@ -358,4 +359,5 @@ networks:
     driver: bridge
     
 volumes:
+  elastic-data:
   postgres-data:

@@ -231,6 +231,35 @@ To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-
 docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
 ```
 
+> ### Local API with infrastructure in Docker
+
+```bash
+docker compose -f deployments/docker-compose/docker-compose.yaml up -d postgres mongo eventstore
+export PATH="$HOME/.dotnet:$PATH"
+dotnet run --project src/Api/src
+```
+
+On a **fresh PostgreSQL volume**, the mounted
+[`01-service-databases.sql`](./deployments/docker-compose/init/postgres/01-service-databases.sql)
+creates `identity_modular_monolith`, `flight_modular_monolith`,
+`passenger_modular_monolith`, and `booking_modular_monolith`, plus the four
+`<module>_service` databases reserved for standalone hosts. There is no
+`persist_message` database: each module owns its outbox/inbox table.
+Existing volumes are not initialized again; do not delete an existing volume
+containing data. Database/data migration is deferred to cutover AB-505.
+
+For the local API, override `PostgresOptions__ConnectionString__<Module>` with
+`Server=localhost;Port=5432;Database=<module>_modular_monolith;User Id=<module>_service;Password=<module>_service`.
+These role-name passwords are **local development only**. Docker appsettings use
+the same per-module roles with host `postgres`. PostgreSQL 16 enables
+`max_prepared_transactions=100` for Flight's transactional outbox.
+Mongo read databases are separate: `flight_modular_monolith_read`,
+`passenger_modular_monolith_read`, and `booking_modular_monolith_read`.
+
+See [ADR 0002: per-service data ownership](./docs/adr/0002-per-service-data-ownership.md)
+and the [data ownership runbook](./docs/runbooks/per-service-data.md) for config
+fallbacks, credential-isolation checks, worker switches, and cutover precautions.
+
 > ### API Gateway (single ingress)
 
 All clients should call the [YARP](https://microsoft.github.io/reverse-proxy/) gateway in [src/Gateway](./src/Gateway) (`http://localhost:5000` in Aspire and Docker Compose)

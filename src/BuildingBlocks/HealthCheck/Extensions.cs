@@ -1,6 +1,7 @@
 using BuildingBlocks.Web;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
@@ -26,28 +27,52 @@ public static class Extensions
             var postgresOptions = services.GetOptions<ConnectionStringOptions>("PostgresOptions");
             var rabbitMqOptions = services.GetOptions<RabbitMqHealthOptions>("RabbitMqOptions");
             var eventStoreOptions = services.GetOptions<ConnectionStringOptions>("EventStoreOptions");
-            var mongoOptions = services.GetOptions<ConnectionStringOptions>("MongoOptions");
+            var configuration = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
 
-            var healthChecksBuilder = services.AddHealthChecks()
+            var healthChecksBuilder = services
+                .AddHealthChecks()
                 // Add a default liveness check to ensure app is responsive
                 .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"])
-                .AddRabbitMQ(
-                    serviceProvider =>
+                .AddRabbitMQ(serviceProvider =>
+                {
+                    var factory = new ConnectionFactory
                     {
-                        var factory = new ConnectionFactory
-                        {
-                            Uri = new Uri($"amqp://{rabbitMqOptions.UserName}:{rabbitMqOptions.Password}@{rabbitMqOptions.HostName}"),
-                        };
-                        return factory.CreateConnectionAsync();
-                    });
+                        Uri = new Uri(
+                            $"amqp://{rabbitMqOptions.UserName}:{rabbitMqOptions.Password}@{rabbitMqOptions.HostName}"
+                        ),
+                    };
+                    return factory.CreateConnectionAsync();
+                });
 
-            if (!string.IsNullOrEmpty(mongoOptions.ConnectionString))
+            var mongoModules = configuration
+                .GetSection("MongoOptions")
+                .GetChildren()
+                .Where(section => !string.IsNullOrEmpty(section["DatabaseName"]))
+                .ToArray();
+            foreach (var module in mongoModules)
             {
-                healthChecksBuilder.AddMongoDb(
-                    clientFactory: _ => new MongoClient(mongoOptions.ConnectionString),
-                    name: "MongoDB-Health",
-                    failureStatus: HealthStatus.Unhealthy,
-                    timeout: TimeSpan.FromSeconds(10));
+                var connection =
+                    module["ConnectionString"]
+                    ?? configuration.GetConnectionString("mongo")
+                    ?? configuration["MongoOptions:ConnectionString"];
+                if (!string.IsNullOrEmpty(connection))
+                    healthChecksBuilder.AddMongoDb(
+                        clientFactory: _ => new MongoClient(connection),
+                        databaseNameFactory: _ => module["DatabaseName"],
+                        name: $"MongoDB-{module.Key}",
+                        failureStatus: HealthStatus.Unhealthy,
+                        timeout: TimeSpan.FromSeconds(10)
+                    );
+            }
+            if (mongoModules.Length == 0)
+            {
+                var connection =
+                    configuration.GetConnectionString("mongo") ?? configuration["MongoOptions:ConnectionString"];
+                if (!string.IsNullOrEmpty(connection))
+                    healthChecksBuilder.AddMongoDb(
+                        clientFactory: _ => new MongoClient(connection),
+                        name: "MongoDB-Health"
+                    );
             }
 
             if (!string.IsNullOrEmpty(postgresOptions.ConnectionString))
@@ -56,11 +81,13 @@ public static class Extensions
             if (!string.IsNullOrEmpty(eventStoreOptions.ConnectionString))
                 healthChecksBuilder.AddEventStore(eventStoreOptions.ConnectionString);
 
-            services.AddHealthChecksUI(setup =>
-                                       {
-                                           setup.SetEvaluationTimeInSeconds(60); // time in seconds between check
-                                           setup.AddHealthCheckEndpoint($"Self Check - {appOptions.Name}", HealthEndpointPath);
-                                       }).AddInMemoryStorage();
+            services
+                .AddHealthChecksUI(setup =>
+                {
+                    setup.SetEvaluationTimeInSeconds(60); // time in seconds between check
+                    setup.AddHealthCheckEndpoint($"Self Check - {appOptions.Name}", HealthEndpointPath);
+                })
+                .AddInMemoryStorage();
         }
 
         services.AddHealthChecks().AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
@@ -74,10 +101,10 @@ public static class Extensions
         if (app.Environment.IsDevelopment())
         {
             app.MapHealthChecks(HealthEndpointPath);
-            app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
-            {
-                Predicate = r => r.Tags.Contains("live"),
-            });
+            app.MapHealthChecks(
+                AlivenessEndpointPath,
+                new HealthCheckOptions { Predicate = r => r.Tags.Contains("live") }
+            );
         }
 
         if (healthOptions.Enabled)

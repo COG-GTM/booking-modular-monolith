@@ -4,25 +4,28 @@ using MessageEnvelope = BuildingBlocks.Core.Event.MessageEnvelope;
 
 namespace BuildingBlocks.Core;
 
-public sealed class EventDispatcher(
+public class EventDispatcher(
     IEnumerable<IEventMapper> eventMappers,
     ILogger<EventDispatcher> logger,
     IIntegrationEventPublisher integrationEventPublisher,
     IEnumerable<IEventHeadersProvider> eventHeadersProviders
-)
-    : IEventDispatcher
+) : IEventDispatcher
 {
     private readonly CompositeEventMapper _eventMapper = new(eventMappers);
 
-    public async Task SendAsync<T>(IReadOnlyList<T> events, Type type = null,
-                                   CancellationToken cancellationToken = default)
+    public async Task SendAsync<T>(
+        IReadOnlyList<T> events,
+        Type type = null,
+        CancellationToken cancellationToken = default
+    )
         where T : IEvent
     {
         if (events.Count > 0)
         {
-            var eventType = type != null && type.IsAssignableTo(typeof(IInternalCommand))
-                ? EventType.InternalCommand
-                : EventType.DomainEvent;
+            var eventType =
+                type != null && type.IsAssignableTo(typeof(IInternalCommand))
+                    ? EventType.InternalCommand
+                    : EventType.DomainEvent;
 
             async Task PublishIntegrationEvent(IReadOnlyList<IIntegrationEvent> integrationEvents)
             {
@@ -30,20 +33,21 @@ public sealed class EventDispatcher(
                 {
                     await integrationEventPublisher.PublishAsync(
                         new MessageEnvelope(integrationEvent, SetHeaders()),
-                        cancellationToken);
+                        cancellationToken
+                    );
                 }
             }
 
             switch (events)
             {
                 case IReadOnlyList<IDomainEvent> domainEvents:
-                    {
-                        var integrationEvents = await MapDomainEventToIntegrationEventAsync(domainEvents)
+                {
+                    var integrationEvents = await MapDomainEventToIntegrationEventAsync(domainEvents)
                         .ConfigureAwait(false);
 
-                        await PublishIntegrationEvent(integrationEvents);
-                        break;
-                    }
+                    await PublishIntegrationEvent(integrationEvents);
+                    break;
+                }
 
                 case IReadOnlyList<IIntegrationEvent> integrationEvents:
                     await PublishIntegrationEvent(integrationEvents);
@@ -63,14 +67,12 @@ public sealed class EventDispatcher(
         }
     }
 
-    public async Task SendAsync<T>(T @event, Type type = null,
-        CancellationToken cancellationToken = default)
-        where T : IEvent =>
-        await SendAsync(new[] { @event }, type, cancellationToken);
-
+    public async Task SendAsync<T>(T @event, Type type = null, CancellationToken cancellationToken = default)
+        where T : IEvent => await SendAsync(new[] { @event }, type, cancellationToken);
 
     private Task<IReadOnlyList<IIntegrationEvent>> MapDomainEventToIntegrationEventAsync(
-        IReadOnlyList<IDomainEvent> events)
+        IReadOnlyList<IDomainEvent> events
+    )
     {
         logger.LogTrace("Processing integration events start...");
 
@@ -97,9 +99,9 @@ public sealed class EventDispatcher(
         return Task.FromResult<IReadOnlyList<IIntegrationEvent>>(integrationEvents);
     }
 
-
     private Task<IReadOnlyList<IInternalCommand>> MapDomainEventToInternalCommandAsync(
-        IReadOnlyList<IDomainEvent> events)
+        IReadOnlyList<IDomainEvent> events
+    )
     {
         logger.LogTrace("Processing internal message start...");
 
@@ -124,14 +126,11 @@ public sealed class EventDispatcher(
 
     private IEnumerable<IIntegrationEvent> GetWrappedIntegrationEvents(IReadOnlyList<IDomainEvent> domainEvents)
     {
-        foreach (var domainEvent in domainEvents.Where(x =>
-                     x is IHaveIntegrationEvent))
+        foreach (var domainEvent in domainEvents.Where(x => x is IHaveIntegrationEvent))
         {
-            var genericType = typeof(IntegrationEventWrapper<>)
-                .MakeGenericType(domainEvent.GetType());
+            var genericType = typeof(IntegrationEventWrapper<>).MakeGenericType(domainEvent.GetType());
 
-            var domainNotificationEvent = (IIntegrationEvent)Activator
-                .CreateInstance(genericType, domainEvent);
+            var domainNotificationEvent = (IIntegrationEvent)Activator.CreateInstance(genericType, domainEvent);
 
             yield return domainNotificationEvent;
         }
@@ -150,3 +149,10 @@ public sealed class EventDispatcher(
         return headers;
     }
 }
+
+public sealed class EventDispatcher<TModule>(
+    IEnumerable<IEventMapper> eventMappers,
+    ILogger<EventDispatcher> logger,
+    IIntegrationEventPublisher<TModule> integrationEventPublisher,
+    IEnumerable<IEventHeadersProvider> eventHeadersProviders
+) : EventDispatcher(eventMappers, logger, integrationEventPublisher, eventHeadersProviders), IEventDispatcher<TModule>;
