@@ -232,7 +232,11 @@ To run the application using the `Aspire App Host`, execute the following comman
 aspire run
 ```
 
-> Note:The `Aspire dashboard` will be available at `http://localhost:18888`
+The default **Services** topology starts `gateway`, `identity`, `flight`, `passenger`, and `booking`, with service-owned
+databases. `AppHost:Topology=Monolith` retains the `api` + `gateway` compatibility topology with separate monolith databases.
+The gateway is `http://localhost:5000`; the dashboard is `http://localhost:18888` (use the printed login link).
+See the [Aspire local runbook](docs/runbooks/aspire-local.md) for VM startup, ports, smoke flow, and cleanup, and
+[ADR 0497](docs/adr/0497-aspire-apphost-microservices-topology.md) for the architecture decision.
 
 > ### Docker Compose
 

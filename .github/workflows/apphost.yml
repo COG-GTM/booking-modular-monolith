@@ -1,0 +1,16 @@
+name: Aspire AppHost
+on:
+  push:
+    branches: ["main", "devin/ab-488-v3"]
+  pull_request:
+    branches: ["main", "devin/ab-488-v3"]
+jobs:
+  apphost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Test topology model (no Docker required)
+        run: dotnet test src/Aspire/tests/AppHost.Test/AppHost.Test.csproj -c Release -nologo
