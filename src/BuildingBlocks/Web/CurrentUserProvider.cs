@@ -19,6 +19,7 @@ public class CurrentUserProvider : ICurrentUserProvider
         _httpContextAccessor = httpContextAccessor;
     }
 
+
     public long? GetCurrentUserId()
     {
         var nameIdentifier = _httpContextAccessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -30,8 +31,7 @@ public class CurrentUserProvider : ICurrentUserProvider
 
     public Guid? GetCurrentUserGuid()
     {
-        var userGuid =
-            _httpContextAccessor?.HttpContext?.User?.FindFirstValue("sub")
+        var userGuid = _httpContextAccessor?.HttpContext?.User?.FindFirstValue("sub")
             ?? _httpContextAccessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
 
         return Guid.TryParse(userGuid, out var parsedUserGuid) ? parsedUserGuid : null;

@@ -4,6 +4,7 @@ namespace Booking.Booking.Exceptions;
 
 public class PassengerNotFoundException : NotFoundException
 {
-    public PassengerNotFoundException()
-        : base("Passenger not found!") { }
+    public PassengerNotFoundException() : base("Passenger not found!")
+    {
+    }
 }

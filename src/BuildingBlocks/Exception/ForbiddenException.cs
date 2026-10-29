@@ -4,6 +4,7 @@ namespace BuildingBlocks.Exception;
 
 public class ForbiddenException : CustomException
 {
-    public ForbiddenException(string message, int? code = null)
-        : base(message, HttpStatusCode.Forbidden, code: code) { }
+    public ForbiddenException(string message, int? code = null) : base(message, HttpStatusCode.Forbidden, code: code)
+    {
+    }
 }
