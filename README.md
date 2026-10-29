@@ -194,7 +194,9 @@ Configure `AuthOptions__ClientSecret` to register the IdentityServer password-gr
 If it is unset or whitespace, no client is registered and the token endpoint cannot issue
 tokens for that client. Set `IdentitySeedOptions__AdminPassword` and
 `IdentitySeedOptions__UserPassword` to seed the default admin and regular users; each user
-is skipped when its password is unset or whitespace. For local Development, configure
+is skipped when its password is unset or whitespace. Seed passwords are bootstrap-only: remove
+them after the accounts exist, otherwise a deleted seed account is recreated on the next start.
+For local Development, configure
 credentials with User Secrets:
 
 ```bash
