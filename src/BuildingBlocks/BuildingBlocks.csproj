@@ -12,7 +12,6 @@
     <ProjectReference Include="Utils\BuildingBlocks.Utils.csproj" />
     <ProjectReference Include="Exception\BuildingBlocks.Exception.csproj" />
     <ProjectReference Include="Core\BuildingBlocks.Core.csproj" />
-    <ProjectReference Include="Contracts\BuildingBlocks.Contracts.csproj" />
     <ProjectReference Include="Logging\BuildingBlocks.Logging.csproj" />
     <ProjectReference Include="Caching\BuildingBlocks.Caching.csproj" />
     <ProjectReference Include="Polly\BuildingBlocks.Polly.csproj" />
@@ -55,4 +54,5 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+  <Import Project="..\Contracts\Contracts.Messages.Reference.props" />
 </Project>

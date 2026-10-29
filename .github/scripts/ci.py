@@ -26,8 +26,12 @@ def version(xml):
     return ET.fromstring(xml).findtext(".//SharedPackageVersion", default="")
 
 
-def select(paths, old_version, new_version, force=False):
-    shared = force or old_version != new_version or any(
+def contracts_version(xml):
+    return ET.fromstring(xml).findtext(".//ContractsMessagesVersion", default="")
+
+
+def select(paths, old_version, new_version, force=False, contracts_changed=False):
+    shared = force or old_version != new_version or contracts_changed or any(
         p.startswith(SHARED) or p in GLOBAL_FILES for p in paths
     )
     all_services = shared or force or any(
@@ -43,7 +47,7 @@ def select(paths, old_version, new_version, force=False):
     module_changed = any(p.startswith(f"src/Modules/{s.title()}/") for p in paths for s in MODULES)
     apphost = all_services or module_changed or any(p.startswith("src/Aspire/src/AppHost/") for p in paths)
     return {"services": services, "shared": shared, "apphost": apphost,
-            "packages": bool(new_version and old_version != new_version)}
+            "packages": bool((new_version and old_version != new_version) or contracts_changed)}
 
 
 def layout(service, root=Path(".")):
@@ -100,7 +104,18 @@ def main():
             paths = git("diff", "--name-only", "--no-renames", base, args.head).splitlines()
             previous = version(git("show", f"{base}:Directory.Build.props"))
         current = version(git("show", f"{args.head}:Directory.Build.props"))
-        result = select(paths, previous, current, args.force == "true")
+        contracts_changed = False
+        if "src/Contracts/Versions.props" in paths:
+            try:
+                old_contracts = contracts_version(git("show", f"{base}:src/Contracts/Versions.props")) if base and set(base) != {"0"} else ""
+            except subprocess.CalledProcessError:
+                old_contracts = ""
+            try:
+                new_contracts = contracts_version(git("show", f"{args.head}:src/Contracts/Versions.props"))
+            except subprocess.CalledProcessError:
+                new_contracts = ""
+            contracts_changed = bool(new_contracts and old_contracts != new_contracts)
+        result = select(paths, previous, current, args.force == "true", contracts_changed)
         result["services"] = [s for s in result["services"] if layout(s) is not None]
         for key, value in result.items():
             print(f"{key}={json.dumps(value, separators=(',', ':'))}")

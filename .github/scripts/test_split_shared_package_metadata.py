@@ -78,7 +78,7 @@ class RealSharedProjectMetadataTests(unittest.TestCase):
         projects = (
             "src/BuildingBlocks/BuildingBlocks.csproj",
             "src/BuildingBlocks/Core/BuildingBlocks.Core.csproj",
-            "src/BuildingBlocks/Contracts/BuildingBlocks.Contracts.csproj",
+            "src/BuildingBlocks/Web/BuildingBlocks.Web.csproj",
         )
         for project in projects:
             with self.subTest(project=project):
@@ -139,15 +139,20 @@ class PackScriptVersionTests(unittest.TestCase):
             str(path) for path in (REPO / "src/BuildingBlocks").rglob("BuildingBlocks*.csproj")
             if "tests" not in path.relative_to(REPO).parts
         )
-        self.assertEqual(len(expected_projects), len(invocations))
-        self.assertCountEqual(expected_projects, [invocation[1] for invocation in invocations])
+        buildingblocks = [invocation for invocation in invocations
+                          if invocation[1].startswith(str(REPO / "src/BuildingBlocks"))]
+        self.assertEqual(len(expected_projects) + 1, len(invocations))
+        self.assertCountEqual(expected_projects, [invocation[1] for invocation in buildingblocks])
+        self.assertEqual(str(REPO / "src/Contracts/Contracts.Messages/Contracts.Messages.csproj"),
+                         invocations[0][1])
+        return buildingblocks
 
     def test_version_argument_uses_shared_package_version_property(self):
         feed = self.root / "feed"
         invocations = self.run_pack_script("2.0.0-ci.7", str(feed))
 
-        self.assert_one_invocation_per_project(invocations)
-        for invocation in invocations:
+        buildingblocks = self.assert_one_invocation_per_project(invocations)
+        for invocation in buildingblocks:
             with self.subTest(project=invocation[1]):
                 self.assertIn("-p:SharedPackageVersion=2.0.0-ci.7", invocation)
                 self.assertFalse(any("-p:Version=" in argument for argument in invocation))

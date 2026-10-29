@@ -54,17 +54,20 @@ Only active solution projects are packed (the abandoned net6 Mongo project is
 deliberately excluded). Test projects are never published. Every shared project
 must be listed in the solution, including split libraries and proto packages.
 
-`Directory.Build.props` defines `SharedPackageVersion` and defaults shared package
-IDs to `Booking.<project-name>`; BuildingBlocks preserves AB-500's
-`BookingModularMonolith.<project-name>` identities. `BuildingBlocksVersion` aliases
-the shared version; local pack overrides use `-p:SharedPackageVersion`. Bump the
-root SemVer value in the same PR as releasable
-library/contract changes. All shared packages use that version together so project
-references generate consistent NuGet dependencies. A version change (including the
-initial version) publishes on the next trusted push; unchanged versions only pack
+`Directory.Build.props` defines `SharedPackageVersion` for BuildingBlocks;
+`BuildingBlocksVersion` aliases it in `src/BuildingBlocks/Directory.Build.props`.
+`src/Contracts/Versions.props` independently defines `ContractsMessagesVersion`.
+Both preserve AB-500/AB-506's `BookingModularMonolith.<project-name>` IDs, and
+each pack retains its own SemVer to keep project and exact-pinned package references
+consistent. Bump the applicable version with releasable library or contract changes;
+local BuildingBlocks overrides use `-p:SharedPackageVersion` and do not re-version
+Contracts.Messages. A version bump (including a newly introduced version) publishes
+on the next trusted push; unchanged versions only pack
 and validate. `--skip-duplicate` makes reruns idempotent. Never replace an existing
 version: bump it instead. Project files must not override `PackageVersion` or
-`PackageId` without updating the package-consumer contract. Proto projects must
+`PackageId` without updating the package-consumer contract. The Contracts override
+of root `PackageVersion` is intentional: its independent `ContractsMessagesVersion`
+controls the exact pinned package reference. Proto projects must
 include their `.proto` files as package content themselves; CI does not rename or
 rewrite wire contracts.
 
@@ -101,7 +104,7 @@ path selection controls **pipeline execution**, not that legacy compile-time gra
 
 For a release, merge a single-service change and confirm only that service appears
 under `service` and its `publish` job outputs the SHA image reference. For a shared
-release, bump `SharedPackageVersion`, confirm `shared-packages` uploads `.nupkg`
+release, bump `SharedPackageVersion` or `ContractsMessagesVersion`, confirm `shared-packages` uploads `.nupkg`
 artifacts and `publish-packages` publishes the new version, then restore a consumer against the feed.
 Publishing cannot be proven by a PR-only run; inspect the trusted push run too.
 

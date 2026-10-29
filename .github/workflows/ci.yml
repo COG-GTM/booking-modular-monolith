@@ -138,6 +138,8 @@ jobs:
         run: |
           dotnet msbuild src/BuildingBlocks/BuildingBlocks.csproj -getProperty:PackageId,PackageVersion > metadata.json
           python3 -c 'import json, xml.etree.ElementTree as E; p=json.load(open("metadata.json", encoding="utf-8-sig"))["Properties"]; v=E.parse("Directory.Build.props").findtext(".//SharedPackageVersion"); assert p == {"PackageId": "BookingModularMonolith.BuildingBlocks", "PackageVersion": v}, p'
+          dotnet msbuild src/Contracts/Contracts.Messages/Contracts.Messages.csproj -getProperty:PackageId,PackageVersion > contracts-metadata.json
+          python3 -c 'import json, xml.etree.ElementTree as E; p=json.load(open("contracts-metadata.json", encoding="utf-8-sig"))["Properties"]; v=E.parse("src/Contracts/Versions.props").findtext(".//ContractsMessagesVersion"); assert p == {"PackageId": "BookingModularMonolith.Contracts.Messages", "PackageVersion": v}, p'
 
   ci:
     name: CI result

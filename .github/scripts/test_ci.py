@@ -54,6 +54,13 @@ class SelectionTests(unittest.TestCase):
         self.assertTrue(result["shared"])
         self.assertEqual(list(SERVICES), result["services"])
 
+    def test_contracts_version_bump_publishes_without_reversioning_buildingblocks(self):
+        result = select(["src/Contracts/Versions.props"], "1.1.0", "1.1.0", contracts_changed=True)
+        self.assertTrue(result["packages"])
+        self.assertTrue(result["shared"])
+        self.assertEqual(list(SERVICES), result["services"])
+        self.assertFalse(self.choose("src/Contracts/Versions.props")["packages"])
+
     def test_initial_version_is_published(self):
         self.assertTrue(select([], "", "1.0.0")["packages"])
 

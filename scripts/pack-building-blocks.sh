@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Packs every BuildingBlocks.* library (and the transition aggregate) into a local NuGet feed.
+# Packs every BuildingBlocks.* library (and the transition aggregate) into a local NuGet feed, after the
+# Contracts.Messages package they depend on (packed with its own version, see scripts/pack-contracts.sh).
 # Usage: scripts/pack-building-blocks.sh [version] [feed-dir]
 #   version  SemVer 2.0 package version (default: SharedPackageVersion from Directory.Build.props)
 #   feed-dir output folder used as the local feed (default: artifacts/nuget)
@@ -18,6 +19,8 @@ fi
 mkdir -p "$feed"
 version_args=()
 [[ -n "$version" ]] && version_args=("-p:SharedPackageVersion=$version")
+
+"$repo_root/scripts/pack-contracts.sh" "" "$feed"
 
 mapfile -t projects < <(find "$repo_root/src/BuildingBlocks" -name 'BuildingBlocks*.csproj' -not -path '*/tests/*' | sort)
 for project in "${projects[@]}"; do

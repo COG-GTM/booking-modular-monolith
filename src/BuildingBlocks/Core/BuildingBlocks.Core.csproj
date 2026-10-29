@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Description>DDD/CQRS kernel: IEvent, IDomainEvent, IIntegrationEvent, aggregates, IEventDispatcher, IEventMapper, CompositeEventMapper, pagination.</Description>
+    <Description>DDD/CQRS kernel: IDomainEvent, IInternalCommand, aggregates, IEventDispatcher, IEventMapper, CompositeEventMapper, pagination.</Description>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="MediatR" Version="14.0.0" />
@@ -14,4 +14,6 @@
     />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.3" />
   </ItemGroup>
+  <!-- IEvent/IIntegrationEvent live in the versioned Contracts.Messages package (forwarded from here). -->
+  <Import Project="..\..\Contracts\Contracts.Messages.Reference.props" />
 </Project>

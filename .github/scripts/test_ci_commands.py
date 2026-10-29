@@ -59,6 +59,20 @@ class CommandTests(unittest.TestCase):
             call("show", "after:Directory.Build.props"),
         ], calls)
 
+    def test_contracts_version_bump_publishes_with_unchanged_buildingblocks_version(self):
+        def git(*command):
+            if command[0] == "diff":
+                return "src/Contracts/Versions.props"
+            if command[1].endswith(":Directory.Build.props"):
+                return "<Project><SharedPackageVersion>1.1.0</SharedPackageVersion></Project>"
+            value = "1.0.0" if command[1].startswith("before:") else "1.1.0"
+            return f"<Project><ContractsMessagesVersion>{value}</ContractsMessagesVersion></Project>"
+
+        with patch.object(ci, "git", side_effect=git):
+            result = self.invoke("select", "--base", "before", "--head", "after")
+        self.assertEqual("true", result["packages"])
+        self.assertEqual("true", result["shared"])
+
     def test_initial_push_uses_tree_instead_of_an_invalid_base(self):
         for args in ((), ("--base", "0" * 40)):
             with self.subTest(args=args):
