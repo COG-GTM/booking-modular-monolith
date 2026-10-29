@@ -17,7 +17,7 @@ public class GatewayIngressConcernsTests : IAsyncLifetime
         await using var factory = GatewayFactory.AllClustersTo(_monolith);
         var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/");
+        var response = await client.GetAsync("/connect/token");
 
         var forwarded = Assert.Single(_monolith.Requests).Headers["correlationId"];
         Assert.True(Guid.TryParse(forwarded, out _));
@@ -31,7 +31,7 @@ public class GatewayIngressConcernsTests : IAsyncLifetime
         var client = factory.CreateClient();
         var correlationId = Guid.NewGuid().ToString("N");
 
-        var request = new HttpRequestMessage(HttpMethod.Get, "/");
+        var request = new HttpRequestMessage(HttpMethod.Get, "/connect/token");
         request.Headers.Add("correlationId", correlationId);
         await client.SendAsync(request);
 
@@ -44,7 +44,7 @@ public class GatewayIngressConcernsTests : IAsyncLifetime
         await using var factory = GatewayFactory.AllClustersTo(_monolith);
         var client = factory.CreateClient();
 
-        var request = new HttpRequestMessage(HttpMethod.Get, "/");
+        var request = new HttpRequestMessage(HttpMethod.Get, "/connect/token");
         request.Headers.Add("correlationId", "not-a-guid");
         await client.SendAsync(request);
 
@@ -60,7 +60,7 @@ public class GatewayIngressConcernsTests : IAsyncLifetime
         var client = factory.CreateClient();
         const string traceId = "0af7651916cd43dd8448eb211c80319c";
 
-        var request = new HttpRequestMessage(HttpMethod.Get, "/");
+        var request = new HttpRequestMessage(HttpMethod.Get, "/connect/token");
         request.Headers.Add("traceparent", $"00-{traceId}-b7ad6b7169203331-01");
         await client.SendAsync(request);
 
@@ -84,11 +84,11 @@ public class GatewayIngressConcernsTests : IAsyncLifetime
 
         var statuses = new List<HttpStatusCode>();
         for (var i = 0; i < 3; i++)
-            statuses.Add((await client.GetAsync("/")).StatusCode);
+            statuses.Add((await client.GetAsync("/connect/token")).StatusCode);
 
         Assert.Equal([HttpStatusCode.OK, HttpStatusCode.OK, HttpStatusCode.TooManyRequests], statuses);
         Assert.Equal(2, _monolith.Requests.Count);
-        var limited = await client.GetAsync("/");
+        var limited = await client.GetAsync("/connect/token");
         Assert.True(limited.Headers.Contains("Retry-After"));
     }
 

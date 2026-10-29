@@ -49,7 +49,6 @@ jobs:
           CADVISOR_HOST_PORT: "18080"
         run: |
           docker compose -f deployments/docker-compose/docker-compose.yaml config -q
-          docker compose -f deployments/docker-compose/docker-compose.monolith.yaml config -q
 
       - name: Start services topology and dependencies
         env:

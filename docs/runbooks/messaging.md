@@ -48,8 +48,8 @@ The gateway does not consume or publish messages and needs no broker settings.
 ## Local run
 
 ```bash
-docker compose -f deployments/docker-compose/docker-compose.infrastructure.yaml up -d rabbitmq postgres
-dotnet run --project src/Api/src
+docker compose -f deployments/docker-compose/docker-compose.yaml up -d
+dotnet run --project src/Services/Passenger.Host
 # management UI: http://localhost:15672 (booking/booking)
 curl -s -u booking:booking http://localhost:15672/api/queues/%2F/passenger.register-new-user-handler
 ```

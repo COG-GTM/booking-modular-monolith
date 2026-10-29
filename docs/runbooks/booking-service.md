@@ -2,7 +2,8 @@
 
 Booking.Host is the standalone HTTP host for the existing Booking module. It exposes Booking API endpoints only and
 calls Flight and Passenger over gRPC. See [ADR 0496](../adr/0496-standalone-booking-service-host.md) for the
-architecture decision. Data migration and production gateway cutover sequencing are deferred to AB-505.
+architecture decision. Use the [cutover runbook](./cutover.md) for gateway ownership, data synchronization,
+and rollback sequencing.
 
 ## Local setup
 
@@ -29,8 +30,8 @@ dotnet run --project src/Services/Booking.Host
 
 The Development profile listens on `http://localhost:5004`. Local defaults use PostgreSQL `booking_service`,
 MongoDB `booking_service_read`, EventStoreDB at `esdb://localhost:2113?tls=false`, and RabbitMQ with local
-`booking/booking` credentials. Flight and Passenger gRPC discovery defaults to the monolith h2c endpoint at
-`http://localhost:3002`.
+`booking/booking` credentials. Flight and Passenger gRPC discovery defaults to their service-host h2c endpoints at
+`http://localhost:5106` and `http://localhost:5202`.
 
 | Setting | Default | Override / purpose |
 |---|---|---|
@@ -38,9 +39,9 @@ MongoDB `booking_service_read`, EventStoreDB at `esdb://localhost:2113?tls=false
 | `MongoOptions:ConnectionString` | `mongodb://localhost:27017` | `MongoOptions__ConnectionString` |
 | `MongoOptions:Booking:DatabaseName` | `booking_service_read` | `MongoOptions__Booking__DatabaseName` |
 | `EventStoreOptions:ConnectionString` | `esdb://localhost:2113?tls=false` | `EventStoreOptions__ConnectionString` or `ConnectionStrings__eventstore` |
-| `Services:flight:grpc:0` | `http://localhost:3002` | `Services__flight__grpc__0` |
-| `Services:passenger:grpc:0` | `http://localhost:3002` | `Services__passenger__grpc__0` |
-| `Jwt:Authority` / `Jwt:MetadataAddress` | Local identity service (`:5000` / `:3001`) | Override to the issuer and metadata endpoint for the target environment |
+| `Services:flight:grpc:0` | `http://localhost:5106` | `Services__flight__grpc__0` |
+| `Services:passenger:grpc:0` | `http://localhost:5202` | `Services__passenger__grpc__0` |
+| `Jwt:Authority` / `Jwt:MetadataAddress` | Local gateway and Identity host (`:5000` / `:5103`) | Override to the issuer and metadata endpoint for the target environment |
 | `MessagingOptions:Transport` | `RabbitMq` | Set to `InMemory` only for tests |
 | `Modules:Booking:BackgroundProcessingEnabled` | `true` | `false` disables both Booking's outbox poller and EventStoreDB subscription |
 | `Modules:Booking:SubscriptionId` | `booking-service` | Unique EventStoreDB checkpoint/subscription identity |
@@ -48,25 +49,16 @@ MongoDB `booking_service_read`, EventStoreDB at `esdb://localhost:2113?tls=false
 Supply deployed credentials through environment variables backed by the platform secret store. Do not put production
 secrets in appsettings or container images.
 
-## Side-by-side operation with the monolith
+## Ownership changes
 
-Run the monolith for identity and Flight/Passenger while directing Booking traffic to Booking.Host:
+Use `scripts/cutover/cutover.sh flip booking service` to move Booking to this host and
+`scripts/cutover/cutover.sh flip booking monolith` to roll back. The script freezes Booking,
+quiesces the old worker, copies and verifies data, switches the gateway route, and resumes
+only the active owner's background processing. See the [cutover runbook](./cutover.md)
+for the full order and state recovery procedure.
 
-1. Start the host with its normal `Modules:Booking:BackgroundProcessingEnabled=true` setting and confirm
-   `/health/ready` is healthy.
-2. Start the monolith with `Modules__Booking__BackgroundProcessingEnabled=false`. That switch stops both the
-   monolith Booking outbox polling worker and its EventStoreDB subscription; the monolith can continue to serve its
-   other modules.
-3. Keep the monolith's subscription ID unset (or `default`) for its existing checkpoint. Booking.Host uses the
-   separate `booking-service` checkpoint by default. A first start with a new checkpoint replays EventStoreDB history
-   to build the host-owned Mongo projection.
-4. Verify a Booking request through the host and inspect its read model/outbox before changing the gateway.
-5. Flip the gateway destination with
-   `ReverseProxy__Clusters__booking__Destinations__primary__Address=http://localhost:5004/` (or the deployed
-   Booking.Host service address), then monitor readiness, error rate, and projection/checkpoint progress.
-
-Only one replica may run Booking background processing. Do not enable the workers in both the monolith and host, and
-do not scale Booking.Host above one active processing replica until the EventStoreDB subscription and outbox
+Only one replica may run Booking background processing, and do not scale Booking.Host above one active processing
+replica until the EventStoreDB subscription and outbox
 concurrency model has changed. Keep `PersistMessageOptions:Enabled` enabled unless an intentional global outbox pause
 is needed.
 
@@ -100,8 +92,8 @@ The Docker environment listens on port 80. It targets `postgres`, `mongo`, `even
 | `booking-postgres` is Unhealthy or outbox is not draining | Verify `booking_service` exists, the connection override precedence, role permissions, `PersistMessageOptions:Enabled`, and that only one active outbox worker is running. |
 | `booking-mongo` is Unhealthy or reads are missing | Check `MongoOptions:Booking:DatabaseName` and the Booking-specific Mongo connection; the host does not use a root-only connection check. |
 | EventStoreDB projection is behind | Check `booking-eventstore`, the `booking-service` subscription logs/checkpoint, and whether background processing is enabled. A new checkpoint starts from the beginning; do not replace it casually. |
-| Events/outbox work is duplicated | Ensure Booking background processing is disabled in the monolith and enabled on only one host replica. |
+| Events/outbox work is duplicated | Ensure Booking background processing is enabled on only one host replica. |
 | Token rejected | Confirm the token issuer matches `Jwt:Authority`, metadata is reachable at `Jwt:MetadataAddress`, and the token audience is `booking-modular-monolith`. |
 
-Existing shared data is not moved automatically. Migration/rebuild, checkpoint handoff, and production gateway cutover
-are AB-505 responsibilities; do not delete or repurpose existing stores as part of this scaffold.
+Booking's read model is rebuilt from the shared EventStoreDB during cutover. Do not delete or repurpose
+existing stores outside the documented rollback procedure.

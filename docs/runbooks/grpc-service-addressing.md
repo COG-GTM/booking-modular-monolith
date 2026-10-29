@@ -8,7 +8,7 @@ Booking -> Flight / Passenger gRPC (ADR [0101](../adr/0103-shared-grpc-contracts
 |---|---|---|
 | `Grpc:Flight:Address` | `http://_grpc.flight` | Logical (service discovery) or concrete `http(s)://host:port` |
 | `Grpc:Passenger:Address` | `http://_grpc.passenger` | " |
-| `Services:flight:grpc:0` | `http://localhost:3002` (docker: `http://localhost:81`) | Discovery entry for `_grpc.flight` |
+| `Services:flight:grpc:0` | `http://localhost:5106` (docker: `http://flight-service:81`) | Discovery entry for `_grpc.flight` |
 | `Services:passenger:grpc:0` | same | Discovery entry for `_grpc.passenger` |
 | `Grpc:<Client>:Deadline` | `00:00:10` | Default deadline (covers all retry attempts) |
 | `Grpc:<Client>:MaxAttempts` | `4` | Attempts for idempotent reads on `Unavailable` (1-5; 1 disables) |
@@ -21,10 +21,7 @@ Environment variables use `__`, e.g. `Grpc__Flight__Address=http://flight-servic
 
 | Environment | How Booking finds Flight/Passenger |
 |---|---|
-| Monolith `dotnet run` (Development) | `appsettings.json` discovery entries -> monolith h2c listener `http://localhost:3002` |
-| `Booking.Host` (Development) | Local discovery entries -> monolith h2c listener `http://localhost:3002`; Booking.Host HTTP listens on `http://localhost:5004` |
 | Aspire AppHost | AppHost injects `services__flight__grpc__0` / `services__passenger__grpc__0` from the `grpc` endpoint |
-| Monolith Docker image | `appsettings.docker.json` -> `http://localhost:81` (the monolith's own gRPC listener) |
 | Booking.Host Docker image | `appsettings.docker.json` -> `http://flight-service:81` and `http://passenger-service:81`; Booking.Host exposes HTTP on port 80 only |
 | Kubernetes / compose with split hosts | `services__flight__grpc__0=http://flight-service:81` (or set `Grpc__Flight__Address` directly) |
 
@@ -33,8 +30,9 @@ wire contracts remain unchanged. See the [Booking service runbook](./booking-ser
 
 ## Listeners
 
-h2c gRPC needs an HTTP/2-only Kestrel endpoint (`Kestrel:Endpoints:Grpc`, `Protocols=Http2`): `3002` in Development,
-`81` in the docker image. HTTP/1.1 APIs stay on `3000`/`3001` (`80` in docker). Do not route the gRPC port through
+h2c gRPC needs an HTTP/2-only Kestrel endpoint (`Kestrel:Endpoints:Grpc`, `Protocols=Http2`): `5106` for Flight and
+`5202` for Passenger in Development, `81` in the docker image. HTTP/1.1 APIs use their host-specific ports (`80` in
+docker). Do not route the gRPC port through
 the gateway.
 
 ## Health
@@ -53,10 +51,10 @@ the gateway.
 ```bash
 # grpc.health.v1 has no reflection here: pass the proto (grpc/grpc-proto: grpc/health/v1/health.proto)
 grpcurl -plaintext -import-path . -proto grpc/health/v1/health.proto \
-  -d '{"service":"flight.FlightGrpcService"}' localhost:3002 grpc.health.v1.Health/Check   # {"status":"SERVING"}
+  -d '{"service":"flight.FlightGrpcService"}' localhost:5106 grpc.health.v1.Health/Check   # {"status":"SERVING"}
 grpcurl -plaintext -import-path src/Contracts/Contracts.Grpc/Protos -proto flight.proto \
-  -d '{"FlightId":"<flight id>"}' localhost:3002 flight.FlightGrpcService/GetAvailableSeats
-curl -s -w ' %{http_code}\n' http://localhost:3001/health/ready  # Healthy 200 / Unhealthy 503
+  -d '{"FlightId":"<flight id>"}' localhost:5106 flight.FlightGrpcService/GetAvailableSeats
+curl -s -w ' %{http_code}\n' http://localhost:5107/health/ready  # Healthy 200 / Unhealthy 503
 # Failure drill: services__passenger__grpc__0=http://localhost:3999 -> POST /booking fails Unavailable after
 # 4 Passenger.GetById attempts (~1.5 s) and /health/ready is 503; a non-responding Flight -> DeadlineExceeded at Grpc:Flight:Deadline.
 ```

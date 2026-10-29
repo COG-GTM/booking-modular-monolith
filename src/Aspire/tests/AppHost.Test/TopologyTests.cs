@@ -65,8 +65,6 @@ public class TopologyTests
     [Theory]
     [InlineData("Services", true)]
     [InlineData("Services", false)]
-    [InlineData("Monolith", true)]
-    [InlineData("Monolith", false)]
     public async Task Published_listeners_bind_all_interfaces_without_changing_local_bindings(
         string topology,
         bool publish
@@ -95,32 +93,6 @@ public class TopologyTests
                     Assert.DoesNotContain("0.0.0.0", localUrl, StringComparison.Ordinal);
             }
         }
-    }
-
-    [Fact]
-    public async Task Monolith_keeps_api_and_gateway()
-    {
-        await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
-            ["--AppHost:Topology=Monolith"]
-        );
-        Assert.Equal(
-            ["api", "gateway"],
-            builder.Resources.OfType<ProjectResource>().Select(p => p.Name).Order().ToArray()
-        );
-        Assert.Equal(
-            ["booking", "flight", "identity", "passenger"],
-            builder
-                .Resources.OfType<PostgresDatabaseResource>()
-                .Select(database => database.DatabaseName)
-                .Order()
-                .ToArray()
-        );
-        var api = builder.Resources.OfType<ProjectResource>().Single(project => project.Name == "api");
-        var grafana = builder.Resources.Single(resource => resource.Name == "grafana");
-        Assert.Equal(3005, grafana.Annotations.OfType<EndpointAnnotation>().Single().Port);
-        var env = await Environment(builder, api);
-        foreach (var name in new[] { "booking", "flight", "identity", "passenger" })
-            Assert.Equal($"{{{name}-db.connectionString}}", env[$"ConnectionStrings__{name}"]);
     }
 
     [Theory]

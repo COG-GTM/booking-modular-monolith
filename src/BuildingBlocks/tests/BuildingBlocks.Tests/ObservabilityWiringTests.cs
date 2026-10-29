@@ -79,7 +79,10 @@ public class ObservabilityWiringTests
         var options = new ObservabilityOptions { OTLPOptions = new OTLPOptions() };
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(
-                new Dictionary<string, string?> { [ObservabilityExtensions.OtelExporterEndpointKey] = "http://collector:4317" }
+                new Dictionary<string, string?>
+                {
+                    [ObservabilityExtensions.OtelExporterEndpointKey] = "http://collector:4317",
+                }
             )
             .Build();
 
@@ -133,9 +136,7 @@ public class ObservabilityWiringTests
             new Dictionary<string, string?> { ["HealthOptions:Enabled"] = "false" }
         );
         builder.Services.AddCustomHealthCheck();
-        builder
-            .Services.AddHealthChecks()
-            .AddCheck("dependency", () => HealthCheckResult.Unhealthy("down"));
+        builder.Services.AddHealthChecks().AddCheck("dependency", () => HealthCheckResult.Unhealthy("down"));
         await using var app = builder.Build();
         app.UseCustomHealthCheck();
         await app.StartAsync();
@@ -234,7 +235,10 @@ public class ObservabilityWiringTests
 
         var row = await store.PersistMessage.SingleAsync();
         var envelope = JsonSerializer.Deserialize<MessageEnvelope>(row.Data)!;
-        envelope.Headers[PersistMessageTracing.TraceParentHeader]!.ToString().Should().Contain(requestTraceId.ToString());
+        envelope.Headers[PersistMessageTracing.TraceParentHeader]!
+            .ToString()
+            .Should()
+            .Contain(requestTraceId.ToString());
 
         Activity.Current.Should().BeNull();
         await processor.ProcessAsync(row.Id, MessageDeliveryType.Outbox);
@@ -268,7 +272,6 @@ public class ObservabilityWiringTests
 
     [Theory]
     [InlineData("src/Gateway/src/appsettings.json", "booking-gateway")]
-    [InlineData("src/Api/src/appsettings.json", "booking-modular-monolith")]
     [InlineData("src/Services/Identity.Host/appsettings.json", "identity-service")]
     [InlineData("src/Services/Flight.Host/appsettings.json", "flight-service")]
     [InlineData("src/Services/Passenger.Host/appsettings.json", "passenger-service")]

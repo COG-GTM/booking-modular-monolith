@@ -14,34 +14,36 @@ Defined in `src/Gateway/src/appsettings.json` under `ReverseProxy`.
 | `passenger-api` | `/api/{version}/passenger/**` | `passenger` | `ApiScope` |
 | `booking-api`, `booking-api-root` | `/api/{version}/booking[/**]` | `booking` | `ApiScope` |
 | `identity-connect`, `identity-discovery` | `/connect/**`, `/.well-known/**` | `identity` | anonymous (original `Host` kept) |
-| `api-fallback` | any other `/api/**` | `monolith` | `ApiScope` |
-| `monolith-fallback` | everything else (`/`, `/swagger`, `/scalar`, ...) | `monolith` | anonymous |
 
-`/health` and `/alive` are answered by the gateway itself. Backends still enforce their own
-authorization; the gateway forwards the `Authorization` header untouched (defence in depth).
+`/health` and `/alive` are answered by the gateway itself. Unknown application paths return
+404 rather than falling through to a legacy host. Backends still enforce their own
+authorization; the gateway forwards the `Authorization` header untouched. Authentication
+middleware runs before route-freeze handling.
 
-## Moving a route to an extracted service (config only)
+## Cutover overrides and route freeze
 
-Each cluster has one destination named `primary`. Override it per environment, no code or image change:
+The optional `Cutover:ConfigFile` JSON file is loaded after the shipped settings and is
+watched for changes. The Compose cutover overlay mounts a generated override file there.
+`FrozenClusters` and `RetryAfterSeconds` are read through `IOptionsMonitor`; a frozen route
+returns 503 problem+json with `Retry-After` and `X-Gateway-Cutover: frozen`, without
+calling its backend.
 
 ```bash
-# Docker Compose / Kubernetes / Aspire environment variable
-ReverseProxy__Clusters__flight__Destinations__primary__Address=http://flight-service:80/
+scripts/cutover/cutover.sh flip flight service
+scripts/cutover/cutover.sh flip flight monolith
 ```
 
-YARP reloads `appsettings*.json` changes at runtime; environment variables apply on restart.
-Rollback = remove the override (cluster falls back to the monolith address). When a service takes over a
-module, also turn off that module's background processing in the monolith
-(`Modules__<Module>__BackgroundProcessingEnabled=false`) - only one replica may process the outbox.
+See the [cutover runbook](./cutover.md) for the full freeze, worker quiescence, data-copy,
+route-probe, and rollback procedure. Only one owner may run background processing for a
+module at a time.
 
 ## Authentication
 
-* Local `dotnet run`: the `src/Api` launch profile already sets `AuthOptions__IssuerUri`/`Jwt__Authority=http://localhost:5000`
-  and `Jwt__MetadataAddress=http://localhost:3001/...`, matching the gateway's `appsettings.json`; Compose and Aspire set the same.
+* The Identity host issues tokens with the gateway's public URL as issuer
+  (`AuthOptions__IssuerUri=http://localhost:5000`); local discovery uses Identity on port 5103.
 
 * Gateway and backends reuse `BuildingBlocks.Jwt` (`Jwt:Authority`, `Jwt:Audience=booking-modular-monolith`).
-* Tokens are issued with the gateway's public URL as issuer (`AuthOptions__IssuerUri` on the monolith) so they
-  validate identically at the gateway and behind it. `Jwt:MetadataAddress` lets each host fetch discovery/JWKS
+* `Jwt:MetadataAddress` lets each host fetch discovery/JWKS
   from an internal address while validating the public issuer.
 
 ```bash

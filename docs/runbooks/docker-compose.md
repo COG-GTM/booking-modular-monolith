@@ -1,12 +1,10 @@
-# Runbook: Docker Compose topologies
+# Runbook: Docker Compose
 
-The repository supports a modular-monolith topology and a multi-service topology. Both include the same infrastructure
-project and intentionally share container names and host ports. Run only one application topology at a time; stop the
-current one with `down --remove-orphans` before switching.
+The default Compose topology runs the gateway, four service hosts, and shared infrastructure.
+The cutover overlay temporarily adds the prebuilt legacy image for rollback drills; it does
+not build or replace that image.
 
-## Topologies
-
-### Multi-service
+## Service topology
 
 ```mermaid
 flowchart LR
@@ -44,24 +42,6 @@ docker compose -f deployments/docker-compose/docker-compose.yaml ps
 scripts/smoke/compose-e2e.sh
 ```
 
-### Monolith
-
-```bash
-docker compose -f deployments/docker-compose/docker-compose.monolith.yaml up -d --build
-curl --fail http://localhost:5000/health/ready
-```
-
-The `booking_modular_monolith` API is routed by the same gateway. The app environment and HTTPS certificate settings
-are unchanged from the prior Compose launcher. The monolith publishes HTTP on `3001` and HTTPS on `3443`; Grafana uses
-`3000`, so the complete topology, including observability, starts without a host-port conflict. To switch topologies:
-
-```bash
-docker compose -f deployments/docker-compose/docker-compose.yaml down --remove-orphans
-docker compose -f deployments/docker-compose/docker-compose.monolith.yaml up -d --build
-```
-
-Use the corresponding Compose file for `down`. Avoid `down -v` unless intentionally removing local databases.
-
 ## Ports and service configuration
 
 All application containers attach to the included `infrastructure` network and use Compose service names for service
@@ -81,6 +61,20 @@ The per-service PostgreSQL roles/passwords used by the local Compose file are `i
 secrets. Mongo read models are isolated by service. The infrastructure Compose file also publishes ports for local
 database/broker/observability tools.
 
+## Cutover overlay
+
+The local cutover overlay requires a legacy image built before `src/Api` was removed. Run
+the [cutover runbook](./cutover.md) for the complete drill:
+
+```bash
+scripts/cutover/build-legacy-monolith.sh
+CADVISOR_HOST_PORT=18080 scripts/cutover/cutover.sh up
+```
+
+The overlay mounts the same Identity signing-key and Data Protection volumes into the
+Identity service and the legacy host. The script tracks ownership and worker switches in
+`deployments/docker-compose/.cutover/state.env`; do not commit that generated directory.
+
 ## Startup and health gating
 
 Infrastructure health checks cover PostgreSQL (`pg_isready`), MongoDB (`mongosh` ping), EventStoreDB (the image's
@@ -89,10 +83,10 @@ PostgreSQL and RabbitMQ. Flight and Passenger wait for their PostgreSQL, MongoDB
 Booking additionally waits for EventStoreDB, Flight, and Passenger; its readiness endpoint includes downstream gRPC.
 The gateway waits for all four hosts to report healthy.
 
-App container checks in both topologies use Bash's `/dev/tcp` support to issue a dependency-free HTTP GET to
-`/health/ready` for every host, including Identity and the gateway. The services topology uses a 120-second start
-period to allow image startup, database initialization, and health dependencies to settle; the monolith topology uses
-30 seconds for the API and 20 seconds for its gateway. The ASP.NET runtime image is verified to contain Bash.
+App container checks use Bash's `/dev/tcp` support to issue a dependency-free HTTP GET to
+`/health/ready` for every host, including Identity and the gateway. The 120-second start
+period allows image startup, database initialization, and health dependencies to settle.
+The ASP.NET runtime image is verified to contain Bash.
 
 ## End-to-end smoke flow
 
@@ -111,7 +105,7 @@ HTTP 404. Tokens are supplied to API requests through curl config input rather t
 | cAdvisor cannot bind port `8080` | Set `CADVISOR_HOST_PORT=18080` in the shell before `docker compose up`; the container still listens on `8080`. |
 | PostgreSQL roles/databases are missing | `01-service-databases.sql` runs only when PostgreSQL initializes a fresh volume. Existing volumes are not modified. Do not remove a volume containing wanted data; back it up and apply an approved migration or create the missing local role/database explicitly. |
 | Mongo read models are missing after recreating the container | MongoDB now stores `/data/db` in the named `mongo-data` volume, which ordinary `down` preserves. Existing anonymous Mongo volumes are not migrated automatically; preserve/copy wanted data before switching to the named volume. `down -v` deletes Mongo and PostgreSQL data volumes. |
-| A topology fails because a container/port is already in use | Stop the other topology with its Compose file and `down --remove-orphans` before switching. The two topologies intentionally share names and ports. |
+| A container/port is already in use | Inspect `docker compose ... ps` and the exact host listener before starting another stack. |
 | Service health remains starting/unhealthy | Inspect `docker compose ... ps` and `logs <service>`. Check PostgreSQL init output, RabbitMQ credentials, MongoDB database name, EventStoreDB, and gRPC readiness dependencies. |
 | Events or outbox work is duplicated | Run one replica of each service with background processing. In particular, Booking's EventStoreDB subscription and outbox worker are not configured for concurrent replicas. |
 | Service image pulls are throttled | Retag the matching public mirror image as above; Compose uses normal public image names after retagging. If a mirror does not contain an image, wait for the upstream limit to reset or use an approved registry mirror. |

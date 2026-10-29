@@ -1,4 +1,3 @@
-using Api;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.PersistMessageProcessor;
@@ -41,10 +40,6 @@ public class PassengerInboxTests(TestFixture<Program, PassengerDbContext, Passen
         var passengers = scope.ServiceProvider.GetRequiredService<PassengerDbContext>();
         (await passengers.Passengers.CountAsync(x => x.PassportNumber.Value == "987654321")).Should().Be(1);
         (await passengers.Passengers.AnyAsync(x => x.PassportNumber.Value == "987654322")).Should().BeFalse();
-        var identityStore = scope.ServiceProvider.GetRequiredService<
-            PersistMessageDbContext<global::Identity.IdentityRoot>
-        >();
-        (await identityStore.PersistMessage.AnyAsync(x => x.Id == id)).Should().BeFalse();
     }
 
     private async Task WaitForProcessed(Guid id)

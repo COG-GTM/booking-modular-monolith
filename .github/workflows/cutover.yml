@@ -1,0 +1,59 @@
+name: Cutover tooling
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/cutover.yml"
+      - "deployments/docker-compose/**"
+      - "scripts/cutover/**"
+      - "src/Gateway/**"
+      - "src/Aspire/**"
+      - "booking-modular-monolith.sln"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/cutover.yml"
+      - "deployments/docker-compose/**"
+      - "scripts/cutover/**"
+      - "src/Gateway/**"
+      - "src/Aspire/**"
+      - "booking-modular-monolith.sln"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cutover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: Test gateway and AppHost
+        run: |
+          dotnet test src/Gateway/tests/Gateway.Test/Gateway.Test.csproj
+          dotnet test src/Aspire/tests/AppHost.Test/AppHost.Test.csproj
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes shellcheck
+
+      - name: Check cutover scripts
+        run: shellcheck scripts/cutover/*.sh
+
+      - name: Validate Compose configurations
+        run: |
+          docker compose -f deployments/docker-compose/docker-compose.yaml config --quiet
+          docker compose \
+            -f deployments/docker-compose/docker-compose.yaml \
+            -f deployments/docker-compose/docker-compose.cutover.yaml \
+            config --quiet

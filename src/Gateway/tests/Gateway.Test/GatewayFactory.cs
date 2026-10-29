@@ -21,8 +21,9 @@ public sealed class GatewayFactory : WebApplicationFactory<Program>
     public const string Issuer = "http://gateway.test";
     public const string Audience = "booking-modular-monolith";
 
-    private static readonly SymmetricSecurityKey SigningKey =
-        new(Encoding.UTF8.GetBytes("gateway-tests-signing-key-0123456789abcdef"));
+    private static readonly SymmetricSecurityKey SigningKey = new(
+        Encoding.UTF8.GetBytes("gateway-tests-signing-key-0123456789abcdef")
+    );
 
     private readonly IDictionary<string, string?> _settings;
 
@@ -34,7 +35,7 @@ public sealed class GatewayFactory : WebApplicationFactory<Program>
     public static GatewayFactory AllClustersTo(EchoBackend backend, IDictionary<string, string?>? overrides = null)
     {
         var settings = new Dictionary<string, string?>();
-        foreach (var cluster in new[] { "identity", "flight", "passenger", "booking", "monolith" })
+        foreach (var cluster in new[] { "identity", "flight", "passenger", "booking" })
             settings[ClusterAddressKey(cluster)] = backend.Address;
 
         foreach (var (key, value) in overrides ?? new Dictionary<string, string?>())
@@ -42,6 +43,8 @@ public sealed class GatewayFactory : WebApplicationFactory<Program>
 
         return new GatewayFactory(settings);
     }
+
+    public const string CutoverConfigFileKey = "Cutover:ConfigFile";
 
     public static string ClusterAddressKey(string cluster) =>
         $"ReverseProxy:Clusters:{cluster}:Destinations:primary:Address";
@@ -64,14 +67,18 @@ public sealed class GatewayFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("test");
         builder.UseSetting("Jwt:Authority", Issuer);
-        builder.ConfigureAppConfiguration((_, config) =>
-            config.AddInMemoryCollection(
-                new Dictionary<string, string?>
-                {
-                    ["ObservabilityOptions:UseOTLPExporter"] = "false",
-                    ["ObservabilityOptions:UseAspireOTLPExporter"] = "false",
-                }.Concat(_settings)
-            )
+        // Read while the gateway builds its configuration, so it must be host-level rather than app configuration.
+        if (_settings.TryGetValue(CutoverConfigFileKey, out var cutoverConfigFile))
+            builder.UseSetting(CutoverConfigFileKey, cutoverConfigFile);
+        builder.ConfigureAppConfiguration(
+            (_, config) =>
+                config.AddInMemoryCollection(
+                    new Dictionary<string, string?>
+                    {
+                        ["ObservabilityOptions:UseOTLPExporter"] = "false",
+                        ["ObservabilityOptions:UseAspireOTLPExporter"] = "false",
+                    }.Concat(_settings)
+                )
         );
 
         builder.ConfigureTestServices(services =>

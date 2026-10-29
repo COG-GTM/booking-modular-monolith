@@ -19,12 +19,12 @@ The service needs PostgreSQL, MongoDB, and RabbitMQ. Local configuration uses th
 
 ```bash
 docker compose -f deployments/docker-compose/docker-compose.yaml up -d postgres mongo rabbitmq eventstore
-dotnet run --project src/Api/src/Api.csproj --launch-profile http
+dotnet run --project src/Services/Identity.Host/Identity.Host.csproj
 dotnet run --project src/Services/Flight.Host/Flight.Host.csproj
 scripts/smoke/flight-host.sh
 ```
 
-The monolith supplies local identity discovery/token issuance; Flight.Host validates the public issuer while reading metadata from the configured internal metadata address. The smoke script uses the development account and scope `booking-modular-monolith flight-api`, calls the seeded flight over REST and gRPC, requests available seats, reserves one, and checks both gRPC health service names.
+Identity.Host supplies local discovery/token issuance; Flight.Host validates the public issuer while reading metadata from the configured Identity endpoint. The smoke script uses the development account and scope `booking-modular-monolith flight-api`, calls the seeded flight over REST and gRPC, requests available seats, reserves one, and checks both gRPC health service names.
 
 ## Docker
 
@@ -38,27 +38,12 @@ The image selects the `docker` environment: HTTP is on container port 80 and HTT
 
 Service-to-service h2c gRPC is unauthenticated under the shared epic decision (ARB follow-up); keep port 81 on the internal network and never expose it publicly.
 
-## Running beside the monolith
+## Ownership changes
 
-During the AB-505 cutover, configure both hosts so each module's writes and background worker have one owner:
-
-1. Set the monolith's `Modules__Flight__BackgroundProcessingEnabled=false`. Flight.Host's `Modules:Flight:BackgroundProcessingEnabled` remains true.
-2. Route gateway Flight HTTP traffic to the standalone host:
-
-   ```text
-   ReverseProxy__Clusters__flight__Destinations__primary__Address=http://localhost:5107/
-   ```
-
-3. Route Booking's Flight gRPC client to the h2c listener:
-
-   ```text
-   Services__flight__grpc__0=http://localhost:5106
-   ```
-
-4. Use the standalone stores `flight_service` and `flight_service_read`; do not point the host at the monolith's `flight_modular_monolith` or `flight_modular_monolith_read` stores. Existing data migration/reconciliation is deferred to AB-505.
-5. Run only one active Flight outbox/background processor for a given Flight store. Scale stateless HTTP replicas only when the worker switch is disabled on all but one replica.
-
-Rollback by restoring the gateway's Flight destination and Booking's gRPC service address to the monolith, then re-enable monolith Flight background processing. Do not switch back to stale monolith databases after writes have started in the standalone stores; coordinate data reconciliation under AB-505.
+Use `scripts/cutover/cutover.sh flip flight service` to move Flight to this host and
+`scripts/cutover/cutover.sh flip flight monolith` to roll back. The script synchronizes
+Flight PostgreSQL and Mongo data before changing ownership and adjusts Booking's gRPC
+destination with the gateway route. See the [cutover runbook](./cutover.md) for details.
 
 ## Verification
 

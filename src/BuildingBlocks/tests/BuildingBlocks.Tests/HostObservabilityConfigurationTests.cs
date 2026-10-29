@@ -9,7 +9,6 @@ public class HostObservabilityConfigurationTests
 {
     [Theory]
     [InlineData("src/Gateway/src", "booking-gateway")]
-    [InlineData("src/Api/src", "booking-modular-monolith")]
     [InlineData("src/Services/Booking.Host", "booking-service")]
     [InlineData("src/Services/Flight.Host", "flight-service")]
     [InlineData("src/Services/Identity.Host", "identity-service")]

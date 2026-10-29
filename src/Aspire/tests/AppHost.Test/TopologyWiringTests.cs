@@ -155,48 +155,8 @@ public class TopologyWiringTests
         Assert.Equal("8.17.0", elasticsearchImage.Tag);
     }
 
-    [Fact]
-    public async Task Monolith_topology_wires_expected_api_endpoints_environment_and_gateway()
-    {
-        await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(
-            ["--AppHost:Topology=Monolith"]
-        );
-        var projects = builder.Resources.OfType<ProjectResource>().ToDictionary(project => project.Name);
-        var api = projects["api"];
-        var gateway = projects["gateway"];
-        var apiEnvironment = await Environment(builder, api);
-        var gatewayEnvironment = await Environment(builder, gateway);
-
-        Assert.Equal(["api", "gateway"], projects.Keys.Order().ToArray());
-        AssertEndpoints(api, ("Http", 3001, "http"), ("Https", 3000, "https"), ("Grpc", 3002, "http"));
-        Assert.Equal("{api.bindings.Grpc.url}", apiEnvironment["services__flight__grpc__0"]);
-        Assert.Equal("{api.bindings.Grpc.url}", apiEnvironment["services__passenger__grpc__0"]);
-        Assert.Equal(
-            "{api.bindings.Http.url}/.well-known/openid-configuration",
-            apiEnvironment["Jwt__MetadataAddress"]
-        );
-        Assert.Equal("http://localhost:5000", apiEnvironment["AuthOptions__IssuerUri"]);
-        Assert.Equal("http://localhost:5000", apiEnvironment["Jwt__Authority"]);
-
-        foreach (var cluster in new[] { "identity", "flight", "passenger", "booking", "monolith" })
-            Assert.Equal(
-                "{api.bindings.Http.url}",
-                gatewayEnvironment[$"ReverseProxy__Clusters__{cluster}__Destinations__primary__Address"]
-            );
-
-        Assert.Equal(
-            "{api.bindings.Http.url}/.well-known/openid-configuration",
-            gatewayEnvironment["Jwt__MetadataAddress"]
-        );
-        Assert.Contains(
-            gateway.Annotations.OfType<WaitAnnotation>().Select(wait => wait.Resource.Name),
-            name => name == "api"
-        );
-    }
-
     [Theory]
     [InlineData("services", "booking", "flight", "gateway", "identity", "passenger")]
-    [InlineData("MONOLITH", "api", "gateway")]
     public async Task Topology_value_is_case_insensitive(string topology, params string[] expectedProjects)
     {
         await using var builder = await DistributedApplicationTestingBuilder.CreateAsync<Projects.AppHost>(

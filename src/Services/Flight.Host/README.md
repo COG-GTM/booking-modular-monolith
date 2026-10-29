@@ -37,10 +37,10 @@ Start the local dependencies (including RabbitMQ):
 docker compose -f deployments/docker-compose/docker-compose.yaml up -d postgres mongo rabbitmq eventstore
 ```
 
-Run the identity-enabled monolith for local token issuance, then start Flight.Host:
+Start Identity.Host for local token issuance, then start Flight.Host:
 
 ```bash
-dotnet run --project src/Api/src/Api.csproj --launch-profile http
+dotnet run --project src/Services/Identity.Host/Identity.Host.csproj
 dotnet run --project src/Services/Flight.Host/Flight.Host.csproj
 ```
 

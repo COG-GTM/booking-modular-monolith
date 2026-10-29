@@ -396,50 +396,9 @@ if (string.Equals(topology, "Services", StringComparison.OrdinalIgnoreCase))
             );
     }
 }
-else if (string.Equals(topology, "Monolith", StringComparison.OrdinalIgnoreCase))
-{
-    grafana.WithEndpoint("http", endpoint => endpoint.Port = 3005);
-    var flightDb = postgres.AddDatabase("flight-db", "flight");
-    var passengerDb = postgres.AddDatabase("passenger-db", "passenger");
-    var identityDb = postgres.AddDatabase("identity-db", "identity");
-    var bookingDb = postgres.AddDatabase("booking-db", "booking");
-    var api = builder
-        .AddProject<Api>("api", options => options.ExcludeLaunchProfile = true)
-        .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
-        .WithReference(bookingDb, "booking")
-        .WaitFor(bookingDb)
-        .WithReference(flightDb, "flight")
-        .WaitFor(flightDb)
-        .WithReference(passengerDb, "passenger")
-        .WaitFor(passengerDb)
-        .WithReference(identityDb, "identity")
-        .WaitFor(identityDb)
-        .WithReference(mongo)
-        .WaitFor(mongo)
-        .WithReference(eventstore)
-        .WaitFor(eventstore)
-        .WithReference(rabbitmq)
-        .WaitFor(rabbitmq)
-        .WithEnvironment("AuthOptions__IssuerUri", GatewayPublicUrl)
-        .WithEnvironment("Jwt__Authority", GatewayPublicUrl);
-    foreach (var endpoint in api.Resource.Annotations.OfType<EndpointAnnotation>().ToList())
-        api.Resource.Annotations.Remove(endpoint);
-    api.WithHttpEndpoint(port: 3001, name: "Http", isProxied: false)
-        .WithHttpHealthCheck("/health", endpointName: "Http")
-        .WithHttpsEndpoint(port: 3000, name: "Https", isProxied: false)
-        .WithHttpEndpoint(port: 3002, name: "Grpc", isProxied: false);
-    var http = api.GetEndpoint("Http");
-    var metadata = ReferenceExpression.Create($"{http}/.well-known/openid-configuration");
-    api.WithEnvironment("Jwt__MetadataAddress", metadata)
-        .WithEnvironment("services__flight__grpc__0", api.GetEndpoint("Grpc"))
-        .WithEnvironment("services__passenger__grpc__0", api.GetEndpoint("Grpc"));
-    gateway.WithReference(api).WaitFor(api).WithEnvironment("Jwt__MetadataAddress", metadata);
-    foreach (var cluster in new[] { "identity", "flight", "passenger", "booking", "monolith" })
-        gateway.WithEnvironment($"ReverseProxy__Clusters__{cluster}__Destinations__primary__Address", http);
-}
 else
 {
-    throw new ArgumentException($"Unknown AppHost:Topology '{topology}'. Expected Services or Monolith.");
+    throw new ArgumentException($"Unknown AppHost:Topology '{topology}'. Expected Services.");
 }
 
 IResourceBuilder<ProjectResource> ConfigureService(
