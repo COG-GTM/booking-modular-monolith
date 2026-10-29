@@ -30,6 +30,7 @@ The target state is drawn in [docs/architecture/target-architecture.md](../archi
 | [0025](0025-multi-service-docker-compose-topology.md) | Multi-service Docker Compose topology (AB-503) | Proposed |
 | [0026](0026-kubernetes-helm-deployment.md) | Kubernetes deployment with Helm (AB-491) | Proposed |
 | [0023](0023-per-service-observability.md) | Per-service observability (AB-495) | Proposed |
+| [0024](0024-aspire-local-orchestration.md) | Aspire local orchestration (AB-497) | Proposed |
 
 ## Conventions
 
