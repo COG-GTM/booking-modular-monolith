@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Api;
@@ -5,6 +6,7 @@ using BuildingBlocks.Constants;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
 using Grpc.Core;
+using Grpc.Net.Client;
 using Integration.Test.Fakes;
 using MassTransit;
 using Microsoft.AspNetCore.Http;
@@ -89,9 +91,8 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
 
         await Fixture.SendAsync(command);
-        SetCurrentUser(NewId.NextGuid(), IdentityConstant.Role.Admin);
 
-        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(Fixture.Channel);
+        var passengerGrpcClient = CreateGrpcClient(NewId.NextGuid(), IdentityConstant.Role.Admin);
 
         // Act
         var response = await passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = command.Id.ToString() });
@@ -108,9 +109,8 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
 
         await Fixture.SendAsync(command);
-        SetCurrentUser(NewId.NextGuid(), IdentityConstant.Role.User);
 
-        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(Fixture.Channel);
+        var passengerGrpcClient = CreateGrpcClient(NewId.NextGuid(), IdentityConstant.Role.User);
 
         // Act
         var act = async () => await passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = command.Id.ToString() });
@@ -118,6 +118,24 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         // Assert
         var exception = await Assert.ThrowsAsync<RpcException>(act);
         exception.StatusCode.Should().Be(StatusCode.NotFound);
+    }
+
+    private PassengerGrpcService.PassengerGrpcServiceClient CreateGrpcClient(Guid subjectId, string role)
+    {
+        SetCurrentUser(subjectId, role);
+
+        var httpClient = Fixture.CreateHttpClientWithClaims(
+            new Dictionary<string, object>
+            {
+                { ClaimTypes.Name, "test@sample.com" },
+                { ClaimTypes.Role, role },
+                { "sub", subjectId.ToString() },
+                { "scope", "flight-api" },
+            }
+        );
+
+        var channel = GrpcChannel.ForAddress(httpClient.BaseAddress!, new GrpcChannelOptions { HttpClient = httpClient });
+        return new PassengerGrpcService.PassengerGrpcServiceClient(channel);
     }
 
     private void SetCurrentUser(Guid subjectId, string role)
