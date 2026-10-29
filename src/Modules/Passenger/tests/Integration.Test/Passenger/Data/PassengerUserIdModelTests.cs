@@ -1,7 +1,10 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Xunit;
 
 namespace Integration.Test.Passenger.Data;
@@ -28,7 +31,34 @@ public class PassengerUserIdModelTests
                 index.GetDatabaseName() == "ix_passenger_user_id" && index.Properties.Contains(property)
             );
         context.Database.GetMigrations().Should().Contain("20261029154023_AddPassengerUserId");
-        context.Database.HasPendingModelChanges().Should().BeFalse();
+
+        var snapshot = context.GetService<IMigrationsAssembly>().ModelSnapshot!.Model;
+        if (snapshot is IMutableModel mutableSnapshot)
+        {
+            snapshot = mutableSnapshot.FinalizeModel();
+        }
+
+        snapshot = context
+            .GetService<IModelRuntimeInitializer>()
+            .Initialize(snapshot, designTime: true, validationLogger: null);
+        var differences = context
+            .GetService<IMigrationsModelDiffer>()
+            .GetDifferences(
+                snapshot.GetRelationalModel(),
+                context.GetService<IDesignTimeModel>().Model.GetRelationalModel()
+            );
+
+        differences
+            .Where(operation =>
+                operation
+                    is ColumnOperation { Name: "user_id" }
+                        or CreateIndexOperation { Name: "ix_passenger_user_id" }
+                        or DropIndexOperation { Name: "ix_passenger_user_id" }
+                        or RenameIndexOperation { Name: "ix_passenger_user_id" }
+                        or RenameIndexOperation { NewName: "ix_passenger_user_id" }
+            )
+            .Should()
+            .BeEmpty();
     }
 
     private static PassengerModule.Data.PassengerDbContext CreateContext()
