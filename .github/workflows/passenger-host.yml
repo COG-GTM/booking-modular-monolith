@@ -1,0 +1,36 @@
+name: Passenger Host
+
+on:
+  pull_request:
+    branches: ["main", "devin/ab-488-v3"]
+    paths:
+      - "src/Services/Passenger.Host/**"
+      - "src/Modules/Passenger/**"
+      - "src/BuildingBlocks/**"
+      - "src/Contracts/**"
+      - ".github/workflows/passenger-host.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  passenger-host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build Passenger.Host
+        run: dotnet build src/Services/Passenger.Host/Passenger.Host.csproj -c Release -nologo
+
+      - name: Test Passenger.Host
+        run: dotnet test src/Modules/Passenger/tests/Host.Test/Passenger.Host.Test.csproj -c Release -nologo
+
+      - name: Build Passenger.Host container
+        run: docker build -f src/Services/Passenger.Host/Dockerfile -t booking-passenger-service .
