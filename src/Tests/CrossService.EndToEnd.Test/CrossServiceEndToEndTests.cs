@@ -78,9 +78,11 @@ public sealed class CrossServiceEndToEndTests(CrossServiceEndToEndFixture fixtur
         {
             var database = fixture.MongoClient.GetDatabase("booking_service_read");
             var collection = database.GetCollection<BsonDocument>("booking");
-            var filter = Builders<BsonDocument>.Filter.Eq("PassengerInfo.Name", passenger.Name)
-                & Builders<BsonDocument>.Filter.Eq("Trip.FlightNumber", "BD467");
-            return await collection.Find(filter).AnyAsync();
+            var filter = Builders<BsonDocument>.Filter.Eq("passengerInfo.name", passenger.Name)
+                & Builders<BsonDocument>.Filter.Eq("trip.description", "AB-504 cross-service booking");
+            var booking = await collection.Find(filter).FirstOrDefaultAsync();
+            return booking is not null
+                && booking["trip"]["flightNumber"].AsString.Contains("BD467", StringComparison.Ordinal);
         });
         bookingProjected.Should().BeTrue(fixture.FailureContext());
     }
@@ -437,7 +439,7 @@ public sealed class CrossServiceEndToEndFixture : IAsyncLifetime
             await using var connection = new NpgsqlConnection(connectionString);
             await connection.OpenAsync();
             await using var command = new NpgsqlCommand(
-                "SELECT id FROM passengers WHERE passport_number = @passport_number LIMIT 1",
+                "SELECT id FROM passenger WHERE passport_number = @passport_number LIMIT 1",
                 connection
             );
             command.Parameters.AddWithValue("passport_number", passportNumber);
@@ -535,7 +537,6 @@ public sealed class CrossServiceEndToEndFixture : IAsyncLifetime
         {
             [$"PostgresOptions__ConnectionString__{CultureInfoInvariantTitle(module)}"] = ServiceConnectionString(module),
             ["MongoOptions__ConnectionString"] = _mongo.GetConnectionString(),
-            ["EventStoreOptions__ConnectionString"] = EventStoreConnectionString(),
             ["RabbitMqOptions__HostName"] = _rabbitMq.Hostname,
             ["RabbitMqOptions__Port"] = _rabbitMq.GetMappedPublicPort(5672).ToString(),
             ["RabbitMqOptions__UserName"] = "booking",
