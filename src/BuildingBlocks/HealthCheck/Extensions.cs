@@ -2,6 +2,7 @@ using BuildingBlocks.Web;
 using Humanizer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -13,8 +14,11 @@ namespace BuildingBlocks.HealthCheck;
 
 public static class Extensions
 {
-    private const string HealthEndpointPath = "/health";
-    private const string AlivenessEndpointPath = "/alive";
+    public const string HealthEndpointPath = "/health";
+    public const string AlivenessEndpointPath = "/alive";
+    public const string LivenessEndpointPath = "/health/live";
+    public const string ReadinessEndpointPath = "/health/ready";
+    public const string LiveTag = "live";
 
     public static IServiceCollection AddCustomHealthCheck(this IServiceCollection services)
     {
@@ -102,7 +106,11 @@ public static class Extensions
             }
         }
 
-        services.AddHealthChecks().AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
+        services.AddHealthChecks().AddCheck("self", () => HealthCheckResult.Healthy(), [LiveTag]);
+
+        if (healthOptions.MetricsEnabled)
+            services.AddHealthCheckMetrics();
+
         return services;
     }
 
@@ -110,18 +118,41 @@ public static class Extensions
     {
         var healthOptions = app.Configuration.GetOptions<HealthOptions>(nameof(HealthOptions));
 
-        if (app.Environment.IsDevelopment())
-        {
-            app.MapHealthChecks(HealthEndpointPath);
-            app.MapHealthChecks(
-                AlivenessEndpointPath,
-                new HealthCheckOptions { Predicate = r => r.Tags.Contains("live") }
-            );
-        }
+        app.MapCustomHealthEndpoints();
 
         if (healthOptions.Enabled && healthOptions.UIEnabled)
             app.MapHealthChecksUI(options => options.UIPath = "/health-ui");
 
         return app;
     }
+
+    // Probe contract shared by every host (all environments), consumed by compose healthchecks and K8s probes:
+    // /health/live and /alive = "live" checks only; /health/ready = everything else; /health = all checks.
+    public static IEndpointRouteBuilder MapCustomHealthEndpoints(this IEndpointRouteBuilder endpoints)
+    {
+        endpoints.MapHealthChecks(
+            HealthEndpointPath,
+            new HealthCheckOptions { ResponseWriter = HealthResponseWriter.WriteAsync }
+        );
+        endpoints.MapHealthChecks(
+            AlivenessEndpointPath,
+            new HealthCheckOptions { Predicate = IsLivenessCheck, ResponseWriter = HealthResponseWriter.WriteAsync }
+        );
+        endpoints.MapHealthChecks(
+            LivenessEndpointPath,
+            new HealthCheckOptions { Predicate = IsLivenessCheck, ResponseWriter = HealthResponseWriter.WriteAsync }
+        );
+        endpoints.MapHealthChecks(
+            ReadinessEndpointPath,
+            new HealthCheckOptions { Predicate = IsReadinessCheck, ResponseWriter = HealthResponseWriter.WriteAsync }
+        );
+
+        return endpoints;
+    }
+
+    public static bool IsLivenessCheck(HealthCheckRegistration registration) =>
+        registration.Tags.Contains(LiveTag);
+
+    public static bool IsReadinessCheck(HealthCheckRegistration registration) =>
+        !registration.Tags.Contains(LiveTag);
 }

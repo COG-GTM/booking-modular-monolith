@@ -92,9 +92,9 @@ public static class SharedInfrastructureExtensions
 
         app.MapGrpcHealthChecksService();
 
-        // Readiness in every environment: every check except liveness-only ones, i.e. the Flight/Passenger gRPC dependencies plus
-        // Postgres/Mongo/RabbitMQ/EventStoreDB when HealthOptions:Enabled. /health and /alive stay Development-only.
-        app.MapHealthChecks(ReadinessEndpointPath, new HealthCheckOptions { Predicate = IsReadinessCheck });
+        // /health, /alive, /health/live and /health/ready come from ServiceDefaults (UseCustomHealthCheck) in every environment.
+        // Readiness = every check except liveness-only ones, i.e. the Flight/Passenger gRPC dependencies plus
+        // Postgres/Mongo/RabbitMQ/EventStoreDB when HealthOptions:Enabled.
 
         app.MapGet("/", x => x.Response.WriteAsync(appOptions.Name));
 
@@ -106,12 +106,11 @@ public static class SharedInfrastructureExtensions
         return app;
     }
 
-    public const string ReadinessEndpointPath = "/health/ready";
+    public const string ReadinessEndpointPath = BuildingBlocks.HealthCheck.Extensions.ReadinessEndpointPath;
 
     public static bool IsReadinessCheck(HealthCheckRegistration registration) =>
-        !registration.Tags.Contains(LivenessHealthTag);
+        BuildingBlocks.HealthCheck.Extensions.IsReadinessCheck(registration);
 
-    private const string LivenessHealthTag = "live";
 
     private static bool IsOwnDependency(Grpc.AspNetCore.HealthChecks.HealthCheckMapContext context) =>
         !context.Tags.Contains(GrpcClientExtensions.GrpcDependencyHealthTag);

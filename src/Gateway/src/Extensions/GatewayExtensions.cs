@@ -58,13 +58,6 @@ public static class GatewayExtensions
         app.UseAuthorization();
         app.UseRateLimiter();
 
-        // ServiceDefaults only maps health endpoints in Development; the gateway needs them everywhere.
-        if (!app.Environment.IsDevelopment())
-        {
-            app.MapHealthChecks("/health");
-            app.MapHealthChecks("/alive", new HealthCheckOptions { Predicate = registration => registration.Tags.Contains("live") });
-        }
-
         app.MapReverseProxy();
 
         return app;
