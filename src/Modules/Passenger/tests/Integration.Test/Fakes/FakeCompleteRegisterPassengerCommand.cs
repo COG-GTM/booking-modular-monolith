@@ -8,9 +8,10 @@ using MassTransit;
 
 public sealed class FakeCompleteRegisterPassengerCommand : AutoFaker<CompleteRegisterPassenger>
 {
-    public FakeCompleteRegisterPassengerCommand(string passportNumber, Guid passengerId)
+    public FakeCompleteRegisterPassengerCommand(string passportNumber, Guid passengerId, Guid userId)
     {
         RuleFor(r => r.Id, _ => passengerId);
+        RuleFor(r => r.UserId, _ => userId);
         RuleFor(r => r.PassportNumber, _ => passportNumber);
         RuleFor(r => r.PassengerType, _ => PassengerType.Male);
         RuleFor(r => r.Age, _ => 30);
