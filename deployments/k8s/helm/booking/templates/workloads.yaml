@@ -1,0 +1,231 @@
+{{- range $key, $service := .Values.services }}
+{{- if ne $key "defaults" }}
+{{- $name := include "booking.serviceName" (dict "root" $ "key" $key) }}
+{{- $image := mergeOverwrite (deepCopy $.Values.services.defaults.image) (deepCopy $service.image) }}
+{{- $probes := mergeOverwrite (deepCopy $.Values.services.defaults.probes) (deepCopy $service.probes) }}
+{{- $resources := mergeOverwrite (deepCopy $.Values.services.defaults.resources) (deepCopy $service.resources) }}
+{{- $dbSecret := "" }}
+{{- if $service.database }}
+{{- $dbSecret = include "booking.databaseSecret" (dict "root" $ "key" $key) }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "booking.commonLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  replicas: {{ $service.replicas }}
+  selector:
+    matchLabels:
+      {{- include "booking.selectorLabels" (dict "root" $ "name" $name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "booking.selectorLabels" (dict "root" $ "name" $name) | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmaps.yaml") $ | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") $ | sha256sum }}
+    spec:
+      securityContext:
+        runAsNonRoot: {{ $.Values.podSecurity.runAsNonRoot }}
+        runAsUser: {{ $.Values.podSecurity.runAsUser }}
+        runAsGroup: {{ $.Values.podSecurity.runAsGroup }}
+        {{- if eq $key "identity" }}
+        fsGroup: {{ $.Values.podSecurity.runAsGroup }}
+        {{- end }}
+        seccompProfile:
+          type: {{ $.Values.podSecurity.seccompProfile }}
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $.Values.infrastructure.enabled }}
+      initContainers:
+        - name: wait-for-dependencies
+          image: {{ $.Values.infrastructure.waitImage | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              until nc -z {{ include "booking.postgresHost" $ | quote }} {{ $.Values.postgres.port }} &&
+                    nc -z {{ include "booking.rabbitHost" $ | quote }} {{ $.Values.rabbitmq.port }}; do
+                echo "waiting for PostgreSQL and RabbitMQ"
+                sleep 2
+              done
+              {{- if or (eq $key "flight") (eq $key "passenger") (eq $key "booking") }}
+              until nc -z {{ include "booking.mongoHost" $ | quote }} 27017; do
+                echo "waiting for MongoDB"
+                sleep 2
+              done
+              {{- end }}
+              {{- if eq $key "booking" }}
+              until nc -z {{ include "booking.eventstoreHost" $ | quote }} 2113; do
+                echo "waiting for EventStoreDB"
+                sleep 2
+              done
+              until wget -qO- http://{{ include "booking.serviceName" (dict "root" $ "key" "flight") }}:8080/health/ready >/dev/null; do
+                echo "waiting for Flight readiness"
+                sleep 2
+              done
+              until wget -qO- http://{{ include "booking.serviceName" (dict "root" $ "key" "passenger") }}:8080/health/ready >/dev/null; do
+                echo "waiting for Passenger readiness"
+                sleep 2
+              done
+              {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      {{- end }}
+      containers:
+        - name: {{ $key }}
+          image: {{ printf "%s:%s" $image.repository $image.tag | quote }}
+          imagePullPolicy: {{ $image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: {{ $.Values.podSecurity.readOnlyRootFilesystem }}
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            {{- if or (eq $key "flight") (eq $key "passenger") }}
+            - name: grpc
+              containerPort: 8081
+              protocol: TCP
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ $name }}-config
+          env:
+            {{- if $service.database }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $dbSecret }}
+                  key: {{ $service.database.passwordKey }}
+            {{- if $service.database.name }}
+            - name: {{ printf "PostgresOptions__ConnectionString__%s" (title $key) }}
+              value: {{ include "booking.databaseConnectionString" (dict "root" $ "service" $service) | quote }}
+            {{- end }}
+            - name: {{ printf "PersistMessageOptions__ConnectionString__%s" (title $key) }}
+              value: {{ include "booking.persistMessageConnectionString" (dict "root" $ "service" $service) | quote }}
+            {{- end }}
+            {{- if ne $key "gateway" }}
+            - name: RabbitMqOptions__UserName
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "booking.rabbitSecret" $ }}
+                  key: {{ $.Values.rabbitmq.auth.usernameKey }}
+            - name: RabbitMqOptions__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "booking.rabbitSecret" $ }}
+                  key: {{ $.Values.rabbitmq.auth.passwordKey }}
+            {{- end }}
+            {{- if or (eq $key "flight") (eq $key "passenger") (eq $key "booking") }}
+            - name: MongoOptions__ConnectionString
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "booking.mongoSecret" $ }}
+                  key: {{ $.Values.mongodb.connectionStringKey }}
+            {{- end }}
+            {{- if eq $key "flight" }}
+            - name: MongoOptions__Flight__ConnectionString
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "booking.mongoSecret" $ }}
+                  key: {{ $.Values.mongodb.connectionStringKey }}
+            {{- else if eq $key "passenger" }}
+            - name: MongoOptions__Passenger__ConnectionString
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "booking.mongoSecret" $ }}
+                  key: {{ $.Values.mongodb.connectionStringKey }}
+            {{- else if eq $key "booking" }}
+            - name: MongoOptions__Booking__ConnectionString
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "booking.mongoSecret" $ }}
+                  key: {{ $.Values.mongodb.connectionStringKey }}
+            - name: EventStoreOptions__ConnectionString
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "booking.eventstoreSecret" $ }}
+                  key: {{ $.Values.eventstore.connectionStringKey }}
+            {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- if eq $key "identity" }}
+            - name: identity-keys
+              mountPath: /app/keys
+            - name: signing-key
+              mountPath: /app/keys/tempkey.jwk
+              subPath: tempkey.jwk
+              readOnly: true
+            {{- end }}
+          startupProbe:
+            httpGet:
+              path: {{ $probes.startupPath }}
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: {{ $probes.livenessPath }}
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: {{ $probes.readinessPath }}
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            {{- toYaml $resources | nindent 12 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if eq $key "identity" }}
+        - name: identity-keys
+          emptyDir: {}
+        - name: signing-key
+          secret:
+            secretName: {{ $.Values.identity.signingKey.existingSecret }}
+            items:
+              - key: {{ $.Values.identity.signingKey.key }}
+                path: tempkey.jwk
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "booking.commonLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "booking.selectorLabels" (dict "root" $ "name" $name) | nindent 4 }}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+    {{- if or (eq $key "flight") (eq $key "passenger") }}
+    - name: grpc
+      port: 8081
+      targetPort: grpc
+      appProtocol: kubernetes.io/h2c
+      protocol: TCP
+    {{- end }}
+{{- end }}
+{{- end }}

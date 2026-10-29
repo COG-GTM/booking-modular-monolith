@@ -1,0 +1,103 @@
+{{- if .Values.infrastructure.enabled }}
+{{- $name := include "booking.infraName" (dict "root" . "key" "rabbitmq") }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "booking.commonLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "booking.selectorLabels" (dict "root" $ "name" $name) | nindent 4 }}
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: amqp
+    - name: management
+      port: 15672
+      targetPort: management
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "booking.commonLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  serviceName: {{ $name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "booking.selectorLabels" (dict "root" $ "name" $name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "booking.selectorLabels" (dict "root" $ "name" $name) | nindent 8 }}
+    spec:
+      initContainers:
+        - name: fix-data-permissions
+          image: {{ .Values.infrastructure.waitImage | quote }}
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - chown -R 999:999 /var/lib/rabbitmq
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/rabbitmq
+      containers:
+        - name: rabbitmq
+          image: {{ .Values.infrastructure.rabbitmq.image | quote }}
+          imagePullPolicy: {{ .Values.infrastructure.rabbitmq.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "booking.rabbitSecret" . }}
+                  key: {{ .Values.rabbitmq.auth.usernameKey }}
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "booking.rabbitSecret" . }}
+                  key: {{ .Values.rabbitmq.auth.passwordKey }}
+          ports:
+            - name: amqp
+              containerPort: 5672
+            - name: management
+              containerPort: 15672
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 12
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/rabbitmq
+  {{- if .Values.infrastructure.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.infrastructure.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.infrastructure.persistence.size }}
+  {{- else }}
+      volumes:
+        - name: data
+          emptyDir: {}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,29 @@
+{{- range $key, $service := .Values.services }}
+{{- if ne $key "defaults" }}
+{{- if $service.autoscaling.enabled }}
+{{- $name := include "booking.serviceName" (dict "root" $ "key" $key) }}
+{{- $autoscaling := mergeOverwrite (deepCopy $.Values.services.defaults.autoscaling) (deepCopy $service.autoscaling) }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "booking.commonLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $name }}
+  minReplicas: {{ $autoscaling.minReplicas }}
+  maxReplicas: {{ $autoscaling.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $autoscaling.targetCPUUtilizationPercentage }}
+{{- end }}
+{{- end }}
+{{- end }}

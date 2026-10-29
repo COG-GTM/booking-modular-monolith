@@ -1,0 +1,128 @@
+{{- if .Values.infrastructure.enabled }}
+{{- $name := include "booking.infraName" (dict "root" . "key" "postgres") }}
+{{- $script := "set -eu\npsql -v ON_ERROR_STOP=1 --username \"$POSTGRES_USER\" --dbname \"$POSTGRES_DB\" \\\n  -v identity_password=\"$IDENTITY_DB_PASSWORD\" \\\n  -v flight_password=\"$FLIGHT_DB_PASSWORD\" \\\n  -v passenger_password=\"$PASSENGER_DB_PASSWORD\" \\\n  -v booking_password=\"$BOOKING_DB_PASSWORD\" <<'SQL'\n" }}
+{{- range $key := list "identity" "flight" "passenger" "booking" }}
+{{- $service := index $.Values.services $key }}
+{{- if $service.database.persistMessageDatabase }}
+{{- $role := $service.database.username }}
+{{- $rolePassword := printf "%s_password" $key }}
+{{- $databaseName := $service.database.persistMessageDatabase }}
+{{- $script = printf "%sCREATE ROLE %s LOGIN PASSWORD :'%s';\nCREATE DATABASE %s OWNER %s;\nREVOKE CONNECT ON DATABASE %s FROM PUBLIC;\nGRANT CONNECT ON DATABASE %s TO %s;\n" $script $role $rolePassword $databaseName $role $databaseName $databaseName $role }}
+{{- end }}
+{{- if $service.database.name }}
+{{- $databaseName := $service.database.name }}
+{{- $role := $service.database.username }}
+{{- $script = printf "%sCREATE DATABASE %s OWNER %s;\nREVOKE CONNECT ON DATABASE %s FROM PUBLIC;\nGRANT CONNECT ON DATABASE %s TO %s;\n" $script $databaseName $role $databaseName $databaseName $role }}
+{{- end }}
+{{- end }}
+{{- $script = printf "%sSQL" $script }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-init
+  labels:
+    {{- include "booking.commonLabels" (dict "root" $ "name" $name) | nindent 4 }}
+data:
+  01-service-databases.sh: |
+{{ $script | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "booking.commonLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "booking.selectorLabels" (dict "root" $ "name" $name) | nindent 4 }}
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "booking.commonLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  serviceName: {{ $name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "booking.selectorLabels" (dict "root" $ "name" $name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "booking.selectorLabels" (dict "root" $ "name" $name) | nindent 8 }}
+    spec:
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: {{ .Values.infrastructure.postgres.image | quote }}
+          imagePullPolicy: {{ .Values.infrastructure.postgres.pullPolicy }}
+          args: ["postgres", "-c", "wal_level=logical", "-c", "max_prepared_transactions=100"]
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.infrastructure.postgres.username | quote }}
+            - name: POSTGRES_DB
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "booking.postgresSecret" . }}
+                  key: {{ .Values.infrastructure.postgres.passwordKey }}
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            {{- range $key := list "identity" "flight" "passenger" "booking" }}
+            - name: {{ upper $key }}_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "booking.databaseSecret" (dict "root" $ "key" $key) }}
+                  key: {{ (index $.Values.services $key).database.passwordKey }}
+            {{- end }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-h", "127.0.0.1", "-U", {{ .Values.infrastructure.postgres.username | quote }}]
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d/01-service-databases.sh
+              subPath: 01-service-databases.sh
+              readOnly: true
+      volumes:
+        - name: init
+          configMap:
+            name: {{ $name }}-init
+            defaultMode: 0755
+        {{- if not .Values.infrastructure.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+  {{- if .Values.infrastructure.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.infrastructure.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.infrastructure.persistence.size }}
+  {{- end }}
+{{- end }}

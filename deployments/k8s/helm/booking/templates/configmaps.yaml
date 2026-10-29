@@ -1,0 +1,58 @@
+{{- range $key, $service := .Values.services }}
+{{- if ne $key "defaults" }}
+{{- $name := include "booking.serviceName" (dict "root" $ "key" $key) }}
+{{- $data := dict
+  "ASPNETCORE_ENVIRONMENT" "docker"
+  "Jwt__Authority" $.Values.global.publicUrl
+  "Jwt__Audience" $.Values.global.audience
+  "Jwt__MetadataAddress" (printf "http://%s:8080/.well-known/openid-configuration" (include "booking.serviceName" (dict "root" $ "key" "identity")))
+  "Messaging__Transport" "RabbitMq"
+  "RabbitMqOptions__HostName" (include "booking.rabbitHost" $)
+  "RabbitMqOptions__Port" (toString $.Values.rabbitmq.port)
+  "RabbitMqOptions__VirtualHost" $.Values.rabbitmq.vhost
+  "OTEL_SERVICE_NAME" $name
+  "ObservabilityOptions__ServiceName" $name
+  "ObservabilityOptions__UseOTLPExporter" "false"
+  "ObservabilityOptions__UseAspireOTLPExporter" "false"
+-}}
+{{- if $.Values.global.otlpEndpoint }}
+{{- $_ := set $data "OTEL_EXPORTER_OTLP_ENDPOINT" $.Values.global.otlpEndpoint -}}
+{{- $_ := set $data "ObservabilityOptions__UseOTLPExporter" "true" -}}
+{{- $_ := set $data "ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint" $.Values.global.otlpEndpoint -}}
+{{- end }}
+{{- if eq $key "identity" }}
+{{- $_ := set $data "AuthOptions__IssuerUri" $.Values.global.publicUrl -}}
+{{- $_ := set $data "AuthOptions__SigningKeyPath" "/app/keys/tempkey.jwk" -}}
+{{- $_ := set $data "Jwt__Authority" $.Values.global.publicUrl -}}
+{{- $_ := set $data "Jwt__MetadataAddress" "http://localhost:8080/.well-known/openid-configuration" -}}
+{{- else }}
+{{- if eq $key "gateway" }}
+{{- $_ := set $data "ASPNETCORE_URLS" "http://+:8080" -}}
+{{- range $cluster := list "identity" "flight" "passenger" "booking" }}
+{{- $_ := set $data (printf "ReverseProxy__Clusters__%s__Destinations__primary__Address" $cluster) (printf "http://%s:8080/" (include "booking.serviceName" (dict "root" $ "key" $cluster))) -}}
+{{- end }}
+{{- $_ := set $data "ReverseProxy__Clusters__monolith__Destinations__primary__Address" $.Values.gateway.monolithAddress -}}
+{{- else }}
+{{- if $service.database.mongoDatabase }}
+{{- $_ := set $data (printf "MongoOptions__%s__DatabaseName" (title $key)) $service.database.mongoDatabase -}}
+{{- end }}
+{{- if eq $key "booking" }}
+{{- $_ := set $data "Modules__Booking__BackgroundProcessingEnabled" (toString $service.backgroundProcessingEnabled) -}}
+{{- $_ := set $data "Grpc__FlightAddress" (printf "http://%s:8081" (include "booking.serviceName" (dict "root" $ "key" "flight"))) -}}
+{{- $_ := set $data "Grpc__PassengerAddress" (printf "http://%s:8081" (include "booking.serviceName" (dict "root" $ "key" "passenger"))) -}}
+{{- end }}
+{{- end }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-config
+  labels:
+    {{- include "booking.commonLabels" (dict "root" $ "name" $name) | nindent 4 }}
+data:
+  {{- range $env, $value := $data }}
+  {{ $env }}: {{ $value | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}

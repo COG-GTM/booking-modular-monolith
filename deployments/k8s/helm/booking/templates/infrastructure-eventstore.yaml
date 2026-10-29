@@ -1,0 +1,96 @@
+{{- if .Values.infrastructure.enabled }}
+{{- $name := include "booking.infraName" (dict "root" . "key" "eventstore") }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "booking.commonLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    {{- include "booking.selectorLabels" (dict "root" $ "name" $name) | nindent 4 }}
+  ports:
+    - name: esdb
+      port: 2113
+      targetPort: esdb
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "booking.commonLabels" (dict "root" $ "name" $name) | nindent 4 }}
+spec:
+  serviceName: {{ $name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "booking.selectorLabels" (dict "root" $ "name" $name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "booking.selectorLabels" (dict "root" $ "name" $name) | nindent 8 }}
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: eventstore
+          image: {{ .Values.infrastructure.eventstore.image | quote }}
+          imagePullPolicy: {{ .Values.infrastructure.eventstore.pullPolicy }}
+          env:
+            - name: EVENTSTORE_CLUSTER_SIZE
+              value: "1"
+            - name: EVENTSTORE_RUN_PROJECTIONS
+              value: All
+            - name: EVENTSTORE_START_STANDARD_PROJECTIONS
+              value: "True"
+            - name: EVENTSTORE_HTTP_PORT
+              value: "2113"
+            - name: EVENTSTORE_INSECURE
+              value: "True"
+            - name: EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP
+              value: "True"
+          ports:
+            - name: esdb
+              containerPort: 2113
+          readinessProbe:
+            httpGet:
+              path: /health/live
+              port: esdb
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 24
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/eventstore
+            - name: logs
+              mountPath: /var/log/eventstore
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: logs
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        {{- if not .Values.infrastructure.persistence.enabled }}
+        - name: data
+          emptyDir: {}
+        {{- end }}
+  {{- if .Values.infrastructure.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- with .Values.infrastructure.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.infrastructure.persistence.size }}
+  {{- end }}
+{{- end }}

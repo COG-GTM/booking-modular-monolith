@@ -1,0 +1,14 @@
+Booking microservices have been installed in namespace {{ .Release.Namespace }}.
+
+The only public application entry point is the gateway Ingress:
+  http{{ if .Values.gateway.ingress.tls }}s{{ end }}://{{ .Values.gateway.ingress.host }}
+
+{{- if .Values.infrastructure.enabled }}
+WARNING: infrastructure.enabled is true. PostgreSQL, MongoDB, RabbitMQ, and EventStoreDB
+in this chart are development-only single-instance workloads; do not use them in production.
+{{- end }}
+
+The Booking background processor and outbox poller require one active replica. Keep Booking
+replicas and autoscaling.maxReplicas at 1 while backgroundProcessingEnabled is true.
+
+For secrets and kind setup, see deployments/k8s/README.md.

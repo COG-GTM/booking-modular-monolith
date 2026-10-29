@@ -1,0 +1,31 @@
+global:
+  publicUrl: http://localhost:8088
+
+rabbitmq:
+  auth:
+    username: booking
+    password: booking
+
+gateway:
+  ingress:
+    host: localhost
+
+identity:
+  signingKey:
+    existingSecret: identity-signing-key
+
+infrastructure:
+  enabled: true
+  waitImage: mirror.gcr.io/library/busybox:1.36.1
+  persistence:
+    enabled: true
+    size: 4Gi
+    storageClass: standard
+  postgres:
+    image: mirror.gcr.io/library/postgres:16
+  mongo:
+    image: mirror.gcr.io/library/mongo:7
+  rabbitmq:
+    image: mirror.gcr.io/library/rabbitmq:management
+  eventstore:
+    image: mirror.gcr.io/eventstore/eventstore:latest

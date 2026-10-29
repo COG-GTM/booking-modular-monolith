@@ -1,0 +1,69 @@
+global:
+  publicUrl: https://booking.example.com
+
+namespace:
+  create: true
+
+services:
+  identity:
+    database:
+      existingSecret: booking-identity-database
+  flight:
+    database:
+      existingSecret: booking-flight-database
+  passenger:
+    database:
+      existingSecret: booking-passenger-database
+  booking:
+    database:
+      existingSecret: booking-booking-database
+  gateway:
+    replicas: 2
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 6
+      targetCPUUtilizationPercentage: 70
+  defaults:
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "2"
+        memory: 1536Mi
+
+postgres:
+  host: postgres.example.internal
+  port: 5432
+  sslMode: Require
+
+rabbitmq:
+  host: rabbitmq.example.internal
+  port: 5672
+  auth:
+    existingSecret: booking-rabbitmq-auth
+
+mongodb:
+  connectionString: ""
+  existingSecret: booking-mongodb
+
+eventstore:
+  connectionString: ""
+  existingSecret: booking-eventstore
+
+identity:
+  signingKey:
+    existingSecret: booking-identity-signing-key
+
+gateway:
+  ingress:
+    className: nginx
+    host: booking.example.com
+    tls:
+      - secretName: booking-ingress-tls
+
+infrastructure:
+  enabled: false
+  postgres:
+    existingSecret: booking-postgres-admin
