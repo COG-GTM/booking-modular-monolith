@@ -27,7 +27,8 @@ comparison and transition testing. Each host needs its own Docker image and serv
    development-only `booking/booking` credentials; Booking uses EventStoreDB and the Flight/Passenger h2c gRPC
    endpoints. These service addresses are configuration, not a new protocol or external integration.
 5. Docker health checks gate startup. Infrastructure health checks cover PostgreSQL, MongoDB, Redis, RabbitMQ, and the
-   EventStoreDB image's built-in health check. Readiness checks gate service-to-service startup and gateway ingress.
+   EventStoreDB image's built-in health check. Readiness checks gate service-to-service startup and gateway ingress;
+   both topologies probe `/health/ready` for every application host, including Identity and Gateway.
 6. The gateway routes module clusters to service DNS names. Fallback clusters point at Identity with a path rewrite to
    a deliberately unmatched path, making unmatched requests return 404 rather than proxying to a nonexistent
    monolith.

@@ -249,7 +249,7 @@ To run the full monolith topology, including the gateway and shared observabilit
 
 ```bash
 docker compose -f deployments/docker-compose/docker-compose.monolith.yaml up -d --build
-curl --fail http://localhost:5000/health
+curl --fail http://localhost:5000/health/ready
 ```
 
 The monolith publishes HTTP on `3001` and HTTPS on `3443`; Grafana continues to use `3000`, so the full topology can run
@@ -347,6 +347,14 @@ listens on `http://localhost:5004` in Development and owns its `booking_service`
 The standalone Flight host uses separate HTTP and h2c gRPC listeners. See the
 [Flight service runbook](./docs/runbooks/flight-service.md) and
 [ADR 0502](./docs/adr/0502-standalone-flight-service-host.md).
+
+### Observability (per service)
+
+Every deployable reports its own `service.name` (`booking-gateway`, `booking-modular-monolith`, `identity-service`,
+`flight-service`, `passenger-service`, `booking-service`), exposes `/health/live` and `/health/ready` in every environment,
+and both Compose topologies use `/health/ready` for application healthchecks. Hosts carry W3C trace context across the
+gateway, gRPC and the outbox/RabbitMQ hop so one booking request is one trace. See the
+[observability runbook](./docs/runbooks/observability.md) and [ADR 0495](./docs/adr/0495-per-service-observability-and-trace-propagation.md).
 
 ## Passenger service host
 

@@ -87,6 +87,31 @@ public class ServicesComposeConfigurationTests
     }
 
     [Fact]
+    public void app_services_use_readiness_probes_and_configured_otel_names()
+    {
+        var compose = File.ReadAllText(Path.Combine(
+            FindRepositoryRoot().FullName,
+            "deployments/docker-compose/docker-compose.yaml"));
+        var serviceNames = new Dictionary<string, string>
+        {
+            ["identity-service"] = "identity-service",
+            ["flight-service"] = "flight-service",
+            ["passenger-service"] = "passenger-service",
+            ["booking-service"] = "booking-service",
+            ["gateway"] = "booking-gateway"
+        };
+
+        foreach (var (service, serviceName) in serviceNames)
+        {
+            var section = ServiceSection(compose, service);
+            Assert.Contains($"OTEL_SERVICE_NAME: {serviceName}", section, StringComparison.Ordinal);
+            Assert.Contains("OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317", section,
+                StringComparison.Ordinal);
+            Assert.Contains("GET /health/ready HTTP/1.1", section, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void non_gateway_application_ports_are_loopback_bound()
     {
         var compose = File.ReadAllText(Path.Combine(

@@ -24,13 +24,15 @@ services:
       RabbitMqOptions__Password: booking
       ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
       ObservabilityOptions__UseAspireOTLPExporter: "false"
+      OTEL_SERVICE_NAME: identity-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/80; printf 'GET /health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; IFS=' ' read -r _ status _ <&3; test \"$$status\" = \"200\""]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/80; printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; IFS=' ' read -r _ status _ <&3; test \"$$status\" = \"200\""]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -61,6 +63,8 @@ services:
       RabbitMqOptions__Password: booking
       ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
       ObservabilityOptions__UseAspireOTLPExporter: "false"
+      OTEL_SERVICE_NAME: flight-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     depends_on:
       postgres:
         condition: service_healthy
@@ -102,6 +106,8 @@ services:
       RabbitMqOptions__Password: booking
       ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
       ObservabilityOptions__UseAspireOTLPExporter: "false"
+      OTEL_SERVICE_NAME: passenger-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     depends_on:
       postgres:
         condition: service_healthy
@@ -145,6 +151,8 @@ services:
       Services__passenger__grpc__0: http://passenger-service:81
       ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
       ObservabilityOptions__UseAspireOTLPExporter: "false"
+      OTEL_SERVICE_NAME: booking-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     depends_on:
       postgres:
         condition: service_healthy
@@ -191,6 +199,8 @@ services:
       ReverseProxy__Routes__monolith-fallback__Transforms__0__PathSet: /__gateway/unmatched
       ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
       ObservabilityOptions__UseAspireOTLPExporter: "false"
+      OTEL_SERVICE_NAME: booking-gateway
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     depends_on:
       identity-service:
         condition: service_healthy
@@ -201,7 +211,7 @@ services:
       booking-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/80; printf 'GET /health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; IFS=' ' read -r _ status _ <&3; test \"$$status\" = \"200\""]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/80; printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; IFS=' ' read -r _ status _ <&3; test \"$$status\" = \"200\""]
       interval: 10s
       timeout: 5s
       retries: 12

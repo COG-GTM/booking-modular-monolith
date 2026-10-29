@@ -35,11 +35,11 @@ assert_status() {
     printf '%s: HTTP %s\n' "$message" "$HTTP_STATUS"
 }
 
-until curl --fail --silent --show-error "$GATEWAY/health" >/dev/null 2>&1; do
-    printf 'Waiting for gateway /health...\n'
+until curl --fail --silent --show-error "$GATEWAY/health/ready" >/dev/null 2>&1; do
+    printf 'Waiting for gateway /health/ready...\n'
     sleep 2
 done
-printf 'Gateway /health: HTTP 200\n'
+printf 'Gateway /health/ready: HTTP 200\n'
 
 request "$GATEWAY/api/v1/flight/$FLIGHT_ID"
 assert_status 401 "Unauthenticated flight request"

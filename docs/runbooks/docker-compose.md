@@ -48,7 +48,7 @@ scripts/smoke/compose-e2e.sh
 
 ```bash
 docker compose -f deployments/docker-compose/docker-compose.monolith.yaml up -d --build
-curl --fail http://localhost:5000/health
+curl --fail http://localhost:5000/health/ready
 ```
 
 The `booking_modular_monolith` API is routed by the same gateway. The app environment and HTTPS certificate settings
@@ -89,15 +89,15 @@ PostgreSQL and RabbitMQ. Flight and Passenger wait for their PostgreSQL, MongoDB
 Booking additionally waits for EventStoreDB, Flight, and Passenger; its readiness endpoint includes downstream gRPC.
 The gateway waits for all four hosts to report healthy.
 
-App container checks use Bash's `/dev/tcp` support to issue a dependency-free HTTP GET: `/health` for Identity and the
-gateway, and `/health/ready` for Flight, Passenger, and Booking. Each has a 120-second start period to allow image
-startup, database initialization, and health dependencies to settle. The ASP.NET runtime image is verified to contain
-Bash.
+App container checks in both topologies use Bash's `/dev/tcp` support to issue a dependency-free HTTP GET to
+`/health/ready` for every host, including Identity and the gateway. The services topology uses a 120-second start
+period to allow image startup, database initialization, and health dependencies to settle; the monolith topology uses
+30 seconds for the API and 20 seconds for its gateway. The ASP.NET runtime image is verified to contain Bash.
 
 ## End-to-end smoke flow
 
 Run `scripts/smoke/compose-e2e.sh` with the service topology running. `GATEWAY` can override the default
-`http://localhost:5000`. The script waits for gateway health, checks unauthenticated rejection, obtains a password-grant
+`http://localhost:5000`. The script waits for gateway `/health/ready`, checks unauthenticated rejection, obtains a password-grant
 token through the gateway using the seeded `samh` local account, registers a unique passenger, polls the Passenger
 projection for the RabbitMQ event, completes registration, and creates a booking for the seeded Flight. It verifies the
 seat reservation and the Booking Mongo read model when that database is reachable, then checks an unmatched path for

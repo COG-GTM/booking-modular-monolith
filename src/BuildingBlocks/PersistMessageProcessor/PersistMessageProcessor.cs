@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Text.Json;
 using Ardalis.GuardClauses;
@@ -204,13 +205,21 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
         if (data is not IEvent)
             return false;
 
+        using var activity = PersistMessageTracing.StartProcessActivity(
+            $"outbox publish {data.GetType().Name}",
+            ActivityKind.Producer,
+            message,
+            messageEnvelope.Headers
+        );
+
         await _publishEndpoint.Publish(
             data,
             context =>
             {
                 // Stable MessageId: a re-publish after a crash is deduplicated by the consumer's inbox.
                 context.MessageId = message.Id;
-                foreach (var header in messageEnvelope.Headers)
+                // MassTransit writes its own traceparent for the publish span (a child of the activity above).
+                foreach (var header in messageEnvelope.Headers.Where(h => !PersistMessageTracing.IsTraceHeader(h.Key)))
                     context.Headers.Set(header.Key, header.Value);
             },
             cancellationToken
@@ -239,6 +248,13 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
 
         if (data is not IInternalCommand internalCommand)
             return false;
+
+        using var activity = PersistMessageTracing.StartProcessActivity(
+            $"internal command {data.GetType().Name}",
+            ActivityKind.Internal,
+            message,
+            messageEnvelope.Headers
+        );
 
         await _mediator.Send(internalCommand, cancellationToken);
 
@@ -285,7 +301,11 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
             new PersistMessage(
                 id,
                 messageEnvelope.Message.GetType().ToString(),
-                JsonSerializer.Serialize(messageEnvelope),
+                JsonSerializer.Serialize(
+                    deliveryType == MessageDeliveryType.Inbox
+                        ? messageEnvelope
+                        : PersistMessageTracing.WithCurrentTraceContext(messageEnvelope)
+                ),
                 deliveryType
             ),
             cancellationToken
