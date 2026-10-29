@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
 print_usage() {
-  printf 'Usage: %s {up|status|flip <identity|flight|passenger|booking> <service|monolith>|all|decommission}\n' "$0"
+  printf 'Usage: %s {up [--reset]|status|flip <identity|flight|passenger|booking> <service|monolith>|all|decommission}\n' "$0"
 }
 
 initialize_state() {
@@ -34,8 +34,12 @@ status() {
 }
 
 preflight() {
+  local context="$1" target="$2"
+  if [[ "$target" == monolith ]]; then
+    compose up -d --no-deps monolith
+  fi
   wait_healthy monolith
-  wait_healthy "$1-service"
+  wait_healthy "$context-service"
 }
 
 set_stage() {
@@ -53,16 +57,41 @@ stage_before() {
   ((current_index < requested_index))
 }
 
-abort_interrupted_flip() {
-  local context="$1" owner="$2"
-  printf 'Aborting unfinished flip without copying data; %s remains authoritative.\n' "$owner"
+recreate_affected_containers() {
+  local context="$1" context_service="${1}-service" service
+  local -a services=(monolith "$context_service")
+  if [[ "$context_service" != booking-service ]] && [[ -n "$(compose ps --status running -q booking-service)" ]]; then
+    services+=(booking-service)
+  fi
+  compose up -d --no-deps --force-recreate "${services[@]}"
+  for service in "${services[@]}"; do
+    wait_healthy "$service"
+  done
+}
+
+recover_route_probe_failure() {
+  local context="$1" target="$2" source_owner="$3"
+  set_context_freeze "$context"
+  set_owner "$context" "$source_owner"
   refresh_derived_state
   write_state
   set_context_freeze "$context"
-  compose up -d --no-deps monolith
-  compose up -d --no-deps "$context-service"
-  wait_healthy monolith
-  wait_healthy "$context-service"
+  FLIP_IN_PROGRESS="$context:$target:recover"
+  write_state
+  recreate_affected_containers "$context"
+  clear_freeze
+  FLIP_IN_PROGRESS=
+  write_state
+}
+
+abort_interrupted_flip() {
+  local context="$1" owner="$2"
+  printf 'Aborting unfinished flip without copying data; %s remains authoritative.\n' "$owner"
+  set_owner "$context" "$owner"
+  refresh_derived_state
+  write_state
+  set_context_freeze "$context"
+  recreate_affected_containers "$context"
   clear_freeze
   FLIP_IN_PROGRESS=
   write_state
@@ -78,6 +107,12 @@ flip() {
     IFS=: read -r pending_context pending_target stage <<<"$FLIP_IN_PROGRESS"
     if [[ "$pending_context" == "$context" && "$pending_target" == "$target" ]]; then
       printf 'Resuming %s -> %s after stage %s.\n' "$context" "$target" "$stage"
+      if [[ "$stage" == recover ]]; then
+        recover_route_probe_failure "$context" "$target" "$owner"
+        printf 'Route probe recovery restored %s ownership for %s; the interrupted flip was not resumed.\n' \
+          "$owner" "$context" >&2
+        return 1
+      fi
     elif [[ "$pending_context" == "$context" && "$owner" == "$target" ]]; then
       abort_interrupted_flip "$context" "$owner"
       return
@@ -96,7 +131,7 @@ flip() {
   source_owner="$owner"
   token="$(cutover_token)"
   if stage_before "$stage" preflight; then
-    preflight "$context"
+    preflight "$context" "$target"
     set_stage "$context" "$target" preflight
   fi
   if stage_before "$stage" freeze; then
@@ -175,10 +210,9 @@ flip() {
     clear_freeze
     destination_address="$(cluster_address "$context")"
     if ! probe_routed "$context" "$destination_address" "$token" "$since"; then
-      set_owner "$context" "$source_owner"
-      refresh_derived_state
-      write_state
-      set_context_freeze "$context"
+      recover_route_probe_failure "$context" "$target" "$source_owner"
+      printf 'Route probe failed; restored %s ownership for %s after container recovery.\n' \
+        "$source_owner" "$context" >&2
       return 1
     fi
     FLIP_IN_PROGRESS=
@@ -195,7 +229,26 @@ all() {
 }
 
 up() {
-  initialize_state
+  local context target stage
+  if [[ $# -gt 1 ]] || { [[ $# -eq 1 ]] && [[ "$1" != --reset ]]; }; then
+    print_usage
+    return 2
+  fi
+  if [[ "${1:-}" == --reset ]] || [[ ! -f "$STATE_FILE" ]]; then
+    if [[ -f "$STATE_FILE" ]]; then
+      load_state
+    fi
+    initialize_state
+  else
+    load_state
+    if [[ -n "${FLIP_IN_PROGRESS:-}" ]]; then
+      IFS=: read -r context target stage <<<"$FLIP_IN_PROGRESS"
+      set_context_freeze "$context"
+    else
+      clear_freeze
+    fi
+    printf 'Using persisted cutover ownership and worker state.\n'
+  fi
   compose up -d postgres mongo eventstore rabbitmq
   wait_healthy postgres
   wait_healthy mongo
@@ -235,7 +288,7 @@ decommission() {
 main() {
   local command="${1:-}"
   case "$command" in
-    up) up ;;
+    up) shift; up "$@" ;;
     status) status ;;
     flip)
       [[ $# == 3 ]] || { print_usage; return 2; }

@@ -91,6 +91,8 @@ C4Container
 - Gateway route freeze is existing middleware/configuration and adds no public endpoint.
 - Identity signing and Data Protection volumes contain key material and must be protected
   and backed up with restricted access.
+- The shared identity-signing volume is the only source of signing keys; the legacy image
+  contains no signing keys.
 - Development credentials in Compose and scripts are local-only and must not be reused in
   production.
 

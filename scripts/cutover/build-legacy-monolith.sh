@@ -20,4 +20,16 @@ cleanup() {
 trap cleanup EXIT
 
 git worktree add --detach "$worktree" "$legacy_commit"
+
+key_pattern='(^|/)(tempkey\.jwk|is-signing-key-[^/]+\.(json|jwk)|[^/]*(private|signing|secret)[^/]*\.(json|jwk|pem|pfx|key))$'
+mapfile -t signing_keys < <(git -C "$worktree" ls-files | rg -i "$key_pattern" || true)
+for key_file in "${signing_keys[@]:-}"; do
+  case "$key_file" in
+    src/Api/* | src/Modules/Identity/*)
+      printf 'Removing committed signing key from legacy build context: %s\n' "$key_file"
+      rm -f -- "$worktree/$key_file"
+      ;;
+  esac
+done
+
 docker build -t booking-modular-monolith:legacy -f "$worktree/src/Api/Dockerfile" "$worktree"

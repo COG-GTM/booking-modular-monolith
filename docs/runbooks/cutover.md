@@ -33,6 +33,11 @@ The script creates `deployments/docker-compose/.cutover/state.env` and generates
 while a flip is in progress. The state file tracks each module's owner and background
 worker switches; only the active owner runs background processing.
 
+Subsequent `up` runs preserve the stored owners, worker settings, gRPC addresses, and
+in-progress freeze. Use `up --reset` only when intentionally resetting all owners to the
+monolith; it discards flip progress and does not copy data, even if a service currently
+owns a context.
+
 ## Validate rollback and Identity continuity
 
 Run the Flight rollback drill while `flight-service` owns the route. It writes through the
@@ -53,6 +58,8 @@ scripts/cutover/validate-token-continuity.sh
 Identity signing keys and Data Protection keys are mounted from shared named volumes in
 the service topology and cutover overlay. The drill should be considered incomplete
 unless both hosts use those mounts and tokens minted before a flip validate afterward.
+The shared identity-signing volume is the only source of signing keys; the legacy image
+must contain none.
 
 ## Move ownership
 
