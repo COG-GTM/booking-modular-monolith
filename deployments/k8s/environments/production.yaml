@@ -1,0 +1,96 @@
+global:
+  publicUrl: https://booking.example.com
+
+namespace:
+  create: true
+
+imagePullSecrets:
+  # Provision this GHCR credential Secret in the release namespace through approved secret management.
+  - name: ghcr-pull
+
+services:
+  identity:
+    image:
+      repository: ghcr.io/cog-gtm/booking-identity
+      # Override with --set services.identity.image.tag=sha-<release-commit-sha>.
+      tag: sha-REPLACE_WITH_COMMIT_SHA
+    database:
+      existingSecret: booking-identity-database
+  flight:
+    image:
+      repository: ghcr.io/cog-gtm/booking-flight
+      # Override with --set services.flight.image.tag=sha-<release-commit-sha>.
+      tag: sha-REPLACE_WITH_COMMIT_SHA
+    database:
+      existingSecret: booking-flight-database
+  passenger:
+    image:
+      repository: ghcr.io/cog-gtm/booking-passenger
+      # Override with --set services.passenger.image.tag=sha-<release-commit-sha>.
+      tag: sha-REPLACE_WITH_COMMIT_SHA
+    database:
+      existingSecret: booking-passenger-database
+  booking:
+    image:
+      repository: ghcr.io/cog-gtm/booking-booking
+      # Override with --set services.booking.image.tag=sha-<release-commit-sha>.
+      tag: sha-REPLACE_WITH_COMMIT_SHA
+    database:
+      existingSecret: booking-booking-database
+  gateway:
+    image:
+      repository: ghcr.io/cog-gtm/booking-gateway
+      # Override with --set services.gateway.image.tag=sha-<release-commit-sha>.
+      tag: sha-REPLACE_WITH_COMMIT_SHA
+    replicas: 2
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 6
+      targetCPUUtilizationPercentage: 70
+  defaults:
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "2"
+        memory: 1536Mi
+
+postgres:
+  host: postgres.example.internal
+  port: 5432
+  sslMode: Require
+
+rabbitmq:
+  host: rabbitmq.example.internal
+  port: 5672
+  auth:
+    existingSecret: booking-rabbitmq-auth
+
+mongodb:
+  connectionString: ""
+  existingSecret: booking-mongodb
+
+eventstore:
+  connectionString: ""
+  existingSecret: booking-eventstore
+
+identity:
+  signingKey:
+    existingSecret: booking-identity-signing-key
+
+gateway:
+  ingress:
+    className: nginx
+    host: booking.example.com
+    annotations:
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    tls:
+      - secretName: booking-ingress-tls
+
+infrastructure:
+  enabled: false
+  postgres:
+    existingSecret: booking-postgres-admin

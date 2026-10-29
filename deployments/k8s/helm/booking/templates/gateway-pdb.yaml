@@ -1,0 +1,15 @@
+{{- $gateway := .Values.services.gateway -}}
+{{- $autoscaling := mergeOverwrite (deepCopy .Values.services.defaults.autoscaling) (deepCopy $gateway.autoscaling) -}}
+{{- if or (and $gateway.autoscaling.enabled (ge (int $autoscaling.minReplicas) 2)) (and (not $gateway.autoscaling.enabled) (ge (int $gateway.replicas) 2)) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "booking.serviceName" (dict "root" . "key" "gateway") }}
+  labels:
+    {{- include "booking.commonLabels" (dict "root" . "name" (include "booking.serviceName" (dict "root" . "key" "gateway"))) | nindent 4 }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      {{- include "booking.selectorLabels" (dict "root" . "name" (include "booking.serviceName" (dict "root" . "key" "gateway"))) | nindent 6 }}
+{{- end }}
