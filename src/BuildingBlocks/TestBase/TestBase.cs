@@ -203,6 +203,9 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
         await TestHarness.Bus.Publish(message, cancellationToken);
     }
 
+    public Task<bool> WaitUntilAsync(Func<Task<bool>> condition, int? timeoutSecond = null) =>
+        WaitUntilConditionMet(condition, timeoutSecond);
+
     public async Task<bool> WaitForPublishing<TMessage>(CancellationToken cancellationToken = default)
         where TMessage : class, IEvent
     {
@@ -274,6 +277,7 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
                 new("PostgresOptions:ConnectionString:Identity", PostgresTestcontainer.GetConnectionString()),
                 new("PostgresOptions:ConnectionString:Passenger", PostgresTestcontainer.GetConnectionString()),
                 new("PersistMessageOptions:ConnectionString", PostgresPersistTestContainer.GetConnectionString()),
+                new("PersistMessageOptions:Interval", "1"),
                 new("RabbitMqOptions:HostName", RabbitMqTestContainer.Hostname),
                 new("RabbitMqOptions:UserName", TestContainers.RabbitMqContainerConfiguration.UserName),
                 new("RabbitMqOptions:Password", TestContainers.RabbitMqContainerConfiguration.Password),
@@ -598,15 +602,8 @@ public class TestFixtureCore<TEntryPoint> : IAsyncLifetime
             port
         );
 
-        var bd = await managementClient.GetBindingsAsync(cancellationToken);
-
-        var bindings = bd.Where(x => !string.IsNullOrEmpty(x.Source) && !string.IsNullOrEmpty(x.Destination));
-
-        foreach (var binding in bindings)
-        {
-            await managementClient.DeleteBindingAsync(binding, cancellationToken);
-        }
-
+        // Bindings are created once per bus start (consumer topology); keep them so later tests in the
+        // same collection still receive messages over the broker. Only drain leftover messages.
         var queues = await managementClient.GetQueuesAsync(cancellationToken: cancellationToken);
 
         foreach (var queue in queues)

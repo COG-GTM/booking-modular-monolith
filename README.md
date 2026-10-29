@@ -164,6 +164,14 @@ aggregate is kept for the monolith during the migration. See [src/BuildingBlocks
 and [ADR 0100](docs/adr/0100-buildingblocks-shared-libraries.md). Pack them to a local feed with
 `scripts/pack-building-blocks.sh [semver]`.
 
+### Messaging (RabbitMQ)
+
+Integration events go over RabbitMQ (`MessagingOptions:Transport`, default `RabbitMq`; `InMemory` for unit tests).
+Each module's consumers bind their own queues (`<module>.<consumer>`, e.g. `passenger.register-new-user-handler`),
+the persist-message outbox publishes through the bus and the inbox de-duplicates redeliveries. Local credentials are
+`booking/booking`. See [ADR 0101](docs/adr/0101-rabbitmq-transport-and-module-queues.md) and the
+[messaging runbook](docs/runbooks/messaging.md).
+
 ## Development Setup
 
 ### Dotnet Tools Packages
