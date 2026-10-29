@@ -38,7 +38,7 @@ namespace Integration.Test.Booking.Features
         public async Task should_create_booking_to_event_store_currectly()
         {
             // Arrange
-            var command = new FakeCreateBookingCommand().Generate();
+            var command = new FakeCreateBookingCommand().Generate() with { Id = Guid.NewGuid() };
             var currentUserProvider = Fixture.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
             currentUserProvider.GetCurrentUserGuid().Returns(command.PassengerId);
             currentUserProvider.IsInRole(IdentityConstant.Role.Admin).Returns(false);
@@ -81,7 +81,7 @@ namespace Integration.Test.Booking.Features
         [Fact]
         public async Task should_allow_admin_to_create_booking_for_another_passenger()
         {
-            var command = new FakeCreateBookingCommand().Generate();
+            var command = new FakeCreateBookingCommand().Generate() with { Id = Guid.NewGuid() };
             var currentUserProvider = Fixture.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
             currentUserProvider.GetCurrentUserGuid().Returns(Guid.NewGuid());
             currentUserProvider.IsInRole(IdentityConstant.Role.Admin).Returns(true);
