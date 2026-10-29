@@ -23,7 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Api\src\Api.csproj" />
     <ProjectReference Include="..\..\..\Gateway\Gateway.csproj" />
   </ItemGroup>
 

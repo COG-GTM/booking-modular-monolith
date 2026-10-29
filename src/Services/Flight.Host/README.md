@@ -7,8 +7,8 @@ module, not duplicated by the host.
 ## Run locally
 
 Start PostgreSQL 16 with the service database initialization script and the required prepared
-transaction capacity, plus MongoDB, RabbitMQ, and EventStoreDB for the monolith used to issue
-development tokens:
+transaction capacity, plus MongoDB and RabbitMQ. Run Identity.Host for development tokens.
+EventStoreDB is needed only when also running Booking:
 
 ```sh
 docker run -d --name flight-postgres -p 5432:5432 \
@@ -29,9 +29,8 @@ SSL_CERT_DIR="$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs" \
 ```
 
 The REST/Kestrel HTTP1 endpoint is `http://localhost:5102`; the separate gRPC h2c endpoint is
-`http://localhost:5112`. Docker listens on HTTP `8080` and gRPC `8081`. When using the monolith
-to issue development tokens, run it on `http://localhost:3001` with
-`Modules__Flight__BackgroundProcessingEnabled=false`. The default JWT settings expect tokens with
+`http://localhost:5112`. Docker listens on HTTP `8080` and gRPC `8081`.
+The default JWT settings expect tokens with
 issuer `http://localhost:5000` and discovery metadata from Identity.Host on port `5101`; override
 `Jwt__Authority` and `Jwt__MetadataAddress` when using another issuer.
 
@@ -82,11 +81,9 @@ uses the `flight_service` PostgreSQL role rather than the PostgreSQL superuser.
 
 ## Double-consumer and double-poller risk
 
-The monolith configuration in `src/Api/src/appsettings.json` points Flight at the same
-`flight_service` write and persist-message databases. When the monolith and this host run
-simultaneously, set `Modules__Flight__BackgroundProcessingEnabled=false` on the monolith (or
-configure it to use different Flight databases) to avoid two outbox pollers and duplicate
-consumers. The service cut-over is tracked by AB-505.
+The monolith host is retired. During a [previous-release rollback](../../../docs/runbooks/cutover/decommission.md),
+use current Flight stores and a single outbox owner. The rollback overlay disables legacy polling;
+background flags alone do not disable MassTransit consumers. Isolate legacy consumers for production.
 
 Flight integration events do not have subscribers yet. MassTransit publishes them with
 `Mandatory=true`, so unroutable events remain pending in the outbox and generate an error log on

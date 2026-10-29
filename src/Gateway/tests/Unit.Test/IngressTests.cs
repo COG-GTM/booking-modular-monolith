@@ -27,7 +27,7 @@ public class IngressTests
         builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, 0));
         await using var backend = builder.Build();
         backend.MapGet(
-            "/capture",
+            "/connect/capture",
             (Microsoft.AspNetCore.Http.HttpContext context) => context.Request.Headers["correlationId"].ToString()
         );
         await backend.StartAsync();
@@ -41,13 +41,13 @@ public class IngressTests
                     config.AddInMemoryCollection(
                         new Dictionary<string, string?>
                         {
-                            ["ReverseProxy:Clusters:monolith:Destinations:primary:Address"] = address,
+                            ["ReverseProxy:Clusters:identity:Destinations:primary:Address"] = address,
                         }
                     )
             )
         );
         using var client = app.CreateClient();
-        using var request = new HttpRequestMessage(HttpMethod.Get, "/capture");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/connect/capture");
         if (backendHeader is not null)
             request.Headers.TryAddWithoutValidation("correlationId", backendHeader);
         if (publicHeader is not null)
@@ -101,11 +101,11 @@ public class IngressTests
     }
 
     [Theory]
-    [InlineData("identity")]
-    [InlineData("flight")]
-    [InlineData("passenger")]
-    [InlineData("booking")]
-    public void ModuleRoutesUseIndependentClusters(string module)
+    [InlineData("identity", 5101)]
+    [InlineData("flight", 5102)]
+    [InlineData("passenger", 5103)]
+    [InlineData("booking", 5104)]
+    public void ModuleRoutesUseIndependentClusters(string module, int port)
     {
         using var services = CreateServices();
         var config = services.GetRequiredService<IProxyConfigProvider>().GetConfig();
@@ -114,7 +114,7 @@ public class IngressTests
         Assert.Equal($"/api/v{{version}}/{module}/{{**remainder}}", route.Match.Path);
         Assert.Equal("authenticated", route.AuthorizationPolicy);
         Assert.Equal(
-            "http://localhost:3001/",
+            $"http://localhost:{port}/",
             Assert.Single(config.Clusters, c => c.ClusterId == module).Destinations!["primary"].Address
         );
     }
@@ -133,10 +133,11 @@ public class IngressTests
             "http://flight-service/",
             Assert.Single(clusters, c => c.ClusterId == "flight").Destinations!["primary"].Address
         );
-        Assert.All(
-            clusters.Where(c => c.ClusterId != "flight"),
-            cluster => Assert.Equal("http://localhost:3001/", cluster.Destinations!["primary"].Address)
-        );
+        foreach (var (cluster, port) in new[] { ("identity", 5101), ("passenger", 5103), ("booking", 5104) })
+            Assert.Equal(
+                $"http://localhost:{port}/",
+                Assert.Single(clusters, c => c.ClusterId == cluster).Destinations!["primary"].Address
+            );
     }
 
     [Theory]
@@ -183,15 +184,15 @@ public class IngressTests
                         new Dictionary<string, string?>
                         {
                             ["RateLimiting:PermitLimit"] = "1",
-                            ["ReverseProxy:Clusters:monolith:Destinations:primary:Address"] = "http://127.0.0.1:1/",
+                            ["ReverseProxy:Clusters:identity:Destinations:primary:Address"] = "http://127.0.0.1:1/",
                         }
                     )
             )
         );
         using var client = app.CreateClient();
-        using var first = await client.GetAsync("/unmatched");
+        using var first = await client.GetAsync("/connect/token");
         Assert.Equal(HttpStatusCode.BadGateway, first.StatusCode);
-        using var second = await client.GetAsync("/unmatched");
+        using var second = await client.GetAsync("/connect/token");
         Assert.Equal(HttpStatusCode.TooManyRequests, second.StatusCode);
         using var health = await client.GetAsync("/health/live");
         Assert.Equal(HttpStatusCode.OK, health.StatusCode);

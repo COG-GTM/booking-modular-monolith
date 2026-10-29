@@ -23,6 +23,8 @@ esac
 compose=(docker compose -f "$root/deployments/docker-compose/docker-compose.yaml")
 unset IDENTITY_UPSTREAM FLIGHT_UPSTREAM PASSENGER_UPSTREAM BOOKING_UPSTREAM
 if [[ "$target" == monolith ]]; then
+    : "${MONOLITH_IMAGE:?set to the previous release image}"
+    compose+=(-f "$root/deployments/docker-compose/docker-compose.monolith-rollback.yaml")
     docker exec booking_modular_monolith bash -c '
         exec 3<>/dev/tcp/127.0.0.1/80
         printf "GET /.well-known/openid-configuration HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3

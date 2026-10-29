@@ -1,5 +1,9 @@
 # Step 3 — Booking
 
+The host is now retired. These handover/rollback steps require the
+[previous-release recovery overlay](decommission.md) and exported `MONOLITH_IMAGE`
+before targeting monolith; normal startup is service-only.
+
 ## Pre-checks and data separation
 
 Flight, Identity and Passenger must be stable. Apply [common gates](README.md).

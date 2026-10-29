@@ -60,7 +60,7 @@ docker build -f src/Services/Passenger.Host/Dockerfile -t booking-passenger .
 The Docker environment uses the `postgres`, `mongo`, and `rabbitmq` service
 hosts, and uses the same `passenger_service` role. `Jwt:Authority` is
 `http://localhost:5000` while the optional metadata override targets the
-monolith's internal discovery URL.
+Identity service's internal discovery URL.
 
 The UserCreated consumer listens on
 `passenger-service-register-new-user-handler`. Inbox receipts are stored in
@@ -90,12 +90,13 @@ grpcurl -plaintext \
   localhost:5113 passenger.PassengerGrpcService/GetById
 ```
 
-## Cut-over warning
+## Previous-release rollback warning
 
 Do not run this host's consumer alongside the monolith's
 `monolith-register-new-user-handler` consumer while both use the same
 Passenger database. Both consumers receive `UserCreated` and can write the
-same passenger row. Run the standalone host's consumer/outbox only after the
-monolith's Passenger module is disabled; cut-over is tracked by AB-505.
+same passenger row. The default topology has no monolith; during
+[previous-release recovery](../../../docs/runbooks/cutover/decommission.md), isolate the legacy consumer
+before accepting registration writes.
 `Modules:Passenger:BackgroundProcessingEnabled` gates only the outbox worker,
 not the RabbitMQ consumer.

@@ -1,6 +1,6 @@
 # Booking service
 
-Booking can run independently from the modular monolith. Start it locally with:
+Booking is the standalone host for the Booking module; the monolith host is retired. Start it locally with:
 
 ```sh
 dotnet run --project src/Services/Booking.Host/Booking.Host.csproj
@@ -52,4 +52,5 @@ and the Booking Mongo projection performs a check-then-insert. Only one process
 (the monolith or this host) may run with Booking background processing enabled
 against the same EventStoreDB and MongoDB. While this host is active, set
 `Modules__Booking__BackgroundProcessingEnabled=false` on the monolith. This
-separation is intended for the AB-505 cut-over.
+separation is mandatory during [previous-release recovery](../../../docs/runbooks/cutover/decommission.md);
+the default topology runs only this host.

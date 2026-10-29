@@ -10,6 +10,8 @@ case "$cluster" in
         ;;
 esac
 compose=(docker compose -f "$root/deployments/docker-compose/docker-compose.yaml")
+: "${MONOLITH_IMAGE:?set to the previous release image}"
+compose+=(-f "$root/deployments/docker-compose/docker-compose.monolith-rollback.yaml")
 unset IDENTITY_UPSTREAM FLIGHT_UPSTREAM PASSENGER_UPSTREAM BOOKING_UPSTREAM
 state="$root/deployments/docker-compose/.cutover.env"
 # shellcheck source=scripts/cutover/common.sh
@@ -55,7 +57,7 @@ restore_on_failure() {
 trap restore_on_failure EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-"${compose[@]}" --env-file "$state" --profile monolith up -d --wait --wait-timeout 300 \
+"${compose[@]}" --env-file "$state" up -d --wait --wait-timeout 300 \
     identity-service flight-service passenger-service booking-service gateway booking_modular_monolith
 for ((i=0; i<90; i++)); do
     if docker exec booking_modular_monolith bash -c '

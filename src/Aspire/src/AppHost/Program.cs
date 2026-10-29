@@ -302,49 +302,8 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
-var api = builder.AddProject<Api>("api")
-    .WithEnvironment("AuthOptions__IssuerUri", "http://localhost:5000")
-    .WithEnvironment("Jwt__Authority", "http://localhost:5000")
-    .WaitFor(postgres)
-    .WithReference(mongo)
-    .WithEnvironment("MongoOptions__ConnectionString", mongo.Resource.ConnectionStringExpression)
-    .WaitFor(mongo)
-    .WithReference(eventstore)
-    .WaitFor(eventstore)
-    .WithReference(rabbitmq)
-    .WaitFor(rabbitmq)
-    .WithHttpEndpoint(port: 3001, name: "api-http")
-    .WithHttpsEndpoint(port: 3000, name: "api-https");
-
-foreach (var module in new[] { "Flight", "Identity", "Passenger", "Booking" })
-{
-    var role = module.ToLowerInvariant() + "_service";
-    var endpoint = postgres.GetEndpoint("tcp");
-    var host = endpoint.Property(EndpointProperty.Host);
-    var port = endpoint.Property(EndpointProperty.Port);
-    if (module != "Booking")
-        api.WithEnvironment($"PostgresOptions__ConnectionString__{module}",
-            ReferenceExpression.Create($"Host={host};Port={port};Database={role};Username={role};Password={role}"));
-    api.WithEnvironment($"PersistMessageOptions__ConnectionString__{module}",
-        ReferenceExpression.Create($"Host={host};Port={port};Database={role}_persist_message;Username={role};Password={role}"));
-}
-
-api.WithEnvironment("Jwt__MetadataAddress", ReferenceExpression.Create($"{api.GetEndpoint("api-http")}/.well-known/openid-configuration"));
-api.WithEnvironment("Grpc__FlightAddress", api.GetEndpoint("api-https"));
-api.WithEnvironment("Grpc__PassengerAddress", api.GetEndpoint("api-https"));
-
-var gateway = builder.AddProject<Gateway>("gateway")
-    .WithReference(api)
-    .WaitFor(api)
+builder.AddProject<Gateway>("gateway")
     .WithHttpEndpoint(port: 5000, name: "gateway-http")
-    .WithEnvironment("Jwt__Authority", "http://localhost:5000")
-    .WithEnvironment("Jwt__MetadataAddress", ReferenceExpression.Create($"{api.GetEndpoint("api-http")}/.well-known/openid-configuration"));
-
-foreach (var cluster in new[] { "identity", "flight", "passenger", "booking", "monolith" })
-{
-    gateway.WithEnvironment(
-        $"ReverseProxy__Clusters__{cluster}__Destinations__primary__Address",
-        api.GetEndpoint("api-http"));
-}
+    .WithEnvironment("Jwt__Authority", "http://localhost:5000");
 
 builder.Build().Run();

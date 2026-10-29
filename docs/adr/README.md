@@ -1,7 +1,7 @@
 # Architecture Decision Records
 
 This folder records the decisions behind epic **AB-488 — Microservices Migration Scaffolding**: moving
-`booking-modular-monolith` from one deployable (`src/Api`) to one service per module, without a
+`booking-modular-monolith` from one deployable (the now-retired monolith host) to one service per module, without a
 big-bang rewrite.
 
 The target state is drawn in [docs/architecture/target-architecture.md](../architecture/target-architecture.md).

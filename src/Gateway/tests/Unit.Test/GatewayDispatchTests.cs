@@ -91,16 +91,16 @@ public class GatewayDispatchTests
     }
 
     [Fact]
-    public void AnonymousRoutesUseIdentityAndFallbackUsesMonolith()
+    public void AnonymousRoutesUseIdentityAndNoMonolithFallbackExists()
     {
         using var services = CreateServices();
         var routes = services.GetRequiredService<IProxyConfigProvider>().GetConfig().Routes;
 
-        var fallback = Assert.Single(routes, route => route.RouteId == "fallback");
-        Assert.Equal(100, fallback.Order);
-        Assert.Equal("monolith", fallback.ClusterId);
-        Assert.Equal("anonymous", fallback.AuthorizationPolicy);
-        Assert.Equal("{**catch-all}", fallback.Match.Path);
+        Assert.DoesNotContain(routes, route => route.RouteId == "fallback");
+        Assert.DoesNotContain(
+            services.GetRequiredService<IProxyConfigProvider>().GetConfig().Clusters,
+            cluster => cluster.ClusterId == "monolith"
+        );
 
         foreach (var routeId in new[] { "connect", "discovery" })
         {
@@ -168,7 +168,7 @@ public class GatewayDispatchTests
                 ["RateLimiting:PermitLimit"] = permitLimit.ToString(),
                 ["RateLimiting:WindowSeconds"] = windowSeconds.ToString(),
             };
-            foreach (var cluster in new[] { "identity", "flight", "passenger", "booking", "monolith" })
+            foreach (var cluster in new[] { "identity", "flight", "passenger", "booking" })
                 settings[$"ReverseProxy:Clusters:{cluster}:Destinations:primary:Address"] =
                     $"{address}/clusters/{cluster}/";
 
@@ -192,7 +192,7 @@ public class GatewayDispatchTests
 
         public async Task<HttpStatusCode> SendAnonymousAsync()
         {
-            using var response = await Client.GetAsync("/unmatched/path");
+            using var response = await Client.GetAsync("/connect/token");
             return response.StatusCode;
         }
 

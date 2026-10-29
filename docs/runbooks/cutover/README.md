@@ -1,6 +1,9 @@
 # Cutover and rollback (AB-505)
 
-Phase 1 retains src/Api. Follow ADR [0007](../../adr/0007-extraction-order.md):
+The monolith host is decommissioned. Default gateway routing is service-only, with unknown paths
+returning 404. The migration sequence below remains the production handover checklist; recovery
+requires a prebuilt previous-release image via the [rollback overlay](decommission.md).
+Follow ADR [0007](../../adr/0007-extraction-order.md):
 [Flight](flight.md) → [Identity + Passenger](identity-passenger.md) → [Booking](booking.md).
 See the [before/during/after diagram](../../architecture/cutover.md) and
 [decommission procedure](decommission.md). Production execution requires ARB approval;
@@ -20,7 +23,7 @@ Quiesce writes during data transfer; disable the old owner before enabling the n
 Do not permit competing outbox workers or Booking subscriptions.
 
 **Compose caveat:** module BackgroundProcessingEnabled=false disables polling/subscription, NOT
-MassTransit consumer registration. The optional monolith still consumes UserCreated. Keep it only
+MassTransit consumer registration. The previous-release monolith still consumes UserCreated. Keep it only
 for short rollback drills. Production coexistence requires isolating/disabling the legacy consumer
 before allowing registration writes. Do not infer safe production dual-running from a local drill.
 
@@ -35,14 +38,14 @@ before allowing registration writes. Do not infer safe production dual-running f
 | After N days | service | service | service | service | retired |
 
 This table is the production migration sequence; plain Compose already defaults to all services.
-The fallback catch-all still targets monolith; inspect its traffic separately from the four clusters.
+The fallback catch-all and monolith cluster are removed from default routing.
 
 ## Local tooling
 
-From repository root (Docker Compose v2, bash, curl, jq, ripgrep, flock required):
+From repository root (Docker Compose v2, bash, curl, jq, grep, flock required):
 
 ```bash
-docker compose -f deployments/docker-compose/docker-compose.yaml --profile monolith build
+export MONOLITH_IMAGE=<previous-release-image:tag>
 scripts/cutover/validate-rollback.sh flight 2>&1 | tee ~/ab505-rollback-flight.log
 scripts/cutover/validate-rollback.sh passenger
 ```
@@ -56,7 +59,14 @@ Flight must return 200. Full registration/booking business sanity is separately 
 
 `flip-route.sh <cluster> <monolith|service>` changes only gateway destination overrides and runs
 `docker compose up -d --no-deps gateway`. Identity and Passenger are changed atomically in one
-gateway recreation. Monolith readiness is mandatory before a reverse flip.
+gateway recreation. Monolith readiness and MONOLITH_IMAGE are mandatory before a reverse flip.
+Start the previous-release image using the overlay first; the validator does this automatically.
+Service flips require target-container readiness before changing persisted state. Every flip then
+checks an authenticated routed request and GUID-linked upstream logs, not just gateway self health.
+On a failed drill, an EXIT trap restores the initial paired destinations through the locking flip
+script; restoration errors print an explicit manual rollback command. Custom initial destinations
+are rejected before the drill because the flip script supports only service/monolith targets.
+Token credentials and bearer headers are passed to curl over stdin, not in process arguments.
 State is in git-ignored `deployments/docker-compose/.cutover.env`, not application source.
 Do not run concurrent compose operations during a flip. The persistent lock file is also ignored.
 A failed recreation leaves desired state on disk: inspect containers and explicitly retry/roll back.
@@ -68,8 +78,11 @@ health check; the pre-checks and authenticated business probes remain mandatory.
 For subsequent manual Compose operations preserve state explicitly:
 
 ```bash
-docker compose -f deployments/docker-compose/docker-compose.yaml --env-file deployments/docker-compose/.cutover.env --profile monolith up -d
-docker compose -f deployments/docker-compose/docker-compose.yaml --profile monolith down
+docker compose -f deployments/docker-compose/docker-compose.yaml \
+  -f deployments/docker-compose/docker-compose.monolith-rollback.yaml \
+  --env-file deployments/docker-compose/.cutover.env up -d
+docker compose -f deployments/docker-compose/docker-compose.yaml \
+  -f deployments/docker-compose/docker-compose.monolith-rollback.yaml down
 ```
 
 Without --env-file the default is all services; never accidentally reset routes mid-incident.
@@ -96,8 +109,8 @@ that same database/read model and compatible schema. Set
 `PersistMessageOptions__ConnectionString__<Module>`,
 `MongoOptions__<Module>__ConnectionString` and
 `MongoOptions__<Module>__DatabaseName` consistently on the legacy deployment.
-Compose's monolith already shares these stores via appsettings.docker.json; that is why the local
-route-only drill works. Otherwise quiesce writes and reconcile/reverse-copy before rollback;
+The retained phase-1 image shares these stores via its embedded appsettings.docker.json; verify
+the chosen previous-release image's configuration before a drill. Otherwise quiesce writes and reconcile/reverse-copy before rollback;
 restoring a stale backup would lose accepted writes.
 
 ## Canary / dark launch

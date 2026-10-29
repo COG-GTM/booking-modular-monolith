@@ -35,7 +35,7 @@ flowchart LR
 Only one Booking subscriber. Legacy consumer registration must be isolated for production
 coexistence; module background flags alone do not isolate MassTransit consumers.
 
-## After (later phase)
+## After (current repository topology)
 
 ```mermaid
 flowchart LR
@@ -59,4 +59,5 @@ flowchart LR
 ```
 
 No new infrastructure/vendor is introduced. Local HTTP/h2c is not production transport security.
-Monolith artifacts and fallback remain in this phase; after-state requires a separate change.
+The monolith host and fallback are retired. Recovery explicitly redeploys a previous-release
+image using the rollback overlay; it is not part of normal startup.

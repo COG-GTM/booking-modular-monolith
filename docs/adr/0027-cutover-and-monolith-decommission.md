@@ -1,6 +1,7 @@
 # 0027. Cutover and monolith decommission
 
 - **Status:** Proposed
+- **Implementation:** Local decommission implemented in AB-505 phase 2; production approval pending.
 - **Date:** 2026-10-29
 - **ARB ticket:** TO BE CREATED
 - **Authors:** AB-505 (epic AB-488)
@@ -11,12 +12,13 @@
 
 ## Context
 
-Extracted services need an evidence-based route cutover, reversible during a defined soak, before
-retiring src/Api. Local Compose defaults to services and shares the service stores with its optional
-monolith. That is not evidence that production legacy data has already been migrated.
+Extracted services need an evidence-based route cutover, reversible during a defined soak.
+The repository now contains only service hosts behind the gateway. Local recovery explicitly
+redeploys a prebuilt previous-release monolith image with current service stores via an overlay.
+That is not evidence that production legacy data has already been migrated.
 This decision documents the final lifecycle of the architecture under AB-488: data handover and
 retirement affect T2 (store ownership) and T6 (removal of legacy routing). Those production changes
-require ARB approval. Phase 1 implements local configuration tooling and procedures only.
+require ARB approval. Phase 1 supplied local tooling; phase 2 retires the source host and fallback.
 
 ## Decision
 
@@ -24,8 +26,9 @@ We will migrate Flight first, Identity and Passenger together, then Booking, usi
 upstream-proven rollback drills and a signed-off N-day soak. We retain compatible current stores,
 signing keys and single-active background ownership while route rollback remains available.
 Once all clusters use services and the monolith/fallback receives zero traffic for N days, a
-separate approved change retires the monolith. After retirement rollback redeploys the previous
-release tag; it is no longer a route-only operation. Phase 1 does not remove src/Api.
+production rollout retires the monolith. After retirement rollback redeploys the previous
+release tag/image; it is no longer a route-only operation. The repository decommission is
+implemented: module tests use service hosts, default routes use services, and unknown paths return 404.
 
 ## Alternatives considered
 
@@ -44,11 +47,11 @@ C4Container
     Person(client, "Client")
     Container(gateway, "Gateway", "YARP", "JWT ingress, route state")
     Container(service, "Existing service hosts", "ASP.NET Core", "Migrated modules")
-    Container(monolith, "Retained monolith", "ASP.NET Core", "Rollback target during soak")
+    Container(monolith, "Previous-release image", "ASP.NET Core", "Explicit recovery overlay only")
     ContainerDb(stores, "Existing service stores", "PostgreSQL / Mongo / EventStoreDB", "Current data and checkpoint")
     Rel(client, gateway, "HTTP / JWT in local Compose")
     Rel(gateway, service, "HTTP / forwarded JWT")
-    Rel(gateway, monolith, "HTTP / forwarded JWT on rollback")
+    Rel(gateway, monolith, "HTTP / forwarded JWT only after explicit redeployment")
     Rel(service, stores, "Native protocols / configured credentials")
     Rel(monolith, stores, "Same current stores during rollback")
 ```
@@ -106,7 +109,7 @@ C4Container
 - Negative / risks: Recreating the local gateway can interrupt requests; this is not zero-downtime deployment.
 - Negative / risks: Legacy MassTransit consumers ignore module background flags, so coexistence must be short
   in Compose and production consumer isolation is a prerequisite, not solved here.
-- Follow-ups: Approve ARB, run production data backfills/recovery rehearsal, then retire src/Api separately.
+- Follow-ups: Approve ARB, run production data backfills/recovery rehearsal and approve the production retirement window.
 
 ## Open questions
 

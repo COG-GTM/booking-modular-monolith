@@ -1,5 +1,9 @@
 # Step 2 — Identity + Passenger together
 
+The host is now retired. These handover/rollback steps require the
+[previous-release recovery overlay](decommission.md) and exported `MONOLITH_IMAGE`
+before targeting monolith; normal startup is service-only.
+
 ## Pre-checks and data separation
 
 Flight must have completed its soak. Apply [common gates](README.md). Identity and Passenger are

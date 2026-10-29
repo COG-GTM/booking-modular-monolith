@@ -66,8 +66,7 @@ private ingress and TLS; the development compose stack is not a production secur
 ## Local verification
 
 ```bash
-docker compose -f deployments/docker-compose/docker-compose.yaml up -d postgres mongo eventstore rabbitmq
-dotnet run --project src/Api/src/Api.csproj
+docker compose -f deployments/docker-compose/docker-compose.yaml up -d --build --wait
 dotnet test src/BuildingBlocks/tests/Messaging.Integration.Test
 ```
 

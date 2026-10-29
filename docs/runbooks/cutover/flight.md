@@ -1,5 +1,9 @@
 # Step 1 — Flight
 
+The host is now retired. These handover/rollback steps require the
+[previous-release recovery overlay](decommission.md) and exported `MONOLITH_IMAGE`
+before targeting monolith; normal startup is service-only.
+
 ## Pre-checks and data separation
 
 Complete the [common gates](README.md). Snapshot flight_modular_monolith and Flight's records in

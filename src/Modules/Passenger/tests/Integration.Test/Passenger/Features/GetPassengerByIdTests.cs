@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using Api;
+using Passenger.Host;
 using BuildingBlocks.TestBase;
 using Contracts.Grpc.Passenger;
 using FluentAssertions;

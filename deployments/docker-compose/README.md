@@ -3,8 +3,9 @@
 This directory defines the multi-service development topology:
 
 - `docker-compose.yaml` runs the gateway, Identity, Flight, Passenger, and Booking service hosts. It
-  includes `docker-compose.infrastructure.yaml`. The `booking_modular_monolith` service is opt-in
-  through the `monolith` profile.
+  includes `docker-compose.infrastructure.yaml`. No monolith service or profile is included.
+- `docker-compose.monolith-rollback.yaml` is an explicit recovery overlay using a prebuilt
+  previous-release image; it never builds the retired host.
 - `docker-compose.infrastructure.yaml` runs PostgreSQL, MongoDB, EventStoreDB, RabbitMQ, Redis, and
   the observability stack.
 
@@ -62,26 +63,32 @@ Compose gates startup in this order: infrastructure health checks, then Identity
 then Booking, then the gateway. Booking also waits for EventStoreDB, Flight, and Passenger. Use
 `docker compose ps` to inspect health and status.
 
-## Optional monolith
+## Previous-release rollback
 
 See the [cutover runbooks](../../docs/runbooks/cutover/README.md) for persisted gateway flips,
-upstream-proven rollback drills, production data handover gates and later decommission.
+upstream-proven rollback drills and production data handover gates. The host is decommissioned.
 The scripts persist routes in local `.cutover.env`; pass `--env-file .cutover.env` on subsequent
 manual Compose commands to retain those choices. Plain Compose still defaults to all services.
 
-Start the monolith alongside the services with:
+Set the immutable prior release image/tag (or digest) before starting the overlay:
 
 ```bash
-docker compose --profile monolith up -d booking_modular_monolith
+export MONOLITH_IMAGE=<previous-release-image:tag>
+docker compose -f docker-compose.yaml -f docker-compose.monolith-rollback.yaml \
+  --env-file .cutover.env up -d booking_modular_monolith
+# From the repository root, with MONOLITH_IMAGE exported:
+scripts/cutover/flip-route.sh flight monolith
+scripts/cutover/flip-route.sh flight service
 ```
 
 Its module background processing is disabled so the service hosts remain the owners of outbox
 polling and the Booking EventStoreDB subscription. Caveat: the monolith still binds its MassTransit
 consumers (e.g. `monolith-register-new-user-handler` for `UserCreated`) regardless of that flag, so
-while it runs a `UserCreated` is delivered to both it and `passenger-service`. Keep the profile for
-short coexistence/rollback checks until consumer registration honours the module flag. To route a gateway cluster back to
-the monolith, set
-`ReverseProxy__Clusters__<c>__Destinations__primary__Address=http://booking_modular_monolith/`.
+while it runs a `UserCreated` is delivered to both it and `passenger-service`. Use only short local
+drills and stop it before registration sanity. Production recovery requires consumer isolation.
+The overlay restores a cluster address, not a catch-all route: unknown paths still return 404.
+After restoring all routes to services, stop the overlay with the same two `-f` arguments and
+`down` (retain volumes and the previous-release image).
 
 ## Build one service image independently
 
