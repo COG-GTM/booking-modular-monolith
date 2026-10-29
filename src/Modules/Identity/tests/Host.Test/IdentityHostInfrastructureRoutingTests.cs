@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Net;
 using BuildingBlocks.HealthCheck;
 using BuildingBlocks.OpenApi;
@@ -49,11 +50,16 @@ public class IdentityHostInfrastructureRoutingTests
 
         using var alive = await client.GetAsync("/alive");
         alive.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await alive.Content.ReadAsStringAsync()).Should().Be("Healthy");
+        (await StatusOf(alive)).Should().Be("Healthy");
 
         using var health = await client.GetAsync("/health");
         health.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
-        (await health.Content.ReadAsStringAsync()).Should().Be("Unhealthy");
+        (await StatusOf(health)).Should().Be("Unhealthy");
+
+        using var live = await client.GetAsync("/health/live");
+        live.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var ready = await client.GetAsync("/health/ready");
+        ready.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
 
         (await client.GetStringAsync("/")).Should().Be("standalone-identity-test");
         using var ui = await client.GetAsync("/health-ui");
@@ -66,5 +72,13 @@ public class IdentityHostInfrastructureRoutingTests
             .ToArray();
         routes.Should().ContainSingle(route => route == "/health");
         routes.Should().ContainSingle(route => route == "/alive");
+        routes.Should().ContainSingle(route => route == "/health/live");
+        routes.Should().ContainSingle(route => route == "/health/ready");
+    }
+
+    private static async Task<string?> StatusOf(HttpResponseMessage response)
+    {
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return body.RootElement.GetProperty("status").GetString();
     }
 }

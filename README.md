@@ -232,7 +232,11 @@ To run the application using the `Aspire App Host`, execute the following comman
 aspire run
 ```
 
-> Note:The `Aspire dashboard` will be available at `http://localhost:18888`
+The default **Services** topology starts `gateway`, `identity`, `flight`, `passenger`, and `booking`, with service-owned
+databases. `AppHost:Topology=Monolith` retains the `api` + `gateway` compatibility topology with separate monolith databases.
+The gateway is `http://localhost:5000`; the dashboard is `http://localhost:18888` (use the printed login link).
+See the [Aspire local runbook](docs/runbooks/aspire-local.md) for VM startup, ports, smoke flow, and cleanup, and
+[ADR 0497](docs/adr/0497-aspire-apphost-microservices-topology.md) for the architecture decision.
 
 > ### Docker Compose
 
@@ -306,6 +310,13 @@ listens on `http://localhost:5004` in Development and owns its `booking_service`
 The standalone Flight host uses separate HTTP and h2c gRPC listeners. See the
 [Flight service runbook](./docs/runbooks/flight-service.md) and
 [ADR 0502](./docs/adr/0502-standalone-flight-service-host.md).
+
+### Observability (per service)
+
+Every deployable reports its own `service.name` (`booking-gateway`, `booking-modular-monolith`, `identity-service`,
+`flight-service`, `passenger-service`, `booking-service`), exposes `/health/live` and `/health/ready` in every environment, and
+carries W3C trace context across the gateway, gRPC and the outbox/RabbitMQ hop so one booking request is one trace. See the
+[observability runbook](./docs/runbooks/observability.md) and [ADR 0495](./docs/adr/0495-per-service-observability-and-trace-propagation.md).
 
 ## Passenger service host
 

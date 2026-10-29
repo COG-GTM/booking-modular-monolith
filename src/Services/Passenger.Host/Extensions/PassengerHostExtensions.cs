@@ -71,14 +71,6 @@ public static class PassengerHostExtensions
         app.UseCustomProblemDetails();
         app.UseCorrelationId();
         app.MapGrpcHealthChecksService();
-        app.MapHealthChecks(
-            "/health/ready",
-            new HealthCheckOptions { Predicate = registration => !registration.Tags.Contains("live") }
-        );
-        app.MapHealthChecks(
-            "/health/live",
-            new HealthCheckOptions { Predicate = registration => registration.Tags.Contains("live") }
-        );
         app.MapGet("/", () => Results.Text(appOptions.Name));
 
         if (app.Environment.IsDevelopment())

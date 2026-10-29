@@ -161,6 +161,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{A5040000
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CrossService.EndToEnd.Test", "src\Tests\CrossService.EndToEnd.Test\CrossService.EndToEnd.Test.csproj", "{A5040000-0000-4000-8000-000000000001}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppHost.Test", "src\Aspire\tests\AppHost.Test\AppHost.Test.csproj", "{E565F2AC-514E-4A88-A618-12FFED78C497}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -170,6 +172,7 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{E565F2AC-514E-4A88-A618-12FFED78C497} = {D2A0CE91-BCCA-486D-97D9-184AE242E867}
 		{837B01DA-EB7B-5479-B34F-302BD7FB2AFC} = {BAD69475-3245-487E-9EC9-AEE8DEE05F2D}
 		{2472EF86-50E7-50EC-A011-E76646B4390D} = {BAD69475-3245-487E-9EC9-AEE8DEE05F2D}
 		{3C434DD2-968F-5107-B458-BEFF5502971C} = {BAD69475-3245-487E-9EC9-AEE8DEE05F2D}
@@ -250,6 +253,10 @@ Global
 		{A5040000-0000-4000-8000-000000000001} = {A5040000-0000-4000-8000-000000000002}
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E565F2AC-514E-4A88-A618-12FFED78C497}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E565F2AC-514E-4A88-A618-12FFED78C497}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E565F2AC-514E-4A88-A618-12FFED78C497}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E565F2AC-514E-4A88-A618-12FFED78C497}.Release|Any CPU.Build.0 = Release|Any CPU
 		{837B01DA-EB7B-5479-B34F-302BD7FB2AFC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{837B01DA-EB7B-5479-B34F-302BD7FB2AFC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{837B01DA-EB7B-5479-B34F-302BD7FB2AFC}.Release|Any CPU.ActiveCfg = Release|Any CPU

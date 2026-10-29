@@ -256,7 +256,7 @@ services:
   # # https://github.com/grafana/tempo/tree/main/example/docker-compose
   # #######################################################     
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.7.2
     container_name: tempo
     restart: unless-stopped
     command: [ "-config.file=/etc/tempo.yaml" ]

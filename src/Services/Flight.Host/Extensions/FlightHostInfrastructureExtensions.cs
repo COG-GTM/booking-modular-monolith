@@ -60,7 +60,6 @@ public static class FlightHostInfrastructureExtensions
         app.UseCustomProblemDetails();
         app.UseCorrelationId();
         app.MapGrpcHealthChecksService();
-        app.MapFlightHealthEndpoints();
         app.MapGet("/", () => appName);
 
         if (app.Environment.IsDevelopment())
@@ -69,17 +68,10 @@ public static class FlightHostInfrastructureExtensions
         return app;
     }
 
+    // The probe endpoints themselves come from ServiceDefaults (UseCustomHealthCheck); kept for host tests.
     public static WebApplication MapFlightHealthEndpoints(this WebApplication app)
     {
-        app.MapHealthChecks(
-            "/health/live",
-            new HealthCheckOptions { Predicate = registration => registration.Tags.Contains("live") }
-        );
-        app.MapHealthChecks(
-            "/health/ready",
-            new HealthCheckOptions { Predicate = registration => !registration.Tags.Contains("live") }
-        );
-
+        app.MapCustomHealthEndpoints();
         return app;
     }
 
