@@ -290,6 +290,10 @@ Endpoints come from configuration/service discovery (`Grpc:Flight:Address=http:/
 `/health/ready` includes the downstream gRPC health. The monolith serves h2c gRPC on `3002` (`81` in docker). See the
 [runbook](./docs/runbooks/grpc-service-addressing.md) and [ADR 0103](./docs/adr/0103-shared-grpc-contracts-and-service-addressing.md).
 
+The standalone Flight host uses separate HTTP and h2c gRPC listeners. See the
+[Flight service runbook](./docs/runbooks/flight-service.md) and
+[ADR 0502](./docs/adr/0502-standalone-flight-service-host.md).
+
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
 ```bash
