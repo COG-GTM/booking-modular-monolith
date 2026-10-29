@@ -21,6 +21,11 @@ namespace BuildingBlocks.Jwt
                 options.Audience = jwtOptions.Audience;
                 options.RequireHttpsMetadata = false;
 
+                // Lets a host validate tokens for a public issuer (e.g. the gateway URL) while
+                // fetching discovery/JWKS from an internal address.
+                if (!string.IsNullOrEmpty(jwtOptions.MetadataAddress))
+                    options.MetadataAddress = jwtOptions.MetadataAddress;
+
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
