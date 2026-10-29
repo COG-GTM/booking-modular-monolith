@@ -1,0 +1,42 @@
+global:
+  publicUrl: https://booking.example.com
+  allowInsecureDefaults: false
+  image:
+    registry: registry.example.com/booking
+    tag: "1.0.0"
+  observability:
+    otlpEndpoint: https://otel-collector.example.internal:4317
+
+services:
+  identity:
+    existingSecret: booking-identity-secrets
+    signingKey:
+      existingSecret: identity-signing-key
+  flight:
+    existingSecret: booking-flight-secrets
+  passenger:
+    existingSecret: booking-passenger-secrets
+  booking:
+    existingSecret: booking-booking-secrets
+
+infrastructure:
+  enabled: false
+  postgres:
+    host: postgres.example.internal
+    sslMode: Require
+  mongo:
+    host: mongo.example.internal
+  rabbitmq:
+    host: rabbitmq.example.internal
+  eventstore:
+    host: eventstore.example.internal
+
+ingress:
+  enabled: true
+  className: traefik
+  hosts:
+    - booking.example.com
+  tls:
+    - secretName: booking-tls
+      hosts:
+        - booking.example.com
