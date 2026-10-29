@@ -1,0 +1,31 @@
+name: Booking.Host
+
+on:
+  push:
+    branches: ["main", "devin/ab-488-v3"]
+  pull_request:
+    branches: ["main", "devin/ab-488-v3"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  booking-host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build Booking.Host
+        run: dotnet build src/Services/Booking.Host/Booking.Host.csproj -c Release -nologo -v quiet
+
+      - name: Booking host tests
+        run: dotnet test src/Modules/Booking/tests/Host.Test/Booking.Host.Test.csproj -c Release -nologo
+
+      - name: Build Booking.Host container image
+        run: docker build -f src/Services/Booking.Host/Dockerfile .

@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using Api;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
 using Integration.Test.Fakes;
@@ -14,9 +13,9 @@ using global::Passenger.Passengers.Features.GettingPassengerById.V1;
 public class GetPassengerByIdTests : PassengerIntegrationTestBase
 {
     public GetPassengerByIdTests(
-        TestFixture<Program, PassengerDbContext, PassengerReadDbContext> integrationTestFactory) : base(integrationTestFactory)
-    {
-    }
+        TestFixture<Program, PassengerDbContext, PassengerReadDbContext> integrationTestFactory
+    )
+        : base(integrationTestFactory) { }
 
     [Fact]
     public async Task should_retrive_a_passenger_by_id_currectly()

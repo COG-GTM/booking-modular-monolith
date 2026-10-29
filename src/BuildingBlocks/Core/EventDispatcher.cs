@@ -1,53 +1,53 @@
-using System.Security.Claims;
 using BuildingBlocks.Core.Event;
-using BuildingBlocks.PersistMessageProcessor;
-using BuildingBlocks.Web;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MessageEnvelope = BuildingBlocks.Core.Event.MessageEnvelope;
 
 namespace BuildingBlocks.Core;
 
-public sealed class EventDispatcher(
-    IServiceScopeFactory serviceScopeFactory,
-    IEventMapper eventMapper,
+public class EventDispatcher(
+    IEnumerable<IEventMapper> eventMappers,
     ILogger<EventDispatcher> logger,
-    IPersistMessageProcessor persistMessageProcessor,
-    IHttpContextAccessor httpContextAccessor
-)
-    : IEventDispatcher
+    IIntegrationEventPublisher integrationEventPublisher,
+    IEnumerable<IEventHeadersProvider> eventHeadersProviders
+) : IEventDispatcher
 {
-    public async Task SendAsync<T>(IReadOnlyList<T> events, Type type = null,
-                                   CancellationToken cancellationToken = default)
+    private readonly CompositeEventMapper _eventMapper = new(eventMappers);
+
+    public async Task SendAsync<T>(
+        IReadOnlyList<T> events,
+        Type type = null,
+        CancellationToken cancellationToken = default
+    )
         where T : IEvent
     {
         if (events.Count > 0)
         {
-            var eventType = type != null && type.IsAssignableTo(typeof(IInternalCommand))
-                ? EventType.InternalCommand
-                : EventType.DomainEvent;
+            var eventType =
+                type != null && type.IsAssignableTo(typeof(IInternalCommand))
+                    ? EventType.InternalCommand
+                    : EventType.DomainEvent;
 
             async Task PublishIntegrationEvent(IReadOnlyList<IIntegrationEvent> integrationEvents)
             {
                 foreach (var integrationEvent in integrationEvents)
                 {
-                    await persistMessageProcessor.PublishMessageAsync(
+                    await integrationEventPublisher.PublishAsync(
                         new MessageEnvelope(integrationEvent, SetHeaders()),
-                        cancellationToken);
+                        cancellationToken
+                    );
                 }
             }
 
             switch (events)
             {
                 case IReadOnlyList<IDomainEvent> domainEvents:
-                    {
-                        var integrationEvents = await MapDomainEventToIntegrationEventAsync(domainEvents)
+                {
+                    var integrationEvents = await MapDomainEventToIntegrationEventAsync(domainEvents)
                         .ConfigureAwait(false);
 
-                        await PublishIntegrationEvent(integrationEvents);
-                        break;
-                    }
+                    await PublishIntegrationEvent(integrationEvents);
+                    break;
+                }
 
                 case IReadOnlyList<IIntegrationEvent> integrationEvents:
                     await PublishIntegrationEvent(integrationEvents);
@@ -61,20 +61,18 @@ public sealed class EventDispatcher(
 
                 foreach (var internalMessage in internalMessages)
                 {
-                    await persistMessageProcessor.AddInternalMessageAsync(internalMessage, cancellationToken);
+                    await integrationEventPublisher.AddInternalCommandAsync(internalMessage, cancellationToken);
                 }
             }
         }
     }
 
-    public async Task SendAsync<T>(T @event, Type type = null,
-        CancellationToken cancellationToken = default)
-        where T : IEvent =>
-        await SendAsync(new[] { @event }, type, cancellationToken);
-
+    public async Task SendAsync<T>(T @event, Type type = null, CancellationToken cancellationToken = default)
+        where T : IEvent => await SendAsync(new[] { @event }, type, cancellationToken);
 
     private Task<IReadOnlyList<IIntegrationEvent>> MapDomainEventToIntegrationEventAsync(
-        IReadOnlyList<IDomainEvent> events)
+        IReadOnlyList<IDomainEvent> events
+    )
     {
         logger.LogTrace("Processing integration events start...");
 
@@ -83,13 +81,12 @@ public sealed class EventDispatcher(
             return Task.FromResult<IReadOnlyList<IIntegrationEvent>>(wrappedIntegrationEvents);
 
         var integrationEvents = new List<IIntegrationEvent>();
-        using var scope = serviceScopeFactory.CreateScope();
         foreach (var @event in events)
         {
             var eventType = @event.GetType();
             logger.LogTrace($"Handling domain event: {eventType.Name}");
 
-            var integrationEvent = eventMapper.MapToIntegrationEvent(@event);
+            var integrationEvent = _eventMapper.MapToIntegrationEvent(@event);
 
             if (integrationEvent is null)
                 continue;
@@ -102,20 +99,19 @@ public sealed class EventDispatcher(
         return Task.FromResult<IReadOnlyList<IIntegrationEvent>>(integrationEvents);
     }
 
-
     private Task<IReadOnlyList<IInternalCommand>> MapDomainEventToInternalCommandAsync(
-        IReadOnlyList<IDomainEvent> events)
+        IReadOnlyList<IDomainEvent> events
+    )
     {
         logger.LogTrace("Processing internal message start...");
 
         var internalCommands = new List<IInternalCommand>();
-        using var scope = serviceScopeFactory.CreateScope();
         foreach (var @event in events)
         {
             var eventType = @event.GetType();
             logger.LogTrace($"Handling domain event: {eventType.Name}");
 
-            var integrationEvent = eventMapper.MapToInternalCommand(@event);
+            var integrationEvent = _eventMapper.MapToInternalCommand(@event);
 
             if (integrationEvent is null)
                 continue;
@@ -130,26 +126,33 @@ public sealed class EventDispatcher(
 
     private IEnumerable<IIntegrationEvent> GetWrappedIntegrationEvents(IReadOnlyList<IDomainEvent> domainEvents)
     {
-        foreach (var domainEvent in domainEvents.Where(x =>
-                     x is IHaveIntegrationEvent))
+        foreach (var domainEvent in domainEvents.Where(x => x is IHaveIntegrationEvent))
         {
-            var genericType = typeof(IntegrationEventWrapper<>)
-                .MakeGenericType(domainEvent.GetType());
+            var genericType = typeof(IntegrationEventWrapper<>).MakeGenericType(domainEvent.GetType());
 
-            var domainNotificationEvent = (IIntegrationEvent)Activator
-                .CreateInstance(genericType, domainEvent);
+            var domainNotificationEvent = (IIntegrationEvent)Activator.CreateInstance(genericType, domainEvent);
 
             yield return domainNotificationEvent;
         }
     }
 
-    private IDictionary<string, object> SetHeaders()
+    private IDictionary<string, object?> SetHeaders()
     {
-        var headers = new Dictionary<string, object>();
-        headers.Add("CorrelationId", httpContextAccessor?.HttpContext?.GetCorrelationId());
-        headers.Add("UserId", httpContextAccessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier));
-        headers.Add("UserName", httpContextAccessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.Name));
+        var headers = new Dictionary<string, object?>();
+
+        foreach (var provider in eventHeadersProviders)
+        {
+            foreach (var header in provider.GetHeaders())
+                headers[header.Key] = header.Value;
+        }
 
         return headers;
     }
 }
+
+public sealed class EventDispatcher<TModule>(
+    IEnumerable<IEventMapper> eventMappers,
+    ILogger<EventDispatcher> logger,
+    IIntegrationEventPublisher<TModule> integrationEventPublisher,
+    IEnumerable<IEventHeadersProvider> eventHeadersProviders
+) : EventDispatcher(eventMappers, logger, integrationEventPublisher, eventHeadersProviders), IEventDispatcher<TModule>;

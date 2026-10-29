@@ -1,0 +1,72 @@
+name: Docker Compose
+
+on:
+  push:
+    branches: ["main", "devin/ab-488-v3"]
+    paths:
+      - "deployments/docker-compose/**"
+      - "src/**"
+      - "scripts/smoke/compose-e2e.sh"
+      - ".github/workflows/docker-compose.yml"
+  pull_request:
+    branches: ["main", "devin/ab-488-v3"]
+    paths:
+      - "deployments/docker-compose/**"
+      - "src/**"
+      - "scripts/smoke/compose-e2e.sh"
+      - ".github/workflows/docker-compose.yml"
+
+jobs:
+  image-builds:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: booking-gateway
+            dockerfile: src/Gateway/Dockerfile
+          - image: booking-identity-service
+            dockerfile: src/Services/Identity.Host/Dockerfile
+          - image: booking-flight-service
+            dockerfile: src/Services/Flight.Host/Dockerfile
+          - image: booking-passenger-service
+            dockerfile: src/Services/Passenger.Host/Dockerfile
+          - image: booking-booking-service
+            dockerfile: src/Services/Booking.Host/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.image }}
+        run: docker build -t "${{ matrix.image }}" -f "${{ matrix.dockerfile }}" .
+
+  compose-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Compose files
+        env:
+          CADVISOR_HOST_PORT: "18080"
+        run: |
+          docker compose -f deployments/docker-compose/docker-compose.yaml config -q
+
+      - name: Start services topology and dependencies
+        env:
+          CADVISOR_HOST_PORT: "18080"
+        run: |
+          docker compose -f deployments/docker-compose/docker-compose.yaml up -d --build --wait gateway
+
+      - name: Exercise booking flow
+        run: bash scripts/smoke/compose-e2e.sh
+
+      - name: Show Compose logs on failure
+        if: failure()
+        env:
+          CADVISOR_HOST_PORT: "18080"
+        run: docker compose -f deployments/docker-compose/docker-compose.yaml logs --no-color || true
+
+      - name: Stop Compose services and remove volumes
+        if: always()
+        env:
+          CADVISOR_HOST_PORT: "18080"
+        run: docker compose -f deployments/docker-compose/docker-compose.yaml down -v --remove-orphans

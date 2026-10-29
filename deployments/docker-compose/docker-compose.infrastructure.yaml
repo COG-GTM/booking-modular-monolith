@@ -15,6 +15,15 @@ services:
     image: rabbitmq:management
     container_name: rabbitmq
     restart: unless-stopped
+    # guest is loopback-only on a stock broker; services connect as booking/booking (local-dev default).
+    environment:
+      - RABBITMQ_DEFAULT_USER=booking
+      - RABBITMQ_DEFAULT_PASS=booking
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -27,7 +36,7 @@ services:
   #  postgres
   #######################################################
   postgres:
-    image: postgres:latest
+    image: postgres:16
     container_name: postgres
     restart: unless-stopped
     ports:
@@ -40,9 +49,16 @@ services:
       - "-c"
       - "wal_level=logical"
       - "-c"
-      - "max_prepared_transactions=10"
+      - "max_prepared_transactions=100"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./init/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     networks:
       - infrastructure
 
@@ -52,7 +68,7 @@ services:
   #######################################################
   eventstore:
       container_name: eventstore
-      image: eventstore/eventstore:latest
+      image: eventstore/eventstore:23.10.0-bookworm-slim
       restart: unless-stopped
       environment:
          - EVENTSTORE_CLUSTER_SIZE=1
@@ -71,7 +87,7 @@ services:
   # #  Mongo
   # #######################################################
   mongo:
-    image: mongo:latest
+    image: mongo:7
     container_name: mongo
     restart: unless-stopped
     # environment:
@@ -79,6 +95,14 @@ services:
     #   - MONGO_INITDB_ROOT_PASSWORD=secret
     ports:
       - 27017:27017
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    volumes:
+      - mongo-data:/data/db
     networks:
       - infrastructure
 
@@ -92,6 +116,12 @@ services:
     restart: unless-stopped
     ports:
       - 6379:6379    
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     networks:
       - infrastructure      
 
@@ -246,7 +276,7 @@ services:
   # # https://github.com/grafana/tempo/tree/main/example/docker-compose
   # #######################################################     
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.7.2
     container_name: tempo
     restart: unless-stopped
     command: [ "-config.file=/etc/tempo.yaml" ]
@@ -339,7 +369,7 @@ services:
     container_name: cadvisor
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${CADVISOR_HOST_PORT:-8080}:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -358,4 +388,6 @@ networks:
     driver: bridge
     
 volumes:
+  elastic-data:
+  mongo-data:
   postgres-data:

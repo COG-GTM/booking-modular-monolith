@@ -1,10 +1,8 @@
 using System.Threading.Tasks;
-using Api;
 using Booking.Data;
-using BookingFlight;
-using BookingPassenger;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.TestBase;
+using Flight;
 using FluentAssertions;
 using Grpc.Core;
 using Grpc.Core.Testing;
@@ -12,17 +10,16 @@ using Integration.Test.Fakes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
+using Passenger;
 using Xunit;
-using GetByIdRequest = BookingFlight.GetByIdRequest;
+using GetByIdRequest = Flight.GetByIdRequest;
 
 namespace Integration.Test.Booking.Features
 {
     public class CreateBookingTests : BookingIntegrationTestBase
     {
-        public CreateBookingTests(TestReadFixture<Program, BookingReadDbContext> integrationTestFixture) : base(
-            integrationTestFixture)
-        {
-        }
+        public CreateBookingTests(TestReadFixture<Program, BookingReadDbContext> integrationTestFixture)
+            : base(integrationTestFixture) { }
 
         protected override void RegisterTestsServices(IServiceCollection services)
         {
@@ -45,41 +42,76 @@ namespace Integration.Test.Booking.Features
             (await Fixture.WaitForPublishing<BookingCreated>()).Should().Be(true);
         }
 
-
         private void MockPassengerGrpcServices(IServiceCollection services)
         {
-            services.Replace(ServiceDescriptor.Singleton(x =>
-            {
-                var mockPassenger = Substitute.For<PassengerGrpcService.PassengerGrpcServiceClient>();
+            services.Replace(
+                ServiceDescriptor.Singleton(x =>
+                {
+                    var mockPassenger = Substitute.For<PassengerGrpcService.PassengerGrpcServiceClient>();
 
-                mockPassenger.GetByIdAsync(Arg.Any<BookingPassenger.GetByIdRequest>())
-                    .Returns(TestCalls.AsyncUnaryCall(Task.FromResult(FakePassengerResponse.Generate()),
-                        Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { }));
+                    mockPassenger
+                        .GetByIdAsync(Arg.Any<Passenger.GetByIdRequest>())
+                        .Returns(
+                            TestCalls.AsyncUnaryCall(
+                                Task.FromResult(FakePassengerResponse.Generate()),
+                                Task.FromResult(new Metadata()),
+                                () => Status.DefaultSuccess,
+                                () => new Metadata(),
+                                () => { }
+                            )
+                        );
 
-                return mockPassenger;
-            }));
+                    return mockPassenger;
+                })
+            );
         }
 
         private void MockFlightGrpcServices(IServiceCollection services)
         {
-            services.Replace(ServiceDescriptor.Singleton(x =>
-            {
-                var mockFlight = Substitute.For<FlightGrpcService.FlightGrpcServiceClient>();
+            services.Replace(
+                ServiceDescriptor.Singleton(x =>
+                {
+                    var mockFlight = Substitute.For<FlightGrpcService.FlightGrpcServiceClient>();
 
-                mockFlight.GetByIdAsync(Arg.Any<GetByIdRequest>())
-                    .Returns(TestCalls.AsyncUnaryCall(Task.FromResult(FakeFlightResponse.Generate()),
-                        Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { }));
+                    mockFlight
+                        .GetByIdAsync(Arg.Any<GetByIdRequest>())
+                        .Returns(
+                            TestCalls.AsyncUnaryCall(
+                                Task.FromResult(FakeFlightResponse.Generate()),
+                                Task.FromResult(new Metadata()),
+                                () => Status.DefaultSuccess,
+                                () => new Metadata(),
+                                () => { }
+                            )
+                        );
 
-                mockFlight.GetAvailableSeatsAsync(Arg.Any<GetAvailableSeatsRequest>())
-                    .Returns(TestCalls.AsyncUnaryCall(Task.FromResult(FakeGetAvailableSeatsResponse.Generate()),
-                        Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { }));
+                    mockFlight
+                        .GetAvailableSeatsAsync(Arg.Any<GetAvailableSeatsRequest>())
+                        .Returns(
+                            TestCalls.AsyncUnaryCall(
+                                Task.FromResult(FakeGetAvailableSeatsResponse.Generate()),
+                                Task.FromResult(new Metadata()),
+                                () => Status.DefaultSuccess,
+                                () => new Metadata(),
+                                () => { }
+                            )
+                        );
 
-                mockFlight.ReserveSeatAsync(Arg.Any<ReserveSeatRequest>())
-                    .Returns(TestCalls.AsyncUnaryCall(Task.FromResult(FakeReserveSeatResponse.Generate()),
-                        Task.FromResult(new Metadata()), () => Status.DefaultSuccess, () => new Metadata(), () => { }));
+                    mockFlight
+                        .ReserveSeatAsync(Arg.Any<ReserveSeatRequest>())
+                        .Returns(
+                            TestCalls.AsyncUnaryCall(
+                                Task.FromResult(FakeReserveSeatResponse.Generate()),
+                                Task.FromResult(new Metadata()),
+                                () => Status.DefaultSuccess,
+                                () => new Metadata(),
+                                () => { }
+                            )
+                        );
 
-                return mockFlight;
-            }));
+                    return mockFlight;
+                })
+            );
         }
     }
 }

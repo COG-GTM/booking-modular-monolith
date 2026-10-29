@@ -10,7 +10,6 @@ public static class TestContainers
 {
     public static RabbitMqContainerOptions RabbitMqContainerConfiguration { get; }
     public static PostgresContainerOptions PostgresContainerConfiguration { get; }
-    public static PostgresPersistContainerOptions PostgresPersistContainerConfiguration { get; }
     public static MongoContainerOptions MongoContainerConfiguration { get; }
     public static EventStoreContainerOptions EventStoreContainerConfiguration { get; }
 
@@ -18,15 +17,16 @@ public static class TestContainers
     {
         var configuration = ConfigurationHelper.GetConfiguration();
 
-        RabbitMqContainerConfiguration =
-            configuration.GetOptions<RabbitMqContainerOptions>(nameof(RabbitMqContainerOptions));
-        PostgresContainerConfiguration =
-            configuration.GetOptions<PostgresContainerOptions>(nameof(PostgresContainerOptions));
-        PostgresPersistContainerConfiguration =
-            configuration.GetOptions<PostgresPersistContainerOptions>(nameof(PostgresPersistContainerOptions));
+        RabbitMqContainerConfiguration = configuration.GetOptions<RabbitMqContainerOptions>(
+            nameof(RabbitMqContainerOptions)
+        );
+        PostgresContainerConfiguration = configuration.GetOptions<PostgresContainerOptions>(
+            nameof(PostgresContainerOptions)
+        );
         MongoContainerConfiguration = configuration.GetOptions<MongoContainerOptions>(nameof(MongoContainerOptions));
-        EventStoreContainerConfiguration =
-            configuration.GetOptions<EventStoreContainerOptions>(nameof(EventStoreContainerOptions));
+        EventStoreContainerConfiguration = configuration.GetOptions<EventStoreContainerOptions>(
+            nameof(EventStoreContainerOptions)
+        );
     }
 
     public static PostgreSqlContainer PostgresTestContainer()
@@ -41,23 +41,6 @@ public static class TestContainers
             .WithName(PostgresContainerConfiguration.Name)
             .WithCommand(new string[2] { "-c", "max_prepared_transactions=10" })
             .WithPortBinding(PostgresContainerConfiguration.Port, true)
-            .Build();
-
-        return builder;
-    }
-
-    public static PostgreSqlContainer PostgresPersistTestContainer()
-    {
-        var baseBuilder = new PostgreSqlBuilder()
-            .WithUsername(PostgresPersistContainerConfiguration.UserName)
-            .WithPassword(PostgresPersistContainerConfiguration.Password)
-            .WithLabel("Key", "Value");
-
-        var builder = baseBuilder
-            .WithImage(PostgresPersistContainerConfiguration.ImageName)
-            .WithName(PostgresPersistContainerConfiguration.Name)
-            .WithCommand(new string[2] { "-c", "max_prepared_transactions=10" })
-            .WithPortBinding(PostgresPersistContainerConfiguration.Port, true)
             .Build();
 
         return builder;
@@ -98,8 +81,7 @@ public static class TestContainers
 
     public static EventStoreDbContainer EventStoreTestContainer()
     {
-        var baseBuilder = new EventStoreDbBuilder()
-            .WithLabel("Key", "Value");
+        var baseBuilder = new EventStoreDbBuilder().WithLabel("Key", "Value");
 
         var builder = baseBuilder
             .WithImage(EventStoreContainerConfiguration.ImageName)
@@ -120,15 +102,6 @@ public static class TestContainers
     }
 
     public sealed class PostgresContainerOptions
-    {
-        public string Name { get; set; } = "postgreSql_" + Guid.NewGuid().ToString("D");
-        public int Port { get; set; } = 5432;
-        public string ImageName { get; set; } = "postgres:latest";
-        public string UserName { get; set; } = Guid.NewGuid().ToString("D");
-        public string Password { get; set; } = Guid.NewGuid().ToString("D");
-    }
-
-    public sealed class PostgresPersistContainerOptions
     {
         public string Name { get; set; } = "postgreSql_" + Guid.NewGuid().ToString("D");
         public int Port { get; set; } = 5432;

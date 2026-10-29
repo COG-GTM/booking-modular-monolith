@@ -1,0 +1,15 @@
+global:
+  publicUrl: http://localhost:8088
+  allowInsecureDefaults: true
+  image:
+    tag: local
+
+infrastructure:
+  enabled: true
+
+ingress:
+  enabled: true
+  className: traefik
+  hosts:
+    - ""
+  tls: []

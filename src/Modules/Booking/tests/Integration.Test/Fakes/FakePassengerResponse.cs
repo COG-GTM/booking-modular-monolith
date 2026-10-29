@@ -1,6 +1,6 @@
 namespace Integration.Test.Fakes;
 
-using BookingPassenger;
+using Passenger;
 using MassTransit;
 
 public static class FakePassengerResponse

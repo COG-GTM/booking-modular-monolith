@@ -1,0 +1,88 @@
+services:
+  identity-service:
+    environment:
+      Modules__Identity__BackgroundProcessingEnabled: ${IDENTITY_SERVICE_BACKGROUND:-false}
+
+  flight-service:
+    environment:
+      Modules__Flight__BackgroundProcessingEnabled: ${FLIGHT_SERVICE_BACKGROUND:-false}
+
+  passenger-service:
+    environment:
+      Modules__Passenger__BackgroundProcessingEnabled: ${PASSENGER_SERVICE_BACKGROUND:-false}
+
+  booking-service:
+    environment:
+      Modules__Booking__BackgroundProcessingEnabled: ${BOOKING_SERVICE_BACKGROUND:-false}
+      Services__flight__grpc__0: ${FLIGHT_GRPC_ADDRESS_FOR_SERVICES:-http://monolith:81}
+      Services__passenger__grpc__0: ${PASSENGER_GRPC_ADDRESS_FOR_SERVICES:-http://monolith:81}
+
+  monolith:
+    image: ${MONOLITH_IMAGE:-booking-modular-monolith:legacy}
+    container_name: booking_modular_monolith
+    restart: unless-stopped
+    working_dir: /var/lib/identity-signing
+    entrypoint: ["dotnet", "/app/Api.dll"]
+    ports:
+      - "127.0.0.1:3001:80"
+    volumes:
+      - identity-signing:/var/lib/identity-signing
+      - identity-data-protection-keys:/root/.aspnet/DataProtection-Keys
+    environment:
+      ASPNETCORE_ENVIRONMENT: docker
+      ASPNETCORE_URLS: http://+:80
+      ASPNETCORE_CONTENTROOT: /app
+      AuthOptions__IssuerUri: http://localhost:5000
+      Jwt__Authority: http://localhost:5000
+      Jwt__MetadataAddress: http://localhost:80/.well-known/openid-configuration
+      MessagingOptions__Transport: RabbitMq
+      RabbitMqOptions__HostName: rabbitmq
+      RabbitMqOptions__Port: "5672"
+      RabbitMqOptions__UserName: booking
+      RabbitMqOptions__Password: booking
+      PostgresOptions__ConnectionString__Identity: Server=postgres;Port=5432;Database=identity_modular_monolith;User Id=identity_service;Password=identity_service;Include Error Detail=true
+      PostgresOptions__ConnectionString__Flight: Server=postgres;Port=5432;Database=flight_modular_monolith;User Id=flight_service;Password=flight_service;Include Error Detail=true
+      PostgresOptions__ConnectionString__Passenger: Server=postgres;Port=5432;Database=passenger_modular_monolith;User Id=passenger_service;Password=passenger_service;Include Error Detail=true
+      PostgresOptions__ConnectionString__Booking: Server=postgres;Port=5432;Database=booking_modular_monolith;User Id=booking_service;Password=booking_service;Include Error Detail=true
+      MongoOptions__ConnectionString: mongodb://mongo:27017
+      MongoOptions__Flight__DatabaseName: flight_modular_monolith_read
+      MongoOptions__Passenger__DatabaseName: passenger_modular_monolith_read
+      MongoOptions__Booking__DatabaseName: booking_modular_monolith_read
+      EventStoreOptions__ConnectionString: esdb://eventstore:2113?tls=false
+      Services__flight__grpc__0: ${FLIGHT_GRPC_ADDRESS:-http://monolith:81}
+      Services__passenger__grpc__0: ${PASSENGER_GRPC_ADDRESS:-http://monolith:81}
+      Modules__Identity__BackgroundProcessingEnabled: ${IDENTITY_MONOLITH_BACKGROUND:-true}
+      Modules__Flight__BackgroundProcessingEnabled: ${FLIGHT_MONOLITH_BACKGROUND:-true}
+      Modules__Passenger__BackgroundProcessingEnabled: ${PASSENGER_MONOLITH_BACKGROUND:-true}
+      Modules__Booking__BackgroundProcessingEnabled: ${BOOKING_MONOLITH_BACKGROUND:-true}
+      ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
+      ObservabilityOptions__UseAspireOTLPExporter: "false"
+      OTEL_SERVICE_NAME: booking-modular-monolith
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      eventstore:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/80; printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; IFS=' ' read -r _ status _ <&3; test \"$$status\" = \"200\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 120s
+    networks:
+      - infrastructure
+
+  gateway:
+    volumes:
+      - ./.cutover/gateway:/etc/gateway-cutover
+    environment:
+      Cutover__ConfigFile: /etc/gateway-cutover/overrides.json
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+    depends_on:
+      monolith:
+        condition: service_healthy

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- PackageId/metadata come from src/Contracts/Directory.Build.props; version from Versions.props. -->
+    <VersionPrefix>$(ContractsGrpcVersion)</VersionPrefix>
+    <PackageTags>booking-modular-monolith;contracts;grpc;protobuf</PackageTags>
+    <Description>Canonical gRPC contracts (flight, passenger) shared by providers and consumers, with generated client and server stubs and the .proto sources.</Description>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.33.5" />
+    <PackageReference Include="Grpc.Core.Api" Version="2.76.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.78.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="Protos\*.proto" GrpcServices="Both" ProtoRoot="Protos" />
+    <!-- Ship the sources so non-.NET consumers (and buf/grpcurl) can use the same contract. -->
+    <None Include="Protos\*.proto" Pack="true" PackagePath="protos" />
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,34 @@
+name: Contracts.Grpc
+
+on:
+  push:
+    branches: ["main", "devin/ab-488-v3"]
+  pull_request:
+    branches: ["main", "devin/ab-488-v3"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build shared gRPC contracts alone
+        run: dotnet build src/Contracts/Contracts.Grpc/Contracts.Grpc.csproj -c Release -nologo -v quiet
+
+      - name: Wire-contract tests (snapshot + single proto source)
+        run: dotnet test src/Contracts/tests/Contracts.Grpc.Tests -c Release -nologo
+
+      - name: Booking gRPC client tests (discovery, retry, deadline, readiness)
+        run: dotnet test src/Modules/Booking/tests/Unit.Test -c Release -nologo
+
+      - name: Pack contracts
+        run: dotnet pack src/Contracts/Contracts.Grpc/Contracts.Grpc.csproj -c Release -nologo -o artifacts/nuget

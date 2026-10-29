@@ -88,6 +88,9 @@ StyleCopReport.xml
 *.log
 *.vspscc
 *.vssscc
+src/Services/**/tempkey.jwk
+src/Services/**/keys/
+deployments/docker-compose/.cutover/
 .builds
 *.pidb
 *.svclog
@@ -440,3 +443,6 @@ fabric.properties
 
 # EventStore
 **/eventstore
+
+# Duende IdentityServer automatic signing keys (generated at runtime)
+**/keys/is-signing-key-*.json

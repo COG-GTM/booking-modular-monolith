@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using Api;
 using BuildingBlocks.TestBase;
 using Flight;
 using Flight.Data;
@@ -13,10 +12,8 @@ using global::Flight.Flights.Features.GettingFlightById.V1;
 
 public class GetFlightByIdTests : FlightIntegrationTestBase
 {
-    public GetFlightByIdTests(
-        TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory) : base(integrationTestFactory)
-    {
-    }
+    public GetFlightByIdTests(TestFixture<Program, FlightDbContext, FlightReadDbContext> integrationTestFactory)
+        : base(integrationTestFactory) { }
 
     [Fact]
     public async Task should_retrive_a_flight_by_id_currectly()
@@ -47,7 +44,9 @@ public class GetFlightByIdTests : FlightIntegrationTestBase
         var flightGrpcClient = new FlightGrpcService.FlightGrpcServiceClient(Fixture.Channel);
 
         // Act
-        var response = await flightGrpcClient.GetByIdAsync(new GetByIdRequest { Id = command.Id.ToString() }).ResponseAsync;
+        var response = await flightGrpcClient
+            .GetByIdAsync(new GetByIdRequest { Id = command.Id.ToString() })
+            .ResponseAsync;
 
         // Assert
         response?.Should().NotBeNull();

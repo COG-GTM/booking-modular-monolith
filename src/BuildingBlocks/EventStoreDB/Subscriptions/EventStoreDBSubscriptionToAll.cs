@@ -151,6 +151,10 @@ public class EventStoreDBSubscriptionToAll
 
                 resubscribed = true;
             }
+            catch (System.OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
             catch (System.Exception exception)
             {
                 logger.LogWarning(exception,

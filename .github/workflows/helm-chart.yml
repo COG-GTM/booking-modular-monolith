@@ -1,0 +1,66 @@
+name: Helm chart
+
+on:
+  push:
+    branches: ["main", "devin/ab-488-v3"]
+    paths:
+      - "deployments/k8s/**"
+      - "scripts/smoke/compose-e2e.sh"
+      - "src/**/Dockerfile"
+      - ".github/workflows/helm-chart.yml"
+  pull_request:
+    branches: ["main", "devin/ab-488-v3"]
+    paths:
+      - "deployments/k8s/**"
+      - "scripts/smoke/compose-e2e.sh"
+      - "src/**/Dockerfile"
+      - ".github/workflows/helm-chart.yml"
+
+jobs:
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.17.3
+      - name: Install kubeconform
+        run: |
+          mkdir -p "${HOME}/.local/bin"
+          curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz -o "${RUNNER_TEMP}/kubeconform.tar.gz"
+          tar -xzf "${RUNNER_TEMP}/kubeconform.tar.gz" -C "${RUNNER_TEMP}" kubeconform
+          install "${RUNNER_TEMP}/kubeconform" "${HOME}/.local/bin/kubeconform"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+      - name: Lint shell scripts
+        run: shellcheck scripts/smoke/compose-e2e.sh deployments/k8s/kind/smoke.sh deployments/k8s/tests/chart-render-test.sh
+      - name: Render and validate Helm chart
+        run: bash deployments/k8s/tests/chart-render-test.sh
+
+  kind-e2e:
+    runs-on: ubuntu-latest
+    needs: chart
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.17.3
+      - name: Install kind and kubectl
+        run: |
+          mkdir -p "${HOME}/.local/bin"
+          curl -fsSL https://kind.sigs.k8s.io/dl/v0.27.0/kind-linux-amd64 -o "${HOME}/.local/bin/kind"
+          chmod +x "${HOME}/.local/bin/kind"
+          curl -fsSLo "${HOME}/.local/bin/kubectl" https://dl.k8s.io/release/v1.31.4/bin/linux/amd64/kubectl
+          chmod +x "${HOME}/.local/bin/kubectl"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+      - name: Install signing-key generator dependency
+        run: python3 -m pip install cryptography
+      - name: Run kind topology smoke test
+        env:
+          KEEP_CLUSTER: "0"
+          KIND_HTTP_PORT: "8088"
+        run: bash deployments/k8s/kind/smoke.sh
+      - name: Collect cluster diagnostics
+        if: failure()
+        run: |
+          kind export logs "${RUNNER_TEMP}/kind-logs" --name booking || true
+          kubectl get all,ingress,hpa,cm,secret -n booking -o wide || true

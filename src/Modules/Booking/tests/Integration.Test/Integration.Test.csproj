@@ -16,7 +16,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\..\..\Api\src\Api.csproj" />
+		<ProjectReference Include="..\..\..\..\BuildingBlocks\TestBase\BuildingBlocks.TestBase.csproj" />
+		<ProjectReference Include="..\..\..\..\Services\Booking.Host\Booking.Host.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Grpc.Core.Testing" Version="2.46.6" />
 	</ItemGroup>
 
 </Project>

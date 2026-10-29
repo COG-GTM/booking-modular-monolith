@@ -33,10 +33,14 @@
   - [Config Certificate](#config-certificate)
   - [Aspire](#aspire)
   - [Docker Compose](#docker-compose)
+  - [Kubernetes (Helm)](#kubernetes-helm)
   - [Build](#build)
-  - [Run](#run)
+ - [Run](#run)
   - [Test](#test)
 - [Documentation Apis](#documentation-apis)
+- [Booking service host](#booking-service-host)
+- [Flight service host](#flight-service-host)
+- [Passenger service host](#passenger-service-host)
 - [Support](#support)
 - [Contribution](#contribution)
 
@@ -99,8 +103,31 @@
 ## Key Features
 1. **Modular Design**: The application is divided into modules, each responsible for a specific functionality.
 2. **Loose Coupling**: Modules interact through well-defined interfaces, improving maintainability.
-3. **Single Deployment**: The entire application is still deployed as one unit.
-4. **Shared Database**: Typically uses a single database, but modules can have their own schemas or tables.
+3. **Independent Service Hosts**: Each module runs in its own service host behind the gateway.
+4. **Per-Service Data Ownership**: Each service owns a PostgreSQL database and its read models; Booking uses the shared EventStoreDB.
+
+## Architecture after cutover
+
+```mermaid
+flowchart LR
+  Client --> Gateway
+  Gateway --> Identity
+  Gateway --> Flight
+  Gateway --> Passenger
+  Gateway --> Booking
+  Booking -->|gRPC| Flight
+  Booking -->|gRPC| Passenger
+  Identity --> PGi[(Identity PostgreSQL)]
+  Flight --> PGf[(Flight PostgreSQL)]
+  Flight --> Mf[(Flight Mongo)]
+  Passenger --> PGp[(Passenger PostgreSQL)]
+  Passenger --> Mp[(Passenger Mongo)]
+  Booking --> PGb[(Booking PostgreSQL)]
+  Booking --> Mb[(Booking Mongo read model)]
+  Booking --> ESDB[(EventStoreDB)]
+  Identity --> RabbitMQ
+  RabbitMQ --> Passenger
+```
 
 
 ## When to Use
@@ -154,6 +181,24 @@ I used CQRS to decompose my features into small parts that makes our application
 
 Using the CQRS pattern, we cut each business functionality into vertical slices, for each of these slices we group classes (see [technical folders structure](http://www.kamilgrzybek.com/design/feature-folders)) specific to that feature together (command, handlers, infrastructure, repository, controllers, etc). In our CQRS pattern each command/query handler is a separate slice. This is where you can reduce coupling between layers. Each handler can be a separated code unit, even copy/pasted. Thanks to that, we can tune down the specific method to not follow general conventions (e.g. use custom SQL query or even different storage). In a traditional layered architecture, when we change the core generic mechanism in one layer, it can impact all methods.
 
+
+### Shared libraries (BuildingBlocks)
+
+`src/BuildingBlocks` is split into focused, independently packable libraries (`BuildingBlocks.Core`, `.EFCore`, `.Mongo`,
+`.EventStoreDB`, `.MassTransit`, `.PersistMessageProcessor`, `.Jwt`, `.Web`, `.Validation`, `.ProblemDetails`, `.HealthCheck`,
+`.OpenTelemetryCollector`, `.TestBase`, ...). Reference only what a service needs. The code-free
+`BuildingBlocks.csproj` aggregate remains available for projects that intentionally need the full set of libraries. See
+[src/BuildingBlocks/README.md](src/BuildingBlocks/README.md)
+and [ADR 0100](docs/adr/0100-buildingblocks-shared-libraries.md). Pack them to a local feed with
+`scripts/pack-building-blocks.sh [semver]`.
+
+### Messaging (RabbitMQ)
+
+Integration events go over RabbitMQ (`MessagingOptions:Transport`, default `RabbitMq`; `InMemory` for unit tests).
+Each module's consumers bind their own queues (`<module>.<consumer>`, e.g. `passenger.register-new-user-handler`),
+the persist-message outbox publishes through the bus and the inbox de-duplicates redeliveries. Local credentials are
+`booking/booking`. See [ADR 0101](docs/adr/0101-rabbitmq-transport-and-module-queues.md) and the
+[messaging runbook](docs/runbooks/messaging.md).
 
 ## Development Setup
 
@@ -212,16 +257,123 @@ To run the application using the `Aspire App Host`, execute the following comman
 aspire run
 ```
 
-> Note:The `Aspire dashboard` will be available at `http://localhost:18888`
+The **Services** topology starts `gateway`, `identity`, `flight`, `passenger`, and `booking`, with service-owned
+databases. The gateway is `http://localhost:5000`; the dashboard is `http://localhost:18888` (use the printed login link).
+See the [Aspire local runbook](docs/runbooks/aspire-local.md) for VM startup, ports, smoke flow, and cleanup, and
+[ADR 0497](docs/adr/0497-aspire-apphost-microservices-topology.md) for the architecture decision.
 
 > ### Docker Compose
 
-To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-compose/docker-compose.yaml) and execute the below command at the `root` of the application:
+Compose starts the gateway, four service hosts, and shared infrastructure:
 
 ```bash
-docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
+docker compose -f deployments/docker-compose/docker-compose.yaml up -d --build
+scripts/smoke/compose-e2e.sh
+docker compose -f deployments/docker-compose/docker-compose.yaml ps
 ```
 
+| Component | Published host ports |
+|---|---|
+| Gateway | `5000` (the public application ingress) |
+| Identity | `127.0.0.1:5103` |
+| Flight HTTP / h2c gRPC | `127.0.0.1:5107` / `127.0.0.1:5106` |
+| Passenger HTTP / h2c gRPC | `127.0.0.1:5102` / `127.0.0.1:5202` |
+| Booking | `127.0.0.1:5004` |
+| Shared infrastructure | PostgreSQL `5432`, MongoDB `27017`, EventStoreDB `2113`, RabbitMQ `5672` / `15672`, Redis `6379` |
+| Observability | Grafana `3000`, Prometheus `9090`, Jaeger `6831/udp`, `14268`, `14317` / `14318`, `16686`; Zipkin `9411`; OTLP Collector `11888`, `8888`, `8889`, `13133`, `4317` / `4318`, `55679`; Tempo `24317` / `24318`; Loki `3100`; Elasticsearch `9200` / `9300`; Kibana `5601`; cAdvisor `${CADVISOR_HOST_PORT:-8080}` |
+
+The infrastructure file is included by both topologies, so infrastructure-only startup remains available:
+
+```bash
+docker compose -f deployments/docker-compose/docker-compose.infrastructure.yaml up -d postgres mongo eventstore rabbitmq
+```
+
+> ### Local service host with infrastructure in Docker
+
+```bash
+docker compose -f deployments/docker-compose/docker-compose.infrastructure.yaml up -d postgres mongo eventstore
+export PATH="$HOME/.dotnet:$PATH"
+dotnet run --project src/Services/Flight.Host/Flight.Host.csproj
+```
+
+For the complete local topology, use Aspire or Compose rather than starting a single host.
+On a **fresh PostgreSQL volume**, the mounted
+[`01-service-databases.sql`](./deployments/docker-compose/init/postgres/01-service-databases.sql)
+creates the legacy `*_modular_monolith` databases used during rollback and the
+`<module>_service` databases used by standalone hosts. There is no
+`persist_message` database: each module owns its outbox/inbox table. Existing volumes
+are not initialized again; do not delete a volume containing data. PostgreSQL 16 enables
+`max_prepared_transactions=100` for Flight's transactional outbox. Mongo read databases
+are separate per service.
+
+See the [Docker Compose runbook](./docs/runbooks/docker-compose.md) and
+[ADR 0503: multi-service Compose topology](./docs/adr/0503-multi-service-docker-compose-topology.md) for service
+configuration, health gating, smoke checks, and troubleshooting.
+See the [cutover and rollback runbook](./docs/runbooks/cutover.md) for the legacy image,
+the state-driven overlay, and the tested reverse-sync path.
+
+> ### Kubernetes (Helm)
+
+The Helm chart deploys the gateway and four service hosts behind a single ingress, with optional in-cluster
+PostgreSQL, MongoDB, RabbitMQ, and EventStoreDB for kind development. See the
+[Kubernetes runbook](./docs/runbooks/kubernetes.md) and [ADR 0491](./docs/adr/0491-kubernetes-helm-deployment.md) for kind setup, production secret requirements, deployment,
+and smoke-test instructions.
+
+See [ADR 0002: per-service data ownership](./docs/adr/0002-per-service-data-ownership.md)
+and the [data ownership runbook](./docs/runbooks/per-service-data.md) for config
+fallbacks, credential-isolation checks, worker switches, and cutover precautions.
+
+> ### API Gateway (single ingress)
+
+All clients should call the [YARP](https://microsoft.github.io/reverse-proxy/) gateway in [src/Gateway](./src/Gateway) (`http://localhost:5000` in Aspire and Docker Compose).
+The gateway validates JWTs (`ApiScope` policy for `/api/**`), applies CORS and rate limiting,
+propagates `correlationId`/W3C trace context, and routes to the independent Identity, Flight,
+Passenger, and Booking hosts. Unknown paths are not forwarded to a fallback host. During a
+cutover drill, a reloadable override file repoints routes and can temporarily freeze them:
+
+```bash
+scripts/cutover/cutover.sh flip flight service
+```
+
+See the [gateway runbook](./docs/runbooks/gateway.md) and [ADR 0001](./docs/adr/0001-yarp-api-gateway-single-ingress.md).
+See [ADR 0505](./docs/adr/0505-strangler-cutover-and-monolith-decommission.md) for the decommission decision.
+
+## gRPC contracts and service addressing
+
+Booking calls Flight and Passenger over gRPC using the single shared contract in
+[`src/Contracts/Contracts.Grpc`](./src/Contracts/Contracts.Grpc/README.md) (packages `flight`, `passenger`).
+Endpoints come from configuration/service discovery (`Grpc:Flight:Address=http://_grpc.flight` resolved from
+`Services:flight:grpc:0`), idempotent reads retry on `Unavailable`, every call gets a default deadline, and
+`/health/ready` includes the downstream gRPC health. See the
+[runbook](./docs/runbooks/grpc-service-addressing.md) and [ADR 0103](./docs/adr/0103-shared-grpc-contracts-and-service-addressing.md).
+
+## Booking service host
+
+The Booking module can also run in the standalone [`Booking.Host`](./src/Services/Booking.Host/README.md), which
+listens on `http://localhost:5004` in Development and owns its `booking_service` outbox database,
+`booking_service_read` Mongo projection, and `booking-service` EventStoreDB checkpoint. See
+[ADR 0496](./docs/adr/0496-standalone-booking-service-host.md) and the
+[Booking service runbook](./docs/runbooks/booking-service.md) for side-by-side operation and cutover guidance.
+
+## Flight service host
+
+The standalone Flight host uses separate HTTP and h2c gRPC listeners. See the
+[Flight service runbook](./docs/runbooks/flight-service.md) and
+[ADR 0502](./docs/adr/0502-standalone-flight-service-host.md).
+
+### Observability (per service)
+
+Every deployable reports its own `service.name` (`booking-gateway`, `booking-modular-monolith`, `identity-service`,
+`flight-service`, `passenger-service`, `booking-service`), exposes `/health/live` and `/health/ready` in every environment,
+and both Compose topologies use `/health/ready` for application healthchecks. Hosts carry W3C trace context across the
+gateway, gRPC and the outbox/RabbitMQ hop so one booking request is one trace. See the
+[observability runbook](./docs/runbooks/observability.md) and [ADR 0495](./docs/adr/0495-per-service-observability-and-trace-propagation.md).
+
+## Passenger service host
+
+The standalone Passenger service composition and operating guidance are documented in
+[ADR 0104](./docs/adr/0104-passenger-service-host.md) and the
+[Passenger service runbook](./docs/runbooks/passenger-service.md).
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
 ```bash
@@ -239,6 +391,15 @@ dotnet run
 To `test` all modules, run this command in the `root` of the project:
 ```bash
 dotnet test
+```
+
+Contract compatibility and consumer-owned pact checks are documented in
+[`src/Contracts/README.md`](src/Contracts/README.md). The process-level service E2E suite requires Docker:
+
+```bash
+dotnet test src/Contracts/tests/Contracts.Grpc.Tests
+dotnet test src/Contracts/tests/Contracts.ConsumerDriven.Tests
+dotnet test src/Tests/CrossService.EndToEnd.Test/CrossService.EndToEnd.Test.csproj
 ```
 
 > ### Documentation Apis
