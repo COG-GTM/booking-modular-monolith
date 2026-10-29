@@ -87,27 +87,40 @@ class PackageIdentityTests(unittest.TestCase):
     def setUpClass(cls):
         cls.root = Path(tempfile.mkdtemp()).resolve()
         shutil.copy(REPO / "Directory.Build.props", cls.root)
+        write(cls.root, "src/BuildingBlocks/Directory.Build.props",
+              (REPO / "src/BuildingBlocks/Directory.Build.props").read_text())
         cls.version = ci.version((REPO / "Directory.Build.props").read_text())
 
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.root, ignore_errors=True)
 
-    def properties(self, project):
+    def properties(self, project, *options):
         write(self.root, project, '<Project Sdk="Microsoft.NET.Sdk" />')
         output = subprocess.run(["dotnet", "msbuild", project, "-getProperty:PackageId",
-                                 "-getProperty:PackageVersion", "-getProperty:RepositoryUrl"],
+                                 "-getProperty:PackageVersion", "-getProperty:RepositoryUrl",
+                                 "-getProperty:BuildingBlocksVersion", *options],
                                 cwd=self.root, capture_output=True, text=True, check=True).stdout
         return json.loads(output)["Properties"]
 
     def test_shared_projects_get_booking_identity_and_shared_version(self):
-        for project, package in (("src/BuildingBlocks/Core/BuildingBlocks.Core.csproj", "Booking.BuildingBlocks.Core"),
+        for project, package in (("src/BuildingBlocks/Core/BuildingBlocks.Core.csproj", "BookingModularMonolith.BuildingBlocks.Core"),
                                  ("src/Contracts/Contracts.Grpc/Contracts.Grpc.csproj", "Booking.Contracts.Grpc")):
             with self.subTest(project=project):
                 properties = self.properties(project)
                 self.assertEqual(package, properties["PackageId"])
                 self.assertEqual(self.version, properties["PackageVersion"])
                 self.assertEqual("https://github.com/COG-GTM/booking-modular-monolith", properties["RepositoryUrl"])
+
+    def test_explicit_shared_version_updates_buildingblocks_and_contracts(self):
+        version = "2.3.4-preview.1"
+        for project in ("src/BuildingBlocks/Core/BuildingBlocks.Core.csproj",
+                        "src/Contracts/Contracts.Grpc/Contracts.Grpc.csproj"):
+            with self.subTest(project=project):
+                properties = self.properties(project, f"-p:SharedPackageVersion={version}")
+                self.assertEqual(version, properties["PackageVersion"])
+                if project.startswith("src/BuildingBlocks/"):
+                    self.assertEqual(version, properties["BuildingBlocksVersion"])
 
     def test_service_and_lookalike_projects_keep_default_identity(self):
         for project, package in (("src/Modules/Flight/src/Flight.csproj", "Flight"),

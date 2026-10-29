@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -80,7 +79,7 @@ public static class Extensions
                                 exceptionType.GetType().Name,
                                 context.Response.StatusCode = StatusCodes.Status400BadRequest
                             ),
-                            DbUpdateConcurrencyException =>
+                            _ when IsEfConcurrencyException(exceptionType) =>
                             (
                                 exceptionType.Message,
                                 exceptionType.GetType().Name,
@@ -123,5 +122,17 @@ public static class Extensions
         });
 
         return app;
+    }
+
+    // Matched by name so this library doesn't depend on EF Core (services without EF Core can still use it).
+    internal static bool IsEfConcurrencyException(System.Exception exception)
+    {
+        for (var type = exception.GetType(); type is not null; type = type.BaseType)
+        {
+            if (type.FullName == "Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException")
+                return true;
+        }
+
+        return false;
     }
 }

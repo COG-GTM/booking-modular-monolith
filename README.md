@@ -160,6 +160,15 @@ I used CQRS to decompose my features into small parts that makes our application
 Using the CQRS pattern, we cut each business functionality into vertical slices, for each of these slices we group classes (see [technical folders structure](http://www.kamilgrzybek.com/design/feature-folders)) specific to that feature together (command, handlers, infrastructure, repository, controllers, etc). In our CQRS pattern each command/query handler is a separate slice. This is where you can reduce coupling between layers. Each handler can be a separated code unit, even copy/pasted. Thanks to that, we can tune down the specific method to not follow general conventions (e.g. use custom SQL query or even different storage). In a traditional layered architecture, when we change the core generic mechanism in one layer, it can impact all methods.
 
 
+### Shared libraries (BuildingBlocks)
+
+`src/BuildingBlocks` is split into focused, independently packable libraries (`BuildingBlocks.Core`, `.EFCore`, `.Mongo`,
+`.EventStoreDB`, `.MassTransit`, `.PersistMessageProcessor`, `.Jwt`, `.Web`, `.Validation`, `.ProblemDetails`, `.HealthCheck`,
+`.OpenTelemetryCollector`, `.TestBase`, ...). Reference only what a service needs; the code-free `BuildingBlocks.csproj`
+aggregate is kept for the monolith during the migration. See [src/BuildingBlocks/README.md](src/BuildingBlocks/README.md)
+and [ADR 0100](docs/adr/0100-buildingblocks-shared-libraries.md). Pack them to a local feed with
+`scripts/pack-building-blocks.sh [semver]`.
+
 ## Development Setup
 
 ### Dotnet Tools Packages

@@ -30,7 +30,8 @@ During migration, a module without its host still builds/tests as a module, with
 no image published. Adding `src/Services/<Module>.Host/<Module>.Host.csproj` and
 `Dockerfile` automatically activates its image build/publish. A host missing a
 Dockerfile is an error, not a silently skipped image. The gateway is selected once
-`src/Gateway/*.csproj` exists. Module tests remain under `src/Modules/<Module>/tests`;
+`src/Gateway/*.csproj` or `src/Gateway/src/*.csproj` exists. Hosts likewise support
+root or `src/` projects with a root Dockerfile. Module tests remain under `src/Modules/<Module>/tests`;
 gateway tests, if provided, belong under `src/Gateway/tests`.
 
 ## Registry, credentials and versions
@@ -49,7 +50,10 @@ deliberately excluded). Test projects are never published. Every shared project
 must be listed in the solution, including split libraries and proto packages.
 
 `Directory.Build.props` defines `SharedPackageVersion` and defaults shared package
-IDs to `Booking.<project-name>`. Bump this SemVer value in the same PR as releasable
+IDs to `Booking.<project-name>`; BuildingBlocks preserves AB-500's
+`BookingModularMonolith.<project-name>` identities. `BuildingBlocksVersion` aliases
+the shared version; local pack overrides use `-p:SharedPackageVersion`. Bump the
+root SemVer value in the same PR as releasable
 library/contract changes. All shared packages use that version together so project
 references generate consistent NuGet dependencies. A version change (including the
 initial version) publishes on the next trusted push; unchanged versions only pack
@@ -64,8 +68,9 @@ password is required. Build/test/pack jobs explicitly use read-only tokens. Only
 trusted-push image and package publishing jobs receive `packages: write`; the
 shared package publisher downloads the already-validated pack artifact. The
 publisher waits for selected service tests, AppHost and both metadata checks.
-The
-main-only Release Drafter retains its scoped `contents: write` permission.
+Shared BuildingBlocks/contracts test projects run before packing; the specialized
+BuildingBlocks consumer workflow is path-filtered to shared/build inputs.
+The main-only Release Drafter retains its scoped `contents: write` permission.
 New GitHub packages default to
 private; keep that visibility, link them to this repository and grant Actions access
 when reusing an existing package. If publishing returns 403, an owner must enable
