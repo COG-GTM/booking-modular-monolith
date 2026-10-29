@@ -6,7 +6,7 @@
 
 | Protocol | Local | Docker |
 | --- | --- | --- |
-| HTTP REST, OpenAPI, health | `http://localhost:5102` | `http://localhost:5104` |
+| HTTP REST, OpenAPI, health | `http://localhost:5107` | `http://localhost:5104` |
 | h2c gRPC | `http://localhost:5106` | `http://localhost:5105` |
 
 The gRPC listener is HTTP/2-only because h2c does not negotiate HTTP/2 when a clear-text endpoint also supports HTTP/1.1.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-FLIGHT_HTTP="${FLIGHT_HTTP:-http://localhost:5102}"
+FLIGHT_HTTP="${FLIGHT_HTTP:-http://localhost:5107}"
 FLIGHT_GRPC="${FLIGHT_GRPC:-localhost:5106}"
 TOKEN_URL="${TOKEN_URL:-http://localhost:3001/connect/token}"
 

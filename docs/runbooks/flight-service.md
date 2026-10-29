@@ -6,10 +6,10 @@
 
 | Endpoint | Local | Docker |
 | --- | --- | --- |
-| REST, OpenAPI, liveness, readiness | `http://localhost:5102` | `http://localhost:5104` |
+| REST, OpenAPI, liveness, readiness | `http://localhost:5107` | `http://localhost:5104` |
 | Flight gRPC and `grpc.health.v1.Health` | `http://localhost:5106` | `http://localhost:5105` |
 
-Identity.Host uses local port `5103`, so Flight.Host uses HTTP `5102` and h2c gRPC `5106` to allow both hosts to run side by side.
+Identity.Host uses local port `5103` and Passenger.Host uses HTTP/gRPC ports `5102`/`5202`, so Flight.Host uses HTTP/gRPC ports `5107`/`5106` for side-by-side runs.
 
 The service needs PostgreSQL, MongoDB, and RabbitMQ. Local configuration uses the `flight_service` PostgreSQL role/database and `flight_service_read` Mongo database; Docker connects to Compose services `postgres`, `mongo`, and `rabbitmq`. Supply deployment credentials through the environment/secret manager rather than using development role-name passwords.
 
@@ -46,7 +46,7 @@ During the AB-505 cutover, configure both hosts so each module's writes and back
 2. Route gateway Flight HTTP traffic to the standalone host:
 
    ```text
-   ReverseProxy__Clusters__flight__Destinations__primary__Address=http://localhost:5102/
+   ReverseProxy__Clusters__flight__Destinations__primary__Address=http://localhost:5107/
    ```
 
 3. Route Booking's Flight gRPC client to the h2c listener:
