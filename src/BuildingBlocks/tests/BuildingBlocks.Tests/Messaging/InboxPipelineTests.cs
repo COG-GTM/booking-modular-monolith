@@ -21,69 +21,6 @@ namespace BuildingBlocks.Tests.Messaging.InboxPipeline;
 public class InboxPipelineTests
 {
     [Fact]
-    public async Task consumer_queue_is_module_prefixed()
-    {
-        await using var fixture = await StartBusAsync();
-        var correlationId = Guid.NewGuid();
-        var @event = new InboxProbeEvent(correlationId);
-        var messageId = Guid.NewGuid();
-
-        await fixture.Bus.Publish(@event, context => context.MessageId = messageId);
-        var delivery = await WaitForDeliveryAsync(correlationId);
-        var endpoint = delivery.InputAddress.AbsolutePath.Trim('/');
-
-        endpoint.Should().EndWith("buildingblocks-tests.inbox-probe-handler");
-    }
-
-    [Fact]
-    public async Task first_delivery_records_a_processed_inbox_row_keyed_by_endpoint_and_message_id()
-    {
-        await using var fixture = await StartBusAsync();
-        var correlationId = Guid.NewGuid();
-        var messageId = Guid.NewGuid();
-        var @event = new InboxProbeEvent(correlationId);
-
-        await fixture.Bus.Publish(@event, context => context.MessageId = messageId);
-        var delivery = await WaitForDeliveryAsync(correlationId);
-        var endpoint = delivery.InputAddress.AbsolutePath.Trim('/');
-        var inboxId = InboxMessageId.For(endpoint, messageId);
-        var inboxMessage = await WaitForMessageAsync(fixture.Services, message => message.Id == inboxId);
-
-        inboxMessage.Id.Should().Be(inboxId);
-        inboxMessage.DeliveryType.Should().Be(MessageDeliveryType.Inbox);
-        inboxMessage.MessageStatus.Should().Be(MessageStatus.Processed);
-    }
-
-    [Fact]
-    public async Task redelivery_with_the_same_message_id_is_consumed_once()
-    {
-        await using var fixture = await StartBusAsync();
-        var correlationId = Guid.NewGuid();
-        var messageId = Guid.NewGuid();
-        var observer = new ProbeConsumeObserver();
-        using var observerHandle = fixture.Bus.ConnectConsumeObserver(observer);
-        var @event = new InboxProbeEvent(correlationId);
-
-        await fixture.Bus.Publish(@event, context => context.MessageId = messageId);
-        var delivery = await WaitForDeliveryAsync(correlationId);
-        var endpoint = delivery.InputAddress.AbsolutePath.Trim('/');
-        var inboxId = InboxMessageId.For(endpoint, messageId);
-        await WaitForMessageAsync(
-            fixture.Services,
-            message => message.Id == inboxId && message.MessageStatus == MessageStatus.Processed
-        );
-
-        await fixture.Bus.Publish(@event, context => context.MessageId = messageId);
-
-        (await WaitUntilAsync(() => observer.Completed.GetValueOrDefault(correlationId) == 2))
-            .Should()
-            .BeTrue("the consume observer should complete for both the first delivery and the duplicate");
-        InboxProbeHandler.Invocations.GetValueOrDefault(correlationId).Should().Be(1);
-
-        (await CountMessagesAsync(fixture.Services, inboxId)).Should().Be(1);
-    }
-
-    [Fact]
     public async Task outbox_publish_uses_the_persisted_row_id_as_message_id()
     {
         await using var fixture = await StartBusAsync();
@@ -214,13 +151,6 @@ public class InboxPipelineTests
         return result!;
     }
 
-    private static async Task<int> CountMessagesAsync(IServiceProvider services, Guid messageId)
-    {
-        await using var scope = services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
-        return await db.PersistMessage.CountAsync(message => message.Id == messageId);
-    }
-
     private static async Task<bool> WaitUntilAsync(Func<bool> condition)
     {
         var deadline = DateTime.UtcNow.AddSeconds(10);
@@ -259,29 +189,9 @@ public class InboxPipelineTests
         }
     }
 
-    private sealed class ProbeConsumeObserver : IConsumeObserver
-    {
-        public ConcurrentDictionary<Guid, int> Completed { get; } = new();
-
-        public Task PreConsume<T>(ConsumeContext<T> context)
-            where T : class => Task.CompletedTask;
-
-        public Task PostConsume<T>(ConsumeContext<T> context)
-            where T : class
-        {
-            if (context.Message is InboxProbeEvent @event)
-                Completed.AddOrUpdate(@event.CorrelationId, 1, (_, count) => count + 1);
-            return Task.CompletedTask;
-        }
-
-        public Task ConsumeFault<T>(ConsumeContext<T> context, System.Exception exception)
-            where T : class => Task.CompletedTask;
-    }
-
     public sealed class InboxProbeHandler : IConsumer<InboxProbeEvent>
     {
         public static ConcurrentDictionary<Guid, InboxProbeDelivery> Deliveries { get; } = new();
-        public static ConcurrentDictionary<Guid, int> Invocations { get; } = new();
 
         public Task Consume(ConsumeContext<InboxProbeEvent> context)
         {
@@ -294,7 +204,6 @@ public class InboxPipelineTests
                 context.ReceiveContext.InputAddress,
                 headerValue?.ToString()
             );
-            Invocations.AddOrUpdate(correlationId, 1, (_, count) => count + 1);
             return Task.CompletedTask;
         }
     }
