@@ -123,7 +123,9 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
     private void SetCurrentUser(Guid subjectId, string role)
     {
         var accessor = Fixture.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
-        accessor.HttpContext!.User = new ClaimsPrincipal(
+        var httpContext = accessor.HttpContext ?? new DefaultHttpContext();
+        accessor.HttpContext = httpContext;
+        httpContext.User = new ClaimsPrincipal(
             new ClaimsIdentity(new[] { new Claim("sub", subjectId.ToString()), new Claim("role", role) }, "Test")
         );
     }
