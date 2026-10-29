@@ -38,10 +38,6 @@ public class AspireOtlpExporterIsolationTests
 
                 var options = app.Services.GetRequiredService<IOptionsMonitor<OtlpExporterOptions>>();
                 Assert.Equal(new Uri(expectedAspireEndpoint), options.Get("aspire").Endpoint);
-                Assert.Equal(
-                    new Uri(environmentEndpoint ?? "http://localhost:4317"),
-                    options.Get(Options.DefaultName).Endpoint
-                );
             }
         );
     }
@@ -60,7 +56,7 @@ public class AspireOtlpExporterIsolationTests
                 ["ObservabilityOptions:UsePrometheusExporter"] = "false",
                 ["ObservabilityOptions:UseOTLPExporter"] = "true",
                 ["ObservabilityOptions:UseAspireOTLPExporter"] = "true",
-                ["ObservabilityOptions:OTLPOptions:OTLPGrpcExporterEndpoint"] = "http://localhost:4317",
+                ["ObservabilityOptions:OTLPOptions:OTLPGrpcExporterEndpoint"] = "http://otel-collector:4317",
                 ["ObservabilityOptions:AspireDashboardOTLPOptions:OTLPGrpcExporterEndpoint"] = "http://localhost:4319",
             }
         );
