@@ -15,6 +15,10 @@ public class GrpcExceptionInterceptor : Interceptor
         {
             return await continuation(request, context);
         }
+        catch (RpcException)
+        {
+            throw;
+        }
         catch (System.Exception exception)
         {
             throw new RpcException(new Status(StatusCode.Internal, exception.Message));
