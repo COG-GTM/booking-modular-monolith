@@ -1,0 +1,57 @@
+name: Cross-service tests
+
+on:
+  push:
+    branches: ["main", "devin/ab-488-v3"]
+  pull_request:
+    branches: ["main", "devin/ab-488-v3"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: gRPC wire compatibility tests
+        run: dotnet test src/Contracts/tests/Contracts.Grpc.Tests -c Release -nologo
+
+      - name: Message compatibility tests
+        run: dotnet test src/Contracts/tests/Contracts.Messages.Tests -c Release -nologo
+
+      - name: Consumer-driven contract tests
+        run: dotnet test src/Contracts/tests/Contracts.ConsumerDriven.Tests -c Release -nologo
+
+  e2e:
+    needs: contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build process-level E2E hosts
+        run: dotnet build src/Tests/CrossService.EndToEnd.Test/CrossService.EndToEnd.Test.csproj -c Release -nologo
+
+      - name: Run process-level E2E tests
+        run: dotnet test src/Tests/CrossService.EndToEnd.Test/CrossService.EndToEnd.Test.csproj -c Release -nologo
+
+      - name: Upload E2E host logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-service-e2e-host-logs
+          path: "**/TestResults/e2e-logs/**"
+          if-no-files-found: warn
