@@ -31,7 +31,7 @@ jobs:
       - name: Select affected services and packages
         id: select
         env:
-          BEFORE: ${{ github.event.before || github.event.pull_request.base.sha }}
+          BEFORE: ${{ github.event.pull_request.base.sha || github.event.before }}
           AFTER: ${{ github.event.pull_request.head.sha || github.sha }}
           FORCE: ${{ github.event_name == 'workflow_dispatch' }}
         run: python3 .github/scripts/ci.py select --base "$BEFORE" --head "$AFTER" --force "$FORCE" >> "$GITHUB_OUTPUT"
