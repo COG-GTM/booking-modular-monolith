@@ -36,6 +36,9 @@ public class GatewayRoutingTests : IAsyncLifetime
             { "GET", "/api/v1/passenger/4c5c0000-97c6-fc34-2eb9-08db322230c9" },
             { "POST", "/api/v1/booking" },
             { "GET", "/api/v1/unknown-module/anything" },
+            { "GET", "/api" },
+            { "GET", "/api/" },
+            { "GET", "/API/V1/FLIGHT/get-available-flights" },
         };
 
     [Theory]

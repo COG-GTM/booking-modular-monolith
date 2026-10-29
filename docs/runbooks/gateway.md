@@ -36,6 +36,9 @@ module, also turn off that module's background processing in the monolith
 
 ## Authentication
 
+* Local `dotnet run`: the `src/Api` launch profile already sets `AuthOptions__IssuerUri`/`Jwt__Authority=http://localhost:5000`
+  and `Jwt__MetadataAddress=http://localhost:3001/...`, matching the gateway's `appsettings.json`; Compose and Aspire set the same.
+
 * Gateway and backends reuse `BuildingBlocks.Jwt` (`Jwt:Authority`, `Jwt:Audience=booking-modular-monolith`).
 * Tokens are issued with the gateway's public URL as issuer (`AuthOptions__IssuerUri` on the monolith) so they
   validate identically at the gateway and behind it. `Jwt:MetadataAddress` lets each host fetch discovery/JWKS
