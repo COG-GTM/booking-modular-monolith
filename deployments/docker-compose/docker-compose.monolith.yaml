@@ -1,0 +1,76 @@
+name: booking-modular-monolith
+
+include:
+  - path: docker-compose.infrastructure.yaml
+
+services:
+  booking_modular_monolith:
+    image: booking-modular-monolith
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Api/Dockerfile
+    container_name: booking_modular_monolith
+    ports:
+      - 3001:80
+      - 3443:443
+    volumes:
+      - ~/.aspnet/https:/https:ro
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - ASPNETCORE_URLS=https://+;http://+
+      - Kestrel__Endpoints__Https__Url=https://+:443
+      - ASPNETCORE_HTTPS_PORT=3443
+      - ASPNETCORE_HTTP_PORT=3001
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      - AuthOptions__IssuerUri=http://localhost:5000
+      - Jwt__Authority=http://localhost:5000
+      - Jwt__MetadataAddress=http://localhost:80/.well-known/openid-configuration
+      - MessagingOptions__Transport=RabbitMq
+      - RabbitMqOptions__HostName=rabbitmq
+      - RabbitMqOptions__Port=5672
+      - RabbitMqOptions__UserName=booking
+      - RabbitMqOptions__Password=booking
+      - OTEL_SERVICE_NAME=booking-modular-monolith
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    healthcheck:
+      # ServiceDefaults readiness probe; the ASP.NET runtime image has no curl/wget.
+      test: ["CMD", "bash", "-c", 'exec 3<>/dev/tcp/127.0.0.1/80 && printf "GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3 && head -n1 <&3 | grep -q " 200 "']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - infrastructure
+
+  booking_gateway:
+    image: booking-gateway
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Gateway/Dockerfile
+    container_name: booking_gateway
+    ports:
+      - 5000:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      - OTEL_SERVICE_NAME=booking-gateway
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    depends_on:
+      booking_modular_monolith:
+        condition: service_healthy
+    healthcheck:
+      # The ASP.NET runtime image has no curl/wget.
+      test: ["CMD", "bash", "-c", 'exec 3<>/dev/tcp/127.0.0.1/80 && printf "GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3 && head -n1 <&3 | grep -q " 200 "']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - infrastructure

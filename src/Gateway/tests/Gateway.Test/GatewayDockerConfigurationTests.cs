@@ -18,7 +18,7 @@ public class GatewayDockerConfigurationTests
             .AddJsonFile("appsettings.json")
             .AddJsonFile("appsettings.docker.json")
             .Build();
-        var compose = File.ReadAllText(Path.Combine(root.FullName, "deployments/docker-compose/docker-compose.yaml"));
+        var compose = File.ReadAllText(Path.Combine(root.FullName, "deployments/docker-compose/docker-compose.monolith.yaml"));
         var service = Regex.Match(compose, @"(?m)^  (booking_modular_monolith):\s*$");
         Assert.True(service.Success);
         var address = $"http://{service.Groups[1].Value}:80/";

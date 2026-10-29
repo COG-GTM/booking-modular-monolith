@@ -53,6 +53,12 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./init/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     networks:
       - infrastructure
 
@@ -89,6 +95,14 @@ services:
     #   - MONGO_INITDB_ROOT_PASSWORD=secret
     ports:
       - 27017:27017
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    volumes:
+      - mongo-data:/data/db
     networks:
       - infrastructure
 
@@ -102,6 +116,12 @@ services:
     restart: unless-stopped
     ports:
       - 6379:6379    
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     networks:
       - infrastructure      
 
@@ -349,7 +369,7 @@ services:
     container_name: cadvisor
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${CADVISOR_HOST_PORT:-8080}:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -369,4 +389,5 @@ networks:
     
 volumes:
   elastic-data:
+  mongo-data:
   postgres-data:
