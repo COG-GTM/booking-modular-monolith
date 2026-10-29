@@ -68,6 +68,20 @@ class SelectionTests(unittest.TestCase):
 
 
 class LayoutTests(unittest.TestCase):
+    def test_nested_gateway_and_service_projects_keep_root_dockerfiles(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for service, host in (("gateway", "src/Gateway"), ("flight", "src/Services/Flight.Host")):
+                with self.subTest(service=service):
+                    project = root / host / "src/Host.csproj"
+                    project.parent.mkdir(parents=True)
+                    project.touch()
+                    (root / host / "Dockerfile").touch()
+                    tests = "src/Gateway/tests" if service == "gateway" else "src/Modules/Flight/tests"
+                    (root / tests).mkdir(parents=True)
+                    self.assertEqual({"project": f"{host}/src/Host.csproj", "tests": tests,
+                                      "dockerfile": f"{host}/Dockerfile"}, layout(service, root))
+
     def test_migration_and_host_layouts(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -49,7 +49,7 @@ def layout(service, root=Path(".")):
     if service not in SERVICES:
         raise ValueError(f"Unknown service: {service}")
     host = Path("src/Gateway") if service == "gateway" else Path(f"src/Services/{service.title()}.Host")
-    projects = sorted((root / host).glob("*.csproj"))
+    projects = sorted([*(root / host).glob("*.csproj"), *(root / host / "src").glob("*.csproj")])
     if projects:
         project = str(projects[0].relative_to(root))
         dockerfile = str(host / "Dockerfile")
