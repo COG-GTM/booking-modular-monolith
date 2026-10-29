@@ -49,14 +49,33 @@ public class PersistMessageProcessor : IPersistMessageProcessor
         return SavePersistMessageAsync(messageEnvelope, MessageDeliveryType.Inbox, cancellationToken);
     }
 
-    public Task<Guid> AddReceivedMessageAsync<TMessageEnvelope>(
+    public async Task<bool> TryAddReceivedMessageAsync<TMessageEnvelope>(
         TMessageEnvelope messageEnvelope,
         Guid inboxId,
         CancellationToken cancellationToken = default
     )
         where TMessageEnvelope : MessageEnvelope
     {
-        return SavePersistMessageAsync(messageEnvelope, MessageDeliveryType.Inbox, cancellationToken, inboxId);
+        try
+        {
+            await SavePersistMessageAsync(messageEnvelope, MessageDeliveryType.Inbox, cancellationToken, inboxId);
+            return true;
+        }
+        catch (DbUpdateException)
+        {
+            var rejected = _persistMessageDbContext.PersistMessage.Local.FirstOrDefault(x => x.Id == inboxId);
+            if (rejected is not null)
+                _persistMessageDbContext.PersistMessage.Entry(rejected).State = EntityState.Detached;
+
+            var claimed = await _persistMessageDbContext
+                .PersistMessage.AsNoTracking()
+                .AnyAsync(x => x.Id == inboxId, cancellationToken);
+
+            if (claimed)
+                return false;
+
+            throw;
+        }
     }
 
     public Task<PersistMessage?> GetInboxMessageAsync(Guid inboxId, CancellationToken cancellationToken = default)
@@ -146,7 +165,9 @@ public class PersistMessageProcessor : IPersistMessageProcessor
     public async Task ProcessAllAsync(CancellationToken cancellationToken = default)
     {
         var messages = await _persistMessageDbContext
-            .PersistMessage.Where(x => x.MessageStatus != MessageStatus.Processed)
+            .PersistMessage.Where(x =>
+                x.MessageStatus != MessageStatus.Processed && x.DeliveryType != MessageDeliveryType.Inbox
+            )
             .ToListAsync(cancellationToken);
 
         foreach (var message in messages)

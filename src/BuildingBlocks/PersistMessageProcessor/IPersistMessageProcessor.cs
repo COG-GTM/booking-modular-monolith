@@ -22,7 +22,8 @@ public interface IPersistMessageProcessor
     )
         where TMessageEnvelope : MessageEnvelope;
 
-    Task<Guid> AddReceivedMessageAsync<TMessageEnvelope>(
+    // Returns false when another delivery already recorded the same inbox id (concurrent duplicate).
+    Task<bool> TryAddReceivedMessageAsync<TMessageEnvelope>(
         TMessageEnvelope messageEnvelope,
         Guid inboxId,
         CancellationToken cancellationToken = default

@@ -40,11 +40,24 @@ public class ConsumeFilter<T> : IFilter<ConsumeContext<T>>
 
         if (existing is null)
         {
-            await _persistMessageProcessor.AddReceivedMessageAsync(
+            var recorded = await _persistMessageProcessor.TryAddReceivedMessageAsync(
                 new MessageEnvelope(context.Message, context.Headers.ToDictionary(x => x.Key, x => x.Value)),
                 inboxId,
                 context.CancellationToken
             );
+
+            if (!recorded)
+            {
+                // A concurrent delivery of the same MessageId owns the inbox row; if it fails, the broker
+                // redelivers that copy, so acknowledging this one does not lose the message.
+                _logger.LogInformation(
+                    "Skipping concurrent duplicate {MessageId} on {InputAddress}; inbox record {InboxId} is owned by another delivery.",
+                    context.MessageId,
+                    context.ReceiveContext.InputAddress,
+                    inboxId
+                );
+                return;
+            }
         }
 
         await next.Send(context);

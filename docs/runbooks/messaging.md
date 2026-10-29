@@ -53,3 +53,12 @@ curl -s -u booking:booking http://localhost:15672/api/queues/%2F/passenger.regis
 - **Duplicate side effects**: the inbox row id is derived from (queue, MessageId); check `persist_message` rows with
   `DeliveryType = Inbox` for that id.
 - **Old queues** (`register-new-user`) left on a long-lived broker from before AB-501 can be deleted.
+
+## Failure modes
+
+- **Broker or database down**: the outbox worker logs `PersistMessage processing failed; retrying on the next poll`
+  and keeps polling; pending outbox rows publish once RabbitMQ is back. The host does not stop.
+- **Inbox rows left `InProgress`**: a consumer that exhausted its retries leaves its inbox row `InProgress` for
+  inspection; the background poll ignores inbox rows, and moving the message back from `<queue>_error` reuses the row.
+- **Concurrent duplicates** (same MessageId on two consumers at once): the second inbox insert loses on the primary
+  key and that copy is acknowledged without running the consumer; the winning delivery is retried by the broker if it fails.

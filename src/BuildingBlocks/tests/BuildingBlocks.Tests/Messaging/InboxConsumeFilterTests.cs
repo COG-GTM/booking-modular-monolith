@@ -35,7 +35,7 @@ public class InboxConsumeFilterTests
 
         await processor
             .Received(1)
-            .AddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), inboxId, Arg.Any<CancellationToken>());
+            .TryAddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), inboxId, Arg.Any<CancellationToken>());
         await next.Received(1).Send(context);
         await processor.Received(1).ProcessInboxAsync(inboxId, Arg.Any<CancellationToken>());
     }
@@ -53,7 +53,7 @@ public class InboxConsumeFilterTests
         await next.DidNotReceive().Send(Arg.Any<ConsumeContext<TestEvent>>());
         await processor
             .DidNotReceive()
-            .AddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+            .TryAddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await processor.DidNotReceive().ProcessInboxAsync(inboxId, Arg.Any<CancellationToken>());
     }
 
@@ -71,7 +71,7 @@ public class InboxConsumeFilterTests
 
         await processor
             .DidNotReceive()
-            .AddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+            .TryAddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
         await next.Received(1).Send(context);
         await processor.Received(1).ProcessInboxAsync(inboxId, Arg.Any<CancellationToken>());
     }
@@ -86,6 +86,23 @@ public class InboxConsumeFilterTests
             new ConsumeFilter<TestEvent>(processor, NullLogger<ConsumeFilter<TestEvent>>.Instance).Send(context, next);
 
         await act.Should().ThrowAsync<InvalidOperationException>();
+        await processor.DidNotReceive().ProcessInboxAsync(inboxId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task concurrent_duplicate_that_loses_the_inbox_insert_is_acknowledged_without_consuming()
+    {
+        var (processor, context, next, inboxId) = Arrange(existing: null);
+        processor
+            .TryAddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), inboxId, Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        await new ConsumeFilter<TestEvent>(processor, NullLogger<ConsumeFilter<TestEvent>>.Instance).Send(
+            context,
+            next
+        );
+
+        await next.DidNotReceive().Send(Arg.Any<ConsumeContext<TestEvent>>());
         await processor.DidNotReceive().ProcessInboxAsync(inboxId, Arg.Any<CancellationToken>());
     }
 
@@ -119,8 +136,8 @@ public class InboxConsumeFilterTests
         var processor = Substitute.For<IPersistMessageProcessor>();
         processor.GetInboxMessageAsync(inboxId, Arg.Any<CancellationToken>()).Returns(existing);
         processor
-            .AddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), inboxId, Arg.Any<CancellationToken>())
-            .Returns(inboxId);
+            .TryAddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), inboxId, Arg.Any<CancellationToken>())
+            .Returns(true);
 
         var next = Substitute.For<IPipe<ConsumeContext<TestEvent>>>();
         next.Send(context).Returns(Task.CompletedTask);
