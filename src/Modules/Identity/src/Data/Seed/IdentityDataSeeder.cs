@@ -4,10 +4,14 @@ using BuildingBlocks.Constants;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.Core;
 using BuildingBlocks.EFCore;
+using BuildingBlocks.Web;
+using Identity.Configurations;
 using Identity.Identity.Constants;
 using Identity.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Identity.Data.Seed;
 
@@ -19,18 +23,24 @@ public class IdentityDataSeeder : IDataSeeder
     private readonly RoleManager<Role> _roleManager;
     private readonly IEventDispatcher _eventDispatcher;
     private readonly IdentityContext _identityContext;
+    private readonly IdentitySeedOptions _identitySeedOptions;
+    private readonly ILogger<IdentityDataSeeder> _logger;
 
     public IdentityDataSeeder(
         UserManager<User> userManager,
         RoleManager<Role> roleManager,
         IEventDispatcher eventDispatcher,
-        IdentityContext identityContext
+        IdentityContext identityContext,
+        IConfiguration configuration,
+        ILogger<IdentityDataSeeder> logger
     )
     {
         _userManager = userManager;
         _roleManager = roleManager;
         _eventDispatcher = eventDispatcher;
         _identityContext = identityContext;
+        _identitySeedOptions = configuration.GetOptions<IdentitySeedOptions>(nameof(IdentitySeedOptions));
+        _logger = logger;
     }
 
     public async Task SeedAllAsync()
@@ -64,9 +74,18 @@ public class IdentityDataSeeder : IDataSeeder
     {
         if (!await _identityContext.Users.AnyAsync())
         {
-            if (await _userManager.FindByNameAsync("samh") == null)
+            if (string.IsNullOrWhiteSpace(_identitySeedOptions.AdminPassword))
             {
-                var result = await _userManager.CreateAsync(InitialData.Users.First(), "Admin@123456");
+                _logger.LogWarning(
+                    "IdentitySeedOptions:AdminPassword is not configured; skipping seeding of default admin user."
+                );
+            }
+            else if (await _userManager.FindByNameAsync("samh") == null)
+            {
+                var result = await _userManager.CreateAsync(
+                    InitialData.Users.First(),
+                    _identitySeedOptions.AdminPassword
+                );
 
                 if (result.Succeeded)
                 {
@@ -82,9 +101,18 @@ public class IdentityDataSeeder : IDataSeeder
                 }
             }
 
-            if (await _userManager.FindByNameAsync("meysamh2") == null)
+            if (string.IsNullOrWhiteSpace(_identitySeedOptions.UserPassword))
             {
-                var result = await _userManager.CreateAsync(InitialData.Users.Last(), "User@123456");
+                _logger.LogWarning(
+                    "IdentitySeedOptions:UserPassword is not configured; skipping seeding of default user."
+                );
+            }
+            else if (await _userManager.FindByNameAsync("meysamh2") == null)
+            {
+                var result = await _userManager.CreateAsync(
+                    InitialData.Users.Last(),
+                    _identitySeedOptions.UserPassword
+                );
 
                 if (result.Succeeded)
                 {

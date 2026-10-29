@@ -31,6 +31,7 @@
     - [Upgrade Nuget Packages](#upgrade-nuget-packages)
 - [How to Run](#how-to-run)
   - [Config Certificate](#config-certificate)
+  - [Identity Credentials](#identity-credentials)
   - [Aspire](#aspire)
   - [Docker Compose](#docker-compose)
   - [Build](#build)
@@ -186,6 +187,16 @@ dotnet outdated -u
 ```
 
 ## How to Run
+
+### Identity Credentials
+
+Configure `AuthOptions__ClientSecret` to register the IdentityServer password-grant client.
+If it is unset or whitespace, no client is registered and the token endpoint cannot issue
+tokens for that client. Set `IdentitySeedOptions__AdminPassword` and
+`IdentitySeedOptions__UserPassword` to seed the default admin and regular users; each user
+is skipped when its password is unset or whitespace. Development has local-only defaults
+in `appsettings.Development.json`. For Docker Compose, use `IDENTITY_CLIENT_SECRET`,
+`IDENTITY_SEED_ADMIN_PASSWORD`, and `IDENTITY_SEED_USER_PASSWORD`.
 
 > ### Config Certificate
 Run the following commands to [Config SSL](https://docs.microsoft.com/en-us/aspnet/core/security/docker-compose-https?view=aspnetcore-6.0) in your system:

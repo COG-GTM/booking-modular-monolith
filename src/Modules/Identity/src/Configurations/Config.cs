@@ -53,8 +53,14 @@ public static class Config
             },
         };
 
-    public static IEnumerable<Client> Clients =>
-        new List<Client>
+    public static IEnumerable<Client> GetClients(string clientSecret)
+    {
+        if (string.IsNullOrWhiteSpace(clientSecret))
+        {
+            return new List<Client>();
+        }
+
+        return new List<Client>
         {
             new()
             {
@@ -62,7 +68,7 @@ public static class Config
                 AllowedGrantTypes = GrantTypes.ResourceOwnerPassword,
                 ClientSecrets =
                 {
-                    new Secret("secret".Sha256())
+                    new Secret(clientSecret.Sha256())
                 },
                 AllowedScopes =
                 {
@@ -80,4 +86,5 @@ public static class Config
                 AlwaysIncludeUserClaimsInIdToken = true // Include claims in ID token
             }
         };
+    }
 }
