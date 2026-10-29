@@ -5,6 +5,8 @@
   <!-- Shared packaging metadata for the versioned contract packages (local NuGet feed, SemVer). -->
   <PropertyGroup>
     <VersionPrefix>$(ContractsMessagesVersion)</VersionPrefix>
+    <Version>$(ContractsMessagesVersion)</Version>
+    <PackageVersion>$(ContractsMessagesVersion)</PackageVersion>
     <PackageId>BookingModularMonolith.$(MSBuildProjectName)</PackageId>
     <Authors>booking-modular-monolith</Authors>
     <Company>booking-modular-monolith</Company>

@@ -5,7 +5,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-version="${1:-$(sed -n 's:.*<BuildingBlocksVersion>\(.*\)</BuildingBlocksVersion>.*:\1:p' "$repo_root/src/BuildingBlocks/Directory.Build.props")}"
+version="${1:-$(dotnet msbuild "$repo_root/src/BuildingBlocks/Core/BuildingBlocks.Core.csproj" -getProperty:PackageVersion -nologo)}"
 feed="$(cd "${2:-$repo_root/artifacts/nuget}" && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT

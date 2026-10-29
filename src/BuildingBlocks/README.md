@@ -58,7 +58,8 @@ builder.AddPersistMessageProcessor();             // PersistMessageProcessor: II
 
 ## Packaging (local NuGet feed, SemVer)
 
-All libraries share `BuildingBlocksVersion` in [`Directory.Build.props`](Directory.Build.props) (SemVer 2.0; bump MAJOR on
+All libraries use root `SharedPackageVersion` (`BuildingBlocksVersion` is an alias in
+[`Directory.Build.props`](Directory.Build.props)) (SemVer 2.0; bump MAJOR on
 breaking API / namespace changes, MINOR on additive APIs, PATCH on fixes). Package ids are
 `BookingModularMonolith.<ProjectName>`.
 

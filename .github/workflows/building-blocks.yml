@@ -3,8 +3,28 @@ name: BuildingBlocks
 on:
   push:
     branches: ["main", "devin/ab-488-v3"]
+    paths:
+      - 'src/BuildingBlocks/**'
+      - 'scripts/*building-blocks*.sh'
+      - '.github/workflows/building-blocks.yml'
+      - 'Directory.*.props'
+      - 'Directory.*.targets'
+      - 'global.json'
+      - 'booking-modular-monolith.sln'
+      - '.editorconfig'
+      - '[Nn]u[Gg]et.[Cc]onfig'
   pull_request:
     branches: ["main", "devin/ab-488-v3"]
+    paths:
+      - 'src/BuildingBlocks/**'
+      - 'scripts/*building-blocks*.sh'
+      - '.github/workflows/building-blocks.yml'
+      - 'Directory.*.props'
+      - 'Directory.*.targets'
+      - 'global.json'
+      - 'booking-modular-monolith.sln'
+      - '.editorconfig'
+      - '[Nn]u[Gg]et.[Cc]onfig'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}

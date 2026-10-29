@@ -1,69 +1,29 @@
-﻿# https://docs.github.com/en/actions/creating-actions/creating-a-composite-action
-# https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions
-# https://doug.sh/posts/using-composite-actions-with-github-actions/
-# https://wallis.dev/blog/composite-github-actions
-
-name: "Build"
-description: "Build service"
-
-# Input parameters allow you to specify data that the action expects to use during runtime. GitHub stores input parameters as environment variables.(so they are just string)
-# https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#inputs
+name: Build
+description: Build only the selected project and its dependencies
 inputs:
   project-path:
-    description: Project path
+    description: Project file or directory
     required: true
   service-name:
     description: Service name
     required: true
-
-# https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions#runs-for-composite-actions
 runs:
-  using: "composite"
+  using: composite
   steps:
-
-    # https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows
-    # https://devblogs.microsoft.com/dotnet/dotnet-loves-github-actions/
-    # https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net#caching-dependencies
-    - name: Cache NuGet Packages
-      uses: actions/cache@v4
-      if: success()
+    - uses: actions/setup-dotnet@v4
       with:
-        path: ~/.nuget/packages
-        key: ${{ runner.os }}-dotnet-nuget
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+        dotnet-version: '10.0.x'
+    - uses: actions/setup-node@v4
       with:
-        dotnet-version: '10.x.x'
-
-      # https://learn.microsoft.com/en-us/dotnet/core/tools/global-tools
-    - name: Restore .NET Tools
+        node-version: '22'
+        cache: npm
+    - name: Install tooling and check formatting
       shell: bash
-      run: dotnet tool restore
-
-      # Note: `Ubuntu` file and folder names are case sensitive, be aware about naming them in solution references. because `Windows` file and folder names as case-insensitive.
-      # prevent windows case-insensitive for our project with: git config core.ignorecase false; - https://stackoverflow.com/a/27139487/581476
-    - name: Restore NuGet packages
-      shell: bash
-      if: success()
-      # restore root solution
-      run: dotnet restore
-
-    # npm install, runs `prepare` script automatically in the initialize step
-    - name: Install NPM Dependencies
-      shell: bash
-      if: success()
-      run: npm install
-
-    - name: Format Service
-      shell: bash
-      if: ${{ success()}}
       run: |
+        npm ci
         npm run ci-format
-
-    - name: Build Service
+    - name: Build selected service
       shell: bash
-      if: ${{ success()}}
-      working-directory: ${{ inputs.project-path }}
-      run: |
-        dotnet build -c Release --no-restore
+      env:
+        PROJECT: ${{ inputs.project-path }}
+      run: dotnet build "$PROJECT" -c Release

@@ -1,6 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
   <PropertyGroup>
+    <SharedPackageVersion>1.1.0</SharedPackageVersion>
+    <_PackageProjectPath>$([MSBuild]::MakeRelative('$(MSBuildThisFileDirectory)', '$(MSBuildProjectDirectory)'))/</_PackageProjectPath>
+    <_PackageProjectPath>$(_PackageProjectPath.Replace('\', '/'))</_PackageProjectPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(_PackageProjectPath.StartsWith('src/BuildingBlocks/')) Or $(_PackageProjectPath.StartsWith('src/Contracts/'))">
+    <PackageId>Booking.$(MSBuildProjectName)</PackageId>
+    <Version>$(SharedPackageVersion)</Version>
+    <PackageVersion>$(SharedPackageVersion)</PackageVersion>
+    <RepositoryUrl>https://github.com/COG-GTM/booking-modular-monolith</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
