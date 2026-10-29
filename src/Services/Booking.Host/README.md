@@ -27,7 +27,7 @@ The container listens on port `8080` and sets `ASPNETCORE_ENVIRONMENT=docker` to
   `MongoOptions:Booking:DatabaseName`: MongoDB connection and read database.
 - `EventStoreOptions:ConnectionString`: EventStoreDB connection.
 - `Jwt:Authority` and `Jwt:Audience`: public issuer and token audience. By default the authority
-  is the Gateway at `http://localhost:5000`.
+  is Identity.Host at `http://localhost:5101` locally (`http://localhost:5000` in Compose).
 - `Jwt:MetadataAddress`: internal Identity discovery document (`http://localhost:5101` locally,
   `http://identity-service:8080` in Docker). Configure Identity.Host's `AuthOptions:IssuerUri` as
   `http://localhost:5000` when it issues tokens through the Gateway.

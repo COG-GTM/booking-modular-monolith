@@ -43,7 +43,7 @@ scripts/cutover/flip-route.sh flight monolith
 # After recovery:
 scripts/cutover/flip-route.sh flight service
 docker compose -f deployments/docker-compose/docker-compose.yaml \
-  -f deployments/docker-compose/docker-compose.monolith-rollback.yaml down
+  -f deployments/docker-compose/docker-compose.monolith-rollback.yaml rm -sf booking_modular_monolith
 ```
 
 The overlay does not restore a catch-all route. For the automated service → previous image →

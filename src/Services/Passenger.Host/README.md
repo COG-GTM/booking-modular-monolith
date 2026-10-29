@@ -41,7 +41,7 @@ docker build -f src/Services/Passenger.Host/Dockerfile -t booking-passenger .
 | `RabbitMqOptions:VirtualHost` | `/` | RabbitMQ virtual host |
 | `RabbitMqOptions:UserName` / `Password` | `guest` / `guest` | RabbitMQ credentials |
 | `Messaging:Transport` | `RabbitMq` | MassTransit transport |
-| `Jwt:Authority` | `https://localhost:3000` | JWT issuer |
+| `Jwt:Authority` | `http://localhost:5101` | Local Identity.Host JWT issuer |
 | `Jwt:Audience` | `booking-modular-monolith` | Required API scope/audience |
 | `Jwt:MetadataAddress` | unset | Optional internal discovery-document URL override |
 | `Modules:Passenger:BackgroundProcessingEnabled` | `true` | Enables/disables only the Passenger outbox worker |

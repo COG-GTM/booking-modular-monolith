@@ -87,8 +87,15 @@ consumers (e.g. `monolith-register-new-user-handler` for `UserCreated`) regardle
 while it runs a `UserCreated` is delivered to both it and `passenger-service`. Use only short local
 drills and stop it before registration sanity. Production recovery requires consumer isolation.
 The overlay restores a cluster address, not a catch-all route: unknown paths still return 404.
-After restoring all routes to services, stop the overlay with the same two `-f` arguments and
-`down` (retain volumes and the previous-release image).
+After restoring all routes to services, remove only the previous-release container
+(retain volumes and the previous-release image):
+
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.monolith-rollback.yaml \
+  rm -sf booking_modular_monolith
+```
+
+Do not use `down` for rollback cleanup: it stops the gateway, services and infrastructure too.
 
 ## Build one service image independently
 

@@ -77,6 +77,18 @@ public class IngressTests
     }
 
     [Fact]
+    public void LocalJwtDefaultsUseIdentityHostIssuerAndDiscovery()
+    {
+        using var app = new WebApplicationFactory<Program>();
+        var options = app
+            .Services.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>()
+            .Get(JwtBearerDefaults.AuthenticationScheme);
+        Assert.Equal("http://localhost:5101", options.Authority);
+        Assert.Equal("http://localhost:5101/.well-known/openid-configuration", options.MetadataAddress);
+        Assert.Contains("http://localhost:5101", options.TokenValidationParameters.ValidIssuers!);
+    }
+
+    [Fact]
     public void MetadataOverrideIsUsedByConfigurationManager()
     {
         const string metadataAddress = "http://identity-internal/.well-known/openid-configuration";

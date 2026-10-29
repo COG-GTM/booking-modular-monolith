@@ -87,7 +87,7 @@ docker compose -f deployments/docker-compose/docker-compose.yaml \
   -f deployments/docker-compose/docker-compose.monolith-rollback.yaml \
   --env-file deployments/docker-compose/.cutover.env up -d
 docker compose -f deployments/docker-compose/docker-compose.yaml \
-  -f deployments/docker-compose/docker-compose.monolith-rollback.yaml down
+  -f deployments/docker-compose/docker-compose.monolith-rollback.yaml rm -sf booking_modular_monolith
 ```
 
 Without --env-file the default is all services; never accidentally reset routes mid-incident.

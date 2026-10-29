@@ -1,10 +1,32 @@
 using System.Xml.Linq;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace Gateway.Tests;
 
 public class MonolithDecommissionTests
 {
+    [Theory]
+    [InlineData("Booking")]
+    [InlineData("Flight")]
+    [InlineData("Passenger")]
+    public void ServiceJwtDefaultsMatchTheLocalIdentityIssuerAndPreserveDockerOverrides(string module)
+    {
+        var servicesPath = Path.Combine(FindRepositoryRoot(), "src", "Services");
+        var identity = new ConfigurationBuilder()
+            .AddJsonFile(Path.Combine(servicesPath, "Identity.Host", "appsettings.json"))
+            .Build();
+        var settings = new ConfigurationBuilder().AddJsonFile(
+            Path.Combine(servicesPath, $"{module}.Host", "appsettings.json")
+        );
+        Assert.Equal(identity["AuthOptions:IssuerUri"], settings.Build()["Jwt:Authority"]);
+        var docker = settings
+            .AddJsonFile(Path.Combine(servicesPath, $"{module}.Host", "appsettings.docker.json"))
+            .Build();
+        Assert.Equal("http://localhost:5000", docker["Jwt:Authority"]);
+        Assert.Equal("http://identity-service:8080/.well-known/openid-configuration", docker["Jwt:MetadataAddress"]);
+    }
+
     [Fact]
     public void SolutionAndProjectReferencesDoNotRequireTheRetiredHost()
     {

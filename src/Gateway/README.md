@@ -29,6 +29,8 @@ Set Jwt__Authority to the token issuer and optionally Jwt__MetadataAddress to an
 internally reachable discovery URL. The Authorization header remains intact for
 backend authorization. Set Identity's AuthOptions__IssuerUri to the same
 issuer as Jwt__Authority (Compose uses http://localhost:5000).
+Local defaults use Identity.Host's issuer and discovery on http://localhost:5101;
+Compose overrides both issuer and metadata address for its gateway-public issuer.
 Discovery also advertises a signing-key URL, which must
 be reachable by the gateway.
 

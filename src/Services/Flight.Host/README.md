@@ -31,7 +31,7 @@ SSL_CERT_DIR="$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs" \
 The REST/Kestrel HTTP1 endpoint is `http://localhost:5102`; the separate gRPC h2c endpoint is
 `http://localhost:5112`. Docker listens on HTTP `8080` and gRPC `8081`.
 The default JWT settings expect tokens with
-issuer `http://localhost:5000` and discovery metadata from Identity.Host on port `5101`; override
+issuer `http://localhost:5101` and discovery metadata from Identity.Host on port `5101`; override
 `Jwt__Authority` and `Jwt__MetadataAddress` when using another issuer.
 
 ## Configuration
