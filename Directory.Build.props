@@ -2,9 +2,11 @@
 <Project>
   <PropertyGroup>
     <SharedPackageVersion>1.0.0</SharedPackageVersion>
+    <_PackageProjectPath>$([MSBuild]::MakeRelative('$(MSBuildThisFileDirectory)', '$(MSBuildProjectDirectory)'))/</_PackageProjectPath>
+    <_PackageProjectPath>$(_PackageProjectPath.Replace('\', '/'))</_PackageProjectPath>
   </PropertyGroup>
 
-  <PropertyGroup Condition="$(MSBuildProjectDirectory.StartsWith('$(MSBuildThisFileDirectory)src/BuildingBlocks')) Or $(MSBuildProjectDirectory.StartsWith('$(MSBuildThisFileDirectory)src/Contracts'))">
+  <PropertyGroup Condition="$(_PackageProjectPath.StartsWith('src/BuildingBlocks/')) Or $(_PackageProjectPath.StartsWith('src/Contracts/'))">
     <PackageId>Booking.$(MSBuildProjectName)</PackageId>
     <Version>$(SharedPackageVersion)</Version>
     <PackageVersion>$(SharedPackageVersion)</PackageVersion>

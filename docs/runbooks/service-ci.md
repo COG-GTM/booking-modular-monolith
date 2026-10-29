@@ -8,11 +8,15 @@ selects independent matrix entries using `.github/scripts/ci.py`. The reusable
 and publishes **only after tests pass on a trusted branch push**. A failing
 service does not cancel siblings. `CI result` is the stable aggregate check to
 require in branch protection; it fails if selection, any service, or packing fails.
+AppHost orchestration builds independently when its sources or global build inputs
+change. Shared package metadata is checked on Linux and Windows. Main pushes keep
+the existing Release Drafter update after the aggregate CI check succeeds.
 
 | Change | Selected services |
 | --- | --- |
 | `src/Modules/Flight/**` or `src/Services/Flight.Host/**` | Flight only (same rule for Identity, Passenger, Booking) |
 | `src/Gateway/**` | Gateway only |
+| `src/Aspire/src/AppHost/**` | AppHost build only |
 | `src/BuildingBlocks/**`, `src/Contracts/**`, ServiceDefaults, root build configuration | All existing services |
 | Shared build/test actions, selection scripts, CI/service workflow, monolith composition | All existing services |
 | Docs, deployment manifests alone | None |
@@ -53,8 +57,11 @@ include their `.proto` files as package content themselves; CI does not rename o
 rewrite wire contracts.
 
 Both registries use the run's short-lived `GITHUB_TOKEN`; no PAT or stored registry
-password is required. Repository contents are read-only. Only image publishing and
-the shared-package job receive `packages: write`. New GitHub packages default to
+password is required. Build/test/pack jobs explicitly use read-only tokens. Only
+trusted-push image and package publishing jobs receive `packages: write`; the
+shared package publisher downloads the already-validated pack artifact. The
+main-only Release Drafter retains its scoped `contents: write` permission.
+New GitHub packages default to
 private; keep that visibility, link them to this repository and grant Actions access
 when reusing an existing package. If publishing returns 403, an owner must enable
 package creation for the organization or grant this repository access to the package.
@@ -80,7 +87,7 @@ path selection controls **pipeline execution**, not that legacy compile-time gra
 For a release, merge a single-service change and confirm only that service appears
 under `service` and its `publish` job outputs the SHA image reference. For a shared
 release, bump `SharedPackageVersion`, confirm `shared-packages` uploads `.nupkg`
-artifacts and publishes the new version, then restore a consumer against the feed.
+artifacts and `publish-packages` publishes the new version, then restore a consumer against the feed.
 Publishing cannot be proven by a PR-only run; inspect the trusted push run too.
 
 Rollback: restore the prior image SHA in the target environment's values using its

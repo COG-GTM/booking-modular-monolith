@@ -92,8 +92,8 @@ flowchart LR
 
 ## Policy exceptions requested
 
-None. ARB approval remains required before the epic merges to main; integration
-branch merges are allowed by the epic's delivery instructions.
+None. The epic requests integration-branch merges before ARB, but organization
+policy requires ARB approval before merge. This PR remains open pending approval.
 
 ## Consequences
 

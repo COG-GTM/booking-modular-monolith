@@ -21,6 +21,7 @@ jobs:
       services: ${{ steps.select.outputs.services }}
       packages: ${{ steps.select.outputs.packages }}
       shared: ${{ steps.select.outputs.shared }}
+      apphost: ${{ steps.select.outputs.apphost }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,13 +50,23 @@ jobs:
       contents: read
       packages: write
 
+  apphost:
+    needs: changes
+    if: needs.changes.outputs.apphost == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build
+        with:
+          project-path: src/Aspire/src/AppHost/AppHost.csproj
+          service-name: apphost
+
   shared-packages:
     needs: changes
     if: needs.changes.outputs.shared == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -68,10 +79,24 @@ jobs:
           name: shared-packages
           path: artifacts/packages/*.nupkg
           if-no-files-found: error
+  publish-packages:
+    needs: [changes, shared-packages]
+    if: >-
+      needs.changes.outputs.packages == 'true' && github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devin/ab-488-v3')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: shared-packages
+          path: artifacts/packages
       - name: Publish versioned packages
-        if: >-
-          needs.changes.outputs.packages == 'true' && github.event_name == 'push' &&
-          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devin/ab-488-v3')
         env:
           NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OWNER: ${{ github.repository_owner }}
@@ -80,9 +105,27 @@ jobs:
           --source "https://nuget.pkg.github.com/$OWNER/index.json"
           --api-key "$NUGET_AUTH_TOKEN" --skip-duplicate
 
+  package-metadata:
+    needs: changes
+    if: needs.changes.outputs.shared == 'true'
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Verify shared identity on native paths
+        shell: bash
+        run: |
+          dotnet msbuild src/BuildingBlocks/BuildingBlocks.csproj -getProperty:PackageId,PackageVersion > metadata.json
+          python3 -c 'import json, xml.etree.ElementTree as E; p=json.load(open("metadata.json", encoding="utf-8-sig"))["Properties"]; v=E.parse("Directory.Build.props").findtext(".//SharedPackageVersion"); assert p == {"PackageId": "Booking.BuildingBlocks", "PackageVersion": v}, p'
+
   ci:
     name: CI result
-    needs: [changes, service, shared-packages]
+    needs: [changes, service, apphost, shared-packages, publish-packages, package-metadata]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -91,7 +134,25 @@ jobs:
           CHANGES: ${{ needs.changes.result }}
           SERVICES: ${{ needs.service.result }}
           PACKAGES: ${{ needs.shared-packages.result }}
+          APPHOST: ${{ needs.apphost.result }}
+          PUBLISH: ${{ needs.publish-packages.result }}
+          METADATA: ${{ needs.package-metadata.result }}
         run: |
           test "$CHANGES" = success
           test "$SERVICES" = success || test "$SERVICES" = skipped
           test "$PACKAGES" = success || test "$PACKAGES" = skipped
+          test "$APPHOST" = success || test "$APPHOST" = skipped
+          test "$PUBLISH" = success || test "$PUBLISH" = skipped
+          test "$METADATA" = success || test "$METADATA" = skipped
+
+  release-drafter:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: release-drafter/release-drafter@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

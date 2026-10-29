@@ -13,6 +13,8 @@ permissions:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       PostgresContainerOptions__ImageName: postgres:16
       PostgresPersistContainerOptions__ImageName: postgres:16

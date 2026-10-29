@@ -20,6 +20,16 @@ class SelectionTests(unittest.TestCase):
     def test_gateway_is_independent(self):
         self.assertEqual(["gateway"], self.choose("src/Gateway/Program.cs")["services"])
 
+    def test_apphost_change_builds_orchestration_without_unrelated_services(self):
+        result = self.choose("src/Aspire/src/AppHost/Program.cs")
+        self.assertTrue(result["apphost"])
+        self.assertEqual([], result["services"])
+        self.assertFalse(result["shared"])
+        self.assertFalse(self.choose("src/Modules/Flight/src/Feature.cs")["apphost"])
+
+    def test_global_changes_build_apphost(self):
+        self.assertTrue(self.choose("Directory.Build.props")["apphost"])
+
     def test_shared_changes_rebuild_all_without_republishing_same_version(self):
         for path in ("src/Contracts/Flight.proto", "src/BuildingBlocks/Core/Event.cs",
                      "Directory.Build.props", "src/Aspire/src/ServiceDefaults/Extensions.cs"):

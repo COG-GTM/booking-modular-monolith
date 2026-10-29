@@ -40,7 +40,8 @@ def select(paths, old_version, new_version, force=False):
         p.startswith((f"src/Modules/{s.title()}/", f"src/Services/{s.title()}.Host/"))
         or (s == "gateway" and p.startswith("src/Gateway/")) for p in paths
     )]
-    return {"services": services, "shared": shared,
+    apphost = all_services or any(p.startswith("src/Aspire/src/AppHost/") for p in paths)
+    return {"services": services, "shared": shared, "apphost": apphost,
             "packages": bool(new_version and old_version != new_version)}
 
 
