@@ -7,6 +7,8 @@ public record SeatReserved : IDomainEvent;
 
 public record SeatReservedIntegration : IIntegrationEvent;
 
+public record SeatReleasedIntegration : IIntegrationEvent;
+
 public record ConfirmSeat : IInternalCommand;
 
 public sealed class SeatMapper : IEventMapper
