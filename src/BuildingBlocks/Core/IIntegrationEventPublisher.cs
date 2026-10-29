@@ -10,3 +10,5 @@ public interface IIntegrationEventPublisher
     Task AddInternalCommandAsync<TCommand>(TCommand internalCommand, CancellationToken cancellationToken = default)
         where TCommand : class, IInternalCommand;
 }
+
+public interface IIntegrationEventPublisher<TModule> : IIntegrationEventPublisher;

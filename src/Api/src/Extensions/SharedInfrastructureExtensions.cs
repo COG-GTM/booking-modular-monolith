@@ -30,7 +30,7 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddJwt();
         builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         builder.Services.AddTransient<AuthHeaderHandler>();
-        builder.AddPersistMessageProcessor();
+        builder.AddPersistMessageProcessor<BookingRoot>("Booking");
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddControllers();
@@ -44,7 +44,7 @@ public static class SharedInfrastructureExtensions
         builder.Services.AddCustomMassTransit(
             builder.Configuration,
             builder.Environment,
-            (context, bus) => bus.UsePersistMessageInbox(context),
+            configureBus: null,
             typeof(IdentityRoot).Assembly,
             typeof(FlightRoot).Assembly,
             typeof(PassengerRoot).Assembly,

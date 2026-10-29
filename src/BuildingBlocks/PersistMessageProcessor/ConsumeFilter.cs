@@ -9,16 +9,19 @@ namespace BuildingBlocks.MassTransit;
 
 // Inbox: records every received message per consumer endpoint and skips redeliveries of messages that
 // were already processed. Keyed on the broker MessageId (stable across redeliveries and outbox re-publishes).
-public class ConsumeFilter<T> : IFilter<ConsumeContext<T>>
+public class ConsumeFilter<TModule, T> : IFilter<ConsumeContext<T>>
     where T : class
 {
-    private readonly IPersistMessageProcessor _persistMessageProcessor;
-    private readonly ILogger<ConsumeFilter<T>> _logger;
+    private readonly IPersistMessageProcessor<TModule> _persistMessageProcessor;
+    private readonly ILogger<ConsumeFilter<TModule, T>> _logger;
 
-    public ConsumeFilter(IPersistMessageProcessor persistMessageProcessor, ILogger<ConsumeFilter<T>> logger)
+    public ConsumeFilter(
+        IPersistMessageProcessor<TModule> persistMessageProcessor,
+        ILogger<ConsumeFilter<TModule, T>>? logger = null
+    )
     {
         _persistMessageProcessor = persistMessageProcessor;
-        _logger = logger;
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ConsumeFilter<TModule, T>>.Instance;
     }
 
     public async Task Send(ConsumeContext<T> context, IPipe<ConsumeContext<T>> next)
@@ -41,7 +44,7 @@ public class ConsumeFilter<T> : IFilter<ConsumeContext<T>>
         if (existing is null)
         {
             var recorded = await _persistMessageProcessor.TryAddReceivedMessageAsync(
-                new MessageEnvelope(context.Message, context.Headers.ToDictionary(x => x.Key, x => x.Value)),
+                new MessageEnvelope(context.Message, Headers(context)),
                 inboxId,
                 context.CancellationToken
             );
@@ -62,6 +65,13 @@ public class ConsumeFilter<T> : IFilter<ConsumeContext<T>>
 
         await next.Send(context);
         await _persistMessageProcessor.ProcessInboxAsync(inboxId, context.CancellationToken);
+    }
+
+    private static Dictionary<string, object?> Headers(ConsumeContext<T> context)
+    {
+        var headers = context.Headers.ToDictionary(x => x.Key, x => x.Value);
+        headers["MessageId"] = context.MessageId!.Value;
+        return headers;
     }
 
     public void Probe(ProbeContext context)

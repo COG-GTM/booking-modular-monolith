@@ -19,9 +19,13 @@ Service hosts register their own module's consumers only:
 builder.Services.AddCustomMassTransit(
     builder.Configuration,
     builder.Environment,
-    (context, bus) => bus.UsePersistMessageInbox(context),
+    configureBus: null,
     typeof(PassengerRoot).Assembly);
 ```
+
+Passenger's consumer definition attaches its module-owned inbox filter. For consumers without a definition, a
+single-module host can attach its module-bound filter with
+`bus.UsePersistMessageInbox(context, typeof(MyModuleInboxFilter<>))`; do not attach both.
 
 The gateway does not consume or publish messages and needs no broker settings.
 
@@ -30,8 +34,9 @@ The gateway does not consume or publish messages and needs no broker settings.
 - Exchanges: one fanout exchange per message type, named by its URN (e.g. `BuildingBlocks.Contracts.EventBus.Messages:UserCreated`).
 - Queues: `<module>.<consumer>`, e.g. `passenger.register-new-user-handler`; failures after retries land in
   `<queue>_error`, MassTransit `Fault<T>` is published.
-- Monolith and a service host for the same module share the queue; turn the monolith's consumers off with
-  `Modules:<Module>:BackgroundProcessingEnabled=false` when the host takes over. Run one replica with background
+- Monolith and a service host for the same module share the queue. `Modules:<Module>:BackgroundProcessingEnabled=false`
+  stops only that module's polling worker, not its consumers; stop the old host or remove its consumer registration
+  when handing consumption over. Run one replica with background
   processing per service (outbox has no row locking).
 
 ## Local run

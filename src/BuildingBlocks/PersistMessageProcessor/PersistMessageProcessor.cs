@@ -11,17 +11,17 @@ namespace BuildingBlocks.PersistMessageProcessor;
 
 using Microsoft.EntityFrameworkCore;
 
-public class PersistMessageProcessor : IPersistMessageProcessor
+public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule>
 {
-    private readonly ILogger<PersistMessageProcessor> _logger;
+    private readonly ILogger<PersistMessageProcessor<TModule>> _logger;
     private readonly IMediator _mediator;
-    private readonly IPersistMessageDbContext _persistMessageDbContext;
+    private readonly IPersistMessageDbContext<TModule> _persistMessageDbContext;
     private readonly IPublishEndpoint _publishEndpoint;
 
     public PersistMessageProcessor(
-        ILogger<PersistMessageProcessor> logger,
+        ILogger<PersistMessageProcessor<TModule>> logger,
         IMediator mediator,
-        IPersistMessageDbContext persistMessageDbContext,
+        IPersistMessageDbContext<TModule> persistMessageDbContext,
         IPublishEndpoint publishEndpoint
     )
     {
@@ -263,10 +263,23 @@ public class PersistMessageProcessor : IPersistMessageProcessor
         Guid id;
         if (explicitId is { } given)
             id = given;
+        else if (
+            deliveryType == MessageDeliveryType.Inbox
+            && messageEnvelope.Headers.TryGetValue("MessageId", out var messageId)
+            && Guid.TryParse(messageId?.ToString(), out var receivedId)
+        )
+            id = receivedId;
         else if (messageEnvelope.Message is IEvent message)
             id = message.EventId;
         else
             id = NewId.NextGuid();
+
+        if (
+            deliveryType == MessageDeliveryType.Inbox
+            && explicitId is null
+            && await _persistMessageDbContext.PersistMessage.AnyAsync(x => x.Id == id, cancellationToken)
+        )
+            return id;
 
         await _persistMessageDbContext.PersistMessage.AddAsync(
             new PersistMessage(

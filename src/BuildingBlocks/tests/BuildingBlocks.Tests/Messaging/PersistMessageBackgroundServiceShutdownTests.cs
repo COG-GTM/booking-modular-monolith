@@ -15,7 +15,7 @@ public class PersistMessageBackgroundServiceShutdownTests
     [Fact]
     public async Task cancellation_during_processing_stops_without_error_logging()
     {
-        var processor = Substitute.For<IPersistMessageProcessor>();
+        var processor = Substitute.For<IPersistMessageProcessor<MessagingTestModule>>();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var anyCancellationToken = Arg.Any<CancellationToken>();
         processor
@@ -27,14 +27,14 @@ public class PersistMessageBackgroundServiceShutdownTests
                 await Task.Delay(Timeout.Infinite, cancellationToken);
             });
 
-        var logger = Substitute.For<ILogger<PersistMessageBackgroundService>>();
+        var logger = Substitute.For<ILogger<PersistMessageBackgroundService<MessagingTestModule>>>();
         var optionsValue = new PersistMessageOptions { Interval = 0 };
         var options = Options.Create(optionsValue);
         var timeout = TimeSpan.FromSeconds(10);
         await using var services = new ServiceCollection()
-            .AddScoped<IPersistMessageProcessor>(_ => processor)
+            .AddScoped<IPersistMessageProcessor<MessagingTestModule>>(_ => processor)
             .BuildServiceProvider();
-        var worker = new PersistMessageBackgroundService(logger, services, options);
+        var worker = new PersistMessageBackgroundService<MessagingTestModule>(logger, services, options);
 
         await worker.StartAsync(CancellationToken.None);
         await entered.Task.WaitAsync(timeout);

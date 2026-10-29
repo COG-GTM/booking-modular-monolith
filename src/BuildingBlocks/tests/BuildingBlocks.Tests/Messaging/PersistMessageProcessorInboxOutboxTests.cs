@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
-using PersistMessageProcessorService = BuildingBlocks.PersistMessageProcessor.PersistMessageProcessor;
+using PersistMessageProcessorService = BuildingBlocks.PersistMessageProcessor.PersistMessageProcessor<BuildingBlocks.Tests.Messaging.MessagingTestModule>;
 
 namespace BuildingBlocks.Tests.Messaging;
 
@@ -113,15 +113,15 @@ public class PersistMessageProcessorInboxOutboxTests
         (await dbContext.PersistMessage.SingleAsync()).MessageStatus.Should().Be(MessageStatus.Processed);
     }
 
-    private static PersistMessageDbContext CreateDbContext() =>
+    private static PersistMessageDbContext<MessagingTestModule> CreateDbContext() =>
         new(
-            new DbContextOptionsBuilder<PersistMessageDbContext>()
+            new DbContextOptionsBuilder<PersistMessageDbContext<MessagingTestModule>>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
 
     private static PersistMessageProcessorService CreateProcessor(
-        PersistMessageDbContext dbContext,
+        PersistMessageDbContext<MessagingTestModule> dbContext,
         IPublishEndpoint? publishEndpoint = null
     ) =>
         new(

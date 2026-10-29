@@ -12,7 +12,8 @@ public static class RabbitMqHealthUri
         ushort? port,
         string? virtualHost,
         string? userName,
-        string? password)
+        string? password
+    )
     {
         if (!string.IsNullOrEmpty(connectionString))
             return new Uri(connectionString);

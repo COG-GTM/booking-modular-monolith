@@ -31,7 +31,7 @@ public class InboxPipelineTests
 
         await using (var scope = fixture.Services.CreateAsyncScope())
         {
-            var processor = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor>();
+            var processor = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor<MessagingTestModule>>();
             await processor.PublishMessageAsync(envelope);
             await processor.ProcessAllAsync();
         }
@@ -66,11 +66,16 @@ public class InboxPipelineTests
     {
         var services = CreateMassTransitServices(typeof(InboxProbeHandler).Assembly);
         var databaseName = $"inbox-test-{Guid.NewGuid():N}";
-        services.AddDbContext<PersistMessageDbContext>(options => options.UseInMemoryDatabase(databaseName));
-        services.AddScoped<IPersistMessageDbContext>(provider =>
-            provider.GetRequiredService<PersistMessageDbContext>()
+        services.AddDbContext<PersistMessageDbContext<MessagingTestModule>>(options =>
+            options.UseInMemoryDatabase(databaseName)
         );
-        services.AddScoped<IPersistMessageProcessor, BuildingBlocks.PersistMessageProcessor.PersistMessageProcessor>();
+        services.AddScoped<IPersistMessageDbContext<MessagingTestModule>>(provider =>
+            provider.GetRequiredService<PersistMessageDbContext<MessagingTestModule>>()
+        );
+        services.AddScoped<
+            IPersistMessageProcessor<MessagingTestModule>,
+            BuildingBlocks.PersistMessageProcessor.PersistMessageProcessor<MessagingTestModule>
+        >();
         services.AddScoped<IMediator>(_ => Substitute.For<IMediator>());
 
         var provider = services.BuildServiceProvider();
@@ -103,7 +108,7 @@ public class InboxPipelineTests
         services.AddCustomMassTransit(
             environment,
             TransportType.InMemory,
-            (context, bus) => bus.UsePersistMessageInbox(context),
+            (context, bus) => bus.UsePersistMessageInbox(context, typeof(MessagingInboxFilter<>)),
             consumerAssemblies
         );
 
@@ -135,7 +140,7 @@ public class InboxPipelineTests
         var found = await WaitUntilAsync(async () =>
         {
             await using var scope = services.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
+            var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext<MessagingTestModule>>();
             var messages = await db.PersistMessage.AsNoTracking().ToListAsync();
             observedMessages = messages.ToArray();
             result = messages.FirstOrDefault(predicate);
