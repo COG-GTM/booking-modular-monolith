@@ -175,7 +175,14 @@ var otelCollector = builder.AddContainer("otel-collector", "otel/opentelemetry-c
     .WithEndpoint(port: 8888, targetPort: 8888, name: "otel-metrics", isProxied: true, isExternal: true)
     .WithEndpoint(port: 8889, targetPort: 8889, name: "otel-exporter-metrics", isProxied: true, isExternal: true)
     .WithEndpoint(port: 13133, targetPort: 13133, name: "otel-health", isProxied: true, isExternal: true)
-    .WithEndpoint(port: 4317, targetPort: 4317, name: "otel-grpc", isProxied: true, isExternal: true)
+    .WithEndpoint(
+        port: 4317,
+        targetPort: 4317,
+        name: "otel-grpc",
+        isProxied: true,
+        isExternal: true,
+        scheme: "http"
+    )
     .WithEndpoint(port: 4318, targetPort: 4318, name: "otel-http", isProxied: true, isExternal: true)
     .WithEndpoint(port: 55679, targetPort: 55679, name: "otel-zpages", isProxied: true, isExternal: true);
 
@@ -206,7 +213,7 @@ var grafana = builder.AddContainer("grafana", "grafana/grafana")
     .WithEnvironment("GF_FEATURE_TOGGLES_ENABLE", "traceqlEditor")
     .WithBindMount("../../../../deployments/configs/grafana/provisioning", "/etc/grafana/provisioning")
     .WithBindMount("../../../../deployments/configs/grafana/dashboards", "/var/lib/grafana/dashboards")
-    .WithEndpoint(port: 3000, targetPort: 3000, name: "http", isProxied: true, isExternal: true);
+    .WithEndpoint(port: 3030, targetPort: 3000, name: "http", isProxied: true, isExternal: true);
 
 if (builder.ExecutionContext.IsPublishMode)
 {
@@ -229,12 +236,13 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 var tempo = builder.AddContainer("tempo", "grafana/tempo")
+    .WithImageTag("2.7.2")
     .WithBindMount("../../../../deployments/configs/tempo.yaml", "/etc/tempo.yaml", isReadOnly: true)
     .WithArgs("--config.file=/etc/tempo.yaml")
     .WithEndpoint(port: 3200, targetPort: 3200, name: "http", isProxied: true, isExternal: false)
     .WithEndpoint(port: 9095, targetPort: 9095, name: "grpc", isProxied: true, isExternal: false)
-    .WithEndpoint(port: 4317, targetPort: 4317, name: "otlp-grpc", isProxied: true, isExternal: false)
-    .WithEndpoint(port: 4318, targetPort: 4318, name: "otlp-http", isProxied: true, isExternal: false);
+    .WithEndpoint(targetPort: 4317, name: "otlp-grpc", isProxied: true, isExternal: false)
+    .WithEndpoint(targetPort: 4318, name: "otlp-http", isProxied: true, isExternal: false);
 
 if (builder.ExecutionContext.IsPublishMode)
 {
@@ -253,7 +261,9 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 var elasticsearch = builder.AddElasticsearch("elasticsearch")
-    .WithImage("docker.elastic.co/elasticsearch/elasticsearch:8.17.0")
+    .WithImageRegistry("docker.elastic.co")
+    .WithImage("elasticsearch/elasticsearch")
+    .WithImageTag("8.17.0")
     .WithEnvironment("discovery.type", "single-node")
     .WithEnvironment("cluster.name", "docker-cluster")
     .WithEnvironment("node.name", "docker-node")
@@ -302,8 +312,185 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
-builder.AddProject<Gateway>("gateway")
-    .WithHttpEndpoint(port: 5000, name: "gateway-http")
-    .WithEnvironment("Jwt__Authority", "http://localhost:5000");
+const int gatewayPort = 5000;
+var gatewayPublicUrl = $"http://localhost:{gatewayPort}";
+var postgresEndpoint = postgres.GetEndpoint("tcp");
+var postgresHost = postgresEndpoint.Property(EndpointProperty.Host);
+var postgresPort = postgresEndpoint.Property(EndpointProperty.Port);
+
+ReferenceExpression PostgresConnectionString(string database, string role) =>
+    ReferenceExpression.Create(
+        $"Host={postgresHost};Port={postgresPort};Database={database};Username={role};Password={role}");
+
+var identityConnectionString = PostgresConnectionString("identity_service", "identity_service");
+var identityPersistMessageConnectionString =
+    PostgresConnectionString("identity_service_persist_message", "identity_service");
+var flightConnectionString = PostgresConnectionString("flight_service", "flight_service");
+var flightPersistMessageConnectionString =
+    PostgresConnectionString("flight_service_persist_message", "flight_service");
+var passengerConnectionString = PostgresConnectionString("passenger_service", "passenger_service");
+var passengerPersistMessageConnectionString =
+    PostgresConnectionString("passenger_service_persist_message", "passenger_service");
+var bookingPersistMessageConnectionString =
+    PostgresConnectionString("booking_service_persist_message", "booking_service");
+
+var identityDatabase = builder.AddConnectionString("identity", identityConnectionString);
+var identityPersistMessageDatabase =
+    builder.AddConnectionString("identity-persist-message", identityPersistMessageConnectionString);
+var flightDatabase = builder.AddConnectionString("flight", flightConnectionString);
+var flightPersistMessageDatabase =
+    builder.AddConnectionString("flight-persist-message", flightPersistMessageConnectionString);
+var passengerDatabase = builder.AddConnectionString("passenger", passengerConnectionString);
+var passengerPersistMessageDatabase =
+    builder.AddConnectionString("passenger-persist-message", passengerPersistMessageConnectionString);
+var bookingPersistMessageDatabase =
+    builder.AddConnectionString("booking-persist-message", bookingPersistMessageConnectionString);
+
+var identity = builder.AddProject<Identity_Host>(
+        "identity-service",
+        options =>
+        {
+            options.ExcludeLaunchProfile = true;
+            options.ExcludeKestrelEndpoints = true;
+        })
+    .WithHttpEndpoint(targetPort: 5101, port: 5101, name: "http", isProxied: false)
+    .WithReference(identityDatabase)
+    .WithReference(identityPersistMessageDatabase)
+    .WithEnvironment("PostgresOptions__ConnectionString__Identity", identityConnectionString)
+    .WithEnvironment(
+        "PersistMessageOptions__ConnectionString__Identity",
+        identityPersistMessageConnectionString)
+    .WithReference(rabbitmq)
+    .WaitFor(postgres)
+    .WaitFor(rabbitmq)
+    .WithEnvironment("AuthOptions__IssuerUri", gatewayPublicUrl)
+    .WithEnvironment("Jwt__Authority", gatewayPublicUrl)
+    .WithEnvironment("Modules__Identity__BackgroundProcessingEnabled", "true")
+    .WithServiceObservability(otelCollector)
+    .WithHttpHealthCheck("/health/ready", endpointName: "http");
+
+var identityMetadataAddress =
+    ReferenceExpression.Create($"{identity.GetEndpoint("http")}/.well-known/openid-configuration");
+identity.WithEnvironment("Jwt__MetadataAddress", identityMetadataAddress);
+
+var flight = builder.AddProject<Flight_Host>(
+        "flight-service",
+        options =>
+        {
+            options.ExcludeLaunchProfile = true;
+            options.ExcludeKestrelEndpoints = true;
+        })
+    .WithHttpEndpoint(targetPort: 5102, port: 5102, name: "http", isProxied: false)
+    .WithEndpoint(
+        targetPort: 5112,
+        port: 5112,
+        scheme: "http",
+        name: "grpc",
+        isProxied: false,
+        isExternal: false)
+    .WithReference(flightDatabase)
+    .WithReference(flightPersistMessageDatabase)
+    .WithEnvironment("PostgresOptions__ConnectionString__Flight", flightConnectionString)
+    .WithEnvironment("PersistMessageOptions__ConnectionString__Flight", flightPersistMessageConnectionString)
+    .WithReference(mongo)
+    .WithEnvironment("MongoOptions__ConnectionString", mongo.Resource.ConnectionStringExpression)
+    .WithEnvironment("MongoOptions__Flight__ConnectionString", mongo.Resource.ConnectionStringExpression)
+    .WithReference(rabbitmq)
+    .WaitFor(postgres)
+    .WithEnvironment("Modules__Flight__BackgroundProcessingEnabled", "true")
+    .WithEnvironment("Jwt__Authority", gatewayPublicUrl)
+    .WithEnvironment("Jwt__MetadataAddress", identityMetadataAddress)
+    .WithServiceObservability(otelCollector)
+    .WithHttpHealthCheck("/health/ready", endpointName: "http");
+
+var passenger = builder.AddProject<Passenger_Host>(
+        "passenger-service",
+        options =>
+        {
+            options.ExcludeLaunchProfile = true;
+            options.ExcludeKestrelEndpoints = true;
+        })
+    .WithHttpEndpoint(targetPort: 5103, port: 5103, name: "http", isProxied: false)
+    .WithEndpoint(
+        targetPort: 5113,
+        port: 5113,
+        scheme: "http",
+        name: "grpc",
+        isProxied: false,
+        isExternal: false)
+    .WithReference(passengerDatabase)
+    .WithReference(passengerPersistMessageDatabase)
+    .WithEnvironment("PostgresOptions__ConnectionString__Passenger", passengerConnectionString)
+    .WithEnvironment(
+        "PersistMessageOptions__ConnectionString__Passenger",
+        passengerPersistMessageConnectionString)
+    .WithReference(mongo)
+    .WithEnvironment("MongoOptions__Passenger__ConnectionString", mongo.Resource.ConnectionStringExpression)
+    .WithReference(rabbitmq)
+    .WaitFor(postgres)
+    .WaitFor(rabbitmq)
+    .WithEnvironment("Modules__Passenger__BackgroundProcessingEnabled", "true")
+    .WithEnvironment("Jwt__Authority", gatewayPublicUrl)
+    .WithEnvironment("Jwt__MetadataAddress", identityMetadataAddress)
+    .WithServiceObservability(otelCollector)
+    .WithHttpHealthCheck("/health/ready", endpointName: "http");
+
+var booking = builder.AddProject<Booking_Host>(
+        "booking-service",
+        options =>
+        {
+            options.ExcludeLaunchProfile = true;
+            options.ExcludeKestrelEndpoints = true;
+        })
+    .WithHttpEndpoint(targetPort: 5104, port: 5104, name: "http", isProxied: false)
+    .WithReference(bookingPersistMessageDatabase)
+    .WithEnvironment(
+        "PersistMessageOptions__ConnectionString__Booking",
+        bookingPersistMessageConnectionString)
+    .WithReference(mongo)
+    .WithEnvironment("MongoOptions__ConnectionString", mongo.Resource.ConnectionStringExpression)
+    .WithReference(eventstore)
+    .WaitFor(eventstore)
+    .WithReference(rabbitmq)
+    .WithReference(flight)
+    .WithReference(passenger)
+    .WaitFor(postgres)
+    .WaitFor(flight)
+    .WaitFor(passenger)
+    .WithEnvironment("Grpc__FlightAddress", "http://_grpc.flight-service")
+    .WithEnvironment("Grpc__PassengerAddress", "http://_grpc.passenger-service")
+    .WithEnvironment("Jwt__Authority", gatewayPublicUrl)
+    .WithEnvironment("Jwt__MetadataAddress", identityMetadataAddress)
+    .WithEnvironment("Modules__Booking__BackgroundProcessingEnabled", "true")
+    .WithServiceObservability(otelCollector)
+    .WithHttpHealthCheck("/health/ready", endpointName: "http");
+
+var gateway = builder.AddProject<Gateway>("gateway")
+    .WithHttpEndpoint(port: gatewayPort, name: "http")
+    .WithReference(identity)
+    .WithReference(flight)
+    .WithReference(passenger)
+    .WithReference(booking)
+    .WaitFor(identity)
+    .WaitFor(flight)
+    .WaitFor(passenger)
+    .WaitFor(booking)
+    .WithEnvironment("Jwt__Authority", gatewayPublicUrl)
+    .WithEnvironment("Jwt__MetadataAddress", identityMetadataAddress)
+    .WithHttpHealthCheck("/health/ready", endpointName: "http")
+    .WithServiceObservability(otelCollector);
+
+foreach (var (cluster, project) in new[]
+{
+    ("identity", identity),
+    ("flight", flight),
+    ("passenger", passenger),
+    ("booking", booking)
+})
+{
+    gateway.WithEnvironment(
+        $"ReverseProxy__Clusters__{cluster}__Destinations__primary__Address",
+        project.GetEndpoint("http"));
+}
 
 builder.Build().Run();

@@ -1,0 +1,32 @@
+name: Aspire AppHost
+
+on:
+  push:
+    paths:
+      - 'src/Aspire/**'
+      - 'src/Services/**'
+      - 'src/Gateway/**'
+      - '.github/workflows/aspire-apphost.yml'
+  pull_request:
+    paths:
+      - 'src/Aspire/**'
+      - 'src/Services/**'
+      - 'src/Gateway/**'
+      - '.github/workflows/aspire-apphost.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apphost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build AppHost
+        run: dotnet build src/Aspire/src/AppHost/AppHost.csproj
+      - name: Test AppHost topology
+        run: dotnet test src/Aspire/tests/AppHost.Test

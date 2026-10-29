@@ -3,6 +3,8 @@
 AB-505 phase 2 removes the host, its build references, default Compose deployment and gateway
 fallback. Unknown paths now return 404. The production gates below still require approval;
 repository retirement is not evidence that production has completed its data handover or soak.
+Aspire AppHost is also Services-only: no monolith mode, project, cluster or fallback remains.
+Use the previous-release Compose overlay below for recovery, not an AppHost topology flag.
 
 ## Go/no-go
 

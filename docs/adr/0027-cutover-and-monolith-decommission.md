@@ -13,7 +13,8 @@
 ## Context
 
 Extracted services need an evidence-based route cutover, reversible during a defined soak.
-The repository now contains only service hosts behind the gateway. Local recovery explicitly
+The repository now contains only service hosts behind the gateway. Aspire AppHost is
+Services-only, with no topology flag or legacy cluster/fallback. Local recovery explicitly
 redeploys a prebuilt previous-release monolith image with current service stores via an overlay.
 That is not evidence that production legacy data has already been migrated.
 This decision documents the final lifecycle of the architecture under AB-488: data handover and

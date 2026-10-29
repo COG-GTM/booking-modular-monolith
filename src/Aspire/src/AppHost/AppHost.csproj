@@ -24,6 +24,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Gateway\Gateway.csproj" />
+    <ProjectReference Include="..\..\..\Services\Identity.Host\Identity.Host.csproj" />
+    <ProjectReference Include="..\..\..\Services\Flight.Host\Flight.Host.csproj" />
+    <ProjectReference Include="..\..\..\Services\Passenger.Host\Passenger.Host.csproj" />
+    <ProjectReference Include="..\..\..\Services\Booking.Host\Booking.Host.csproj" />
   </ItemGroup>
 
 </Project>

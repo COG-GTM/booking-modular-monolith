@@ -3,6 +3,7 @@
 The monolith host is decommissioned. Default gateway routing is service-only, with unknown paths
 returning 404. The migration sequence below remains the production handover checklist; recovery
 requires a prebuilt previous-release image via the [rollback overlay](decommission.md).
+Aspire AppHost is Services-only too, without a monolith topology flag or fallback.
 Follow ADR [0007](../../adr/0007-extraction-order.md):
 [Flight](flight.md) → [Identity + Passenger](identity-passenger.md) → [Booking](booking.md).
 See the [before/during/after diagram](../../architecture/cutover.md) and
