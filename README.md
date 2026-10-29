@@ -162,7 +162,7 @@ The migration preserves the Identity, Flight, Passenger, and Booking module boun
 
 ![Target microservices container diagram: gateway, four services, private stores, RabbitMQ, and temporary monolith fallback](assets/target-microservices.svg)
 
-The [architecture decision index](docs/adr/README.md) records boundaries and migration, gRPC/RabbitMQ communication, database ownership, and contract compatibility. The [editable Mermaid diagram](docs/adr/0001-target-services-and-strangler-migration.md#architecture) includes protocol and authentication labels; the existing modular-monolith diagram above describes the starting point.
+The [architecture decision index](docs/adr/README.md) records boundaries and migration, gRPC/RabbitMQ communication, database ownership, and contract compatibility. The [editable Mermaid diagram](docs/adr/0005-target-services-and-strangler-migration.md#architecture) includes protocol and authentication labels; the existing modular-monolith diagram above describes the starting point.
 
 Key constraints: Booking calls Flight/Passenger over gRPC; Identity publishes to Passenger over RabbitMQ; services never access another service's database. Each service owns isolated Postgres, persist-message, and Mongo databases; Booking also owns its EventStoreDB streams. Only one instance per service may run background processing until concurrency control exists. ADRs remain **Proposed**, pending ARB approval; the architecture review and outstanding security/operational decisions are recorded in the index.
 

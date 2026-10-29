@@ -6,7 +6,7 @@
 - **ARB ticket:** TO BE CREATED
 - **Authors:** AB-488 implementation contributors
 - **Owning team:** Booking platform; named domain/platform owners TBD before ARB
-- **Related ADRs:** [0001](0001-target-services-and-strangler-migration.md), [0003](0003-service-owned-data-and-background-processing.md), [0004](0004-contract-versioning-and-compatibility.md)
+- **Related ADRs:** [0005](0005-target-services-and-strangler-migration.md), [0003](0003-service-owned-data-and-background-processing.md), [0004](0004-contract-versioning-and-compatibility.md)
 
 ## Context
 
@@ -34,7 +34,7 @@ We will retain gRPC for synchronous Booking-to-Flight/Passenger calls, and use M
 
 ## Architecture
 
-Full containers and stores: [ADR 0001](0001-target-services-and-strangler-migration.md#architecture).
+Full containers and stores: [ADR 0005](0005-target-services-and-strangler-migration.md#architecture).
 
 ```mermaid
 flowchart LR
@@ -68,7 +68,7 @@ Local protocols are shown; production transport encryption and authentication fo
 
 ## Cost
 
-RabbitMQ capacity, durable storage, HA, network and telemetry costs are TBD by Platform before ARB. Assume an existing transport implementation, not free production broker capacity; include this in the total estimate in ADR 0001. No new vendor estimate is asserted.
+RabbitMQ capacity, durable storage, HA, network and telemetry costs are TBD by Platform before ARB. Assume an existing transport implementation, not free production broker capacity; include this in the total estimate in ADR 0005. No new vendor estimate is asserted.
 
 ## Operations
 
@@ -79,7 +79,7 @@ RabbitMQ capacity, durable storage, HA, network and telemetry costs are TBD by P
 
 ## Policy exceptions requested
 
-The unauthenticated gRPC exception requested in [ADR 0001](0001-target-services-and-strangler-migration.md#policy-exceptions-requested) applies here unchanged. Security must set its expiry and required authentication mechanism. No exception has been granted.
+The unauthenticated gRPC exception requested in [ADR 0005](0005-target-services-and-strangler-migration.md#policy-exceptions-requested) applies here unchanged. Security must set its expiry and required authentication mechanism. No exception has been granted.
 
 ## Consequences
 

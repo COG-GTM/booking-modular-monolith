@@ -4,22 +4,22 @@ These ADRs record the binding implementation direction supplied for AB-488, not 
 
 | ADR | Decision |
 | --- | --- |
-| [0001](0001-target-services-and-strangler-migration.md) | One host per module, single-ingress YARP strangler migration |
+| [0005](0005-target-services-and-strangler-migration.md) | One host per module, single-ingress YARP strangler migration |
 | [0002](0002-synchronous-grpc-and-asynchronous-rabbitmq.md) | gRPC synchronous calls, RabbitMQ asynchronous integration |
 | [0003](0003-service-owned-data-and-background-processing.md) | Private databases, outbox/inbox ownership, single background processor |
 | [0004](0004-contract-versioning-and-compatibility.md) | Additive contracts, stable wire identity, staged compatibility rollout |
 
-[Target container diagram](../../assets/target-microservices.svg) · [Mermaid source](0001-target-services-and-strangler-migration.md#architecture)
+[Target container diagram](../../assets/target-microservices.svg) · [Mermaid source](0005-target-services-and-strangler-migration.md#architecture)
 
 ## Architecture review
 
 ARB triage: **ARB_REQUIRED** (manual design review against the org trigger criteria).
 
-- **T1:** four service hosts and a gateway become independently deployable (ADR 0001).
+- **T1:** four service hosts and a gateway become independently deployable (ADR 0005).
 - **T2:** service-owned Postgres, persist-message, Mongo databases and Booking EventStoreDB ownership (ADR 0003).
 - **T4:** formerly in-process messaging crosses process/domain boundaries through RabbitMQ; shared contracts/protos become independently consumed (ADRs 0002/0004).
-- **T6:** gateway becomes public ingress; internal gRPC is temporarily unauthenticated (ADRs 0001/0002).
-- **T8:** independently consumable BuildingBlocks and shared contracts (ADRs 0001/0004).
+- **T6:** gateway becomes public ingress; internal gRPC is temporarily unauthenticated (ADRs 0005/0002).
+- **T8:** independently consumable BuildingBlocks and shared contracts (ADRs 0005/0004).
 - **Not triggered:** T3 (no new vendor selected), T5 (no cloud resources/regions selected), T7 (.NET 10 retained). T9 is **undetermined**, not cleared: production sizing/cost is TBD.
 
 **ARB ticket: TO BE CREATED** by the coordinating owner. Required reviewers: Architecture, Security, Data, Platform. This documentation does not grant an exception or approval to merge/deploy an architecture implementation. No infrastructure policy is present in the base repository; platform policy validation is still required when deployment resources are selected.

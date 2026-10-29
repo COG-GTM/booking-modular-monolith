@@ -1,4 +1,4 @@
-# 0001. Target service boundaries and strangler migration
+# 0005. Target service boundaries and strangler migration
 
 - **Status:** Proposed
 - **Date:** 2026-10-29

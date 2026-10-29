@@ -6,7 +6,7 @@
 - **ARB ticket:** TO BE CREATED
 - **Authors:** AB-488 implementation contributors
 - **Owning team:** Booking platform; provider and consumer domain owners approve contract changes
-- **Related ADRs:** [0001](0001-target-services-and-strangler-migration.md), [0002](0002-synchronous-grpc-and-asynchronous-rabbitmq.md), [0003](0003-service-owned-data-and-background-processing.md)
+- **Related ADRs:** [0005](0005-target-services-and-strangler-migration.md), [0002](0002-synchronous-grpc-and-asynchronous-rabbitmq.md), [0003](0003-service-owned-data-and-background-processing.md)
 
 ## Context
 
@@ -62,7 +62,7 @@ flowchart LR
     booking -->|gRPC HTTP2 / no auth yet / stable method path| providers
 ```
 
-Full containers/stores and production encryption requirements: [ADR 0001](0001-target-services-and-strangler-migration.md#architecture).
+Full containers/stores and production encryption requirements: [ADR 0005](0005-target-services-and-strangler-migration.md#architecture).
 
 ## Non-functional requirements
 
@@ -77,8 +77,8 @@ Full containers/stores and production encryption requirements: [ADR 0001](0001-t
 ## Security & compliance
 
 - **Data classification:** Contract additions must not expose credentials or unnecessary passport/profile PII; Data/Security review classification changes.
-- **Encryption at rest/in transit:** Runtime contracts inherit ADRs 0001–0003; compile-time dependency arrows are not network flows. Test fixtures must redact sensitive samples.
-- **AuthN / AuthZ:** Version changes must preserve existing authorization semantics; internal gRPC auth gap remains explicit under ADR 0001.
+- **Encryption at rest/in transit:** Runtime contracts inherit ADRs 0002, 0003 and 0005; compile-time dependency arrows are not network flows. Test fixtures must redact sensitive samples.
+- **AuthN / AuthZ:** Version changes must preserve existing authorization semantics; internal gRPC auth gap remains explicit under ADR 0005.
 - **Secrets:** No secrets in schema examples, packages or test fixtures.
 - **Audit logging:** Record contract version/identity and deprecation decisions without full sensitive payloads.
 - **Residency / policy:** No new deployment resource/region; new contract fields must respect the owning domain's retention/residency requirements (TBD before ARB).
@@ -86,7 +86,7 @@ Full containers/stores and production encryption requirements: [ADR 0001](0001-t
 
 ## Cost
 
-Build/artifact storage and overlapping-version broker/compute overhead are TBD by Platform before ARB. No new vendor is introduced; account for replay and dual-version retention in ADR 0001's total estimate.
+Build/artifact storage and overlapping-version broker/compute overhead are TBD by Platform before ARB. No new vendor is introduced; account for replay and dual-version retention in ADR 0005's total estimate.
 
 ## Operations
 
@@ -97,7 +97,7 @@ Build/artifact storage and overlapping-version broker/compute overhead are TBD b
 
 ## Policy exceptions requested
 
-None for compatibility/versioning. This ADR does not approve the separate unauthenticated gRPC exception in ADR 0001.
+None for compatibility/versioning. This ADR does not approve the separate unauthenticated gRPC exception in ADR 0005.
 
 ## Consequences
 

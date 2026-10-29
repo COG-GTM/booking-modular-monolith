@@ -6,7 +6,7 @@
 - **ARB ticket:** TO BE CREATED
 - **Authors:** AB-488 implementation contributors
 - **Owning team:** Booking platform; named Data/domain owners TBD before ARB
-- **Related ADRs:** [0001](0001-target-services-and-strangler-migration.md), [0002](0002-synchronous-grpc-and-asynchronous-rabbitmq.md), [0004](0004-contract-versioning-and-compatibility.md)
+- **Related ADRs:** [0005](0005-target-services-and-strangler-migration.md), [0002](0002-synchronous-grpc-and-asynchronous-rabbitmq.md), [0004](0004-contract-versioning-and-compatibility.md)
 
 ## Context
 
@@ -55,7 +55,7 @@ flowchart LR
     monolith[Temporary monolith] -.->|Legacy credentials / no shared host stores| old[(Legacy stores)]
 ```
 
-This per-service pattern repeats four times in the [target container view](0001-target-services-and-strangler-migration.md#architecture). Protocol encryption is a production approval requirement; local scaffolding defaults are not proof of isolation.
+This per-service pattern repeats four times in the [target container view](0005-target-services-and-strangler-migration.md#architecture). Protocol encryption is a production approval requirement; local scaffolding defaults are not proof of isolation.
 
 ## Non-functional requirements
 
@@ -79,7 +79,7 @@ This per-service pattern repeats four times in the [target container view](0001-
 
 ## Cost
 
-TBD before ARB: estimate logical database storage, physical servers/replicas, ESDB, backups, I/O and retention. Logical database-per-service does not mandate one physical server per database. Include coexistence storage overhead in ADR 0001's estimate; do not assume free duplicated data.
+TBD before ARB: estimate logical database storage, physical servers/replicas, ESDB, backups, I/O and retention. Logical database-per-service does not mandate one physical server per database. Include coexistence storage overhead in ADR 0005's estimate; do not assume free duplicated data.
 
 ## Operations
 
@@ -90,7 +90,7 @@ TBD before ARB: estimate logical database storage, physical servers/replicas, ES
 
 ## Policy exceptions requested
 
-None for data isolation. The gRPC exception is recorded separately in ADR 0001; this ADR grants no storage-policy exception.
+None for data isolation. The gRPC exception is recorded separately in ADR 0005; this ADR grants no storage-policy exception.
 
 ## Consequences
 
