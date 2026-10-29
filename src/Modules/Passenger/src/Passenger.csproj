@@ -13,10 +13,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="GrpcServer\Protos\passenger.proto" GrpcServices="Both" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\Caching\BuildingBlocks.Caching.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Constants\BuildingBlocks.Constants.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Core\BuildingBlocks.Core.csproj" />
@@ -33,4 +29,5 @@
   </ItemGroup>
 
   <Import Project="..\..\..\Contracts\Contracts.Messages.Reference.props" />
+  <Import Project="..\..\..\Contracts\Contracts.Grpc.Reference.props" />
 </Project>

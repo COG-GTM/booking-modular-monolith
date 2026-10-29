@@ -1,0 +1,19 @@
+<Project>
+  <!-- Import this from every gRPC provider/consumer instead of referencing Contracts.Grpc directly.
+       Default: project reference (in-repo development). With -p:UseContractsGrpcPackage=true the project restores the
+       pinned BookingModularMonolith.Contracts.Grpc package instead (e.g. from the local feed in artifacts/nuget);
+       override the pin per project with ContractsGrpcPackageVersion. -->
+  <Import Project="Versions.props" Condition="'$(ContractsVersionsImported)' != 'true'" />
+
+  <PropertyGroup>
+    <ContractsGrpcPackageVersion Condition="'$(ContractsGrpcPackageVersion)' == ''">$(ContractsGrpcVersion)</ContractsGrpcPackageVersion>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(UseContractsGrpcPackage)' != 'true'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)Contracts.Grpc/Contracts.Grpc.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseContractsGrpcPackage)' == 'true'">
+    <PackageReference Include="BookingModularMonolith.Contracts.Grpc" Version="[$(ContractsGrpcPackageVersion)]" />
+  </ItemGroup>
+</Project>

@@ -26,24 +26,22 @@ public static class Extensions
             // Bound from the same sections as BuildingBlocks.EFCore/MassTransit/EventStoreDB/Mongo options,
             // so health checks don't need a reference to those libraries.
             var rabbitMqOptions = services.GetOptions<RabbitMqHealthOptions>("RabbitMqOptions");
+            var rabbitMqUri = RabbitMqHealthUri.Resolve(
+                services.GetOptions<RabbitMqConnectionStringOptions>("ConnectionStrings").RabbitMq,
+                rabbitMqOptions.HostName,
+                rabbitMqOptions.Port,
+                rabbitMqOptions.VirtualHost,
+                rabbitMqOptions.UserName,
+                rabbitMqOptions.Password
+            );
             var eventStoreOptions = services.GetOptions<ConnectionStringOptions>("EventStoreOptions");
             var configuration = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
-            var rabbitMqConnectionString = configuration.GetConnectionString("rabbitmq");
 
             var healthChecksBuilder = services
                 .AddHealthChecks()
-                .AddRabbitMQ(_ =>
+                .AddRabbitMQ(serviceProvider =>
                 {
-                    var factory = string.IsNullOrWhiteSpace(rabbitMqConnectionString)
-                        ? new ConnectionFactory
-                        {
-                            HostName = rabbitMqOptions.HostName ?? "localhost",
-                            Port = rabbitMqOptions.Port ?? 5672,
-                            VirtualHost = rabbitMqOptions.VirtualHost ?? "/",
-                            UserName = rabbitMqOptions.UserName ?? "guest",
-                            Password = rabbitMqOptions.Password ?? "guest",
-                        }
-                        : new ConnectionFactory { Uri = new Uri(rabbitMqConnectionString) };
+                    var factory = new ConnectionFactory { Uri = rabbitMqUri };
                     return factory.CreateConnectionAsync();
                 });
 
