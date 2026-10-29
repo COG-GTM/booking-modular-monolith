@@ -1,0 +1,29 @@
+{
+  "consumer": "Passenger",
+  "consumerImplementation": "RegisterNewUserHandler",
+  "provider": "Identity",
+  "queue": "passenger.register-new-user-handler",
+  "messageUrn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:UserCreated",
+  "requiredFields": [
+    {
+      "property": "Id",
+      "jsonName": "id",
+      "jsonKind": "String"
+    },
+    {
+      "property": "Name",
+      "jsonName": "name",
+      "jsonKind": "String"
+    },
+    {
+      "property": "PassportNumber",
+      "jsonName": "passportNumber",
+      "jsonKind": "String"
+    }
+  ],
+  "sample": {
+    "id": "0efb9268-473e-4e3c-b10b-1871b747ae05",
+    "name": "First Last",
+    "passportNumber": "AB123456"
+  }
+}

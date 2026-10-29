@@ -28,58 +28,101 @@ public class FlightTestDataSeeder(
 
     private async Task SeedAirportAsync()
     {
-        if (!await EntityFrameworkQueryableExtensions.AnyAsync(flightDbContext.Airports))
+        var existingAirportIds = await EntityFrameworkQueryableExtensions.ToListAsync(
+            flightDbContext.Airports.Select(airport => airport.Id)
+        );
+        var missingAirports = InitialData.Airports.Where(airport => !existingAirportIds.Contains(airport.Id)).ToList();
+        if (missingAirports.Count > 0)
         {
-            await flightDbContext.Airports.AddRangeAsync(InitialData.Airports);
+            await flightDbContext.Airports.AddRangeAsync(missingAirports);
             await flightDbContext.SaveChangesAsync();
+        }
 
-            if (!await MongoQueryable.AnyAsync(flightReadDbContext.Airport.AsQueryable()))
-            {
-                await flightReadDbContext.Airport.InsertManyAsync(mapper.Map<List<AirportReadModel>>(InitialData.Airports));
-            }
+        var airportReadModels = mapper.Map<List<AirportReadModel>>(InitialData.Airports);
+        var existingAirportReadModelIds = await MongoQueryable.ToListAsync(
+            flightReadDbContext.Airport.AsQueryable().Select(airport => airport.AirportId)
+        );
+        var missingAirportReadModels = airportReadModels
+            .Where(airport => !existingAirportReadModelIds.Contains(airport.AirportId))
+            .ToList();
+        if (missingAirportReadModels.Count > 0)
+        {
+            await flightReadDbContext.Airport.InsertManyAsync(missingAirportReadModels);
         }
     }
 
     private async Task SeedAircraftAsync()
     {
-        if (!await EntityFrameworkQueryableExtensions.AnyAsync(flightDbContext.Aircraft))
+        var existingAircraftIds = await EntityFrameworkQueryableExtensions.ToListAsync(
+            flightDbContext.Aircraft.Select(aircraft => aircraft.Id)
+        );
+        var missingAircraft = InitialData.Aircrafts.Where(aircraft => !existingAircraftIds.Contains(aircraft.Id)).ToList();
+        if (missingAircraft.Count > 0)
         {
-            await flightDbContext.Aircraft.AddRangeAsync(InitialData.Aircrafts);
+            await flightDbContext.Aircraft.AddRangeAsync(missingAircraft);
             await flightDbContext.SaveChangesAsync();
+        }
 
-            if (!await MongoQueryable.AnyAsync(flightReadDbContext.Aircraft.AsQueryable()))
-            {
-                await flightReadDbContext.Aircraft.InsertManyAsync(mapper.Map<List<AircraftReadModel>>(InitialData.Aircrafts));
-            }
+        var aircraftReadModels = mapper.Map<List<AircraftReadModel>>(InitialData.Aircrafts);
+        var existingAircraftReadModelIds = await MongoQueryable.ToListAsync(
+            flightReadDbContext.Aircraft.AsQueryable().Select(aircraft => aircraft.AircraftId)
+        );
+        var missingAircraftReadModels = aircraftReadModels
+            .Where(aircraft => !existingAircraftReadModelIds.Contains(aircraft.AircraftId))
+            .ToList();
+        if (missingAircraftReadModels.Count > 0)
+        {
+            await flightReadDbContext.Aircraft.InsertManyAsync(missingAircraftReadModels);
         }
     }
 
-
     private async Task SeedSeatAsync()
     {
-        if (!await EntityFrameworkQueryableExtensions.AnyAsync(flightDbContext.Seats))
+        var existingSeatIds = await EntityFrameworkQueryableExtensions.ToListAsync(
+            flightDbContext.Seats.Select(seat => seat.Id)
+        );
+        var missingSeats = InitialData.Seats.Where(seat => !existingSeatIds.Contains(seat.Id)).ToList();
+        if (missingSeats.Count > 0)
         {
-            await flightDbContext.Seats.AddRangeAsync(InitialData.Seats);
+            await flightDbContext.Seats.AddRangeAsync(missingSeats);
             await flightDbContext.SaveChangesAsync();
+        }
 
-            if (!await MongoQueryable.AnyAsync(flightReadDbContext.Seat.AsQueryable()))
-            {
-                await flightReadDbContext.Seat.InsertManyAsync(mapper.Map<List<SeatReadModel>>(InitialData.Seats));
-            }
+        var seatReadModels = mapper.Map<List<SeatReadModel>>(InitialData.Seats);
+        var existingSeatReadModelIds = await MongoQueryable.ToListAsync(
+            flightReadDbContext.Seat.AsQueryable().Select(seat => seat.SeatId)
+        );
+        var missingSeatReadModels = seatReadModels
+            .Where(seat => !existingSeatReadModelIds.Contains(seat.SeatId))
+            .ToList();
+        if (missingSeatReadModels.Count > 0)
+        {
+            await flightReadDbContext.Seat.InsertManyAsync(missingSeatReadModels);
         }
     }
 
     private async Task SeedFlightAsync()
     {
-        if (!await EntityFrameworkQueryableExtensions.AnyAsync(flightDbContext.Flights))
+        var existingFlightIds = await EntityFrameworkQueryableExtensions.ToListAsync(
+            flightDbContext.Flights.Select(flight => flight.Id)
+        );
+        var missingFlights = InitialData.Flights.Where(flight => !existingFlightIds.Contains(flight.Id)).ToList();
+        if (missingFlights.Count > 0)
         {
-            await flightDbContext.Flights.AddRangeAsync(InitialData.Flights);
+            await flightDbContext.Flights.AddRangeAsync(missingFlights);
             await flightDbContext.SaveChangesAsync();
+        }
 
-            if (!await MongoQueryable.AnyAsync(flightReadDbContext.Flight.AsQueryable()))
-            {
-                await flightReadDbContext.Flight.InsertManyAsync(mapper.Map<List<FlightReadModel>>(InitialData.Flights));
-            }
+        var flightReadModels = mapper.Map<List<FlightReadModel>>(InitialData.Flights);
+        var existingFlightReadModelIds = await MongoQueryable.ToListAsync(
+            flightReadDbContext.Flight.AsQueryable().Select(flight => flight.FlightId)
+        );
+        var missingFlightReadModels = flightReadModels
+            .Where(flight => !existingFlightReadModelIds.Contains(flight.FlightId))
+            .ToList();
+        if (missingFlightReadModels.Count > 0)
+        {
+            await flightReadDbContext.Flight.InsertManyAsync(missingFlightReadModels);
         }
     }
 }

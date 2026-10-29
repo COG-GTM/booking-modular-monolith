@@ -1,0 +1,183 @@
+{
+  "consumer": "Booking",
+  "consumerImplementation": "CreateBookingCommandHandler",
+  "provider": "Flight",
+  "service": "flight.FlightGrpcService",
+  "interactions": [
+    {
+      "method": "GetById",
+      "request": {
+        "type": "flight.GetByIdRequest",
+        "fields": [
+          {
+            "path": "Id",
+            "number": 1,
+            "name": "Id",
+            "type": "string",
+            "label": "optional"
+          }
+        ],
+        "sample": {
+          "Id": "3c5c0000-97c6-fc34-2eb9-08db322230c9"
+        }
+      },
+      "response": {
+        "type": "flight.GetFlightByIdResult",
+        "fields": [
+          {
+            "path": "FlightDto",
+            "number": 1,
+            "name": "FlightDto",
+            "type": "flight.FlightResponse",
+            "label": "optional"
+          },
+          {
+            "path": "FlightDto.Id",
+            "number": 1,
+            "name": "Id",
+            "type": "string",
+            "label": "optional"
+          },
+          {
+            "path": "FlightDto.FlightNumber",
+            "number": 2,
+            "name": "FlightNumber",
+            "type": "string",
+            "label": "optional"
+          },
+          {
+            "path": "FlightDto.AircraftId",
+            "number": 3,
+            "name": "AircraftId",
+            "type": "string",
+            "label": "optional"
+          },
+          {
+            "path": "FlightDto.DepartureAirportId",
+            "number": 4,
+            "name": "DepartureAirportId",
+            "type": "string",
+            "label": "optional"
+          },
+          {
+            "path": "FlightDto.ArriveAirportId",
+            "number": 7,
+            "name": "ArriveAirportId",
+            "type": "string",
+            "label": "optional"
+          },
+          {
+            "path": "FlightDto.FlightDate",
+            "number": 9,
+            "name": "FlightDate",
+            "type": "google.protobuf.Timestamp",
+            "label": "optional"
+          },
+          {
+            "path": "FlightDto.Price",
+            "number": 11,
+            "name": "Price",
+            "type": "double",
+            "label": "optional"
+          }
+        ],
+        "sample": {
+          "FlightDto": {
+            "Id": "3c5c0000-97c6-fc34-2eb9-08db322230c9",
+            "FlightNumber": "AB504",
+            "AircraftId": "aircraft-1",
+            "DepartureAirportId": "AAA",
+            "ArriveAirportId": "BBB",
+            "FlightDate": "2025-02-03T12:00:00Z",
+            "Price": 123.45
+          }
+        }
+      }
+    },
+    {
+      "method": "GetAvailableSeats",
+      "request": {
+        "type": "flight.GetAvailableSeatsRequest",
+        "fields": [
+          {
+            "path": "FlightId",
+            "number": 1,
+            "name": "FlightId",
+            "type": "string",
+            "label": "optional"
+          }
+        ],
+        "sample": {
+          "FlightId": "3c5c0000-97c6-fc34-2eb9-08db322230c9"
+        }
+      },
+      "response": {
+        "type": "flight.GetAvailableSeatsResult",
+        "fields": [
+          {
+            "path": "SeatDtos",
+            "number": 1,
+            "name": "SeatDtos",
+            "type": "flight.SeatDtoResponse",
+            "label": "repeated"
+          },
+          {
+            "path": "SeatDtos.SeatNumber",
+            "number": 2,
+            "name": "SeatNumber",
+            "type": "string",
+            "label": "optional"
+          }
+        ],
+        "sample": {
+          "SeatDtos": [
+            {
+              "SeatNumber": "1A"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "method": "ReserveSeat",
+      "request": {
+        "type": "flight.ReserveSeatRequest",
+        "fields": [
+          {
+            "path": "FlightId",
+            "number": 1,
+            "name": "FlightId",
+            "type": "string",
+            "label": "optional"
+          },
+          {
+            "path": "SeatNumber",
+            "number": 2,
+            "name": "SeatNumber",
+            "type": "string",
+            "label": "optional"
+          }
+        ],
+        "sample": {
+          "FlightId": "3c5c0000-97c6-fc34-2eb9-08db322230c9",
+          "SeatNumber": "1A"
+        }
+      },
+      "response": {
+        "type": "flight.ReserveSeatResult",
+        "fields": [
+          {
+            "path": "Id",
+            "number": 1,
+            "name": "Id",
+            "type": "string",
+            "label": "optional"
+          }
+        ],
+        "sample": {
+          "Id": "1"
+        }
+      }
+    }
+  ]
+}

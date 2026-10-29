@@ -342,6 +342,15 @@ To `test` all modules, run this command in the `root` of the project:
 dotnet test
 ```
 
+Contract compatibility and consumer-owned pact checks are documented in
+[`src/Contracts/README.md`](src/Contracts/README.md). The process-level service E2E suite requires Docker:
+
+```bash
+dotnet test src/Contracts/tests/Contracts.Grpc.Tests
+dotnet test src/Contracts/tests/Contracts.ConsumerDriven.Tests
+dotnet test src/Tests/CrossService.EndToEnd.Test/CrossService.EndToEnd.Test.csproj
+```
+
 > ### Documentation Apis
 
 For checking `API documentation`, navigate to `/swagger` for `Swagger OpenAPI` or `/scalar/v1` for `Scalar OpenAPI` to visit list of endpoints.

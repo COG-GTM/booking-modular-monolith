@@ -267,11 +267,14 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
             await connection.OpenAsync();
             foreach (var module in new[] { "Flight", "Identity", "Passenger", "Booking" })
             {
-                await using var command = new NpgsqlCommand(
-                    $"CREATE DATABASE {module.ToLowerInvariant()}_modular_monolith",
-                    connection
-                );
-                await command.ExecuteNonQueryAsync();
+                foreach (var suffix in new[] { "modular_monolith", "service" })
+                {
+                    await using var command = new NpgsqlCommand(
+                        $"CREATE DATABASE {module.ToLowerInvariant()}_{suffix}",
+                        connection
+                    );
+                    await command.ExecuteNonQueryAsync();
+                }
             }
         }
         await RabbitMqTestContainer.StartAsync();
@@ -289,8 +292,13 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
     private string ModuleConnectionString(string module) =>
         new NpgsqlConnectionStringBuilder(PostgresTestcontainer.GetConnectionString())
         {
-            Database = module.ToLowerInvariant() + "_modular_monolith",
+            Database = module.ToLowerInvariant() + DatabaseSuffix,
         }.ConnectionString;
+
+    protected virtual string DatabaseSuffix =>
+        typeof(TEntryPoint).Assembly.GetName().Name?.EndsWith(".Host", StringComparison.OrdinalIgnoreCase) == true
+            ? "_service"
+            : "_modular_monolith";
 
     private void AddCustomAppSettings(IConfigurationBuilder configuration)
     {

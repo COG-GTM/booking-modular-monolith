@@ -1,0 +1,50 @@
+{
+  "consumer": "Booking",
+  "consumerImplementation": "CreateBookingCommandHandler",
+  "provider": "Passenger",
+  "service": "passenger.PassengerGrpcService",
+  "interactions": [
+    {
+      "method": "GetById",
+      "request": {
+        "type": "passenger.GetByIdRequest",
+        "fields": [
+          {
+            "path": "Id",
+            "number": 1,
+            "name": "Id",
+            "type": "string",
+            "label": "optional"
+          }
+        ],
+        "sample": {
+          "Id": "0efb9268-473e-4e3c-b10b-1871b747ae05"
+        }
+      },
+      "response": {
+        "type": "passenger.GetPassengerByIdResult",
+        "fields": [
+          {
+            "path": "PassengerDto",
+            "number": 1,
+            "name": "PassengerDto",
+            "type": "passenger.PassengerResponse",
+            "label": "optional"
+          },
+          {
+            "path": "PassengerDto.Name",
+            "number": 2,
+            "name": "Name",
+            "type": "string",
+            "label": "optional"
+          }
+        ],
+        "sample": {
+          "PassengerDto": {
+            "Name": "First Last"
+          }
+        }
+      }
+    }
+  ]
+}
