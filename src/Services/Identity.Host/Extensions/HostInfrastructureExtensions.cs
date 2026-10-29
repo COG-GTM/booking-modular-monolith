@@ -51,15 +51,6 @@ public static class HostInfrastructureExtensions
 
         app.UseServiceDefaults();
 
-        if (!app.Environment.IsDevelopment())
-        {
-            app.MapHealthChecks("/health");
-            app.MapHealthChecks(
-                "/alive",
-                new HealthCheckOptions { Predicate = registration => registration.Tags.Contains("live") }
-            );
-        }
-
         app.UseCustomProblemDetails();
         app.UseCorrelationId();
         app.MapGet("/", context => context.Response.WriteAsync(appOptions.Name));

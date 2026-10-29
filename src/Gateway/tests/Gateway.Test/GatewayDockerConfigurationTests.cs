@@ -27,6 +27,6 @@ public class GatewayDockerConfigurationTests
         Assert.All(clusters, cluster => Assert.Equal(address, cluster["Destinations:primary:Address"]));
         Assert.Equal(address + ".well-known/openid-configuration", config["Jwt:MetadataAddress"]);
         Assert.Contains("- ASPNETCORE_ENVIRONMENT=docker", compose, StringComparison.Ordinal);
-        Assert.Contains("- booking_modular_monolith", compose, StringComparison.Ordinal);
+        Assert.Matches(@"(?m)^      booking_modular_monolith:\s*\n        condition: service_healthy\s*$", compose);
     }
 }

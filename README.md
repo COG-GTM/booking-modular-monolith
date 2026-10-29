@@ -311,6 +311,13 @@ The standalone Flight host uses separate HTTP and h2c gRPC listeners. See the
 [Flight service runbook](./docs/runbooks/flight-service.md) and
 [ADR 0502](./docs/adr/0502-standalone-flight-service-host.md).
 
+### Observability (per service)
+
+Every deployable reports its own `service.name` (`booking-gateway`, `booking-modular-monolith`, `identity-service`,
+`flight-service`, `passenger-service`, `booking-service`), exposes `/health/live` and `/health/ready` in every environment, and
+carries W3C trace context across the gateway, gRPC and the outbox/RabbitMQ hop so one booking request is one trace. See the
+[observability runbook](./docs/runbooks/observability.md) and [ADR 0495](./docs/adr/0495-per-service-observability-and-trace-propagation.md).
+
 ## Passenger service host
 
 The standalone Passenger service composition and operating guidance are documented in
