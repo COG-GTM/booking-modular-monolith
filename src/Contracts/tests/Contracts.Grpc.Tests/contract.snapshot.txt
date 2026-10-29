@@ -1,0 +1,70 @@
+file flight.proto package flight
+  rpc /flight.FlightGrpcService/GetById flight.GetByIdRequest -> flight.GetFlightByIdResult
+  rpc /flight.FlightGrpcService/GetAvailableSeats flight.GetAvailableSeatsRequest -> flight.GetAvailableSeatsResult
+  rpc /flight.FlightGrpcService/ReserveSeat flight.ReserveSeatRequest -> flight.ReserveSeatResult
+  message flight.FlightResponse
+    1 string Id
+    2 string FlightNumber
+    3 string AircraftId
+    4 string DepartureAirportId
+    5 google.protobuf.Timestamp DepartureDate
+    6 google.protobuf.Timestamp ArriveDate
+    7 string ArriveAirportId
+    8 double DurationMinutes
+    9 google.protobuf.Timestamp FlightDate
+    10 flight.FlightStatus Status
+    11 double Price
+    12 string FlightId
+  message flight.GetAvailableSeatsRequest
+    1 string FlightId
+  message flight.GetAvailableSeatsResult
+    1 repeated flight.SeatDtoResponse SeatDtos
+  message flight.GetByIdRequest
+    1 string Id
+  message flight.GetFlightByIdResult
+    1 flight.FlightResponse FlightDto
+  message flight.ReserveSeatRequest
+    1 string FlightId
+    2 string SeatNumber
+  message flight.ReserveSeatResult
+    1 string Id
+  message flight.SeatDtoResponse
+    1 string Id
+    2 string SeatNumber
+    3 flight.SeatType Type
+    4 flight.SeatClass Class
+    5 string FlightId
+  enum flight.FlightStatus
+    0 FLIGHT_STATUS_UNKNOWN
+    1 FLIGHT_STATUS_FLYING
+    2 FLIGHT_STATUS_DELAY
+    3 FLIGHT_STATUS_CANCELED
+    4 FLIGHT_STATUS_COMPLETED
+  enum flight.SeatClass
+    0 SEAT_CLASS_UNKNOWN
+    1 SEAT_CLASS_FIRST_CLASS
+    2 SEAT_CLASS_BUSINESS
+    3 SEAT_CLASS_ECONOMY
+  enum flight.SeatType
+    0 SEAT_TYPE_UNKNOWN
+    1 SEAT_TYPE_WINDOW
+    2 SEAT_TYPE_MIDDLE
+    3 SEAT_TYPE_AISLE
+file passenger.proto package passenger
+  rpc /passenger.PassengerGrpcService/GetById passenger.GetByIdRequest -> passenger.GetPassengerByIdResult
+  message passenger.GetByIdRequest
+    1 string Id
+  message passenger.GetPassengerByIdResult
+    1 passenger.PassengerResponse PassengerDto
+  message passenger.PassengerResponse
+    1 string Id
+    2 string Name
+    3 string PassportNumber
+    4 passenger.PassengerType PassengerType
+    5 int32 Age
+    6 string Email
+  enum passenger.PassengerType
+    0 PASSENGER_TYPE_UNKNOWN
+    1 PASSENGER_TYPE_MALE
+    2 PASSENGER_TYPE_FEMALE
+    3 PASSENGER_TYPE_BABY

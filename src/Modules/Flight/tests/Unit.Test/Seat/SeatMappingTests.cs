@@ -1,4 +1,7 @@
+using Flight.Data.Seed;
 using Flight.Seats.Dtos;
+using Flight.Seats.Models;
+using FluentAssertions;
 using MapsterMapper;
 using Unit.Test.Common;
 using Xunit;
@@ -36,5 +39,16 @@ public class SeatMappingTests
         var instance = Activator.CreateInstance(source, parameters);
 
         _mapper.Map(instance, source, destination);
+    }
+
+    [Fact]
+    public void seeded_seat_read_model_keeps_the_raw_seat_number()
+    {
+        var seat = InitialData.Seats.First();
+
+        var readModel = _mapper.Map<SeatReadModel>(seat);
+
+        readModel.SeatNumber.Should().Be(seat.SeatNumber.Value);
+        readModel.SeatId.Should().Be(seat.Id.Value);
     }
 }

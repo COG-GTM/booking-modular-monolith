@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using BookingFlight;
+using Flight;
 
 namespace Integration.Test.Fakes;
 

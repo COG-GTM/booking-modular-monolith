@@ -318,12 +318,20 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(eventstore)
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
-    .WithHttpEndpoint(port: 3001, name: "api-http")
-    .WithHttpsEndpoint(port: 3000, name: "api-https")
+    // Not proxied: the api binds these ports itself (Kestrel:Endpoints in appsettings.Development.json), including the
+    // HTTP/2-only gRPC endpoint that h2c clients need.
+    .WithHttpEndpoint(port: 3001, name: "api-http", isProxied: false)
+    .WithHttpsEndpoint(port: 3000, name: "api-https", isProxied: false)
+    .WithEndpoint(port: 3002, scheme: "http", name: "grpc", isProxied: false)
     // Tokens are issued for, and validated against, the gateway's public URL (single ingress).
     .WithEnvironment("AuthOptions__IssuerUri", GatewayPublicUrl)
     .WithEnvironment("Jwt__Authority", GatewayPublicUrl)
     .WithEnvironment("Jwt__MetadataAddress", "http://localhost:3001/.well-known/openid-configuration");
+
+// Service discovery for Booking's gRPC clients (Grpc:<Client>:Address = http://_grpc.<service>). Flight and Passenger
+// are served by the monolith until their hosts exist; then point these at flightHost/passengerHost.GetEndpoint("grpc").
+api.WithEnvironment("services__flight__grpc__0", api.GetEndpoint("grpc"))
+    .WithEnvironment("services__passenger__grpc__0", api.GetEndpoint("grpc"));
 
 // 3. Gateway (YARP) - single ingress. Every cluster starts on the monolith; repoint one by
 // overriding ReverseProxy__Clusters__<cluster>__Destinations__primary__Address.

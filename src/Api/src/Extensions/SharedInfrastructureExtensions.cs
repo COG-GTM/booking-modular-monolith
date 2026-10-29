@@ -1,4 +1,5 @@
 using Booking;
+using Booking.Extensions.Infrastructure;
 using BuildingBlocks.Core;
 using BuildingBlocks.Exception;
 using BuildingBlocks.Jwt;
@@ -50,6 +51,16 @@ public static class SharedInfrastructureExtensions
             options.Interceptors.Add<GrpcExceptionInterceptor>();
         });
 
+        // Standard grpc.health.v1 service for the Flight/Passenger servers. Checks that probe *other* gRPC services are
+        // excluded so a service's status reflects only its own dependencies (and the monolith never probes itself in a loop).
+        builder.Services.AddGrpcHealthChecks(options =>
+        {
+            options.Services.Clear();
+            options.Services.Map(string.Empty, IsOwnDependency);
+            options.Services.Map(FlightGrpcService.Descriptor.FullName, IsOwnDependency);
+            options.Services.Map(PassengerGrpcService.Descriptor.FullName, IsOwnDependency);
+        });
+
         builder.Services.AddEasyCaching(options =>
         {
             options.UseInMemory(builder.Configuration, "mem");
@@ -69,6 +80,8 @@ public static class SharedInfrastructureExtensions
 
         app.UseCorrelationId();
 
+        app.MapGrpcHealthChecksService();
+
         app.MapGet("/", x => x.Response.WriteAsync(appOptions.Name));
 
         if (app.Environment.IsDevelopment())
@@ -78,4 +91,7 @@ public static class SharedInfrastructureExtensions
 
         return app;
     }
+
+    private static bool IsOwnDependency(Grpc.AspNetCore.HealthChecks.HealthCheckMapContext context) =>
+        !context.Tags.Contains(GrpcClientExtensions.GrpcDependencyHealthTag);
 }
