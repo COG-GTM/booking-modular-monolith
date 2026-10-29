@@ -8,7 +8,8 @@ WARNING: infrastructure.enabled is true. PostgreSQL, MongoDB, RabbitMQ, and Even
 in this chart are development-only single-instance workloads; do not use them in production.
 {{- end }}
 
-The Booking background processor and outbox poller require one active replica. Keep Booking
-replicas and autoscaling.maxReplicas at 1 while backgroundProcessingEnabled is true.
+Identity, Flight, Passenger, and Booking background processors and outbox pollers require one active
+replica while backgroundProcessingEnabled is true. Booking also requires a single-active EventStoreDB
+$all subscription.
 
 For secrets and kind setup, see deployments/k8s/README.md.

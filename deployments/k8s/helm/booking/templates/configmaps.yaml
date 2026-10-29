@@ -20,6 +20,9 @@
 {{- $_ := set $data "ObservabilityOptions__UseOTLPExporter" "true" -}}
 {{- $_ := set $data "ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint" $.Values.global.otlpEndpoint -}}
 {{- end }}
+{{- if ne $key "gateway" }}
+{{- $_ := set $data (printf "Modules__%s__BackgroundProcessingEnabled" (title $key)) (toString $service.backgroundProcessingEnabled) -}}
+{{- end }}
 {{- if eq $key "identity" }}
 {{- $_ := set $data "AuthOptions__IssuerUri" $.Values.global.publicUrl -}}
 {{- $_ := set $data "AuthOptions__SigningKeyPath" "/app/keys/tempkey.jwk" -}}
@@ -31,13 +34,14 @@
 {{- range $cluster := list "identity" "flight" "passenger" "booking" }}
 {{- $_ := set $data (printf "ReverseProxy__Clusters__%s__Destinations__primary__Address" $cluster) (printf "http://%s:8080/" (include "booking.serviceName" (dict "root" $ "key" $cluster))) -}}
 {{- end }}
+{{- if $.Values.gateway.monolithAddress }}
 {{- $_ := set $data "ReverseProxy__Clusters__monolith__Destinations__primary__Address" $.Values.gateway.monolithAddress -}}
+{{- end }}
 {{- else }}
 {{- if $service.database.mongoDatabase }}
 {{- $_ := set $data (printf "MongoOptions__%s__DatabaseName" (title $key)) $service.database.mongoDatabase -}}
 {{- end }}
 {{- if eq $key "booking" }}
-{{- $_ := set $data "Modules__Booking__BackgroundProcessingEnabled" (toString $service.backgroundProcessingEnabled) -}}
 {{- $_ := set $data "Grpc__FlightAddress" (printf "http://%s:8081" (include "booking.serviceName" (dict "root" $ "key" "flight"))) -}}
 {{- $_ := set $data "Grpc__PassengerAddress" (printf "http://%s:8081" (include "booking.serviceName" (dict "root" $ "key" "passenger"))) -}}
 {{- end }}

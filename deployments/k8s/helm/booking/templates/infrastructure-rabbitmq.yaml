@@ -69,6 +69,8 @@ spec:
                 secretKeyRef:
                   name: {{ include "booking.rabbitSecret" . }}
                   key: {{ .Values.rabbitmq.auth.passwordKey }}
+            - name: RABBITMQ_DEFAULT_VHOST
+              value: {{ .Values.rabbitmq.vhost | quote }}
           ports:
             - name: amqp
               containerPort: 5672

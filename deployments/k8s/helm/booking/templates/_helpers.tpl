@@ -70,18 +70,32 @@ app.kubernetes.io/instance: {{ .root.Release.Name }}
 {{- end -}}
 {{- end -}}
 
-{{- define "booking.validateBookingReplicas" -}}
-{{- $booking := .Values.services.booking -}}
-{{- $enabled := $booking.backgroundProcessingEnabled -}}
-{{- $autoscaling := mergeOverwrite (deepCopy .Values.services.defaults.autoscaling) (deepCopy $booking.autoscaling) -}}
-{{- if and $enabled (or (gt (int $booking.replicas) 1) (and $autoscaling.enabled (gt (int $autoscaling.maxReplicas) 1))) -}}
-{{- fail "Booking background processing cannot use multiple replicas: the EventStoreDB $all subscription and outbox poller must remain single-active; disable background processing or keep replicas and autoscaling maxReplicas at 1." -}}
+{{- define "booking.validateDatabasePasswords" -}}
+{{- range $key, $service := .Values.services -}}
+{{- if and $service.database (not $service.database.existingSecret) $service.database.password (contains "'" $service.database.password) -}}
+{{- fail (printf "services.%s.database.password must not contain a single quote when existingSecret is empty" $key) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "booking.validateBackgroundProcessingReplicas" -}}
+{{- range $key := list "identity" "flight" "passenger" "booking" -}}
+{{- $service := index $.Values.services $key -}}
+{{- $autoscaling := mergeOverwrite (deepCopy $.Values.services.defaults.autoscaling) (deepCopy $service.autoscaling) -}}
+{{- if and $service.backgroundProcessingEnabled (or (gt (int $service.replicas) 1) (and $autoscaling.enabled (gt (int $autoscaling.maxReplicas) 1))) -}}
+{{- $message := printf "%s background processing cannot use multiple replicas: outbox polling has no row locking" (title $key) -}}
+{{- if eq $key "booking" -}}
+{{- $message = printf "%s; the EventStoreDB $all subscription must remain single-active" $message -}}
+{{- end -}}
+{{- fail (printf "%s; disable background processing or keep replicas and autoscaling maxReplicas at 1." $message) -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 
 {{- define "booking.validateValues" -}}
 {{- include "booking.validateDatabaseIdentifiers" . -}}
-{{- include "booking.validateBookingReplicas" . -}}
+{{- include "booking.validateDatabasePasswords" . -}}
+{{- include "booking.validateBackgroundProcessingReplicas" . -}}
 {{- if not .Values.identity.signingKey.existingSecret -}}
 {{- fail "identity.signingKey.existingSecret is required; create the signing-key Secret before installing the chart." -}}
 {{- end -}}
@@ -95,9 +109,9 @@ app.kubernetes.io/managed-by: {{ .root.Release.Service }}
 {{- end -}}
 
 {{- define "booking.persistMessageConnectionString" -}}
-Server={{ include "booking.postgresHost" .root }};Port={{ .root.Values.postgres.port }};Database={{ .service.database.persistMessageDatabase }};User Id={{ .service.database.username }};Password=$(DB_PASSWORD);SSL Mode={{ .root.Values.postgres.sslMode }};Include Error Detail=true
+Server={{ include "booking.postgresHost" .root }};Port={{ .root.Values.postgres.port }};Database={{ .service.database.persistMessageDatabase }};User Id={{ .service.database.username }};Password='$(DB_PASSWORD)';SSL Mode={{ .root.Values.postgres.sslMode }};Include Error Detail=true
 {{- end -}}
 
 {{- define "booking.databaseConnectionString" -}}
-Server={{ include "booking.postgresHost" .root }};Port={{ .root.Values.postgres.port }};Database={{ .service.database.name }};User Id={{ .service.database.username }};Password=$(DB_PASSWORD);SSL Mode={{ .root.Values.postgres.sslMode }};Include Error Detail=true
+Server={{ include "booking.postgresHost" .root }};Port={{ .root.Values.postgres.port }};Database={{ .service.database.name }};User Id={{ .service.database.username }};Password='$(DB_PASSWORD)';SSL Mode={{ .root.Values.postgres.sslMode }};Include Error Detail=true
 {{- end -}}

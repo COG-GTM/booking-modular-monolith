@@ -40,6 +40,10 @@ and all internal service ports are ClusterIP. Flight and Passenger expose their 
 on service port 8081 with Kubernetes `appProtocol: kubernetes.io/h2c`. Internal gRPC remains
 unauthenticated per ADR 0008 and must be network-restricted.
 
+The chart does not deploy the legacy monolith. Its YARP catch-all destination is omitted by default;
+`gateway.monolithAddress` is an optional rollback fallback for clusters still running the monolith
+and should remain empty once it is decommissioned.
+
 All app containers use the `docker` ASP.NET Core environment, health endpoints, UID/GID 1654,
 `RuntimeDefault` seccomp, dropped capabilities, no privilege escalation, a read-only root
 filesystem, and a writable `/tmp` volume by default. OTLP export is disabled unless an endpoint is
@@ -58,11 +62,11 @@ The optional in-chart data stores are single-instance, development-only Stateful
 initialization creates the same per-service roles and databases used by Compose, reading passwords
 from Secret-backed environment variables. Production values turn this infrastructure off.
 
-Only the gateway has HPA enabled by default. The other hosts remain at one replica: their outbox
-pollers do not use row locking or `FOR UPDATE SKIP LOCKED`, so multiple pollers can double-publish.
-Booking additionally owns the EventStoreDB `$all` subscription and must remain single-active while
-background processing is enabled. Helm rejects Booking replica/HPA settings above one in that
-configuration.
+Only the gateway has HPA enabled by default. Identity, Flight, Passenger, and Booking each expose a
+`backgroundProcessingEnabled` setting, enabled by default. Their outbox pollers do not use row
+locking or `FOR UPDATE SKIP LOCKED`, so multiple pollers can double-publish. Helm rejects replicas
+or HPA maxReplicas above one for any of these hosts while background processing is enabled. Booking
+additionally owns the EventStoreDB `$all` subscription and must remain single-active.
 
 ## Alternatives considered
 
@@ -134,6 +138,9 @@ These are proposed target placeholders for production sizing and ARB review, not
   are documented gaps and require network restriction. The kind overlay uses local HTTP.
 - **Authentication:** Public API access uses JWTs issued by Identity. Internal gRPC is intentionally
   unauthenticated per ADR 0008. NetworkPolicies are a follow-up, not a current control.
+- **Production release gate:** Do not expose the seeded Identity user `samh` or password-grant
+  client `client` / `secret`. The application seeding is outside AB-491 and must be changed in a
+  follow-up before production traffic is enabled.
 - **Secrets:** Do not commit credentials or signing JWK files. Use external secret management in
   production; generated chart Secrets and default credentials are for disposable development
   environments only. Secret values may be present in Kubernetes API storage, so cluster
@@ -182,6 +189,8 @@ These are proposed target placeholders for production sizing and ARB review, not
 - Local dev infra is convenient but must not be promoted to production. Production requires
   managed PostgreSQL, MongoDB, RabbitMQ, and EventStoreDB.
 - Outbox leader election or database row locking is required before scaling service workers.
+- Change or remove the seeded Identity user `samh` and password-grant client `client` / `secret`
+  before production; application seeding changes are outside this chart ticket.
 - Add default-deny NetworkPolicies and least-privilege rules before a production deployment.
 - Add mTLS or authenticated service-to-service transport to close the internal plaintext/h2c gap.
 - Integrate External Secrets or an equivalent approved external secret controller and operationalize

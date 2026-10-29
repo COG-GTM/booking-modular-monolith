@@ -1,8 +1,8 @@
 # Kubernetes deployment
 
 The `booking` Helm chart deploys the Identity, Flight, Passenger, and Booking services behind one
-public YARP gateway. Only the gateway is exposed through the Ingress. Service HTTP and h2c gRPC
-endpoints are ClusterIP-only.
+public YARP gateway; it does not deploy the legacy monolith. Only the gateway is exposed through
+the Ingress. Service HTTP and h2c gRPC endpoints are ClusterIP-only.
 
 ## Install
 
@@ -31,9 +31,11 @@ the `restricted` profile. Normal installation uses `-n booking --create-namespac
 | `global.publicUrl` | Public issuer and IdentityServer issuer URI; for kind it is `http://localhost:8088`. |
 | `global.audience` | JWT audience required by service hosts. |
 | `global.otlpEndpoint` | Optional OTLP/gRPC collector endpoint; no exporter is enabled when empty. |
+| `imagePullSecrets` | Optional pod image-pull Secret references; the production overlay expects `ghcr-pull`. |
 | `services.<identity\|flight\|passenger\|booking\|gateway>.nameOverride` | Overrides that workload's stable Kubernetes Service name; all inter-service addresses use the helper-derived name. |
 | `services.<name>.image.{repository,tag,pullPolicy}` | Image metadata per workload. |
 | `services.<name>.replicas`, `services.<name>.autoscaling` | Replica and CPU HPA settings. HPA defaults on only for the gateway. |
+| `services.<identity\|flight\|passenger\|booking>.backgroundProcessingEnabled` | Enables that module's background processing; the chart rejects multiple replicas or HPA max above one when enabled. |
 | `services.<name>.probes` | Startup, liveness, and readiness paths. Defaults are `/health/live`, `/health/live`, and `/health/ready`. |
 | `services.<name>.resources` | Container CPU and memory requests and limits. |
 | `services.<name>.database` | PostgreSQL role, database names, password Secret, and Mongo read database. Booking has no primary Postgres database, only its persist-message database. |
@@ -42,8 +44,8 @@ the `restricted` profile. Normal installation uses `-n booking --create-namespac
 | `mongodb.{connectionString,existingSecret,connectionStringKey}` | MongoDB connection-string Secret contract. |
 | `eventstore.{connectionString,existingSecret,connectionStringKey}` | Booking EventStoreDB connection-string Secret contract. |
 | `identity.signingKey.{existingSecret,key}` | Secret mounted read-only at `/app/keys/tempkey.jwk`; Duende key-management files use the writable pod-local `/app/keys` workspace. |
-| `gateway.ingress.{enabled,className,host,tls}` | Public Ingress configuration; optional TLS entries contain a `secretName`. |
-| `gateway.monolithAddress` | YARP catch-all destination; default `http://booking-monolith:80/` has no chart Service and returns 502 unless an external monolith is supplied. |
+| `gateway.ingress.{enabled,className,host,annotations,tls}` | Public Ingress configuration; optional annotations and TLS entries are rendered onto the Ingress. |
+| `gateway.monolithAddress` | Optional YARP catch-all rollback destination for clusters still running the monolith. It defaults to empty and should stay empty once the monolith is decommissioned. |
 | `infrastructure.enabled` | Enables development-only single-instance PostgreSQL, MongoDB, RabbitMQ, and EventStoreDB. Defaults off. |
 | `infrastructure.persistence.{enabled,size,storageClass}` | PVC settings for development infrastructure; disable only for disposable environments. |
 | `namespace.create` | Optional namespace resource with Pod Security Admission labels. |
@@ -53,12 +55,13 @@ overlay values raise these defaults. `podSecurity` controls the app Pod UID/GID 
 filesystem settings; the defaults use UID/GID 1654 (`app` in the .NET images), a `RuntimeDefault`
 seccomp profile, dropped capabilities, and a writable `/tmp` `emptyDir`.
 
-Each service has an outbox poller that does not use row locking or `FOR UPDATE SKIP LOCKED`; more
-than one replica can publish the same rows. Keep Identity, Flight, Passenger, and Booking at one
-replica. Booking additionally owns the EventStoreDB `$all` subscription. The chart fails rendering
-if Booking background processing is enabled while replicas or HPA maxReplicas exceed one. Gateway
-HPA is enabled by default (one to three replicas); the production example scales from two to six.
-Horizontal scaling any service requires outbox leasing/leader election or row locking first.
+Identity, Flight, Passenger, and Booking each have background processing enabled by default and an
+outbox poller that does not use row locking or `FOR UPDATE SKIP LOCKED`; more than one replica can
+publish the same rows. The chart rejects replicas or HPA maxReplicas above one for any of those
+hosts while background processing is enabled. Booking additionally owns the EventStoreDB `$all`
+subscription and must remain single-active. Gateway HPA is enabled by default (one to three
+replicas); the production example scales from two to six. Horizontal scaling service workers
+requires outbox leasing/leader election or row locking first.
 
 ## Secrets contract and rotation
 
@@ -74,6 +77,10 @@ value. Do not use generated defaults in production.
 | `eventstore.existingSecret` | `connectionString` by default; configurable with `connectionStringKey`. |
 | `identity.signingKey.existingSecret` | `tempkey.jwk` by default; override with `identity.signingKey.key`. All Identity replicas must share this same key. |
 | `infrastructure.postgres.existingSecret` | `password` by default; used only by the development PostgreSQL StatefulSet. |
+
+PostgreSQL connection strings use Npgsql's single-quoted password form so passwords may contain
+semicolons. A password must not contain a single quote: Helm rejects it for chart-managed database
+passwords, and externally supplied database passwords must follow the same restriction.
 
 Chart-managed configuration and development Secrets trigger pod checksum rollouts. External
 `existingSecret` rotation is not included in the checksum; run
@@ -101,9 +108,22 @@ with the kind overlay. The local-path provisioner is for disposable kind storage
 `INSTALL_METRICS_SERVER=0` skips optional local CPU metrics; and `DELETE_CLUSTER=1` removes the
 cluster at the end. It leaves the cluster running by default.
 
+## Development infrastructure
+
+The bundled PostgreSQL init script creates roles and databases only when PostgreSQL initializes an
+empty data directory. Changing a chart-managed database password on an existing kind release does
+not update the stored PostgreSQL role password. Delete the PostgreSQL PVC to reinitialize the
+disposable development database (this removes its data), or update the role with `ALTER ROLE` and
+coordinate the Secret and service restarts manually.
+
 ## Production notes
 
 - Set `infrastructure.enabled=false` and point the chart at managed/external data services.
+- The production overlay uses `ghcr.io/cog-gtm/booking-{gateway,identity,flight,passenger,booking}`
+  images with `sha-REPLACE_WITH_COMMIT_SHA` placeholders. Set each release image tag with
+  `--set services.<service>.image.tag=sha-<release-commit-sha>`.
+- Provision the `ghcr-pull` image-pull Secret in the release namespace through approved secret
+  management before deploying the private GHCR images.
 - TLS terminates at the gateway Ingress; provision its certificate Secret out of band.
 - Internal REST and Flight/Passenger gRPC use plaintext HTTP/h2c. NetworkPolicies and mTLS are
   follow-up hardening; do not expose ClusterIP service ports publicly.
@@ -114,6 +134,14 @@ cluster at the end. It leaves the cluster running by default.
 - `existingSecret` rotation needs an explicit rollout restart, including Identity signing-key
   rotation; signing-key replacement also invalidates tokens signed by the previous key.
 - The included databases and broker are disposable development examples, not production defaults.
+
+### Production release checklist
+
+- [ ] Replace all image-tag placeholders with the release commit SHA and provision `ghcr-pull`.
+- [ ] Keep the Identity seed account `samh` and password-grant client `client` / `secret` from being
+      exposed; the current application seeding must be changed in a follow-up before production
+      traffic is enabled.
+- [ ] Provision production credentials and signing material through the approved secret manager.
 
 See [ADR 0026](../../docs/adr/0026-kubernetes-helm-deployment.md) for the deployment decision,
 security model, NFR targets, and follow-up work.

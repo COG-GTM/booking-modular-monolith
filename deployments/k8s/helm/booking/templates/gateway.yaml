@@ -5,6 +5,10 @@ metadata:
   name: {{ include "booking.serviceName" (dict "root" . "key" "gateway") }}
   labels:
     {{- include "booking.commonLabels" (dict "root" . "name" (include "booking.serviceName" (dict "root" . "key" "gateway"))) | nindent 4 }}
+  {{- with .Values.gateway.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   ingressClassName: {{ .Values.gateway.ingress.className }}
   {{- with .Values.gateway.ingress.tls }}
