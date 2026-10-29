@@ -21,11 +21,22 @@ namespace Flight.Host.Test.Composition;
 public class FlightHostInfrastructureTests
 {
     [Theory]
-    [InlineData("Production", "localhost", "http://localhost:5101/.well-known/openid-configuration")]
-    [InlineData("docker", "postgres", "http://identity-service:8080/.well-known/openid-configuration")]
+    [InlineData(
+        "Production",
+        "localhost",
+        "http://localhost:5101",
+        "http://localhost:5101/.well-known/openid-configuration"
+    )]
+    [InlineData(
+        "docker",
+        "postgres",
+        "http://localhost:5000",
+        "http://identity-service:8080/.well-known/openid-configuration"
+    )]
     public async Task host_configuration_keeps_flight_stores_and_jwt_discovery_separate(
         string environment,
         string expectedDatabaseHost,
+        string expectedAuthority,
         string expectedMetadataAddress
     )
     {
@@ -48,7 +59,7 @@ public class FlightHostInfrastructureTests
         Assert.Equal("flight_service", outbox.Username);
         Assert.Equal("flight_service_read", builder.Configuration["MongoOptions:Flight:DatabaseName"]);
         Assert.Equal("flight-service", builder.Configuration["ObservabilityOptions:ServiceName"]);
-        Assert.Equal("http://localhost:5000", jwt.Authority);
+        Assert.Equal(expectedAuthority, jwt.Authority);
         Assert.Equal("booking-modular-monolith", jwt.Audience);
         Assert.Equal(expectedMetadataAddress, jwt.MetadataAddress);
         Assert.Equal([jwt.Authority], jwt.TokenValidationParameters.ValidIssuers);
@@ -73,7 +84,7 @@ public class FlightHostInfrastructureTests
             .Get(JwtBearerDefaults.AuthenticationScheme);
 
         Assert.Equal("http://custom-identity/.well-known/openid-configuration", jwt.MetadataAddress);
-        Assert.Equal("http://localhost:5000", jwt.Authority);
+        Assert.Equal("http://localhost:5101", jwt.Authority);
         Assert.Equal([jwt.Authority], jwt.TokenValidationParameters.ValidIssuers);
     }
 
