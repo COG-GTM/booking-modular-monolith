@@ -36,6 +36,7 @@ helm.sh/chart: {{ printf "%s-%s" .root.Chart.Name .root.Chart.Version | replace 
 {{- if has $key (list "identity" "flight" "passenger" "booking") -}}
 {{- $_ := set $env "RabbitMqOptions__HostName" $root.Values.infrastructure.rabbitmq.host -}}
 {{- $_ := set $env "RabbitMqOptions__Port" (toString $root.Values.infrastructure.rabbitmq.port) -}}
+{{- $_ := set $env "RabbitMqOptions__VirtualHost" (toString $root.Values.infrastructure.rabbitmq.virtualHost) -}}
 {{- end -}}
 {{- if eq $key "identity" -}}
 {{- $_ := set $env "AuthOptions__IssuerUri" $root.Values.global.publicUrl -}}
@@ -64,6 +65,9 @@ helm.sh/chart: {{ printf "%s-%s" .root.Chart.Name .root.Chart.Version | replace 
 {{- $_ := set $env "ReverseProxy__Clusters__monolith__Destinations__primary__Address" (printf "http://%s:80/" $identityName) -}}
 {{- $_ := set $env "ReverseProxy__Routes__api-fallback__Transforms__0__PathSet" "/__gateway/unmatched" -}}
 {{- $_ := set $env "ReverseProxy__Routes__monolith-fallback__Transforms__0__PathSet" "/__gateway/unmatched" -}}
+{{- range $index, $origin := $root.Values.services.gateway.cors.allowedOrigins -}}
+{{- $_ := set $env (printf "Cors__AllowedOrigins__%d" $index) (toString $origin) -}}
+{{- end -}}
 {{- end -}}
 {{- if $root.Values.global.observability.otlpEndpoint -}}
 {{- $_ := set $env "OTEL_EXPORTER_OTLP_ENDPOINT" $root.Values.global.observability.otlpEndpoint -}}

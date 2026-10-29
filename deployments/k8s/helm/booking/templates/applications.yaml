@@ -9,6 +9,7 @@
   "Jwt__MetadataAddress"
   "RabbitMqOptions__HostName"
   "RabbitMqOptions__Port"
+  "RabbitMqOptions__VirtualHost"
   "RabbitMqOptions__UserName"
   "RabbitMqOptions__Password"
   "PostgresOptions__ConnectionString__Identity"
@@ -61,7 +62,7 @@
   {{- end -}}
 {{- end -}}
 {{- range $envKey, $_ := $service.extraEnv -}}
-  {{- if or (has $envKey $ownedEnvKeys) (regexMatch "^Modules__.*__BackgroundProcessingEnabled$" $envKey) (regexMatch "^(PostgresOptions__ConnectionString__.*|MongoOptions__.*|EventStoreOptions__.*|Services__.*|ReverseProxy__.*|ObservabilityOptions__.*)$" $envKey) -}}
+  {{- if or (has $envKey $ownedEnvKeys) (regexMatch "^Modules__.*__BackgroundProcessingEnabled$" $envKey) (regexMatch "^(PostgresOptions__ConnectionString__.*|MongoOptions__.*|EventStoreOptions__.*|Services__.*|ReverseProxy__.*|ObservabilityOptions__.*|Cors__AllowedOrigins__.*)$" $envKey) -}}
     {{- fail (printf "services.%s.extraEnv key %q is chart-owned and cannot override the chart configuration" $key $envKey) -}}
   {{- end -}}
 {{- end -}}
@@ -74,7 +75,7 @@ metadata:
   name: {{ printf "%s-config" $service.name }}
   namespace: {{ $root.Release.Namespace }}
   labels:
-    {{- include "booking.labels" (dict "root" $root "component" $service.name) | nindent 4 }}
+    {{- include "booking.labels" (dict "root" $root "component" $key) | nindent 4 }}
 data:
   {{- include "booking.appEnv" $ctx | nindent 2 }}
 {{- if has $key $backgroundKeys }}
@@ -86,7 +87,7 @@ metadata:
   name: {{ printf "%s-secret" $service.name }}
   namespace: {{ $root.Release.Namespace }}
   labels:
-    {{- include "booking.labels" (dict "root" $root "component" $service.name) | nindent 4 }}
+    {{- include "booking.labels" (dict "root" $root "component" $key) | nindent 4 }}
 type: Opaque
 stringData:
   {{- include "booking.appSecret" $ctx | nindent 2 }}
@@ -99,17 +100,26 @@ metadata:
   name: {{ $service.name }}
   namespace: {{ $root.Release.Namespace }}
   labels:
-    {{- include "booking.labels" (dict "root" $root "component" $service.name) | nindent 4 }}
+    {{- include "booking.labels" (dict "root" $root "component" $key) | nindent 4 }}
 spec:
   replicas: {{ $service.replicas }}
+  strategy:
+    {{- if $service.backgroundProcessing }}
+    type: Recreate
+    {{- else }}
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+    {{- end }}
   selector:
     matchLabels:
       app.kubernetes.io/instance: {{ $root.Release.Name | quote }}
-      app.kubernetes.io/component: {{ $service.name | quote }}
+      app.kubernetes.io/component: {{ $key | quote }}
   template:
     metadata:
       labels:
-        {{- include "booking.labels" (dict "root" $root "component" $service.name) | nindent 8 }}
+        {{- include "booking.labels" (dict "root" $root "component" $key) | nindent 8 }}
       annotations:
         checksum/config: {{ include "booking.appEnv" $ctx | sha256sum | quote }}
         checksum/secret: {{ include "booking.appSecret" $ctx | sha256sum | quote }}
@@ -195,12 +205,12 @@ metadata:
   name: {{ $service.name }}
   namespace: {{ $root.Release.Namespace }}
   labels:
-    {{- include "booking.labels" (dict "root" $root "component" $service.name) | nindent 4 }}
+    {{- include "booking.labels" (dict "root" $root "component" $key) | nindent 4 }}
 spec:
   type: ClusterIP
   selector:
     app.kubernetes.io/instance: {{ $root.Release.Name | quote }}
-    app.kubernetes.io/component: {{ $service.name | quote }}
+    app.kubernetes.io/component: {{ $key | quote }}
   ports:
     - name: http
       port: 80
@@ -221,7 +231,7 @@ metadata:
   name: {{ $service.name }}
   namespace: {{ $root.Release.Namespace }}
   labels:
-    {{- include "booking.labels" (dict "root" $root "component" $service.name) | nindent 4 }}
+    {{- include "booking.labels" (dict "root" $root "component" $key) | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1

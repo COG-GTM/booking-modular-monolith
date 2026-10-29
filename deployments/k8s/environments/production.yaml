@@ -18,6 +18,10 @@ services:
     existingSecret: booking-passenger-secrets
   booking:
     existingSecret: booking-booking-secrets
+  gateway:
+    cors:
+      allowedOrigins:
+        - https://booking.example.com
 
 infrastructure:
   enabled: false

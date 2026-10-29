@@ -89,11 +89,14 @@ ephemeral kind clusters.
   required dependencies; pods restart naturally while dependencies are unavailable.
 - Flight and Passenger expose HTTP on port 80 and h2c gRPC on port 81. Booking's gRPC client addresses and the
   gateway cluster destinations derive from the configured service DNS names.
+- Configure gateway CORS with `services.gateway.cors.allowedOrigins`; an empty list leaves the appsettings defaults
+  in effect, while the production overlay sets the public HTTPS origin.
 - All chart pods set `enableServiceLinks: false`; injected variables such as `EVENTSTORE_SERVICE_PORT` can collide
   with EventStoreDB option parsing. DNS-based service discovery remains available.
 - Background-processing services must remain at one replica while their workers are enabled. The chart rejects
   scale-out or HPA when `backgroundProcessing: true`, because the outbox has no row locking and Booking uses an
-  EventStoreDB single-consumer subscription.
+  EventStoreDB single-consumer subscription. These Deployments use Recreate, causing brief downtime during an
+  upgrade so two background workers never overlap.
 - The bundled PostgreSQL init script creates only the four service databases and roles. It is initialized only
   for a fresh PostgreSQL data volume.
 - Run `bash deployments/k8s/tests/chart-render-test.sh` for Helm lint, render guards, and Kubernetes 1.31 schema

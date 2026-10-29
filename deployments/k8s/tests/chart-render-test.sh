@@ -44,6 +44,14 @@ kubeconform -strict -summary -kubernetes-version 1.31.0 "${TMP_DIR}/kind.yaml"
 kubeconform -strict -summary -kubernetes-version 1.31.0 "${TMP_DIR}/production.yaml"
 printf 'PASS kind and production manifests validate against Kubernetes 1.31 schemas\n'
 
+kind_gateway_keys="$(yq -r 'select(.kind == "ConfigMap" and .metadata.name == "gateway-config") | .data | keys | .[]' "${TMP_DIR}/kind.yaml")"
+if grep -q '^Cors__AllowedOrigins__' <<<"$kind_gateway_keys"; then
+    fail "kind should leave gateway CORS origins to appsettings defaults"
+fi
+production_cors_origin="$(yq -r 'select(.kind == "ConfigMap" and .metadata.name == "gateway-config") | .data."Cors__AllowedOrigins__0"' "${TMP_DIR}/production.yaml")"
+[[ "$production_cors_origin" == "https://booking.example.com" ]] || fail "production gateway CORS origin is missing"
+printf 'PASS gateway CORS origins follow environment values\n'
+
 expect_failure "base values require explicit production secrets" \
     "global.allowInsecureDefaults=false requires services.identity.existingSecret" \
     helm template booking "$CHART" --namespace booking
@@ -57,6 +65,14 @@ expect_failure "extraEnv cannot override background-processing settings" \
     "is chart-owned and cannot override" \
     helm template booking "$CHART" --namespace booking --values "$KIND_VALUES" \
     --set 'services.flight.extraEnv.Modules__Flight__BackgroundProcessingEnabled=false'
+expect_failure "extraEnv cannot override RabbitMQ virtual host" \
+    "is chart-owned and cannot override" \
+    helm template booking "$CHART" --namespace booking --values "$KIND_VALUES" \
+    --set 'services.flight.extraEnv.RabbitMqOptions__VirtualHost=other'
+expect_failure "extraEnv cannot override gateway CORS origins" \
+    "is chart-owned and cannot override" \
+    helm template booking "$CHART" --namespace booking --values "$KIND_VALUES" \
+    --set 'services.gateway.extraEnv.Cors__AllowedOrigins__0=https://example.org'
 expect_failure "invalid database identifiers are rejected" \
     "database identifiers must match" \
     helm template booking "$CHART" --namespace booking --values "$KIND_VALUES" \
@@ -66,6 +82,16 @@ helm template booking "$CHART" --namespace booking --values "$KIND_VALUES" \
     --set services.flight.replicas=2 >"${TMP_DIR}/scaled-flight.yaml"
 printf 'PASS backgroundProcessing=false permits multiple flight replicas\n'
 
+for deployment in identity-service flight-service passenger-service booking-service; do
+    yq -e "select(.kind == \"Deployment\" and .metadata.name == \"${deployment}\") | .spec.strategy.type == \"Recreate\"" "${TMP_DIR}/kind.yaml" >/dev/null ||
+        fail "${deployment} should use Recreate while background processing is enabled"
+done
+yq -e 'select(.kind == "Deployment" and .metadata.name == "gateway") | .spec.strategy.type == "RollingUpdate" and .spec.strategy.rollingUpdate.maxUnavailable == 0 and .spec.strategy.rollingUpdate.maxSurge == 1' "${TMP_DIR}/kind.yaml" >/dev/null ||
+    fail "gateway should use RollingUpdate"
+yq -e 'select(.kind == "Deployment" and .metadata.name == "flight-service") | .spec.strategy.type == "RollingUpdate" and .spec.strategy.rollingUpdate.maxUnavailable == 0 and .spec.strategy.rollingUpdate.maxSurge == 1' "${TMP_DIR}/scaled-flight.yaml" >/dev/null ||
+    fail "backgroundProcessing=false should use RollingUpdate"
+printf 'PASS background-processing services use Recreate and other services use RollingUpdate\n'
+
 helm template booking "$CHART" --namespace booking --values "$KIND_VALUES" \
     --set services.identity.signingKey.existingSecret=identity-signing-key \
     --set services.flight.name=flights >"${TMP_DIR}/renamed-flight.yaml"
@@ -73,7 +99,12 @@ gateway_flight_address="$(yq -r 'select(.kind == "ConfigMap" and .metadata.name 
 booking_flight_grpc_address="$(yq -r 'select(.kind == "ConfigMap" and .metadata.name == "booking-service-config") | .data."Services__flight__grpc__0"' "${TMP_DIR}/renamed-flight.yaml")"
 [[ "$gateway_flight_address" == "http://flights:80/" ]] || fail "gateway flight destination did not follow services.flight.name"
 [[ "$booking_flight_grpc_address" == "http://flights:81" ]] || fail "Booking flight gRPC destination did not follow services.flight.name"
+yq -e 'select(.kind == "Deployment" and .metadata.name == "flights") | .spec.selector.matchLabels."app.kubernetes.io/component" == "flight" and .spec.template.metadata.labels."app.kubernetes.io/component" == "flight"' "${TMP_DIR}/renamed-flight.yaml" >/dev/null ||
+    fail "renamed flight Deployment should retain the stable flight component selector and pod label"
+yq -e 'select(.kind == "Service" and .metadata.name == "flights") | .spec.selector."app.kubernetes.io/component" == "flight"' "${TMP_DIR}/renamed-flight.yaml" >/dev/null ||
+    fail "renamed flight Service should retain the stable flight component selector"
 printf 'PASS gateway and Booking gRPC addresses follow the configurable service name\n'
+printf 'PASS application selectors use stable service keys when names change\n'
 
 for deployment in identity-service flight-service passenger-service booking-service gateway; do
     yq -e "select(.kind == \"Deployment\" and .metadata.name == \"${deployment}\") | .spec.template.spec.containers[0].livenessProbe.httpGet.path == \"/health/live\" and .spec.template.spec.containers[0].readinessProbe.httpGet.path == \"/health/ready\"" "${TMP_DIR}/kind.yaml" >/dev/null ||
@@ -84,6 +115,11 @@ for deployment in identity-service flight-service passenger-service booking-serv
         fail "${deployment} does not disable legacy service environment variables"
 done
 printf 'PASS pod Service DNS is not shadowed by legacy service environment variables\n'
+for service in identity-service flight-service passenger-service booking-service; do
+    yq -e "select(.kind == \"ConfigMap\" and .metadata.name == \"${service}-config\") | .data.\"RabbitMqOptions__VirtualHost\" == \"/\"" "${TMP_DIR}/kind.yaml" >/dev/null ||
+        fail "${service} ConfigMap does not contain the configured RabbitMQ virtual host"
+done
+printf 'PASS RabbitMQ virtual host is rendered for all application services\n'
 for service in flight-service passenger-service; do
     yq -e "select(.kind == \"Service\" and .metadata.name == \"${service}\") | .spec.ports[] | select(.name == \"grpc\" and .port == 81 and .appProtocol == \"kubernetes.io/h2c\")" "${TMP_DIR}/kind.yaml" >/dev/null ||
         fail "${service} does not expose h2c gRPC port 81"
