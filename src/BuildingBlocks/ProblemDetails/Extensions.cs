@@ -50,6 +50,12 @@ public static class Extensions
                     {
                         (string Detail, string Title, int StatusCode) details = exceptionType switch
                         {
+                            ForbiddenException =>
+                            (
+                                exceptionType.Message,
+                                exceptionType.GetType().Name,
+                                context.Response.StatusCode = StatusCodes.Status403Forbidden
+                            ),
                             ConflictException =>
                             (
                                 exceptionType.Message,

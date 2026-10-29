@@ -8,6 +8,7 @@ using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Core.Model;
 using BuildingBlocks.EventStoreDB.Repository;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Web;
 using Duende.IdentityServer.EntityFramework.Entities;
 using Exceptions;
@@ -28,7 +29,18 @@ public record CreateBooking(Guid PassengerId, Guid FlightId, string Description)
 
 public record CreateBookingResult(ulong Id);
 
-public record BookingCreatedDomainEvent(Guid Id, PassengerInfo PassengerInfo, Trip Trip) : Entity<Guid>, IDomainEvent;
+public record BookingCreatedDomainEvent : Entity<Guid>, IDomainEvent
+{
+    public BookingCreatedDomainEvent(Guid id, PassengerInfo passengerInfo, Trip trip)
+    {
+        Id = id;
+        PassengerInfo = passengerInfo;
+        Trip = trip;
+    }
+
+    public PassengerInfo PassengerInfo { get; init; }
+    public Trip Trip { get; init; }
+}
 
 public record CreateBookingRequestDto(Guid PassengerId, Guid FlightId, string Description);
 
@@ -68,8 +80,8 @@ public class CreateBookingValidator : AbstractValidator<CreateBooking>
 {
     public CreateBookingValidator()
     {
-        RuleFor(x => x.FlightId).NotNull().WithMessage("FlightId is required!");
-        RuleFor(x => x.PassengerId).NotNull().WithMessage("PassengerId is required!");
+        RuleFor(x => x.FlightId).NotEmpty().WithMessage("FlightId is required!");
+        RuleFor(x => x.PassengerId).NotEmpty().WithMessage("PassengerId is required!");
     }
 }
 
@@ -98,6 +110,12 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
     {
         Guard.Against.Null(command, nameof(command));
 
+        var currentUserId = _currentUserProvider.GetCurrentUserGuid();
+        if (!_currentUserProvider.IsInRole(IdentityConstant.Role.Admin) && (currentUserId is null || currentUserId.Value != command.PassengerId))
+        {
+            throw new PassengerBookingForbiddenException();
+        }
+
         var flight =
             await _flightGrpcServiceClient.GetByIdAsync(new BookingFlight.GetByIdRequest { Id = command.FlightId.ToString() }, cancellationToken: cancellationToken);
 
@@ -108,6 +126,11 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
 
         var passenger =
             await _passengerGrpcServiceClient.GetByIdAsync(new BookingPassenger.GetByIdRequest { Id = command.PassengerId.ToString() }, cancellationToken: cancellationToken);
+
+        if (passenger?.PassengerDto is null)
+        {
+            throw new PassengerNotFoundException();
+        }
 
         var emptySeat = (await _flightGrpcServiceClient
                 .GetAvailableSeatsAsync(new GetAvailableSeatsRequest { FlightId = command.FlightId.ToString() }, cancellationToken: cancellationToken)
