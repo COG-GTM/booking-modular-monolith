@@ -64,6 +64,11 @@ then Booking, then the gateway. Booking also waits for EventStoreDB, Flight, and
 
 ## Optional monolith
 
+See the [cutover runbooks](../../docs/runbooks/cutover/README.md) for persisted gateway flips,
+upstream-proven rollback drills, production data handover gates and later decommission.
+The scripts persist routes in local `.cutover.env`; pass `--env-file .cutover.env` on subsequent
+manual Compose commands to retain those choices. Plain Compose still defaults to all services.
+
 Start the monolith alongside the services with:
 
 ```bash

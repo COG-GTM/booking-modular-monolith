@@ -1,5 +1,7 @@
 # Target architecture
 
+For migration stages and rollback boundaries see [cutover architecture](cutover.md).
+
 Target state of epic **AB-488**: the modular monolith is split into four services, one per
 module, behind a YARP gateway, using the strangler-fig approach. The decisions behind each part
 are recorded in [docs/adr](../adr/README.md).

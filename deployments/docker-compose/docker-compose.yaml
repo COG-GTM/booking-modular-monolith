@@ -190,10 +190,10 @@ services:
       ObservabilityOptions__ServiceName: gateway
       ObservabilityOptions__UseOTLPExporter: "true"
       ObservabilityOptions__OTLPOptions__OTLPGrpcExporterEndpoint: http://otel-collector:4317
-      ReverseProxy__Clusters__identity__Destinations__primary__Address: http://identity-service:8080/
-      ReverseProxy__Clusters__flight__Destinations__primary__Address: http://flight-service:8080/
-      ReverseProxy__Clusters__passenger__Destinations__primary__Address: http://passenger-service:8080/
-      ReverseProxy__Clusters__booking__Destinations__primary__Address: http://booking-service:8080/
+      ReverseProxy__Clusters__identity__Destinations__primary__Address: ${IDENTITY_UPSTREAM:-http://identity-service:8080/}
+      ReverseProxy__Clusters__flight__Destinations__primary__Address: ${FLIGHT_UPSTREAM:-http://flight-service:8080/}
+      ReverseProxy__Clusters__passenger__Destinations__primary__Address: ${PASSENGER_UPSTREAM:-http://passenger-service:8080/}
+      ReverseProxy__Clusters__booking__Destinations__primary__Address: ${BOOKING_UPSTREAM:-http://booking-service:8080/}
       # Catch-all route; only answers when the `monolith` profile is running (502 otherwise).
       ReverseProxy__Clusters__monolith__Destinations__primary__Address: http://booking_modular_monolith/
     depends_on:

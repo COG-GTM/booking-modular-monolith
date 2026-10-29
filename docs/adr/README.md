@@ -29,6 +29,7 @@ The target state is drawn in [docs/architecture/target-architecture.md](../archi
 | [0022](0022-flight-service-host.md) | Flight service host (AB-502) | Proposed |
 | [0025](0025-multi-service-docker-compose-topology.md) | Multi-service Docker Compose topology (AB-503) | Proposed |
 | [0023](0023-per-service-observability.md) | Per-service observability (AB-495) | Proposed |
+| [0027](0027-cutover-and-monolith-decommission.md) | Cutover and monolith decommission (AB-505) | Proposed |
 
 ## Conventions
 
