@@ -317,7 +317,7 @@ configuration, health gating, smoke checks, and troubleshooting.
 
 The Helm chart deploys the gateway and four service hosts behind a single ingress, with optional in-cluster
 PostgreSQL, MongoDB, RabbitMQ, and EventStoreDB for kind development. See the
-[Kubernetes runbook](./docs/runbooks/kubernetes.md) for kind setup, production secret requirements, deployment,
+[Kubernetes runbook](./docs/runbooks/kubernetes.md) and [ADR 0491](./docs/adr/0491-kubernetes-helm-deployment.md) for kind setup, production secret requirements, deployment,
 and smoke-test instructions.
 
 See [ADR 0002: per-service data ownership](./docs/adr/0002-per-service-data-ownership.md)
