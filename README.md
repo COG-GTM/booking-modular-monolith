@@ -33,6 +33,7 @@
   - [Config Certificate](#config-certificate)
   - [Aspire](#aspire)
   - [Docker Compose](#docker-compose)
+  - [Kubernetes (Helm)](#kubernetes-helm)
   - [Build](#build)
  - [Run](#run)
   - [Test](#test)
@@ -310,6 +311,13 @@ See the [Docker Compose runbook](./docs/runbooks/docker-compose.md) and
 configuration, health gating, smoke checks, and troubleshooting.
 See the [cutover and rollback runbook](./docs/runbooks/cutover.md) for the legacy image,
 the state-driven overlay, and the tested reverse-sync path.
+
+> ### Kubernetes (Helm)
+
+The Helm chart deploys the gateway and four service hosts behind a single ingress, with optional in-cluster
+PostgreSQL, MongoDB, RabbitMQ, and EventStoreDB for kind development. See the
+[Kubernetes runbook](./docs/runbooks/kubernetes.md) and [ADR 0491](./docs/adr/0491-kubernetes-helm-deployment.md) for kind setup, production secret requirements, deployment,
+and smoke-test instructions.
 
 See [ADR 0002: per-service data ownership](./docs/adr/0002-per-service-data-ownership.md)
 and the [data ownership runbook](./docs/runbooks/per-service-data.md) for config
