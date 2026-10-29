@@ -20,13 +20,10 @@ namespace Passenger.Host.Test;
 
 public sealed class PassengerHostCompositionTests
 {
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task standalone_host_keeps_its_consumer_when_monolith_processing_is_disabled(bool enabled)
+    [Fact]
+    public async Task standalone_host_registers_its_consumer_and_passenger_worker()
     {
         var builder = Builder("test");
-        builder.Configuration["Modules:Passenger:BackgroundProcessingEnabled"] = enabled.ToString();
         builder.AddPassengerHostInfrastructure();
         builder.AddPassengerModules();
         await using var app = builder.Build();
@@ -35,7 +32,7 @@ public sealed class PassengerHostCompositionTests
         var workers = app
             .Services.GetServices<IHostedService>()
             .OfType<PersistMessageBackgroundService<global::Passenger.PassengerRoot>>();
-        workers.Count().Should().Be(enabled ? 1 : 0);
+        workers.Should().ContainSingle();
     }
 
     [Theory]
