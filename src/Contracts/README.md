@@ -61,6 +61,25 @@ regenerated, so it is reviewed explicitly:
 UPDATE_CONTRACT_BASELINES=true dotnet test src/Contracts/tests/Contracts.Messages.Tests
 ```
 
+## Consumer-owned pacts
+
+Consumer dependencies are recorded in [`pacts/`](pacts/): Passenger consumes Identity's `UserCreated` message, and
+Booking consumes Flight's `GetById`, `GetAvailableSeats`, and `ReserveSeat` RPCs plus Passenger's `GetById` RPC.
+`Contracts.ConsumerDriven.Tests` verifies message URNs and required JSON fields with the MassTransit serializer, then
+checks the gRPC service/method signatures, field numbers, names, types, labels, and sample wire round trips against
+current provider descriptors.
+
+## gRPC compatibility
+
+`Contracts.Grpc.Tests` compares the Flight and Passenger protobuf descriptors to
+[`tests/Contracts.Grpc.Tests/Baselines/grpc-contract.json`](tests/Contracts.Grpc.Tests/Baselines/grpc-contract.json).
+Breaking changes such as removed or retyped fields, RPC signature changes, and reuse of reserved numbers fail the
+test. Additive changes also fail until the baseline is intentionally regenerated:
+
+```bash
+UPDATE_CONTRACT_BASELINES=true dotnet test src/Contracts/tests/Contracts.Grpc.Tests
+```
+
 ## Moved types
 
 `BuildingBlocks.Core.Event.IEvent` and `IIntegrationEvent` moved from `BuildingBlocks.Core` into this assembly

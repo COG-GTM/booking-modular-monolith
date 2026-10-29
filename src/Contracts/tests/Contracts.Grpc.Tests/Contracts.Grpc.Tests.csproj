@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <None Update="contract.snapshot.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Baselines\grpc-contract.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
