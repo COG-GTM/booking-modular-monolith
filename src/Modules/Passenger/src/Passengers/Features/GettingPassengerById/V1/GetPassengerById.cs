@@ -1,6 +1,7 @@
 namespace Passenger.Passengers.Features.GettingPassengerById.V1;
 
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Web;
 using Duende.IdentityServer.EntityFramework.Entities;
@@ -60,11 +61,17 @@ public class GetPassengerByIdValidator : AbstractValidator<GetPassengerById>
 
 internal class GetPassengerByIdHandler : IQueryHandler<GetPassengerById, GetPassengerByIdResult>
 {
+    private readonly ICurrentUserProvider _currentUserProvider;
     private readonly IMapper _mapper;
     private readonly PassengerReadDbContext _passengerReadDbContext;
 
-    public GetPassengerByIdHandler(IMapper mapper, PassengerReadDbContext passengerReadDbContext)
+    public GetPassengerByIdHandler(
+        ICurrentUserProvider currentUserProvider,
+        IMapper mapper,
+        PassengerReadDbContext passengerReadDbContext
+    )
     {
+        _currentUserProvider = currentUserProvider;
         _mapper = mapper;
         _passengerReadDbContext = passengerReadDbContext;
     }
@@ -72,6 +79,14 @@ internal class GetPassengerByIdHandler : IQueryHandler<GetPassengerById, GetPass
     public async Task<GetPassengerByIdResult> Handle(GetPassengerById query, CancellationToken cancellationToken)
     {
         Guard.Against.Null(query, nameof(query));
+
+        if (
+            !_currentUserProvider.IsCurrentUserInRole(IdentityConstant.Role.Admin)
+            && _currentUserProvider.GetCurrentUserSubjectId() != query.Id
+        )
+        {
+            throw new PassengerNotFoundException();
+        }
 
         var passenger =
             await _passengerReadDbContext.Passenger.AsQueryable()

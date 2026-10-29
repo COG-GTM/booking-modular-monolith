@@ -14,6 +14,8 @@ public static class GrpcClientExtensions
     {
         var grpcOptions = services.GetOptions<GrpcOptions>("Grpc");
 
+        services.AddTransient<ForwardAuthorizationHeaderHandler>();
+
         services.AddGrpcClient<FlightGrpcService.FlightGrpcServiceClient>(o =>
         {
             o.Address = new Uri(grpcOptions.FlightAddress);
@@ -47,6 +49,7 @@ public static class GrpcClientExtensions
         {
             o.Address = new Uri(grpcOptions.PassengerAddress);
         })
+        .AddHttpMessageHandler<ForwardAuthorizationHeaderHandler>()
         .AddResilienceHandler(
             "grpc-passenger-resilience",
             options =>

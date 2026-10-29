@@ -1,5 +1,6 @@
 using Grpc.Core;
 using MediatR;
+using Passenger.Passengers.Exceptions;
 
 namespace Passenger.GrpcServer.Services;
 
@@ -18,7 +19,14 @@ public class PassengerGrpcServices : PassengerGrpcService.PassengerGrpcServiceBa
 
     public override async Task<GetPassengerByIdResult> GetById(GetByIdRequest request, ServerCallContext context)
     {
-        var result = await _mediator.Send(new GetPassengerById(new Guid(request.Id)));
-        return result?.Adapt<GetPassengerByIdResult>();
+        try
+        {
+            var result = await _mediator.Send(new GetPassengerById(new Guid(request.Id)), context.CancellationToken);
+            return result?.Adapt<GetPassengerByIdResult>();
+        }
+        catch (PassengerNotFoundException)
+        {
+            throw new RpcException(new Status(StatusCode.NotFound, "Passenger not found!"));
+        }
     }
 }
