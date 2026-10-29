@@ -48,7 +48,10 @@ We will ship one Helm chart, `deployments/k8s/helm/booking`, with per-environmen
 6. **Single-replica background processing.** The four service hosts default to one replica. Rendering fails if
    `backgroundProcessing: true` is combined with `replicas > 1` or an HPA, because the outbox has no row locking
    and the Booking EventStoreDB subscription is single-consumer. `extraEnv` cannot override chart-owned keys, so
-   this guard cannot be bypassed. The gateway is stateless and gets an HPA (2-5 replicas, 70% CPU).
+   this guard cannot be bypassed. Those Deployments use `strategy: Recreate` so an upgrade never overlaps two
+   workers; the Kubernetes `app.kubernetes.io/component` selector is the stable service key, so renaming a
+   service never patches an immutable selector. The gateway is stateless, rolls with `maxUnavailable: 0`, takes
+   CORS origins from `services.gateway.cors.allowedOrigins`, and gets an HPA (2-5 replicas, 70% CPU).
 7. **Optional in-cluster infrastructure** (`infrastructure.enabled`, on only in kind): PostgreSQL 16 with a
    generated per-service init script stored in a Secret (identifiers are validated before rendering), MongoDB 7,
    RabbitMQ (non-guest user) and EventStoreDB. Production points at external managed services.
