@@ -26,8 +26,9 @@ with their module names.
 `PersistMessageOptions:Interval` controls the shared polling interval in seconds.
 `PersistMessageOptions:Enabled=false` disables **all polling workers**, but keeps
 storage and dispatch registration available so commands can continue enqueueing.
-`Modules:<Module>:BackgroundProcessingEnabled=false` disables only that module's
-worker. Both switches default to true. Restart the host after changing them.
+`Modules:<Module>:BackgroundProcessingEnabled=false` disables that module's
+outbox worker and excludes its consumer assembly from the monolith's MassTransit
+registration. Both switches default to true. Restart the host after changing them.
 
 Passenger's `RegisterNewUserDefinition` attaches the Passenger inbox filter to its
 consumer endpoint. Inbox identity uses the transport MessageId when present,
@@ -86,9 +87,12 @@ docker exec postgres psql -U postgres -d postgres -c 'SHOW max_prepared_transact
 # Expected: 100
 ```
 
-Run only one polling replica per module. Disabling Passenger's worker does not
-disable its bus consumer/inbox: Identity events still arrive, but Passenger's
-queued internal/outbox work remains unprocessed until its worker starts again.
+Run only one polling replica per module. When the standalone Passenger host owns
+processing, set `Modules__Passenger__BackgroundProcessingEnabled=false` on the
+monolith so it stops both the Passenger poller and its RabbitMQ consumer. The
+standalone host then consumes the Passenger queue and processes its own inbox and
+outbox. Passenger's queued internal/outbox work remains unprocessed while its
+worker is disabled.
 
 Existing shared-store messages/read data are not moved automatically (AB-505). Before
 switching a running environment, drain the old outbox and plan migration or

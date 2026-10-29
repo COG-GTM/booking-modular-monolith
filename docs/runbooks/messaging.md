@@ -34,10 +34,11 @@ The gateway does not consume or publish messages and needs no broker settings.
 - Exchanges: one fanout exchange per message type, named by its URN (e.g. `BuildingBlocks.Contracts.EventBus.Messages:UserCreated`).
 - Queues: `<module>.<consumer>`, e.g. `passenger.register-new-user-handler`; failures after retries land in
   `<queue>_error`, MassTransit `Fault<T>` is published.
-- Monolith and a service host for the same module share the queue. `Modules:<Module>:BackgroundProcessingEnabled=false`
-  stops only that module's polling worker, not its consumers; stop the old host or remove its consumer registration
-  when handing consumption over. Run one replica with background
-  processing per service (outbox has no row locking).
+- Monolith and a service host for the same module share the queue. In the monolith,
+  `Modules:<Module>:BackgroundProcessingEnabled=false` stops that module's polling
+  worker and excludes its consumer assembly. Set it when handing consumption to
+  the standalone service host. Run one replica with background processing per
+  service (outbox has no row locking).
 
 ## Local run
 
