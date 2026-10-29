@@ -39,8 +39,6 @@ public static class Extensions
 
             var healthChecksBuilder = services
                 .AddHealthChecks()
-                // Add a default liveness check to ensure app is responsive
-                .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"])
                 .AddRabbitMQ(serviceProvider =>
                 {
                     var factory = new ConnectionFactory { Uri = rabbitMqUri };
@@ -92,13 +90,16 @@ public static class Extensions
             if (!string.IsNullOrEmpty(eventStoreOptions.ConnectionString))
                 healthChecksBuilder.AddEventStore(eventStoreOptions.ConnectionString);
 
-            services
-                .AddHealthChecksUI(setup =>
-                {
-                    setup.SetEvaluationTimeInSeconds(60); // time in seconds between check
-                    setup.AddHealthCheckEndpoint($"Self Check - {appOptions.Name}", HealthEndpointPath);
-                })
-                .AddInMemoryStorage();
+            if (healthOptions.UIEnabled)
+            {
+                services
+                    .AddHealthChecksUI(setup =>
+                    {
+                        setup.SetEvaluationTimeInSeconds(60); // time in seconds between check
+                        setup.AddHealthCheckEndpoint($"Self Check - {appOptions.Name}", HealthEndpointPath);
+                    })
+                    .AddInMemoryStorage();
+            }
         }
 
         services.AddHealthChecks().AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
@@ -118,7 +119,7 @@ public static class Extensions
             );
         }
 
-        if (healthOptions.Enabled)
+        if (healthOptions.Enabled && healthOptions.UIEnabled)
             app.MapHealthChecksUI(options => options.UIPath = "/health-ui");
 
         return app;

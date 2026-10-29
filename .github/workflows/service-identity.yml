@@ -1,0 +1,45 @@
+name: Identity service
+
+on:
+  push:
+    branches: ["main", "devin/ab-488-v3"]
+    paths:
+      - "src/Services/Identity.Host/**"
+      - "src/Modules/Identity/**"
+      - "src/BuildingBlocks/**"
+      - "src/Contracts/**"
+      - "src/Aspire/src/ServiceDefaults/**"
+      - ".github/workflows/service-identity.yml"
+  pull_request:
+    branches: ["main", "devin/ab-488-v3"]
+    paths:
+      - "src/Services/Identity.Host/**"
+      - "src/Modules/Identity/**"
+      - "src/BuildingBlocks/**"
+      - "src/Contracts/**"
+      - "src/Aspire/src/ServiceDefaults/**"
+      - ".github/workflows/service-identity.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  identity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build Identity.Host
+        run: dotnet build src/Services/Identity.Host/Identity.Host.csproj -c Release -nologo -v quiet
+
+      - name: Test standalone Identity host
+        run: dotnet test src/Modules/Identity/tests/Host.Test/Host.Test.csproj -c Release -nologo
+
+      - name: Build Identity.Host container
+        run: docker build -f src/Services/Identity.Host/Dockerfile -t identity-host:ci .
