@@ -25,7 +25,7 @@ Resolution order: `OTEL_SERVICE_NAME` > `ObservabilityOptions:ServiceName` > ass
 | `/health/ready` | everything not tagged `live` (host DBs, Mongo, RabbitMQ, ESDB, gRPC peers) | readiness / startup, compose `service_healthy` |
 | `/health` | all | humans |
 
-Responses are JSON (`{"status":"Healthy","checks":{...}}`), 200 when healthy, 503 otherwise. gRPC `grpc.health.v1`
+Responses are JSON (`{"status":"Healthy","checks":{...}}`), 200 when healthy, 503 otherwise. Check `description`s are only returned in Development (they can name hosts/errors). gRPC `grpc.health.v1`
 stays on the h2c port of Flight/Passenger/monolith.
 
 Compose (runtime image has no curl):

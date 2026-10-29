@@ -105,7 +105,7 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "max by (service_name, check) ({__name__=~\"booking_health_status.*\", service_name=~\"$service\"})",
+          "expr": "min by (service_name, check) ({__name__=~\"booking_health_status.*\", service_name=~\"$service\"})",
           "legendFormat": "{{service_name}} / {{check}}"
         }
       ]
