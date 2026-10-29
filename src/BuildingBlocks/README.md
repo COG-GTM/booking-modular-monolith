@@ -6,11 +6,10 @@ needs no code changes. Decision record: [ADR 0100](../../docs/adr/0100-buildingb
 
 | Project / package (`BookingModularMonolith.` prefix) | Depends on (BuildingBlocks) | Main third-party surface |
 |---|---|---|
-| `BuildingBlocks.Core` | - | MediatR, MassTransit.Abstractions, Google.Protobuf, Sieve |
+| `BuildingBlocks.Core` | - (`Contracts.Messages`) | MediatR, MassTransit.Abstractions, Google.Protobuf, Sieve |
 | `BuildingBlocks.Constants` | - | - |
 | `BuildingBlocks.Utils` | - | ASP.NET Core |
 | `BuildingBlocks.Exception` | - | Grpc.Core.Api |
-| `BuildingBlocks.Contracts` | Core | - |
 | `BuildingBlocks.Logging` / `Caching` / `Polly` / `Mapster` | - | MediatR, EasyCaching, Polly, Mapster |
 | `BuildingBlocks.Web` | Core, Utils | Asp.Versioning, Scrutor, Mapster |
 | `BuildingBlocks.Validation` | Exception | FluentValidation |
@@ -34,7 +33,7 @@ dependencies, or if the Booking module's graph picks up EF Core.
 
 ## Moved types
 
-Namespaces did not change, but two types moved assembly to break cycles:
+Namespaces did not change, but some types moved assembly:
 
 - `BuildingBlocks.EFCore.EfTxBehavior<,>` now lives in `BuildingBlocks.PersistMessageProcessor` (it needs the outbox DbContext).
 - `BuildingBlocks.MassTransit.ConsumeFilter<T>` (inbox de-duplication) now lives in `BuildingBlocks.PersistMessageProcessor`.
@@ -72,3 +71,6 @@ dotnet nuget add source "$PWD/artifacts/nuget" --name local-buildingblocks   # c
 
 CI (`.github/workflows/building-blocks.yml`) builds every library on its own, runs the tests above, packs with
 `1.0.0-ci.<run>` and runs the consumer check.
+- `BuildingBlocks.Core.Event.IEvent` / `IIntegrationEvent` and all `BuildingBlocks.Contracts.EventBus.Messages.*`
+  integration events now live in the separately versioned `Contracts.Messages` package (Core type-forwards the
+  interfaces); the `BuildingBlocks.Contracts` project is gone. See [src/Contracts/README.md](../Contracts/README.md).

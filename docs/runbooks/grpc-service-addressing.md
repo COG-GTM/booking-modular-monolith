@@ -1,6 +1,6 @@
 # Runbook: gRPC contracts and service addressing
 
-Booking -> Flight / Passenger gRPC (ADR [0101](../adr/0101-shared-grpc-contracts-and-service-addressing.md)).
+Booking -> Flight / Passenger gRPC (ADR [0101](../adr/0102-shared-grpc-contracts-and-service-addressing.md)).
 
 ## Configuration
 
@@ -38,8 +38,11 @@ the gateway.
 
 - `grpc.health.v1.Health/Check` on the gRPC listener: service `""`, `flight.FlightGrpcService`,
   `passenger.PassengerGrpcService`. Excludes checks tagged `grpc-dependency`.
-- `/health` (Development) includes `flight-grpc` and `passenger-grpc`; Unhealthy when a dependency is unreachable or
-  not `SERVING`.
+- `/health/ready` (every environment; use it as the readiness probe) runs the `ready`-tagged checks, i.e. `flight-grpc`
+  and `passenger-grpc`; 503 Unhealthy when a dependency is unreachable or not `SERVING`. `/health` (all checks) and
+  `/alive` (liveness, never dependencies) stay Development-only.
+- Docker Compose: `appsettings.docker.json` declares `Kestrel:Endpoints` (http :80, h2c :81), which replaces
+  `ASPNETCORE_URLS`, so the compose service adds `Kestrel__Endpoints__Https__Url=https://+:443` next to the mounted cert.
 
 ## Verify
 
@@ -49,9 +52,9 @@ grpcurl -plaintext -import-path . -proto grpc/health/v1/health.proto \
   -d '{"service":"flight.FlightGrpcService"}' localhost:3002 grpc.health.v1.Health/Check   # {"status":"SERVING"}
 grpcurl -plaintext -import-path src/Contracts/Contracts.Grpc/Protos -proto flight.proto \
   -d '{"FlightId":"<flight id>"}' localhost:3002 flight.FlightGrpcService/GetAvailableSeats
-curl -s -w ' %{http_code}\n' http://localhost:3001/health        # Healthy 200 / Unhealthy 503
+curl -s -w ' %{http_code}\n' http://localhost:3001/health/ready  # Healthy 200 / Unhealthy 503
 # Failure drill: services__passenger__grpc__0=http://localhost:3999 -> POST /booking fails Unavailable after
-# 4 Passenger.GetById attempts (~1.5 s) and /health is 503; a non-responding Flight -> DeadlineExceeded at Grpc:Flight:Deadline.
+# 4 Passenger.GetById attempts (~1.5 s) and /health/ready is 503; a non-responding Flight -> DeadlineExceeded at Grpc:Flight:Deadline.
 ```
 
 ## Troubleshooting

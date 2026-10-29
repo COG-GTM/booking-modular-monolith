@@ -11,6 +11,7 @@ using BuildingBlocks.Web;
 using Figgle.Fonts;
 using Flight;
 using Identity;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Passenger;
 
@@ -82,6 +83,12 @@ public static class SharedInfrastructureExtensions
 
         app.MapGrpcHealthChecksService();
 
+        // Readiness (incl. Flight/Passenger gRPC dependencies) in every environment; /health and /alive stay Development-only.
+        app.MapHealthChecks(ReadinessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = r => r.Tags.Contains(GrpcClientExtensions.ReadyHealthTag),
+        });
+
         app.MapGet("/", x => x.Response.WriteAsync(appOptions.Name));
 
         if (app.Environment.IsDevelopment())
@@ -91,6 +98,8 @@ public static class SharedInfrastructureExtensions
 
         return app;
     }
+
+    public const string ReadinessEndpointPath = "/health/ready";
 
     private static bool IsOwnDependency(Grpc.AspNetCore.HealthChecks.HealthCheckMapContext context) =>
         !context.Tags.Contains(GrpcClientExtensions.GrpcDependencyHealthTag);

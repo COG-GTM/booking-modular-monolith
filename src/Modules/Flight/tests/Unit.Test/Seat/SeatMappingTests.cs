@@ -51,4 +51,14 @@ public class SeatMappingTests
         readModel.SeatNumber.Should().Be(seat.SeatNumber.Value);
         readModel.SeatId.Should().Be(seat.Id.Value);
     }
+
+    [Theory]
+    [InlineData("SeatNumber { Value = 12A }", true, "12A")]
+    [InlineData("12A", false, "12A")]
+    [InlineData("SeatNumber { Value =  }", false, "SeatNumber { Value =  }")]
+    public void legacy_seat_numbers_are_parsed_to_raw_value(string stored, bool legacy, string expected)
+    {
+        FlightDataSeeder.TryParseLegacySeatNumber(stored, out var seatNumber).Should().Be(legacy);
+        seatNumber.Should().Be(expected);
+    }
 }

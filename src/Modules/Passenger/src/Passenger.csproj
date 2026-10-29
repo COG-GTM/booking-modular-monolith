@@ -13,10 +13,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Contracts\Contracts.Grpc\Contracts.Grpc.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Caching\BuildingBlocks.Caching.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Constants\BuildingBlocks.Constants.csproj" />
-    <ProjectReference Include="..\..\..\BuildingBlocks\Contracts\BuildingBlocks.Contracts.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Core\BuildingBlocks.Core.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\EFCore\BuildingBlocks.EFCore.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Exception\BuildingBlocks.Exception.csproj" />
@@ -29,5 +27,7 @@
     <ProjectReference Include="..\..\..\BuildingBlocks\Validation\BuildingBlocks.Validation.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Web\BuildingBlocks.Web.csproj" />
   </ItemGroup>
-  
+
+  <Import Project="..\..\..\Contracts\Contracts.Messages.Reference.props" />
+  <Import Project="..\..\..\Contracts\Contracts.Grpc.Reference.props" />
 </Project>

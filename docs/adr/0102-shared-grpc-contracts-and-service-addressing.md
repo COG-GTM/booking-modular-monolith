@@ -1,4 +1,4 @@
-# 0101. Shared gRPC contracts and config/discovery-driven service addressing
+# 0102. Shared gRPC contracts and config/discovery-driven service addressing
 
 - **Status:** Proposed
 - **Date:** 2026-10-29
@@ -49,7 +49,7 @@ ARB triggers: **T4** cross-domain integration contract (shared wire contract bet
    follow-up).
 6. **Health-based readiness.** Servers expose `grpc.health.v1.Health` (overall and per service name). Booking
    registers `flight-grpc` / `passenger-grpc` health checks (tags `ready`, `grpc-dependency`) that call the
-   dependency's health service with a short deadline, so `/health` reports Unhealthy when a dependency is down. A
+   dependency's health service with a short deadline, so the readiness endpoint `/health/ready` (mapped in every environment) reports Unhealthy when a dependency is down. A
    server's own gRPC health status excludes `grpc-dependency` checks, so services never probe each other in a loop.
 7. **Listeners.** h2c needs an HTTP/2-only endpoint: the monolith listens on `3002` (Development) / `81` (docker) for
    gRPC next to its HTTP/1.1 endpoints. Service hosts follow the same pattern.
