@@ -21,12 +21,15 @@ Environment variables use `__`, e.g. `Grpc__Flight__Address=http://flight-servic
 
 | Environment | How Booking finds Flight/Passenger |
 |---|---|
-| `dotnet run` (Development) | `appsettings.json` discovery entries -> monolith h2c listener `http://localhost:3002` |
+| Monolith `dotnet run` (Development) | `appsettings.json` discovery entries -> monolith h2c listener `http://localhost:3002` |
+| `Booking.Host` (Development) | Local discovery entries -> monolith h2c listener `http://localhost:3002`; Booking.Host HTTP listens on `http://localhost:5004` |
 | Aspire AppHost | AppHost injects `services__flight__grpc__0` / `services__passenger__grpc__0` from the `grpc` endpoint |
-| Docker image | `appsettings.docker.json` -> `http://localhost:81` (same container) |
+| Monolith Docker image | `appsettings.docker.json` -> `http://localhost:81` (the monolith's own gRPC listener) |
+| Booking.Host Docker image | `appsettings.docker.json` -> `http://flight-service:81` and `http://passenger-service:81`; Booking.Host exposes HTTP on port 80 only |
 | Kubernetes / compose with split hosts | `services__flight__grpc__0=http://flight-service:81` (or set `Grpc__Flight__Address` directly) |
 
-When a module moves to `src/Services/<Module>.Host`, only these values change; Booking code does not.
+The standalone Booking host does not expose a gRPC server; it is an HTTP API and gRPC client. Booking module code and
+wire contracts remain unchanged. See the [Booking service runbook](./booking-service.md).
 
 ## Listeners
 
