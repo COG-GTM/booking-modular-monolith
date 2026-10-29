@@ -15,7 +15,8 @@ fi
 worktree="$(mktemp -d "$HOME/work/ab505-legacy.XXXXXX")"
 rmdir "$worktree"
 cleanup() {
-  git worktree remove "$worktree" >/dev/null 2>&1 || true
+  git worktree remove --force "$worktree" >/dev/null 2>&1 || true
+  git worktree prune
 }
 trap cleanup EXIT
 

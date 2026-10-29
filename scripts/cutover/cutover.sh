@@ -69,19 +69,51 @@ recreate_affected_containers() {
   done
 }
 
+stop_context_service() {
+  local service="$1" running
+  compose stop "$service"
+  running="$(compose ps --status running -q "$service")"
+  if [[ -n "$running" ]]; then
+    printf 'Refusing to copy while %s is still running (container %s).\n' "$service" "$running" >&2
+    return 1
+  fi
+}
+
+set_context_background() {
+  local context="$1" owner="$2" enabled="$3" variable
+  variable="${context^^}_${owner^^}_BACKGROUND"
+  printf -v "$variable" '%s' "$enabled"
+}
+
 recover_route_probe_failure() {
-  local context="$1" target="$2" source_owner="$3"
-  set_context_freeze "$context"
-  set_owner "$context" "$source_owner"
-  refresh_derived_state
-  write_state
+  local context="$1" target="$2" source_owner="$3" copy_direction
   set_context_freeze "$context"
   FLIP_IN_PROGRESS="$context:$target:recover"
+  set_context_background "$context" monolith false
+  write_state
+  stop_context_service "$context-service"
+  compose up -d --no-deps --force-recreate monolith
+  wait_healthy monolith
+  if [[ "$target" == service ]]; then
+    copy_direction=to-monolith
+  else
+    copy_direction=to-service
+  fi
+  if ! "$SCRIPT_DIR/copy-data.sh" "$context" "$copy_direction"; then
+    printf 'Reverse copy failed; %s remains frozen at recover stage. Resolve the copy error, then rerun flip %s %s; do not clear the freeze or edit ownership manually.\n' \
+      "$context" "$context" "$target" >&2
+    return 1
+  fi
+  set_owner "$context" "$source_owner"
+  refresh_derived_state
+  set_context_background "$context" "$source_owner" false
+  write_state
+  recreate_affected_containers "$context"
+  refresh_derived_state
+  FLIP_IN_PROGRESS=
   write_state
   recreate_affected_containers "$context"
   clear_freeze
-  FLIP_IN_PROGRESS=
-  write_state
 }
 
 abort_interrupted_flip() {
@@ -108,9 +140,16 @@ flip() {
     if [[ "$pending_context" == "$context" && "$pending_target" == "$target" ]]; then
       printf 'Resuming %s -> %s after stage %s.\n' "$context" "$target" "$stage"
       if [[ "$stage" == recover ]]; then
-        recover_route_probe_failure "$context" "$target" "$owner"
+        if [[ "$target" == service ]]; then
+          source_owner=monolith
+        else
+          source_owner=service
+        fi
+        if ! recover_route_probe_failure "$context" "$target" "$source_owner"; then
+          return 1
+        fi
         printf 'Route probe recovery restored %s ownership for %s; the interrupted flip was not resumed.\n' \
-          "$owner" "$context" >&2
+          "$source_owner" "$context" >&2
         return 1
       fi
     elif [[ "$pending_context" == "$context" && "$owner" == "$target" ]]; then
@@ -156,10 +195,11 @@ flip() {
       set_stage "$context" "$target" quiesce
     fi
     if stage_before "$stage" stop; then
-      compose stop "$context-service"
+      stop_context_service "$context-service"
       set_stage "$context" "$target" stop
     fi
     if stage_before "$stage" copy; then
+      stop_context_service "$context-service"
       "$SCRIPT_DIR/copy-data.sh" "$context" to-service
       set_stage "$context" "$target" copy
     fi
@@ -177,10 +217,11 @@ flip() {
     fi
   else
     if stage_before "$stage" stop; then
-      compose stop "$context-service"
+      stop_context_service "$context-service"
       set_stage "$context" "$target" stop
     fi
     if stage_before "$stage" copy; then
+      stop_context_service "$context-service"
       "$SCRIPT_DIR/copy-data.sh" "$context" to-monolith
       set_stage "$context" "$target" copy
     fi
@@ -210,7 +251,11 @@ flip() {
     clear_freeze
     destination_address="$(cluster_address "$context")"
     if ! probe_routed "$context" "$destination_address" "$token" "$since"; then
-      recover_route_probe_failure "$context" "$target" "$source_owner"
+      if ! recover_route_probe_failure "$context" "$target" "$source_owner"; then
+        printf 'Route probe failed; recovery is incomplete and %s remains frozen at recover stage.\n' \
+          "$context" >&2
+        return 1
+      fi
       printf 'Route probe failed; restored %s ownership for %s after container recovery.\n' \
         "$source_owner" "$context" >&2
       return 1
@@ -229,7 +274,8 @@ all() {
 }
 
 up() {
-  local context target stage
+  local context target stage context_service defer_context_service=
+  local -a services=(flight-service passenger-service booking-service gateway)
   if [[ $# -gt 1 ]] || { [[ $# -eq 1 ]] && [[ "$1" != --reset ]]; }; then
     print_usage
     return 2
@@ -244,6 +290,9 @@ up() {
     if [[ -n "${FLIP_IN_PROGRESS:-}" ]]; then
       IFS=: read -r context target stage <<<"$FLIP_IN_PROGRESS"
       set_context_freeze "$context"
+      if [[ "$stage" == stop || "$stage" == copy || "$stage" == recover ]]; then
+        defer_context_service="${context}-service"
+      fi
     else
       clear_freeze
     fi
@@ -254,14 +303,23 @@ up() {
   wait_healthy mongo
   wait_healthy eventstore
   wait_healthy rabbitmq
-  compose up -d identity-service
-  wait_healthy identity-service
-  compose up -d monolith flight-service passenger-service booking-service gateway
+  if [[ "$defer_context_service" != identity-service ]]; then
+    compose up -d --no-deps identity-service
+    wait_healthy identity-service
+  fi
+  compose up -d --no-deps monolith
   wait_healthy monolith
-  wait_healthy flight-service
-  wait_healthy passenger-service
-  wait_healthy booking-service
-  wait_healthy gateway
+  if [[ -n "$defer_context_service" ]]; then
+    local -a services_to_start=()
+    for context_service in "${services[@]}"; do
+      [[ "$context_service" == "$defer_context_service" ]] || services_to_start+=("$context_service")
+    done
+    services=("${services_to_start[@]}")
+  fi
+  compose up -d --no-deps "${services[@]}"
+  for context_service in "${services[@]}"; do
+    wait_healthy "$context_service"
+  done
 }
 
 decommission() {

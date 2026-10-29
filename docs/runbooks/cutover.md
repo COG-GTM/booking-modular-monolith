@@ -34,9 +34,10 @@ while a flip is in progress. The state file tracks each module's owner and backg
 worker switches; only the active owner runs background processing.
 
 Subsequent `up` runs preserve the stored owners, worker settings, gRPC addresses, and
-in-progress freeze. Use `up --reset` only when intentionally resetting all owners to the
-monolith; it discards flip progress and does not copy data, even if a service currently
-owns a context.
+in-progress freeze. At the `stop`, `copy`, and `recover` stages, `up` leaves the affected
+context service stopped while bringing the monolith up with its stored worker settings.
+Use `up --reset` only when intentionally resetting all owners to the monolith; it discards
+flip progress and does not copy data, even if a service currently owns a context.
 
 ## Validate rollback and Identity continuity
 
@@ -71,10 +72,21 @@ scripts/cutover/cutover.sh flip flight monolith
 ```
 
 The script freezes the context-specific route set, quiesces the old worker, stops the
-target host, copies and verifies data, starts the new owner, then unfreezes and probes
-the route. Freeze sets are Flight `{flight, booking}`, Passenger `{passenger, booking}`,
-Booking `{booking}`, and Identity `{identity}`. If a flip fails, leave the affected route
-frozen and inspect the state and Compose logs before continuing.
+context host before copying and verifying data, starts the new owner, then briefly
+unfreezes and probes the route. Freeze sets are Flight `{flight, booking}`, Passenger
+`{passenger, booking}`, Booking `{booking}`, and Identity `{identity}`.
+
+If the route probe fails, recovery immediately freezes the route again, records the
+`recover` stage, stops the context service, and disables the corresponding monolith
+worker. It copies the target's data back to the source with the same count verification
+before restoring source ownership, recreating and health-checking the affected containers,
+and unfreezing. This reverse copy preserves writes accepted by the target during the probe
+window. If the reverse copy fails, the route stays frozen and the recover stage remains
+persisted; resolve the copy error and rerun the same `flip` command. A resumed recover
+repeats the stop, reverse copy, and restoration; PostgreSQL restore uses `--clean`, and
+Mongo restore drops the destination database first. Do not clear the freeze or change
+ownership manually. Before every copy, the script stops the context service and verifies
+that Compose reports no running container for it.
 
 To move all modules to service hosts and retire the monolith:
 
@@ -103,8 +115,11 @@ scripts/cutover/cutover.sh flip identity monolith
 ```
 
 An interrupted flip records its stage in the state file. Resume the same flip command.
-Aborting restores routing to the currently authoritative owner without copying data.
-Keep the legacy image available after decommission so rollback remains possible.
+At `stop`, `copy`, or `recover`, a subsequent `up` does not restart the context service;
+the copy stage also stops and verifies it again before touching the database. Aborting
+restores routing to the currently authoritative owner without copying data, except that
+a route-probe recovery must finish its reverse copy before it can restore and unfreeze the
+source. Keep the legacy image available after decommission so rollback remains possible.
 
 ## Recommended order and dependencies
 
