@@ -32,7 +32,7 @@ if (builder.ExecutionContext.IsPublishMode)
 var flightDb = postgres.AddDatabase("flight");
 var passengerDb = postgres.AddDatabase("passenger");
 var identityDb = postgres.AddDatabase("identity");
-var persistMessageDb = postgres.AddDatabase("persist-message");
+var bookingDb = postgres.AddDatabase("booking");
 
 var mongoUsername = builder.AddParameter("mongo-username", "root", secret: true);
 var mongoPassword = builder.AddParameter("mongo-password", "secret", secret: true);
@@ -312,8 +312,8 @@ if (builder.ExecutionContext.IsPublishMode)
 
 var api = builder
     .AddProject<Api>("api")
-    .WithReference(persistMessageDb)
-    .WaitFor(persistMessageDb)
+    .WithReference(bookingDb)
+    .WaitFor(bookingDb)
     .WithReference(flightDb)
     .WaitFor(flightDb)
     .WithReference(passengerDb)

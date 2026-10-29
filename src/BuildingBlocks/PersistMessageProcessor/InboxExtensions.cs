@@ -4,9 +4,13 @@ namespace BuildingBlocks.PersistMessageProcessor;
 
 public static class InboxExtensions
 {
-    // Adds the persist-message inbox to every consumer on the bus. Call before ConfigureEndpoints.
-    public static void UsePersistMessageInbox(this IConsumePipeConfigurator configurator, IRegistrationContext context)
+    // The filter must bind the receiving module's processor. Call before ConfigureEndpoints.
+    public static void UsePersistMessageInbox(
+        this IConsumePipeConfigurator configurator,
+        IRegistrationContext context,
+        Type moduleFilterType
+    )
     {
-        configurator.UseConsumeFilter(typeof(BuildingBlocks.MassTransit.ConsumeFilter<>), context);
+        configurator.UseConsumeFilter(moduleFilterType, context);
     }
 }

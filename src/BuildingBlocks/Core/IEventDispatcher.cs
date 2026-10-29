@@ -9,3 +9,5 @@ public interface IEventDispatcher
     public Task SendAsync<T>(T @event, Type type = null, CancellationToken cancellationToken = default)
         where T : IEvent;
 }
+
+public interface IEventDispatcher<TModule> : IEventDispatcher;

@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Xunit;
-using PersistMessageProcessorService = BuildingBlocks.PersistMessageProcessor.PersistMessageProcessor;
+using PersistMessageProcessorService = BuildingBlocks.PersistMessageProcessor.PersistMessageProcessor<BuildingBlocks.Tests.Messaging.MessagingTestModule>;
 
 namespace BuildingBlocks.Tests.Messaging;
 
@@ -42,7 +42,7 @@ public class InMemoryInboxPipelineTests
 
             InboxProbeHandler.Attempts[runId].Should().Be(1);
             await using var scope = provider.CreateAsyncScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
+            var dbContext = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext<MessagingTestModule>>();
             var stored = await dbContext.PersistMessage.ToListAsync();
 
             stored.Should().ContainSingle();
@@ -77,7 +77,9 @@ public class InMemoryInboxPipelineTests
                         return false;
 
                     await using var scope = provider.CreateAsyncScope();
-                    var dbContext = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
+                    var dbContext = scope.ServiceProvider.GetRequiredService<
+                        PersistMessageDbContext<MessagingTestModule>
+                    >();
                     return await dbContext.PersistMessage.AnyAsync(message =>
                         message.MessageStatus == MessageStatus.Processed
                     );
@@ -86,7 +88,7 @@ public class InMemoryInboxPipelineTests
             );
 
             await using var scope = provider.CreateAsyncScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
+            var dbContext = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext<MessagingTestModule>>();
             var stored = await dbContext.PersistMessage.ToListAsync();
 
             InboxRetryProbeHandler.Attempts[runId].Should().Be(2);
@@ -137,16 +139,18 @@ public class InMemoryInboxPipelineTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton<IConfiguration>(configuration);
-        services.AddDbContext<PersistMessageDbContext>(options => options.UseInMemoryDatabase(databaseName));
-        services.AddScoped<IPersistMessageDbContext>(provider =>
-            provider.GetRequiredService<PersistMessageDbContext>()
+        services.AddDbContext<PersistMessageDbContext<MessagingTestModule>>(options =>
+            options.UseInMemoryDatabase(databaseName)
         );
-        services.AddScoped<IPersistMessageProcessor, PersistMessageProcessorService>();
+        services.AddScoped<IPersistMessageDbContext<MessagingTestModule>>(provider =>
+            provider.GetRequiredService<PersistMessageDbContext<MessagingTestModule>>()
+        );
+        services.AddScoped<IPersistMessageProcessor<MessagingTestModule>, PersistMessageProcessorService>();
         services.AddSingleton(Substitute.For<IMediator>());
         services.AddCustomMassTransit(
             configuration,
             Environment(),
-            (context, bus) => bus.UsePersistMessageInbox(context),
+            (context, bus) => bus.UsePersistMessageInbox(context, typeof(MessagingInboxFilter<>)),
             typeof(InboxProbeHandler).Assembly
         );
 

@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -5,18 +6,17 @@ using Microsoft.Extensions.Logging;
 
 namespace BuildingBlocks.EFCore;
 
-public class SeedManager(
-    ILogger<SeedManager> logger,
-    IWebHostEnvironment env,
-    IServiceProvider serviceProvider
-) : ISeedManager
+public class SeedManager(ILogger<SeedManager> logger, IWebHostEnvironment env, IServiceProvider serviceProvider)
+    : ISeedManager
 {
-    public async Task ExecuteSeedAsync()
+    public async Task ExecuteSeedAsync(Assembly assembly)
     {
         if (!env.IsEnvironment("test"))
         {
             await using var scope = serviceProvider.CreateAsyncScope();
-            var dataSeeders = scope.ServiceProvider.GetServices<IDataSeeder>();
+            var dataSeeders = scope
+                .ServiceProvider.GetServices<IDataSeeder>()
+                .Where(x => x.GetType().Assembly == assembly);
 
             foreach (var seeder in dataSeeders)
             {

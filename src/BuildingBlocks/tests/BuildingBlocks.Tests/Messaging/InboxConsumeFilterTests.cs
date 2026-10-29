@@ -28,10 +28,10 @@ public class InboxConsumeFilterTests
     {
         var (processor, context, next, inboxId) = Arrange(existing: null);
 
-        await new ConsumeFilter<TestEvent>(processor, NullLogger<ConsumeFilter<TestEvent>>.Instance).Send(
-            context,
-            next
-        );
+        await new ConsumeFilter<MessagingTestModule, TestEvent>(
+            processor,
+            NullLogger<ConsumeFilter<MessagingTestModule, TestEvent>>.Instance
+        ).Send(context, next);
 
         await processor
             .Received(1)
@@ -45,10 +45,10 @@ public class InboxConsumeFilterTests
     {
         var (processor, context, next, inboxId) = Arrange(Processed());
 
-        await new ConsumeFilter<TestEvent>(processor, NullLogger<ConsumeFilter<TestEvent>>.Instance).Send(
-            context,
-            next
-        );
+        await new ConsumeFilter<MessagingTestModule, TestEvent>(
+            processor,
+            NullLogger<ConsumeFilter<MessagingTestModule, TestEvent>>.Instance
+        ).Send(context, next);
 
         await next.DidNotReceive().Send(Arg.Any<ConsumeContext<TestEvent>>());
         await processor
@@ -64,10 +64,10 @@ public class InboxConsumeFilterTests
             new PersistMessage(Guid.NewGuid(), "t", "{}", MessageDeliveryType.Inbox)
         );
 
-        await new ConsumeFilter<TestEvent>(processor, NullLogger<ConsumeFilter<TestEvent>>.Instance).Send(
-            context,
-            next
-        );
+        await new ConsumeFilter<MessagingTestModule, TestEvent>(
+            processor,
+            NullLogger<ConsumeFilter<MessagingTestModule, TestEvent>>.Instance
+        ).Send(context, next);
 
         await processor
             .DidNotReceive()
@@ -83,7 +83,10 @@ public class InboxConsumeFilterTests
         next.Send(context).Returns(Task.FromException(new InvalidOperationException("boom")));
 
         var act = () =>
-            new ConsumeFilter<TestEvent>(processor, NullLogger<ConsumeFilter<TestEvent>>.Instance).Send(context, next);
+            new ConsumeFilter<MessagingTestModule, TestEvent>(
+                processor,
+                NullLogger<ConsumeFilter<MessagingTestModule, TestEvent>>.Instance
+            ).Send(context, next);
 
         await act.Should().ThrowAsync<InvalidOperationException>();
         await processor.DidNotReceive().ProcessInboxAsync(inboxId, Arg.Any<CancellationToken>());
@@ -97,10 +100,10 @@ public class InboxConsumeFilterTests
             .TryAddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), inboxId, Arg.Any<CancellationToken>())
             .Returns(false);
 
-        await new ConsumeFilter<TestEvent>(processor, NullLogger<ConsumeFilter<TestEvent>>.Instance).Send(
-            context,
-            next
-        );
+        await new ConsumeFilter<MessagingTestModule, TestEvent>(
+            processor,
+            NullLogger<ConsumeFilter<MessagingTestModule, TestEvent>>.Instance
+        ).Send(context, next);
 
         await next.DidNotReceive().Send(Arg.Any<ConsumeContext<TestEvent>>());
         await processor.DidNotReceive().ProcessInboxAsync(inboxId, Arg.Any<CancellationToken>());
@@ -114,7 +117,7 @@ public class InboxConsumeFilterTests
     }
 
     private static (
-        IPersistMessageProcessor,
+        IPersistMessageProcessor<MessagingTestModule>,
         ConsumeContext<TestEvent>,
         IPipe<ConsumeContext<TestEvent>>,
         Guid
@@ -133,7 +136,7 @@ public class InboxConsumeFilterTests
         context.Headers.Returns(Substitute.For<Headers>());
         context.CancellationToken.Returns(CancellationToken.None);
 
-        var processor = Substitute.For<IPersistMessageProcessor>();
+        var processor = Substitute.For<IPersistMessageProcessor<MessagingTestModule>>();
         processor.GetInboxMessageAsync(inboxId, Arg.Any<CancellationToken>()).Returns(existing);
         processor
             .TryAddReceivedMessageAsync(Arg.Any<MessageEnvelope>(), inboxId, Arg.Any<CancellationToken>())

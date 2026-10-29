@@ -18,7 +18,7 @@ namespace BuildingBlocks.Tests.Messaging;
 public sealed class PersistMessagePostgresFixture : IAsyncLifetime
 {
     public PostgreSqlContainer Container { get; } =
-        new PostgreSqlBuilder().WithImage("postgres:16").WithDatabase("persist_message").Build();
+        new PostgreSqlBuilder().WithImage("postgres:16").WithDatabase("messaging_module").Build();
 
     public async Task InitializeAsync()
     {
@@ -30,9 +30,9 @@ public sealed class PersistMessagePostgresFixture : IAsyncLifetime
 
     public Task DisposeAsync() => Container.DisposeAsync().AsTask();
 
-    public PersistMessageDbContext CreateContext() =>
+    public PersistMessageDbContext<MessagingTestModule> CreateContext() =>
         new(
-            new DbContextOptionsBuilder<PersistMessageDbContext>()
+            new DbContextOptionsBuilder<PersistMessageDbContext<MessagingTestModule>>()
                 .UseNpgsql(Container.GetConnectionString())
                 .UseSnakeCaseNamingConvention()
                 .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
@@ -66,8 +66,8 @@ public class PersistMessageStoreTests(PersistMessagePostgresFixture fixture)
         await using var db = fixture.CreateContext();
         var publish = Substitute.For<IPublishEndpoint>();
         var mediator = Substitute.For<IMediator>();
-        var processor = new PersistMessageProcessor.PersistMessageProcessor(
-            NullLogger<PersistMessageProcessor.PersistMessageProcessor>.Instance,
+        var processor = new PersistMessageProcessor.PersistMessageProcessor<MessagingTestModule>(
+            NullLogger<PersistMessageProcessor.PersistMessageProcessor<MessagingTestModule>>.Instance,
             mediator,
             db,
             publish
@@ -83,9 +83,11 @@ public class PersistMessageStoreTests(PersistMessagePostgresFixture fixture)
         publish.ReceivedCalls().Should().BeEmpty();
     }
 
-    private static PersistMessageProcessor.PersistMessageProcessor Processor(PersistMessageDbContext db) =>
+    private static PersistMessageProcessor.PersistMessageProcessor<MessagingTestModule> Processor(
+        PersistMessageDbContext<MessagingTestModule> db
+    ) =>
         new(
-            NullLogger<PersistMessageProcessor.PersistMessageProcessor>.Instance,
+            NullLogger<PersistMessageProcessor.PersistMessageProcessor<MessagingTestModule>>.Instance,
             Substitute.For<IMediator>(),
             db,
             Substitute.For<IPublishEndpoint>()
@@ -101,7 +103,7 @@ public class PersistMessageBackgroundServiceTests
     [Fact]
     public async Task a_failed_poll_is_logged_and_the_worker_keeps_polling()
     {
-        var processor = Substitute.For<IPersistMessageProcessor>();
+        var processor = Substitute.For<IPersistMessageProcessor<MessagingTestModule>>();
         var calls = 0;
         var secondPoll = new TaskCompletionSource();
         processor
@@ -115,8 +117,8 @@ public class PersistMessageBackgroundServiceTests
             });
 
         var services = new ServiceCollection().AddScoped(_ => processor).BuildServiceProvider();
-        var worker = new PersistMessageBackgroundService(
-            NullLogger<PersistMessageBackgroundService>.Instance,
+        var worker = new PersistMessageBackgroundService<MessagingTestModule>(
+            NullLogger<PersistMessageBackgroundService<MessagingTestModule>>.Instance,
             services,
             Options.Create(new PersistMessageOptions { Interval = 0 })
         );

@@ -101,8 +101,15 @@ public class UserCreatedOverRabbitMqTests : IdentityIntegrationTestBase
     private async Task<PersistMessage[]> PersistMessages(MessageDeliveryType type)
     {
         using var scope = Fixture.ServiceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext>();
-        return await db.PersistMessage.AsNoTracking().Where(x => x.DeliveryType == type).ToArrayAsync();
+        var query =
+            type == MessageDeliveryType.Inbox
+                ? scope
+                    .ServiceProvider.GetRequiredService<PersistMessageDbContext<global::Passenger.PassengerRoot>>()
+                    .PersistMessage
+                : scope
+                    .ServiceProvider.GetRequiredService<PersistMessageDbContext<global::Identity.IdentityRoot>>()
+                    .PersistMessage;
+        return await query.AsNoTracking().Where(x => x.DeliveryType == type).ToArrayAsync();
     }
 
     private async Task<bool> QueueExists(string queue) => (await GetQueueJson(queue)) is not null;
