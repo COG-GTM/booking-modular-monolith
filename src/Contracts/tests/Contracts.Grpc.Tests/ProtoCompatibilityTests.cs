@@ -2,8 +2,8 @@ using System.Text.Json;
 using FluentAssertions;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
-using Timestamp = Google.Protobuf.WellKnownTypes.Timestamp;
 using Xunit;
+using Timestamp = Google.Protobuf.WellKnownTypes.Timestamp;
 
 namespace Contracts.Grpc.Tests;
 
@@ -35,7 +35,13 @@ public class ProtoCompatibilityTests
             "grpc-contract.json"
         );
 
-        if (string.Equals(Environment.GetEnvironmentVariable("UPDATE_CONTRACT_BASELINES"), "true", StringComparison.OrdinalIgnoreCase))
+        if (
+            string.Equals(
+                Environment.GetEnvironmentVariable("UPDATE_CONTRACT_BASELINES"),
+                "true",
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
         {
             File.WriteAllText(baselinePath, JsonSerializer.Serialize(current, JsonOptions) + Environment.NewLine);
             return;
@@ -53,42 +59,48 @@ public class ProtoCompatibilityTests
 
         var withoutField = Clone(baseline);
         FlightResponse(withoutField).Fields.RemoveAll(field => field.Name == "Price");
-        ProtoContractModel.BreakingChanges(baseline, withoutField)
+        ProtoContractModel
+            .BreakingChanges(baseline, withoutField)
             .Should()
             .ContainSingle(change => change.Contains("FlightResponse.Price", StringComparison.Ordinal));
 
         var changedPackage = Clone(baseline);
         var packageFileIndex = changedPackage.Files.FindIndex(file => file.Name == "flight.proto");
         changedPackage.Files[packageFileIndex] = changedPackage.Files[packageFileIndex] with { Package = "flight.v2" };
-        ProtoContractModel.BreakingChanges(baseline, changedPackage)
+        ProtoContractModel
+            .BreakingChanges(baseline, changedPackage)
             .Should()
             .Contain(change => change.Contains("package changed", StringComparison.Ordinal));
 
         var removedFile = Clone(baseline);
         removedFile.Files.RemoveAll(file => file.Name == "flight.proto");
-        ProtoContractModel.BreakingChanges(baseline, removedFile)
+        ProtoContractModel
+            .BreakingChanges(baseline, removedFile)
             .Should()
             .Contain(change => change.Contains("flight.proto: file removed", StringComparison.Ordinal));
 
         var removedService = Clone(baseline);
         removedService.Files.Single(file => file.Name == "flight.proto").Services.Clear();
-        ProtoContractModel.BreakingChanges(baseline, removedService)
+        ProtoContractModel
+            .BreakingChanges(baseline, removedService)
             .Should()
             .Contain(change => change.Contains("service removed", StringComparison.Ordinal));
 
         var removedMessage = Clone(baseline);
-        removedMessage.Files.Single(file => file.Name == "flight.proto").Messages.RemoveAll(message =>
-            message.FullName == "flight.GetByIdRequest"
-        );
-        ProtoContractModel.BreakingChanges(baseline, removedMessage)
+        removedMessage
+            .Files.Single(file => file.Name == "flight.proto")
+            .Messages.RemoveAll(message => message.FullName == "flight.GetByIdRequest");
+        ProtoContractModel
+            .BreakingChanges(baseline, removedMessage)
             .Should()
             .Contain(change => change.Contains("flight.GetByIdRequest: message removed", StringComparison.Ordinal));
 
         var removedEnum = Clone(baseline);
-        removedEnum.Files.Single(file => file.Name == "flight.proto").Enums.RemoveAll(enumType =>
-            enumType.FullName == "flight.FlightStatus"
-        );
-        ProtoContractModel.BreakingChanges(baseline, removedEnum)
+        removedEnum
+            .Files.Single(file => file.Name == "flight.proto")
+            .Enums.RemoveAll(enumType => enumType.FullName == "flight.FlightStatus");
+        ProtoContractModel
+            .BreakingChanges(baseline, removedEnum)
             .Should()
             .Contain(change => change.Contains("flight.FlightStatus: enum removed", StringComparison.Ordinal));
 
@@ -98,7 +110,8 @@ public class ProtoCompatibilityTests
             field => field.Name == "Price",
             field => field with { Type = "string" }
         );
-        ProtoContractModel.BreakingChanges(baseline, retypedField)
+        ProtoContractModel
+            .BreakingChanges(baseline, retypedField)
             .Should()
             .Contain(change => change.Contains("field number 11", StringComparison.Ordinal));
 
@@ -108,13 +121,15 @@ public class ProtoCompatibilityTests
             field => field.Name == "Price",
             field => field with { Number = 13 }
         );
-        ProtoContractModel.BreakingChanges(baseline, renumberedField)
+        ProtoContractModel
+            .BreakingChanges(baseline, renumberedField)
             .Should()
             .Contain(change => change.Contains("FlightResponse.Price: field moved", StringComparison.Ordinal));
 
         var withoutMethod = Clone(baseline);
         FlightService(withoutMethod).Methods.RemoveAll(method => method.Name == "GetById");
-        ProtoContractModel.BreakingChanges(baseline, withoutMethod)
+        ProtoContractModel
+            .BreakingChanges(baseline, withoutMethod)
             .Should()
             .Contain(change => change.Contains("GetById: method removed", StringComparison.Ordinal));
 
@@ -124,39 +139,56 @@ public class ProtoCompatibilityTests
         {
             InputType = "flight.ReserveSeatRequest",
         };
-        ProtoContractModel.BreakingChanges(baseline, changedInput)
+        ProtoContractModel
+            .BreakingChanges(baseline, changedInput)
             .Should()
             .Contain(change => change.Contains("input type changed", StringComparison.Ordinal));
 
         var changedOutput = Clone(baseline);
         var outputMethodIndex = FlightService(changedOutput).Methods.FindIndex(method => method.Name == "GetById");
-        FlightService(changedOutput).Methods[outputMethodIndex] =
-            FlightService(changedOutput).Methods[outputMethodIndex] with { OutputType = "flight.ReserveSeatResult" };
-        ProtoContractModel.BreakingChanges(baseline, changedOutput)
+        FlightService(changedOutput).Methods[outputMethodIndex] = FlightService(changedOutput).Methods[
+            outputMethodIndex
+        ] with
+        {
+            OutputType = "flight.ReserveSeatResult",
+        };
+        ProtoContractModel
+            .BreakingChanges(baseline, changedOutput)
             .Should()
             .Contain(change => change.Contains("output type changed", StringComparison.Ordinal));
 
         var changedStreaming = Clone(baseline);
-        var streamingMethodIndex = FlightService(changedStreaming).Methods.FindIndex(method => method.Name == "GetById");
-        FlightService(changedStreaming).Methods[streamingMethodIndex] =
-            FlightService(changedStreaming).Methods[streamingMethodIndex] with { ServerStreaming = true };
-        ProtoContractModel.BreakingChanges(baseline, changedStreaming)
+        var streamingMethodIndex = FlightService(changedStreaming)
+            .Methods.FindIndex(method => method.Name == "GetById");
+        FlightService(changedStreaming).Methods[streamingMethodIndex] = FlightService(changedStreaming).Methods[
+            streamingMethodIndex
+        ] with
+        {
+            ServerStreaming = true,
+        };
+        ProtoContractModel
+            .BreakingChanges(baseline, changedStreaming)
             .Should()
             .Contain(change => change.Contains("streaming changed", StringComparison.Ordinal));
 
         var withoutEnumValue = Clone(baseline);
         FlightStatus(withoutEnumValue).Values.RemoveAll(value => value.Name == "FLIGHT_STATUS_COMPLETED");
-        ProtoContractModel.BreakingChanges(baseline, withoutEnumValue)
+        ProtoContractModel
+            .BreakingChanges(baseline, withoutEnumValue)
             .Should()
             .Contain(change => change.Contains("FLIGHT_STATUS_COMPLETED", StringComparison.Ordinal));
 
         var renumberedEnumValue = Clone(baseline);
-        var completedIndex = FlightStatus(renumberedEnumValue).Values.FindIndex(value =>
-            value.Name == "FLIGHT_STATUS_COMPLETED"
-        );
-        FlightStatus(renumberedEnumValue).Values[completedIndex] =
-            FlightStatus(renumberedEnumValue).Values[completedIndex] with { Number = 99 };
-        ProtoContractModel.BreakingChanges(baseline, renumberedEnumValue)
+        var completedIndex = FlightStatus(renumberedEnumValue)
+            .Values.FindIndex(value => value.Name == "FLIGHT_STATUS_COMPLETED");
+        FlightStatus(renumberedEnumValue).Values[completedIndex] = FlightStatus(renumberedEnumValue).Values[
+            completedIndex
+        ] with
+        {
+            Number = 99,
+        };
+        ProtoContractModel
+            .BreakingChanges(baseline, renumberedEnumValue)
             .Should()
             .Contain(change => change.Contains("enum value renumbered", StringComparison.Ordinal));
 
@@ -166,15 +198,30 @@ public class ProtoCompatibilityTests
             field => field.Name == "Price",
             field => field with { Name = "OtherField", JsonName = "otherField" }
         );
-        ProtoContractModel.BreakingChanges(baseline, reusedFieldNumber)
+        ProtoContractModel
+            .BreakingChanges(baseline, reusedFieldNumber)
+            .Should()
+            .Contain(change => change.Contains("field number 11 now used", StringComparison.Ordinal));
+
+        var reusedFieldNumberWithReservedName = Clone(baseline);
+        FlightResponse(reusedFieldNumberWithReservedName).ReservedNames.Add("Price");
+        ReplaceField(
+            FlightResponse(reusedFieldNumberWithReservedName),
+            field => field.Name == "Price",
+            field => field with { Name = "OtherField", JsonName = "otherField" }
+        );
+        ProtoContractModel
+            .BreakingChanges(baseline, reusedFieldNumberWithReservedName)
             .Should()
             .Contain(change => change.Contains("field number 11 now used", StringComparison.Ordinal));
 
         var reservedBaseline = Clone(baseline);
         FlightResponse(reservedBaseline).ReservedNumbers.Add(new ProtoNumberRange(13, 14));
         var reusedReservedNumber = Clone(reservedBaseline);
-        FlightResponse(reusedReservedNumber).Fields.Add(new ProtoFieldContract(13, "NewField", "string", "optional", "newField"));
-        ProtoContractModel.BreakingChanges(reservedBaseline, reusedReservedNumber)
+        FlightResponse(reusedReservedNumber)
+            .Fields.Add(new ProtoFieldContract(13, "NewField", "string", "optional", "newField"));
+        ProtoContractModel
+            .BreakingChanges(reservedBaseline, reusedReservedNumber)
             .Should()
             .Contain(change => change.Contains("reserved field number 13 reused", StringComparison.Ordinal));
 
@@ -182,20 +229,56 @@ public class ProtoCompatibilityTests
         FlightStatus(enumReservedBaseline).ReservedNames.Add("FLIGHT_STATUS_OLD");
         var reusedEnumReservedName = Clone(enumReservedBaseline);
         FlightStatus(reusedEnumReservedName).Values.Add(new ProtoEnumValueContract(99, "FLIGHT_STATUS_OLD"));
-        ProtoContractModel.BreakingChanges(enumReservedBaseline, reusedEnumReservedName)
+        ProtoContractModel
+            .BreakingChanges(enumReservedBaseline, reusedEnumReservedName)
             .Should()
-            .Contain(change => change.Contains("reserved enum name FLIGHT_STATUS_OLD reused", StringComparison.Ordinal));
+            .Contain(change =>
+                change.Contains("reserved enum name FLIGHT_STATUS_OLD reused", StringComparison.Ordinal)
+            );
+
+        var reusedEnumNumberWithReservedName = Clone(baseline);
+        var flightStatusWithReservedName = FlightStatus(reusedEnumNumberWithReservedName);
+        flightStatusWithReservedName.Values.RemoveAll(value => value.Name == "FLIGHT_STATUS_COMPLETED");
+        flightStatusWithReservedName.ReservedNames.Add("FLIGHT_STATUS_COMPLETED");
+        flightStatusWithReservedName.Values.Add(new ProtoEnumValueContract(4, "FLIGHT_STATUS_DIVERTED"));
+        ProtoContractModel
+            .BreakingChanges(baseline, reusedEnumNumberWithReservedName)
+            .Should()
+            .Contain("flight.FlightStatus.FLIGHT_STATUS_COMPLETED: enum number 4 reused by FLIGHT_STATUS_DIVERTED");
 
         var additions = Clone(baseline);
         FlightResponse(additions).Fields.Add(new ProtoFieldContract(13, "NewField", "string", "optional", "newField"));
-        FlightService(additions).Methods.Add(
-            new ProtoMethodContract("NewMethod", "flight.GetByIdRequest", "flight.ReserveSeatResult", false, false)
-        );
-        additions.Files.Single(file => file.Name == "flight.proto").Messages.Add(
-            new ProtoMessageContract("flight.NewMessage", [], [], [])
-        );
+        FlightService(additions)
+            .Methods.Add(
+                new ProtoMethodContract("NewMethod", "flight.GetByIdRequest", "flight.ReserveSeatResult", false, false)
+            );
+        additions
+            .Files.Single(file => file.Name == "flight.proto")
+            .Messages.Add(new ProtoMessageContract("flight.NewMessage", [], [], []));
         FlightStatus(additions).Values.Add(new ProtoEnumValueContract(99, "FLIGHT_STATUS_NEW"));
         ProtoContractModel.BreakingChanges(baseline, additions).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void enum_reserved_range_end_is_inclusive_in_descriptors_and_exclusive_in_contracts()
+    {
+        var mutatedProto = Flight.FlightReflection.Descriptor.ToProto();
+        var flightStatusProto = mutatedProto.EnumType.Single(enumType => enumType.Name == "FlightStatus");
+        flightStatusProto.ReservedRange.Add(new EnumDescriptorProto.Types.EnumReservedRange { Start = 5, End = 7 });
+
+        var mutatedFlight = FileDescriptor
+            .BuildFromByteStrings([Timestamp.Descriptor.File.ToProto().ToByteString(), mutatedProto.ToByteString()])
+            .Single(file => file.Name == mutatedProto.Name);
+
+        var baseline = ProtoContractModel.FromDescriptors(mutatedFlight, Passenger.PassengerReflection.Descriptor);
+        FlightStatus(baseline).ReservedNumbers.Should().ContainSingle(range => range == new ProtoNumberRange(5, 8));
+
+        var current = Clone(baseline);
+        FlightStatus(current).Values.Add(new ProtoEnumValueContract(7, "FLIGHT_STATUS_REUSED"));
+        ProtoContractModel
+            .BreakingChanges(baseline, current)
+            .Should()
+            .Contain(change => change.Contains("reserved enum number 7 reused", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -207,12 +290,7 @@ public class ProtoCompatibilityTests
         response.Field.Remove(price);
 
         var mutatedFlight = FileDescriptor
-            .BuildFromByteStrings(
-                [
-                    Timestamp.Descriptor.File.ToProto().ToByteString(),
-                    mutatedProto.ToByteString(),
-                ]
-            )
+            .BuildFromByteStrings([Timestamp.Descriptor.File.ToProto().ToByteString(), mutatedProto.ToByteString()])
             .Single(file => file.Name == mutatedProto.Name);
 
         var current = ProtoContractModel.FromDescriptors(mutatedFlight, Passenger.PassengerReflection.Descriptor);

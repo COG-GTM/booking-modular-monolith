@@ -13,12 +13,11 @@ internal sealed record ProtoContractModel(List<ProtoFileContract> Files)
                     return new ProtoFileContract(
                         file.Name,
                         file.Package,
-                        file.Services
-                            .OrderBy(service => service.FullName, StringComparer.Ordinal)
+                        file.Services.OrderBy(service => service.FullName, StringComparer.Ordinal)
                             .Select(service => new ProtoServiceContract(
                                 service.FullName,
-                                service.Methods
-                                    .OrderBy(method => method.Name, StringComparer.Ordinal)
+                                service
+                                    .Methods.OrderBy(method => method.Name, StringComparer.Ordinal)
                                     .Select(method => new ProtoMethodContract(
                                         method.Name,
                                         method.InputType.FullName,
@@ -36,8 +35,8 @@ internal sealed record ProtoContractModel(List<ProtoFileContract> Files)
                                 var messageProto = message.ToProto();
                                 return new ProtoMessageContract(
                                     message.FullName,
-                                    message.Fields
-                                        .InFieldNumberOrder()
+                                    message
+                                        .Fields.InFieldNumberOrder()
                                         .Select(field => new ProtoFieldContract(
                                             field.FieldNumber,
                                             field.Name,
@@ -46,8 +45,8 @@ internal sealed record ProtoContractModel(List<ProtoFileContract> Files)
                                             field.JsonName
                                         ))
                                         .ToList(),
-                                    messageProto.ReservedRange
-                                        .Select(range => new ProtoNumberRange(range.Start, range.End))
+                                    messageProto
+                                        .ReservedRange.Select(range => new ProtoNumberRange(range.Start, range.End))
                                         .ToList(),
                                     messageProto.ReservedName.Order(StringComparer.Ordinal).ToList()
                                 );
@@ -62,13 +61,16 @@ internal sealed record ProtoContractModel(List<ProtoFileContract> Files)
                                 var enumProto = enumType.ToProto();
                                 return new ProtoEnumContract(
                                     enumType.FullName,
-                                    enumType.Values
-                                        .OrderBy(value => value.Number)
+                                    enumType
+                                        .Values.OrderBy(value => value.Number)
                                         .ThenBy(value => value.Name, StringComparer.Ordinal)
                                         .Select(value => new ProtoEnumValueContract(value.Number, value.Name))
                                         .ToList(),
-                                    enumProto.ReservedRange
-                                        .Select(range => new ProtoNumberRange(range.Start, range.End))
+                                    enumProto
+                                        .ReservedRange.Select(range => new ProtoNumberRange(
+                                            range.Start,
+                                            (long)range.End + 1
+                                        ))
                                         .ToList(),
                                     enumProto.ReservedName.Order(StringComparer.Ordinal).ToList()
                                 );
@@ -80,10 +82,7 @@ internal sealed record ProtoContractModel(List<ProtoFileContract> Files)
                 .ToList()
         );
 
-    public static IReadOnlyList<string> BreakingChanges(
-        ProtoContractModel baseline,
-        ProtoContractModel current
-    )
+    public static IReadOnlyList<string> BreakingChanges(ProtoContractModel baseline, ProtoContractModel current)
     {
         var changes = new List<string>();
         var currentFiles = current.Files.ToDictionary(file => file.Name, StringComparer.Ordinal);
@@ -94,9 +93,11 @@ internal sealed record ProtoContractModel(List<ProtoFileContract> Files)
             {
                 changes.Add($"{oldFile.Name}: file removed");
                 changes.AddRange(oldFile.Services.Select(service => $"{service.FullName}: service removed"));
-                changes.AddRange(oldFile.Services.SelectMany(service => service.Methods.Select(method =>
-                    $"{service.FullName}/{method.Name}: method removed"
-                )));
+                changes.AddRange(
+                    oldFile.Services.SelectMany(service =>
+                        service.Methods.Select(method => $"{service.FullName}/{method.Name}: method removed")
+                    )
+                );
                 changes.AddRange(oldFile.Messages.Select(message => $"{message.FullName}: message removed"));
                 changes.AddRange(oldFile.Enums.Select(enumType => $"{enumType.FullName}: enum removed"));
                 continue;
@@ -151,7 +152,9 @@ internal sealed record ProtoContractModel(List<ProtoFileContract> Files)
         };
 
     private static string FieldLabel(FieldDescriptor field) =>
-        field.IsRepeated ? "repeated" : field.IsRequired ? "required" : "optional";
+        field.IsRepeated ? "repeated"
+        : field.IsRequired ? "required"
+        : "optional";
 
     private static void CompareServices(
         ProtoFileContract baseline,
@@ -274,11 +277,7 @@ internal sealed record ProtoContractModel(List<ProtoFileContract> Files)
         }
     }
 
-    private static void CompareEnums(
-        ProtoFileContract baseline,
-        ProtoFileContract current,
-        ICollection<string> changes
-    )
+    private static void CompareEnums(ProtoFileContract baseline, ProtoFileContract current, ICollection<string> changes)
     {
         var currentEnums = current.Enums.ToDictionary(enumType => enumType.FullName, StringComparer.Ordinal);
         foreach (var oldEnum in baseline.Enums)
@@ -295,6 +294,14 @@ internal sealed record ProtoContractModel(List<ProtoFileContract> Files)
             foreach (var oldValue in oldEnum.Values)
             {
                 currentByName.TryGetValue(oldValue.Name, out var sameName);
+                currentByNumber.TryGetValue(oldValue.Number, out var sameNumber);
+                if (sameNumber is not null && sameNumber.Name != oldValue.Name)
+                {
+                    changes.Add(
+                        $"{oldEnum.FullName}.{oldValue.Name}: enum number {oldValue.Number} reused by {sameNumber.Name}"
+                    );
+                }
+
                 if (sameName is not null && sameName.Number != oldValue.Number)
                 {
                     changes.Add(
@@ -324,9 +331,8 @@ internal sealed record ProtoContractModel(List<ProtoFileContract> Files)
             {
                 if (currentByName.ContainsKey(oldReservedName))
                     changes.Add($"{oldEnum.FullName}: reserved enum name {oldReservedName} reused");
-                }
             }
-
+        }
     }
 }
 
@@ -366,7 +372,7 @@ internal sealed record ProtoEnumContract(
 
 internal sealed record ProtoEnumValueContract(int Number, string Name);
 
-internal sealed record ProtoNumberRange(int Start, int EndExclusive)
+internal sealed record ProtoNumberRange(int Start, long EndExclusive)
 {
     public bool Contains(int number) => number >= Start && number < EndExclusive;
 }
