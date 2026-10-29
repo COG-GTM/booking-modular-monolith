@@ -23,7 +23,7 @@ public class IdentityCredentialSettingsTests
     }
 
     [Fact]
-    public void development_settings_should_configure_identity_credentials()
+    public void development_settings_should_not_configure_identity_credentials()
     {
         var apiSettingsPath = Path.Combine(FindRepositoryRoot(), "src", "Api", "src");
         var configuration = new ConfigurationBuilder()
@@ -31,9 +31,9 @@ public class IdentityCredentialSettingsTests
             .AddJsonFile(Path.Combine(apiSettingsPath, "appsettings.Development.json"))
             .Build();
 
-        configuration["AuthOptions:ClientSecret"].Should().NotBeNullOrWhiteSpace();
-        configuration["IdentitySeedOptions:AdminPassword"].Should().NotBeNullOrWhiteSpace();
-        configuration["IdentitySeedOptions:UserPassword"].Should().NotBeNullOrWhiteSpace();
+        configuration["AuthOptions:ClientSecret"].Should().BeNullOrEmpty();
+        configuration["IdentitySeedOptions:AdminPassword"].Should().BeNullOrEmpty();
+        configuration["IdentitySeedOptions:UserPassword"].Should().BeNullOrEmpty();
     }
 
     private static string FindRepositoryRoot()
