@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Integration-event contracts only: no module code, no ASP.NET Core, no data-store or broker transport packages.
+       CLR namespaces are part of the wire contract (MassTransit message URNs, outbox DataType) and must not change. -->
+  <PropertyGroup>
+    <RootNamespace>BuildingBlocks.Contracts</RootNamespace>
+    <Description>Versioned integration-event contracts (IIntegrationEvent and the EventBus.Messages records) shared by producers and consumers.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="MassTransit.Abstractions" Version="8.5.8" />
+    <PackageReference Include="MediatR.Contracts" Version="2.0.1" />
+  </ItemGroup>
+</Project>

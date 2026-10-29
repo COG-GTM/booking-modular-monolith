@@ -16,7 +16,7 @@ by hand from all four modules' mappers, so a single-module host could not use it
 ## Decision
 
 1. Each `src/BuildingBlocks/<Area>` folder is its own SDK project `BuildingBlocks.<Area>.csproj`
-   (Core, Constants, Utils, Exception, Contracts, Logging, Caching, Polly, Mapster, Web, Validation, ProblemDetails,
+   (Core, Constants, Utils, Exception, Contracts [moved to the versioned `Contracts.Messages` package by ADR 0101], Logging, Caching, Polly, Mapster, Web, Validation, ProblemDetails,
    OpenApi, Jwt, EFCore, PersistMessageProcessor, Mongo, EventStoreDB, MassTransit, HealthCheck,
    OpenTelemetryCollector, TestBase). CLR namespaces are unchanged.
 2. Dependencies point inward to Core; Core has no project references, no ASP.NET Core and no data-store/broker packages.

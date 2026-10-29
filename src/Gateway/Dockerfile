@@ -8,11 +8,12 @@ COPY global.json .
 COPY Directory.Build.props .
 
 # Copy project files first (better Docker layer caching)
+COPY src/Contracts/Directory.Build.props src/Contracts/Versions.props src/Contracts/Contracts.Messages.Reference.props src/Contracts/
+COPY src/Contracts/Contracts.Messages/Contracts.Messages.csproj src/Contracts/Contracts.Messages/
 COPY src/BuildingBlocks/Directory.Build.props src/BuildingBlocks/
 COPY src/BuildingBlocks/BuildingBlocks.csproj src/BuildingBlocks/
 COPY src/BuildingBlocks/Caching/BuildingBlocks.Caching.csproj src/BuildingBlocks/Caching/
 COPY src/BuildingBlocks/Constants/BuildingBlocks.Constants.csproj src/BuildingBlocks/Constants/
-COPY src/BuildingBlocks/Contracts/BuildingBlocks.Contracts.csproj src/BuildingBlocks/Contracts/
 COPY src/BuildingBlocks/Core/BuildingBlocks.Core.csproj src/BuildingBlocks/Core/
 COPY src/BuildingBlocks/EFCore/BuildingBlocks.EFCore.csproj src/BuildingBlocks/EFCore/
 COPY src/BuildingBlocks/EventStoreDB/BuildingBlocks.EventStoreDB.csproj src/BuildingBlocks/EventStoreDB/
@@ -39,6 +40,7 @@ COPY src/Gateway/src/Gateway.csproj src/Gateway/src/
 RUN dotnet restore src/Gateway/src/Gateway.csproj
 
 # Copy only what the gateway compiles
+COPY src/Contracts/Contracts.Messages ./src/Contracts/Contracts.Messages
 COPY src/BuildingBlocks ./src/BuildingBlocks
 COPY src/Aspire/src/ServiceDefaults ./src/Aspire/src/ServiceDefaults
 COPY src/Gateway/src ./src/Gateway/src
