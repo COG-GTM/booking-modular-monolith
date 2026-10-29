@@ -5,7 +5,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-version="${1:-1.0.0}"
+version="${1:-$(sed -n 's:.*<BuildingBlocksVersion>\(.*\)</BuildingBlocksVersion>.*:\1:p' "$repo_root/src/BuildingBlocks/Directory.Build.props")}"
 feed="$(cd "${2:-$repo_root/artifacts/nuget}" && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
