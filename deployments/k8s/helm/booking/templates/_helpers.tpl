@@ -2,13 +2,6 @@
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{- define "booking.labels" -}}
-helm.sh/chart: {{ include "booking.chart" . }}
-app.kubernetes.io/name: {{ .name | default .Chart.Name }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- end -}}
-
 {{- define "booking.selectorLabels" -}}
 app.kubernetes.io/name: {{ .name }}
 app.kubernetes.io/instance: {{ .root.Release.Name }}
@@ -81,10 +74,6 @@ app.kubernetes.io/instance: {{ .root.Release.Name }}
 {{- $booking := .Values.services.booking -}}
 {{- $enabled := $booking.backgroundProcessingEnabled -}}
 {{- $autoscaling := mergeOverwrite (deepCopy .Values.services.defaults.autoscaling) (deepCopy $booking.autoscaling) -}}
-{{- $extra := default dict $booking.extraEnv -}}
-{{- if hasKey $extra "Modules__Booking__BackgroundProcessingEnabled" -}}
-{{- $enabled = eq (lower (toString (index $extra "Modules__Booking__BackgroundProcessingEnabled"))) "true" -}}
-{{- end -}}
 {{- if and $enabled (or (gt (int $booking.replicas) 1) (and $autoscaling.enabled (gt (int $autoscaling.maxReplicas) 1))) -}}
 {{- fail "Booking background processing cannot use multiple replicas: the EventStoreDB $all subscription and outbox poller must remain single-active; disable background processing or keep replicas and autoscaling maxReplicas at 1." -}}
 {{- end -}}

@@ -79,11 +79,11 @@ images=(
   "booking-gateway:local"
 )
 if [[ "${SKIP_BUILD:-0}" != "1" ]]; then
-  docker build -f src/Services/Identity.Host/Dockerfile -t "${images[0]}" "$repo_root"
-  docker build -f src/Services/Flight.Host/Dockerfile -t "${images[1]}" "$repo_root"
-  docker build -f src/Services/Passenger.Host/Dockerfile -t "${images[2]}" "$repo_root"
-  docker build -f src/Services/Booking.Host/Dockerfile -t "${images[3]}" "$repo_root"
-  docker build -f src/Gateway/Dockerfile -t "${images[4]}" "$repo_root"
+  docker build -f "$repo_root/src/Services/Identity.Host/Dockerfile" -t "${images[0]}" "$repo_root"
+  docker build -f "$repo_root/src/Services/Flight.Host/Dockerfile" -t "${images[1]}" "$repo_root"
+  docker build -f "$repo_root/src/Services/Passenger.Host/Dockerfile" -t "${images[2]}" "$repo_root"
+  docker build -f "$repo_root/src/Services/Booking.Host/Dockerfile" -t "${images[3]}" "$repo_root"
+  docker build -f "$repo_root/src/Gateway/Dockerfile" -t "${images[4]}" "$repo_root"
 fi
 kind load docker-image --name "$cluster_name" "${images[@]}"
 
