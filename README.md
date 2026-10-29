@@ -37,6 +37,7 @@
   - [Run](#run)
   - [Test](#test)
 - [Documentation Apis](#documentation-apis)
+- [Passenger service host](#passenger-service-host)
 - [Support](#support)
 - [Contribution](#contribution)
 
@@ -293,6 +294,12 @@ Endpoints come from configuration/service discovery (`Grpc:Flight:Address=http:/
 The standalone Flight host uses separate HTTP and h2c gRPC listeners. See the
 [Flight service runbook](./docs/runbooks/flight-service.md) and
 [ADR 0502](./docs/adr/0502-standalone-flight-service-host.md).
+
+## Passenger service host
+
+The standalone Passenger service composition and operating guidance are documented in
+[ADR 0104](./docs/adr/0104-passenger-service-host.md) and the
+[Passenger service runbook](./docs/runbooks/passenger-service.md).
 
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
