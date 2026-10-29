@@ -1,0 +1,6 @@
+apiVersion: v2
+name: booking
+description: Kubernetes deployment for the Booking microservices topology
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

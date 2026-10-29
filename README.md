@@ -248,6 +248,9 @@ cd deployments/docker-compose
 docker compose up -d --build
 ```
 
+For the Kubernetes Helm chart and kind deployment smoke flow, see
+[the Kubernetes deployment guide](./deployments/k8s/README.md).
+
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
 ```bash

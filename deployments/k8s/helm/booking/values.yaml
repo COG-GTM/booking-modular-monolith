@@ -1,0 +1,199 @@
+global:
+  publicUrl: http://localhost:8088
+  audience: booking-modular-monolith
+  otlpEndpoint: ""
+
+namespace:
+  create: false
+  name: booking
+
+imagePullSecrets: []
+
+podSecurity:
+  runAsNonRoot: true
+  runAsUser: 1654
+  runAsGroup: 1654
+  seccompProfile: RuntimeDefault
+  readOnlyRootFilesystem: true
+
+services:
+  # Hosts with background processing stay at one replica until outbox row locking or leader election exists.
+  defaults:
+    image:
+      pullPolicy: IfNotPresent
+    probes:
+      startupPath: /health/live
+      livenessPath: /health/live
+      readinessPath: /health/ready
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 768Mi
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+      targetCPUUtilizationPercentage: 70
+  identity:
+    nameOverride: ""
+    image:
+      repository: booking-identity-service
+      tag: local
+      pullPolicy: IfNotPresent
+    replicas: 1
+    probes: {}
+    resources: {}
+    backgroundProcessingEnabled: true
+    autoscaling:
+      enabled: false
+    database:
+      name: identity_service
+      persistMessageDatabase: identity_service_persist_message
+      username: identity_service
+      password: identity_service
+      existingSecret: ""
+      passwordKey: password
+  flight:
+    nameOverride: ""
+    image:
+      repository: booking-flight-service
+      tag: local
+      pullPolicy: IfNotPresent
+    replicas: 1
+    probes: {}
+    resources: {}
+    backgroundProcessingEnabled: true
+    autoscaling:
+      enabled: false
+    database:
+      name: flight_service
+      persistMessageDatabase: flight_service_persist_message
+      mongoDatabase: flight_service_read
+      username: flight_service
+      password: flight_service
+      existingSecret: ""
+      passwordKey: password
+  passenger:
+    nameOverride: ""
+    image:
+      repository: booking-passenger-service
+      tag: local
+      pullPolicy: IfNotPresent
+    replicas: 1
+    probes: {}
+    resources: {}
+    backgroundProcessingEnabled: true
+    autoscaling:
+      enabled: false
+    database:
+      name: passenger_service
+      persistMessageDatabase: passenger_service_persist_message
+      mongoDatabase: passenger_service_read
+      username: passenger_service
+      password: passenger_service
+      existingSecret: ""
+      passwordKey: password
+  booking:
+    nameOverride: ""
+    image:
+      repository: booking-booking-service
+      tag: local
+      pullPolicy: IfNotPresent
+    replicas: 1
+    probes: {}
+    resources: {}
+    # Booking also owns the EventStoreDB $all subscription.
+    backgroundProcessingEnabled: true
+    autoscaling:
+      enabled: false
+    database:
+      name: ""
+      persistMessageDatabase: booking_service_persist_message
+      mongoDatabase: booking_service_read
+      username: booking_service
+      password: booking_service
+      existingSecret: ""
+      passwordKey: password
+  gateway:
+    nameOverride: ""
+    image:
+      repository: booking-gateway
+      tag: local
+      pullPolicy: IfNotPresent
+    replicas: 1
+    probes: {}
+    resources: {}
+    autoscaling:
+      enabled: true
+
+postgres:
+  host: ""
+  port: 5432
+  sslMode: Disable
+
+rabbitmq:
+  host: ""
+  port: 5672
+  vhost: /
+  auth:
+    # The development default is non-guest because RabbitMQ restricts guest to loopback clients.
+    username: booking
+    password: booking
+    existingSecret: ""
+    usernameKey: username
+    passwordKey: password
+
+mongodb:
+  connectionString: ""
+  existingSecret: ""
+  connectionStringKey: connectionString
+
+eventstore:
+  connectionString: ""
+  existingSecret: ""
+  connectionStringKey: connectionString
+
+identity:
+  signingKey:
+    existingSecret: ""
+    key: tempkey.jwk
+
+gateway:
+  ingress:
+    enabled: true
+    className: nginx
+    host: localhost
+    tls: []
+  # Optional rollback fallback for clusters still running the monolith; leave empty once decommissioned.
+  monolithAddress: ""
+
+infrastructure:
+  # These single-instance StatefulSets are for disposable development environments only.
+  enabled: false
+  waitImage: mirror.gcr.io/library/busybox:1.36.1
+  persistence:
+    enabled: true
+    size: 4Gi
+    storageClass: ""
+  postgres:
+    nameOverride: ""
+    image: mirror.gcr.io/library/postgres:16
+    pullPolicy: IfNotPresent
+    username: postgres
+    password: postgres
+    existingSecret: ""
+    passwordKey: password
+  mongo:
+    nameOverride: ""
+    image: mirror.gcr.io/library/mongo:7
+    pullPolicy: IfNotPresent
+  rabbitmq:
+    nameOverride: ""
+    image: mirror.gcr.io/library/rabbitmq:management
+    pullPolicy: IfNotPresent
+  eventstore:
+    nameOverride: ""
+    image: mirror.gcr.io/eventstore/eventstore:latest
+    pullPolicy: IfNotPresent
