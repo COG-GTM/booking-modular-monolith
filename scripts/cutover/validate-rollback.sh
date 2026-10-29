@@ -12,7 +12,49 @@ esac
 compose=(docker compose -f "$root/deployments/docker-compose/docker-compose.yaml")
 unset IDENTITY_UPSTREAM FLIGHT_UPSTREAM PASSENGER_UPSTREAM BOOKING_UPSTREAM
 state="$root/deployments/docker-compose/.cutover.env"
+# shellcheck source=scripts/cutover/common.sh
+source "$root/scripts/cutover/common.sh"
+probes=("$cluster")
+if [[ "$cluster" == identity || "$cluster" == passenger ]]; then
+    probes=(identity passenger)
+fi
+initial=()
+exec 9>"$state.lock"
+flock 9
 touch "$state"
+for c in "${probes[@]}"; do
+    address=$(sed -n "s/^${c^^}_UPSTREAM=//p" "$state")
+    case "$address" in
+        ""|"http://$c-service:8080/") initial+=(service) ;;
+        http://booking_modular_monolith/) initial+=(monolith) ;;
+        *)
+            echo "Cannot restore custom destination for $c: $address" >&2
+            exit 2
+            ;;
+    esac
+done
+flock -u 9
+exec 9>&-
+if [[ "${#probes[@]}" == 2 && "${initial[0]}" != "${initial[1]}" ]]; then
+    echo "Refusing drill: Identity and Passenger initial destinations differ" >&2
+    exit 2
+fi
+restore_on_failure() {
+    local status=$?
+    trap - EXIT
+    if ((status != 0)); then
+        echo "Drill failed; restoring initial destinations" >&2
+        if ! "$root/scripts/cutover/flip-route.sh" "$cluster" "${initial[0]}"; then
+            echo "RESTORATION FAILED: rollback with: MONOLITH_IMAGE=<previous-release-image> $root/scripts/cutover/flip-route.sh $cluster ${initial[0]}" >&2
+        else
+            echo "RESTORED: $cluster -> ${initial[0]}" >&2
+        fi
+    fi
+    exit "$status"
+}
+trap restore_on_failure EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 "${compose[@]}" --env-file "$state" --profile monolith up -d --wait --wait-timeout 300 \
     identity-service flight-service passenger-service booking-service gateway booking_modular_monolith
 for ((i=0; i<90; i++)); do
@@ -25,57 +67,11 @@ for ((i=0; i<90; i++)); do
     fi
     sleep 2
 done
-token=$(curl --max-time 30 -fsS http://localhost:5000/connect/token -u client:secret \
-    --data-urlencode grant_type=password \
-    --data-urlencode username=samh \
-    --data-urlencode password=Admin@123456 \
-    --data-urlencode 'scope=booking-modular-monolith')
-token=$(jq -er '.access_token' <<< "$token")
+token=$(cutover_token)
 for target in service monolith service; do
     "$root/scripts/cutover/flip-route.sh" "$cluster" "$target"
-    probes=("$cluster")
-    if [[ "$cluster" == identity || "$cluster" == passenger ]]; then
-        probes=(identity passenger)
-    fi
     for c in "${probes[@]}"; do
-        proof=$(cat /proc/sys/kernel/random/uuid)
-        case "$c" in
-            flight)
-                path=/api/v1/flight/get-available-flights
-                expected=200
-                ;;
-            passenger)
-                path=/api/v1/passenger/00000000-0000-0000-0000-000000000001
-                expected=404
-                ;;
-            booking)
-                path=/api/v1/booking/00000000-0000-0000-0000-000000000001
-                expected=404
-                ;;
-            identity)
-                path=/api/v1/identity/cutover-read-probe
-                expected=404
-                ;;
-        esac
-        host="$c-service:8080"
-        if [[ "$target" == monolith ]]; then
-            host=booking_modular_monolith
-        fi
-        since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-        status=$(curl --max-time 30 -sS -o /dev/null -w '%{http_code}' \
-            -H "Authorization: Bearer $token" \
-            -H "correlationId: $proof" \
-            "http://localhost:5000$path?cutoverProof=$proof")
-        if [[ "$status" != "$expected" ]]; then
-            echo "FAIL $c $target HTTP $status expected $expected"
-            exit 1
-        fi
-        logs=$(docker logs --since "$since" gateway 2>&1)
-        match=$(printf '%s\n' "$logs" | grep -E "Proxying to http://$host/.*$proof") || {
-            echo "FAIL: no upstream proof for $proof"
-            exit 1
-        }
-        printf 'PROOF %s %s HTTP %s correlationId=%s\n%s\n' "$c" "$target" "$status" "$proof" "$match"
+        cutover_probe "$c" "$target" "$token"
     done
 done
 echo "PASS: authenticated service -> monolith -> service upstream proofs"

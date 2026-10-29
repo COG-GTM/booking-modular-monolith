@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+# shellcheck source=scripts/cutover/common.sh
+source "$root/scripts/cutover/common.sh"
 state="$root/deployments/docker-compose/.cutover.env"
 cluster=${1:-}
 target=${2:-}
@@ -39,6 +41,27 @@ if [[ "$cluster" == identity || "$cluster" == passenger ]]; then
     clusters=(identity passenger)
     echo "Identity and Passenger move together (ADR 0007)"
 fi
+if [[ "$target" == service ]]; then
+    for c in "${clusters[@]}"; do
+        docker exec "$c-service" bash -c '
+            exec 3<>/dev/tcp/127.0.0.1/8080
+            printf "GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3
+            head -n 1 <&3
+        ' | grep -q ' 200 ' || {
+            echo "Refusing flip: $c-service readiness failed; routes unchanged" >&2
+            exit 1
+        }
+    done
+fi
+token=$(cutover_token)
+previous=service
+if grep -q "^${cluster^^}_UPSTREAM=http://booking_modular_monolith/$" "$state"; then
+    previous=monolith
+fi
+flip_failed() {
+    echo "Flip failed; inspect destinations and rollback with: MONOLITH_IMAGE=<previous-release-image> $0 $cluster $previous" >&2
+}
+trap flip_failed ERR
 for c in "${clusters[@]}"; do
     key="${c^^}_UPSTREAM"
     address="http://$c-service:8080/"
@@ -52,9 +75,14 @@ done
 "${compose[@]}" --env-file "$state" up -d --no-deps gateway
 for ((i=0; i<60; i++)); do
     if curl --max-time 5 -fsS http://localhost:5000/health/ready >/dev/null; then
+        for c in "${clusters[@]}"; do
+            cutover_probe "$c" "$target" "$token"
+        done
+        trap - ERR
         exit 0
     fi
     sleep 2
 done
-echo "Gateway failed readiness; inspect state and explicitly roll back" >&2
+echo "Gateway failed readiness" >&2
+flip_failed
 exit 1
