@@ -67,6 +67,11 @@ On a failed drill, an EXIT trap restores the initial paired destinations through
 script; restoration errors print an explicit manual rollback command. Custom initial destinations
 are rejected before the drill because the flip script supports only service/monolith targets.
 Token credentials and bearer headers are passed to curl over stdin, not in process arguments.
+Probes obtain tokens from the canonical Identity service on loopback port 5101, matching the
+gateway's pinned JWT metadata source even while Identity routes temporarily target the prior
+image. All probe requests still traverse port 5000. A full Identity-issuer rollback additionally
+requires shared signing keys; a successful routed-read drill does not prove token issuance
+from a previous image with a different developer signing key.
 State is in git-ignored `deployments/docker-compose/.cutover.env`, not application source.
 Do not run concurrent compose operations during a flip. The persistent lock file is also ignored.
 A failed recreation leaves desired state on disk: inspect containers and explicitly retry/roll back.

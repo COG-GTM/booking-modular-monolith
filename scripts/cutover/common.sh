@@ -3,7 +3,7 @@ set -euo pipefail
 
 cutover_token() {
     curl --max-time 30 -fsS --config - <<'CONFIG' | jq -er '.access_token'
-url = "http://localhost:5000/connect/token"
+url = "http://localhost:5101/connect/token"
 user = "client:secret"
 data-urlencode = "grant_type=password"
 data-urlencode = "username=samh"
