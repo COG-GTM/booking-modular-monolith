@@ -38,8 +38,9 @@ the gateway.
 
 - `grpc.health.v1.Health/Check` on the gRPC listener: service `""`, `flight.FlightGrpcService`,
   `passenger.PassengerGrpcService`. Excludes checks tagged `grpc-dependency`.
-- `/health/ready` (every environment; use it as the readiness probe) runs the `ready`-tagged checks, i.e. `flight-grpc`
-  and `passenger-grpc`; 503 Unhealthy when a dependency is unreachable or not `SERVING`. `/health` (all checks) and
+- `/health/ready` (every environment; use it as the readiness probe) runs every check except the liveness-only
+  (`live`) ones: `flight-grpc`, `passenger-grpc`, plus Postgres/Mongo/RabbitMQ/EventStoreDB when `HealthOptions:Enabled`;
+  503 Unhealthy when any of them fails (gRPC dependency unreachable or not `SERVING`). `/health` (all checks) and
   `/alive` (liveness, never dependencies) stay Development-only.
 - Docker Compose: `appsettings.docker.json` declares `Kestrel:Endpoints` (http :80, h2c :81), which replaces
   `ASPNETCORE_URLS`, so the compose service adds `Kestrel__Endpoints__Https__Url=https://+:443` next to the mounted cert.
