@@ -1,4 +1,5 @@
 using BuildingBlocks.Web;
+using Humanizer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Configuration;
@@ -24,7 +25,6 @@ public static class Extensions
             var appOptions = services.GetOptions<AppOptions>(nameof(AppOptions));
             // Bound from the same sections as BuildingBlocks.EFCore/MassTransit/EventStoreDB/Mongo options,
             // so health checks don't need a reference to those libraries.
-            var postgresOptions = services.GetOptions<ConnectionStringOptions>("PostgresOptions");
             var rabbitMqOptions = services.GetOptions<RabbitMqHealthOptions>("RabbitMqOptions");
             var eventStoreOptions = services.GetOptions<ConnectionStringOptions>("EventStoreOptions");
             var configuration = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
@@ -75,8 +75,16 @@ public static class Extensions
                     );
             }
 
-            if (!string.IsNullOrEmpty(postgresOptions.ConnectionString))
-                healthChecksBuilder.AddNpgSql(postgresOptions.ConnectionString);
+            foreach (var module in configuration.GetSection("PostgresOptions:ConnectionString").GetChildren())
+            {
+                var connection = configuration.GetConnectionString(module.Key.Kebaberize()) ?? module.Value;
+                if (!string.IsNullOrEmpty(connection))
+                    healthChecksBuilder.AddNpgSql(connection, name: $"Postgres-{module.Key}");
+            }
+
+            var postgresConnection = configuration["PostgresOptions:ConnectionString"];
+            if (!string.IsNullOrEmpty(postgresConnection))
+                healthChecksBuilder.AddNpgSql(postgresConnection);
 
             if (!string.IsNullOrEmpty(eventStoreOptions.ConnectionString))
                 healthChecksBuilder.AddEventStore(eventStoreOptions.ConnectionString);

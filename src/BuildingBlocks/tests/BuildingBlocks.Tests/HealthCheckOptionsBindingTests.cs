@@ -37,6 +37,38 @@ public class HealthCheckOptionsBindingTests
             .BeEquivalentTo(["self", "rabbitmq", "MongoDB-Health", "npgsql", "eventstore"]);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void module_postgres_checks_are_distinct_and_prefer_aspire_connections(bool useAspire)
+    {
+        var settings = new Dictionary<string, string?>
+        {
+            ["HealthOptions:Enabled"] = "true",
+            ["AppOptions:Name"] = "test-app",
+            ["PostgresOptions:ConnectionString:Flight"] = useAspire
+                ? "UnsupportedKeyword=must-not-be-used"
+                : "Host=localhost;Database=flight",
+            ["PostgresOptions:ConnectionString:Identity"] = "Host=localhost;Database=identity",
+            ["PostgresOptions:ConnectionString:Passenger"] = "Host=localhost;Database=passenger",
+            ["PostgresOptions:ConnectionString:Booking"] = "Host=localhost;Database=booking",
+            ["PostgresOptions:ConnectionString:Empty"] = "",
+        };
+        if (useAspire)
+            settings["ConnectionStrings:flight"] = "Host=localhost;Database=aspire_flight";
+
+        using var provider = CreateProvider(settings);
+        RegistrationNames(provider)
+            .Should()
+            .BeEquivalentTo(
+                ["self", "rabbitmq", "Postgres-Flight", "Postgres-Identity", "Postgres-Passenger", "Postgres-Booking"]
+            );
+
+        var checks = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations;
+        foreach (var check in checks.Where(check => check.Name.StartsWith("Postgres-")))
+            check.Factory(provider).Should().BeOfType<global::HealthChecks.NpgSql.NpgSqlHealthCheck>();
+    }
+
     [Fact]
     public void rabbitmq_is_registered_without_unconfigured_database_checks()
     {
