@@ -6,6 +6,10 @@ WORKDIR /src
 COPY .editorconfig .
 COPY global.json .
 COPY Directory.Build.props .
+COPY nuget.config .
+COPY src/Contracts.Messages/ src/Contracts.Messages/
+COPY scripts/pack-contracts.sh scripts/pack-contracts.sh
+RUN bash scripts/pack-contracts.sh
 
 # Copy project files first (better Docker layer caching)
 COPY src/BuildingBlocks/BuildingBlocks.csproj src/BuildingBlocks/

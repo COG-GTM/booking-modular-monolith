@@ -1,3 +1,10 @@
+# Integration-event contracts
+
+Before the first solution restore/build, run `bash scripts/pack-contracts.sh`.
+All modules use an exact-pinned NuGet package from the local feed. See the
+[contracts package guide](src/Contracts.Messages/README.md) for build commands,
+release/versioning policy and compatibility guarantees.
+
 <div align="center" style="margin-bottom:20px">
   <img src="assets/logo.png" alt="booking-modular-monolith" />
     <div align="center">

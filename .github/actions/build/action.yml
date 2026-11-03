@@ -47,7 +47,9 @@ runs:
       shell: bash
       if: success()
       # restore root solution
-      run: dotnet restore
+      run: |
+        bash scripts/pack-contracts.sh
+        dotnet restore
 
     # npm install, runs `prepare` script automatically in the initialize step
     - name: Install NPM Dependencies

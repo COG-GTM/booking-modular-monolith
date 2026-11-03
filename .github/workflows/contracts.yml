@@ -1,0 +1,31 @@
+name: Contracts package
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x.x'
+      - name: Pack standalone contracts into local feed
+        run: bash scripts/pack-contracts.sh
+      - name: Verify packaged contracts
+        run: dotnet test src/Contracts.Messages.Tests/Contracts.Messages.Tests.csproj -c Release
+      - name: Build all pinned consumers
+        run: dotnet build booking-modular-monolith.sln -c Release
+      - name: Verify Identity to Passenger packaged flow
+        run: dotnet test src/Modules/Passenger/tests/Integration.Test/Integration.Test.csproj -c Release --no-build --filter FullyQualifiedName~PackagedUserCreatedTests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: integration-event-contracts
+          path: artifacts/nuget/*.nupkg

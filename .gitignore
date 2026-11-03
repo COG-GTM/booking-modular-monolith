@@ -438,5 +438,8 @@ fabric.properties
 # Monitoring
 **/grafana-data
 
+# Local package feed and verification output
+artifacts/
+
 # EventStore
 **/eventstore

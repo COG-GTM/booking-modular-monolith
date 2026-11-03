@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <ContractsMessagesVersion>1.0.0</ContractsMessagesVersion>
   </PropertyGroup>
 
   <ItemGroup>
