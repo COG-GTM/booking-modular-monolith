@@ -23,7 +23,7 @@ public class PackageDistributionTests
         );
         using var deps = JsonDocument.Parse(File.ReadAllText(depsPath));
         var libraries = deps.RootElement.GetProperty("libraries");
-        var packageLibrary = libraries.GetProperty($"{PackageId}/1.0.0");
+        var packageLibrary = libraries.GetProperty($"{PackageId}/{ReadPackageVersion()}");
 
         Assert.Equal("package", packageLibrary.GetProperty("type").GetString());
         Assert.DoesNotContain(
@@ -38,11 +38,7 @@ public class PackageDistributionTests
     public void Packed_nupkg_has_exact_version_readme_and_only_lightweight_dependencies()
     {
         var repoRoot = FindRepoRoot();
-        var version = XDocument
-            .Load(Path.Combine(repoRoot, "Directory.Build.props"))
-            .Descendants()
-            .Single(element => element.Name.LocalName == "ContractsMessagesVersion")
-            .Value;
+        var version = ReadPackageVersion();
         var packagePath = Path.Combine(repoRoot, "artifacts", "nuget", $"{PackageId}.{version}.nupkg");
 
         using var archive = ZipFile.OpenRead(packagePath);
@@ -186,6 +182,13 @@ public class PackageDistributionTests
             await bus.StopAsync();
         }
     }
+
+    private static string ReadPackageVersion() =>
+        XDocument
+            .Load(Path.Combine(FindRepoRoot(), "Directory.Build.props"))
+            .Descendants()
+            .Single(element => element.Name.LocalName == "ContractsMessagesVersion")
+            .Value;
 
     private static string FindRepoRoot()
     {
