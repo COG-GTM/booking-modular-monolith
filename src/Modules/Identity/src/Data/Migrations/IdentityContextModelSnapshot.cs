@@ -17,7 +17,7 @@ namespace Identity.Data.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "7.0.2")
+                .HasAnnotation("ProductVersion", "10.0.3")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -120,10 +120,12 @@ namespace Identity.Data.Migrations
                         .HasColumnName("email_confirmed");
 
                     b.Property<string>("FirstName")
+                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("first_name");
 
                     b.Property<string>("LastName")
+                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("last_name");
 
@@ -146,6 +148,7 @@ namespace Identity.Data.Migrations
                         .HasColumnName("normalized_user_name");
 
                     b.Property<string>("PassPortNumber")
+                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("pass_port_number");
 
@@ -188,6 +191,10 @@ namespace Identity.Data.Migrations
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
+
+                    b.HasIndex("PassPortNumber")
+                        .IsUnique()
+                        .HasDatabaseName("PassportNumberIndex");
 
                     b.ToTable("asp_net_users", (string)null);
                 });

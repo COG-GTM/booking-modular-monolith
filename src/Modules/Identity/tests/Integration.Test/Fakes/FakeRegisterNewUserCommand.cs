@@ -12,5 +12,6 @@ public class FakeRegisterNewUserCommand : AutoFaker<RegisterNewUser>
         RuleFor(r => r.Password, _ => "Password@123");
         RuleFor(r => r.ConfirmPassword, _ => "Password@123");
         RuleFor(r => r.Email, _ => "test@test.com");
+        RuleFor(r => r.PassportNumber, _ => "AB1234567");
     }
 }

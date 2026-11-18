@@ -11,6 +11,8 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Passenger.Passengers.Exceptions;
+using Passengers.Models;
 using Passengers.ValueObjects;
 
 public class RegisterNewUserHandler : IConsumer<UserCreated>
@@ -20,10 +22,12 @@ public class RegisterNewUserHandler : IConsumer<UserCreated>
     private readonly ILogger<RegisterNewUserHandler> _logger;
     private readonly AppOptions _options;
 
-    public RegisterNewUserHandler(PassengerDbContext passengerDbContext,
+    public RegisterNewUserHandler(
+        PassengerDbContext passengerDbContext,
         IEventDispatcher eventDispatcher,
         ILogger<RegisterNewUserHandler> logger,
-        IOptions<AppOptions> options)
+        IOptions<AppOptions> options
+    )
     {
         _passengerDbContext = passengerDbContext;
         _eventDispatcher = eventDispatcher;
@@ -35,25 +39,53 @@ public class RegisterNewUserHandler : IConsumer<UserCreated>
     {
         Guard.Against.Null(context.Message, nameof(UserCreated));
 
-        _logger.LogInformation($"consumer for {nameof(UserCreated).Underscore()} in {_options.Name}");
+        _logger.LogInformation(
+            "consumer for {MessageType} in {ModuleName}",
+            nameof(UserCreated).Underscore(),
+            _options.Name
+        );
 
-        var passengerExist =
-            await _passengerDbContext.Passengers.AnyAsync(x => x.PassportNumber.Value == context.Message.PassportNumber);
+        var message = context.Message;
+        var passportNumber = message.PassportNumber.Trim().ToUpperInvariant();
+        var existing = await _passengerDbContext
+            .Passengers.IgnoreQueryFilters()
+            .SingleOrDefaultAsync(x => x.PassportNumber.Value == passportNumber, context.CancellationToken);
 
-        if (passengerExist)
+        if (existing is not null)
         {
-            return;
+            if (existing.UserId == message.Id)
+            {
+                _logger.LogInformation(
+                    "passenger {PassengerId} already exists for user {UserId}; ignoring duplicate UserCreated",
+                    existing.Id,
+                    message.Id
+                );
+                return;
+            }
+
+            _logger.LogError(
+                "rejected UserCreated for user {UserId}: passport number already linked to passenger {PassengerId} owned by user {OwnerUserId}",
+                message.Id,
+                existing.Id,
+                existing.UserId
+            );
+            throw new PassportNumberAlreadyLinkedException();
         }
 
-        var passenger = Passengers.Models.Passenger.Create(PassengerId.Of(NewId.NextGuid()), Name.Of(context.Message.Name),
-            PassportNumber.Of(context.Message.PassportNumber));
+        var passenger = Passenger.Create(
+            PassengerId.Of(NewId.NextGuid()),
+            Name.Of(message.Name),
+            PassportNumber.Of(passportNumber),
+            message.Id
+        );
 
-        await _passengerDbContext.AddAsync(passenger);
+        await _passengerDbContext.AddAsync(passenger, context.CancellationToken);
 
-        await _passengerDbContext.SaveChangesAsync();
+        await _passengerDbContext.SaveChangesAsync(context.CancellationToken);
 
         await _eventDispatcher.SendAsync(
             new PassengerCreatedDomainEvent(passenger.Id, passenger.Name, passenger.PassportNumber),
-            typeof(IInternalCommand));
+            typeof(IInternalCommand)
+        );
     }
 }
