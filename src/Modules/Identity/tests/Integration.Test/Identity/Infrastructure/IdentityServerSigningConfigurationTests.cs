@@ -29,6 +29,10 @@ public class IdentityServerSigningConfigurationTests : IDisposable
     [InlineData("docker", false)]
     public async Task missing_key_selects_credentials_for_environment(string environment, bool developerCredential)
     {
+        var developerKeyPath = Path.Combine(Directory.GetCurrentDirectory(), "tempkey.jwk");
+        var developerKeyExisted = File.Exists(developerKeyPath);
+        var developerKeyLastWriteTimeUtc = developerKeyExisted ? File.GetLastWriteTimeUtc(developerKeyPath) : default;
+
         await using var app = CreateBuilder(environment).AddCustomIdentityServer().Build();
 
         app.Services.GetServices<ISigningCredentialStore>().Should().HaveCount(developerCredential ? 1 : 0);
@@ -37,7 +41,11 @@ public class IdentityServerSigningConfigurationTests : IDisposable
             app.Services.GetRequiredService<IOptions<IdentityServerOptions>>()
                 .Value.KeyManagement.Enabled.Should()
                 .BeTrue();
-            File.Exists(Path.Combine(root, "tempkey.jwk")).Should().BeFalse();
+            File.Exists(developerKeyPath).Should().Be(developerKeyExisted);
+            if (developerKeyExisted)
+            {
+                File.GetLastWriteTimeUtc(developerKeyPath).Should().Be(developerKeyLastWriteTimeUtc);
+            }
         }
     }
 
