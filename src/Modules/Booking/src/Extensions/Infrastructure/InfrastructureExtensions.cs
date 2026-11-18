@@ -1,5 +1,8 @@
 using Booking.Data;
 using BuildingBlocks.EventStoreDB;
+using BuildingBlocks.EventStoreDB.Events;
+using BuildingBlocks.EventStoreDB.Subscriptions;
+using EventStore.Client;
 using BuildingBlocks.Mapster;
 using BuildingBlocks.Mongo;
 using BuildingBlocks.Web;
@@ -21,7 +24,11 @@ public static class InfrastructureExtensions
 
         // ref: https://github.com/oskardudycz/EventSourcing.NetCore/tree/main/Sample/EventStoreDB/ECommerce
         builder.Services.AddEventStore(builder.Configuration, typeof(BookingRoot).Assembly)
-            .AddEventStoreDBSubscriptionToAll();
+            .AddEventStoreDBSubscriptionToAll(new EventStoreDBSubscriptionToAllOptions
+            {
+                FilterOptions = new SubscriptionFilterOptions(
+                    StreamFilter.Prefix(StreamNameMapper.ToStreamPrefix<global::Booking.Booking.Models.Booking>()))
+            });
 
         builder.Services.AddGrpcClients();
 

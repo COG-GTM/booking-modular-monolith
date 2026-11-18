@@ -219,8 +219,12 @@ aspire run
 To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-compose/docker-compose.yaml) and execute the below command at the `root` of the application:
 
 ```bash
+export EVENTSTORE_ADMIN_PASSWORD='<strong-password>'
+export EVENTSTORE_OPS_PASSWORD='<strong-password>'
 docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
 ```
+
+> Note: EventStoreDB runs with TLS and authentication. Its certificates are generated on first start, and port `2113` is only reachable inside the compose network.
 
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
