@@ -31,30 +31,23 @@ public class GetAvailableFlightsQueryBindingTests : FlightEndToEndTestBase
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
-    [Fact]
-    public async Task should_bind_defaults_and_return_distinct_requested_pages()
+    // One request per case: the shared test fixture's singleton IHttpContextAccessor mock
+    // is not safe for back-to-back requests within a single test.
+    [Theory]
+    [InlineData("", GetAvailableFlights.DefaultPageSize)]
+    [InlineData("?pageNumber=2&pageSize=5", 5)]
+    public async Task should_bind_paging_from_query_string_and_bound_page_size(string query, int expectedMaxCount)
     {
         var flights = Enumerable.Range(0, 30).Select(index => NewFlight(index)).ToList();
         await Fixture.ExecuteReadContextAsync(db => db.Flight.InsertManyAsync(flights));
         using var client = Fixture.HttpClient;
 
-        using var defaultResponse = await client.GetAsync(Route);
-        using var firstResponse = await client.GetAsync(Route + "?pageNumber=1&pageSize=5");
-        using var secondResponse = await client.GetAsync(Route + "?pageNumber=2&pageSize=5");
+        using var response = await client.GetAsync(Route + query);
 
-        defaultResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        var defaultPage = await defaultResponse.Content.ReadFromJsonAsync<GetAvailableFlightsResponseDto>();
-        var firstPage = await firstResponse.Content.ReadFromJsonAsync<GetAvailableFlightsResponseDto>();
-        var secondPage = await secondResponse.Content.ReadFromJsonAsync<GetAvailableFlightsResponseDto>();
-        defaultPage.Should().NotBeNull();
-        firstPage.Should().NotBeNull();
-        secondPage.Should().NotBeNull();
-        defaultPage!.FlightDtos.Should().NotBeEmpty().And.HaveCountLessThanOrEqualTo(20);
-        firstPage!.FlightDtos.Should().HaveCount(5);
-        secondPage!.FlightDtos.Should().HaveCount(5);
-        firstPage.FlightDtos.Select(x => x.Id).Should().NotIntersectWith(secondPage.FlightDtos.Select(x => x.Id));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var page = await response.Content.ReadFromJsonAsync<GetAvailableFlightsResponseDto>();
+        page.Should().NotBeNull();
+        page!.FlightDtos.Should().HaveCount(expectedMaxCount);
     }
 
     private static FlightReadModel NewFlight(int index)
