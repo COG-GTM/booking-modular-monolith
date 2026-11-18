@@ -167,21 +167,98 @@ public class IdentityServerSigningCredentialTests
     }
 
     [Fact]
-    public void signing_algorithm_with_unsupported_key_type_throws_invalid_operation_exception()
+    public void production_with_rsa_signing_key_and_ec_algorithm_throws_invalid_operation_exception()
     {
-        var jwk = new JsonWebKey { Kty = "oct", K = Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(32)) };
-        var getSigningAlgorithm = typeof(IdentityServerExtensions).GetMethod(
-            "GetSigningAlgorithm",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static
-        );
-        Assert.NotNull(getSigningAlgorithm);
+        var root = CreateContentRoot();
+        var jwk = new JsonWebKey(CreateJwk()) { Alg = SecurityAlgorithms.EcdsaSha256 };
+        var settings = CreateSettings();
+        settings["AuthOptions:SigningKey"] = JsonSerializer.Serialize(jwk);
 
-        var exception = Assert.Throws<System.Reflection.TargetInvocationException>(
-            () => getSigningAlgorithm.Invoke(null, new object[] { jwk })
+        try
+        {
+            var builder = CreateBuilder("Production", root, settings);
+
+            var exception = Assert.Throws<InvalidOperationException>(() => builder.AddCustomIdentityServer());
+
+            Assert.Contains("compatible with its key type and curve", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void production_with_p256_signing_key_and_es384_throws_invalid_operation_exception()
+    {
+        var root = CreateContentRoot();
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var jwk = JsonWebKeyConverter.ConvertFromECDsaSecurityKey(new ECDsaSecurityKey(ecdsa));
+        jwk.Alg = SecurityAlgorithms.EcdsaSha384;
+        var settings = CreateSettings();
+        settings["AuthOptions:SigningKey"] = JsonSerializer.Serialize(jwk);
+
+        try
+        {
+            var builder = CreateBuilder("Production", root, settings);
+
+            var exception = Assert.Throws<InvalidOperationException>(() => builder.AddCustomIdentityServer());
+
+            Assert.Contains("compatible with its key type and curve", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public async Task production_with_whitespace_rsa_algorithm_defaults_to_rs256_and_publishes_it()
+    {
+        var root = CreateContentRoot();
+        var jwk = new JsonWebKey(CreateJwk()) { Alg = "  " };
+        var settings = CreateSettings();
+        settings["AuthOptions:SigningKey"] = JsonSerializer.Serialize(jwk);
+
+        try
+        {
+            await using var app = CreateApplication("Production", root, settings);
+            var credentialStore = Assert.Single(app.Services.GetServices<ISigningCredentialStore>());
+            var credential = await credentialStore.GetSigningCredentialsAsync();
+
+            Assert.Equal(SecurityAlgorithms.RsaSha256, credential.Algorithm);
+            Assert.Equal(SecurityAlgorithms.RsaSha256, Assert.IsType<JsonWebKey>(credential.Key).Alg);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void production_with_unsupported_key_type_throws_invalid_operation_exception()
+    {
+        var root = CreateContentRoot();
+        var settings = CreateSettings();
+        settings["AuthOptions:SigningKey"] = JsonSerializer.Serialize(
+            new JsonWebKey { Kty = "oct", K = Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(32)) }
         );
 
-        var innerException = Assert.IsType<InvalidOperationException>(exception.InnerException);
-        Assert.Contains("supported key type and curve", innerException.Message, StringComparison.Ordinal);
+        try
+        {
+            var builder = CreateBuilder("Production", root, settings);
+
+            var exception = Assert.Throws<InvalidOperationException>(() => builder.AddCustomIdentityServer());
+
+            Assert.True(
+                exception.Message.Contains("private key material", StringComparison.Ordinal)
+                    || exception.Message.Contains("compatible with its key type and curve", StringComparison.Ordinal)
+            );
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
     }
 
     [Fact]
@@ -201,7 +278,7 @@ public class IdentityServerSigningCredentialTests
 
             var exception = Assert.Throws<InvalidOperationException>(() => builder.AddCustomIdentityServer());
 
-            Assert.Contains("supported key type and curve", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("compatible with its key type and curve", exception.Message, StringComparison.Ordinal);
         }
         finally
         {

@@ -82,7 +82,9 @@ public static class IdentityServerExtensions
 
         if (jwk is not null)
         {
-            identityServerBuilder.AddSigningCredential(jwk, GetSigningAlgorithm(jwk));
+            var algorithm = GetSigningAlgorithm(jwk);
+            jwk.Alg = algorithm;
+            identityServerBuilder.AddSigningCredential(jwk, algorithm);
         }
         else if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("test"))
         {
@@ -162,29 +164,44 @@ public static class IdentityServerExtensions
 
     private static string GetSigningAlgorithm(JsonWebKey jwk)
     {
-        if (!string.IsNullOrWhiteSpace(jwk.Alg))
+        var algorithm = jwk.Alg;
+        if (string.IsNullOrWhiteSpace(algorithm))
         {
-            return jwk.Alg;
+            algorithm = jwk.Kty switch
+            {
+                "RSA" => SecurityAlgorithms.RsaSha256,
+                "EC" => jwk.Crv switch
+                {
+                    "P-256" => SecurityAlgorithms.EcdsaSha256,
+                    "P-384" => SecurityAlgorithms.EcdsaSha384,
+                    "P-521" => SecurityAlgorithms.EcdsaSha512,
+                    _ => throw UnsupportedSigningAlgorithm(),
+                },
+                _ => throw UnsupportedSigningAlgorithm(),
+            };
         }
 
-        return jwk.Kty switch
+        var isCompatible = algorithm switch
         {
-            "RSA" => SecurityAlgorithms.RsaSha256,
-            "EC" => jwk.Crv switch
-            {
-                "P-256" => SecurityAlgorithms.EcdsaSha256,
-                "P-384" => SecurityAlgorithms.EcdsaSha384,
-                "P-521" => SecurityAlgorithms.EcdsaSha512,
-                _ => throw UnsupportedSigningAlgorithm(),
-            },
-            _ => throw UnsupportedSigningAlgorithm(),
+            SecurityAlgorithms.RsaSha256
+            or SecurityAlgorithms.RsaSha384
+            or SecurityAlgorithms.RsaSha512
+            or SecurityAlgorithms.RsaSsaPssSha256
+            or SecurityAlgorithms.RsaSsaPssSha384
+            or SecurityAlgorithms.RsaSsaPssSha512 => jwk.Kty == "RSA",
+            SecurityAlgorithms.EcdsaSha256 => jwk.Kty == "EC" && jwk.Crv == "P-256",
+            SecurityAlgorithms.EcdsaSha384 => jwk.Kty == "EC" && jwk.Crv == "P-384",
+            SecurityAlgorithms.EcdsaSha512 => jwk.Kty == "EC" && jwk.Crv == "P-521",
+            _ => false,
         };
+
+        return isCompatible ? algorithm : throw UnsupportedSigningAlgorithm();
     }
 
     private static InvalidOperationException UnsupportedSigningAlgorithm()
     {
         return new InvalidOperationException(
-            "The configured signing JWK must specify a supported key type and curve or an algorithm. Set AuthOptions:SigningKey or AuthOptions:SigningKeyPath."
+            "The configured signing JWK must specify an algorithm compatible with its key type and curve. Set AuthOptions:SigningKey or AuthOptions:SigningKeyPath."
         );
     }
 }
