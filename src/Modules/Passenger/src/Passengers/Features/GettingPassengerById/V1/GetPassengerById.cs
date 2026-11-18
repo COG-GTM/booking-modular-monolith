@@ -1,5 +1,6 @@
 namespace Passenger.Passengers.Features.GettingPassengerById.V1;
 
+using System.Security.Claims;
 using Ardalis.GuardClauses;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Web;
@@ -27,7 +28,9 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapGet($"{EndpointConfig.BaseApiPath}/passenger/{{id}}",
+        builder
+            .MapGet(
+                $"{EndpointConfig.BaseApiPath}/passenger/{{id}}",
                 async (Guid id, IMediator mediator, CancellationToken cancellationToken) =>
                 {
                     var result = await mediator.Send(new GetPassengerById(id), cancellationToken);
@@ -35,7 +38,8 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
                     var response = result.Adapt<GetPassengerByIdResponseDto>();
 
                     return Results.Ok(response);
-                })
+                }
+            )
             .RequireAuthorization(nameof(ApiScope))
             .WithName("GetPassengerById")
             .WithApiVersionSet(builder.NewApiVersionSet("Passenger").Build())
@@ -60,11 +64,17 @@ public class GetPassengerByIdValidator : AbstractValidator<GetPassengerById>
 
 internal class GetPassengerByIdHandler : IQueryHandler<GetPassengerById, GetPassengerByIdResult>
 {
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IMapper _mapper;
     private readonly PassengerReadDbContext _passengerReadDbContext;
 
-    public GetPassengerByIdHandler(IMapper mapper, PassengerReadDbContext passengerReadDbContext)
+    public GetPassengerByIdHandler(
+        IMapper mapper,
+        PassengerReadDbContext passengerReadDbContext,
+        IHttpContextAccessor httpContextAccessor
+    )
     {
+        _httpContextAccessor = httpContextAccessor;
         _mapper = mapper;
         _passengerReadDbContext = passengerReadDbContext;
     }
@@ -73,9 +83,21 @@ internal class GetPassengerByIdHandler : IQueryHandler<GetPassengerById, GetPass
     {
         Guard.Against.Null(query, nameof(query));
 
-        var passenger =
-            await _passengerReadDbContext.Passenger.AsQueryable()
-                .SingleOrDefaultAsync(x => x.PassengerId == query.Id && x.IsDeleted == false, cancellationToken);
+        var user = _httpContextAccessor.HttpContext?.User;
+        var subject = user?.FindFirstValue("sub") ?? user?.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (
+            user?.Identity?.IsAuthenticated != true
+            || !Guid.TryParse(subject, out var userId)
+            || userId == Guid.Empty
+            || userId != query.Id
+        )
+        {
+            throw new PassengerNotFoundException();
+        }
+
+        var passenger = await _passengerReadDbContext
+            .Passenger.AsQueryable()
+            .SingleOrDefaultAsync(x => x.PassengerId == query.Id && x.IsDeleted == false, cancellationToken);
 
         if (passenger is null)
         {
