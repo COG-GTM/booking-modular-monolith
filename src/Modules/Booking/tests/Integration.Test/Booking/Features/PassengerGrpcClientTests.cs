@@ -14,14 +14,46 @@ namespace Integration.Test.Booking.Features;
 
 public class PassengerGrpcClientTests
 {
-    [Fact]
-    public async Task should_forward_the_incoming_bearer_token_to_passenger_grpc()
+    [Theory]
+    [InlineData("Bearer test-token")]
+    [InlineData("bearer test-token")]
+    public async Task should_forward_the_incoming_bearer_token_to_passenger_grpc(string incomingAuthorization)
     {
-        const string bearer = "Bearer test-token";
+        const string expectedAuthorization = "Bearer test-token";
         var context = new DefaultHttpContext();
-        context.Request.Headers.Authorization = bearer;
+        context.Request.Headers.Authorization = incomingAuthorization;
         var transport = new RecordingTransport();
 
+        using var provider = CreateProvider(context, transport);
+        var client = provider.GetRequiredService<PassengerGrpcService.PassengerGrpcServiceClient>();
+
+        var exception = await Assert.ThrowsAsync<RpcException>(
+            () => client.GetByIdAsync(new GetByIdRequest { Id = Guid.NewGuid().ToString() }).ResponseAsync
+        );
+
+        exception.StatusCode.Should().Be(StatusCode.NotFound);
+        transport.Authorization.Should().Be(expectedAuthorization);
+    }
+
+    [Fact]
+    public async Task should_not_forward_authorization_when_the_incoming_header_is_missing()
+    {
+        var context = new DefaultHttpContext();
+        var transport = new RecordingTransport();
+
+        using var provider = CreateProvider(context, transport);
+        var client = provider.GetRequiredService<PassengerGrpcService.PassengerGrpcServiceClient>();
+
+        var exception = await Assert.ThrowsAsync<RpcException>(
+            () => client.GetByIdAsync(new GetByIdRequest { Id = Guid.NewGuid().ToString() }).ResponseAsync
+        );
+
+        exception.StatusCode.Should().Be(StatusCode.NotFound);
+        transport.Authorization.Should().BeNull();
+    }
+
+    private static ServiceProvider CreateProvider(DefaultHttpContext context, RecordingTransport transport)
+    {
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(
             new ConfigurationBuilder()
@@ -40,16 +72,7 @@ public class PassengerGrpcClientTests
         services.ConfigureAll<HttpClientFactoryOptions>(options =>
             options.HttpMessageHandlerBuilderActions.Add(builder => builder.PrimaryHandler = transport)
         );
-
-        using var provider = services.BuildServiceProvider();
-        var client = provider.GetRequiredService<PassengerGrpcService.PassengerGrpcServiceClient>();
-
-        var exception = await Assert.ThrowsAsync<RpcException>(
-            () => client.GetByIdAsync(new GetByIdRequest { Id = Guid.NewGuid().ToString() }).ResponseAsync
-        );
-
-        exception.StatusCode.Should().Be(StatusCode.NotFound);
-        transport.Authorization.Should().Be(bearer);
+        return services.BuildServiceProvider();
     }
 
     private sealed class RecordingTransport : HttpMessageHandler
