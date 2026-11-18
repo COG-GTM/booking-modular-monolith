@@ -329,12 +329,15 @@ var api = builder
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
 
-foreach (var key in new[] { "AdminPassword", "UserPassword" })
+if (!builder.ExecutionContext.IsPublishMode)
 {
-    var value = builder.Configuration[$"IdentitySeedOptions:{key}"];
-    if (!string.IsNullOrWhiteSpace(value))
+    foreach (var key in new[] { "AdminPassword", "UserPassword" })
     {
-        api.WithEnvironment($"IdentitySeedOptions__{key}", value);
+        var value = builder.Configuration[$"IdentitySeedOptions:{key}"];
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            api.WithEnvironment($"IdentitySeedOptions__{key}", value);
+        }
     }
 }
 
