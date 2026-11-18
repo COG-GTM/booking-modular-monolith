@@ -4,6 +4,7 @@ using BuildingBlocks.TestBase;
 using Flight;
 using Flight.Data;
 using FluentAssertions;
+using Grpc.Core;
 using Integration.Test.Fakes;
 using Xunit;
 
@@ -52,5 +53,17 @@ public class GetFlightByIdTests : FlightIntegrationTestBase
         // Assert
         response?.Should().NotBeNull();
         response?.FlightDto.Id.Should().Be(command.Id.ToString());
+    }
+
+    [Fact]
+    public async Task should_reject_anonymous_get_flight_by_id_request()
+    {
+        var flightGrpcClient = new FlightGrpcService.FlightGrpcServiceClient(Fixture.AnonymousChannel);
+
+        var exception = await Assert.ThrowsAsync<RpcException>(
+            () => flightGrpcClient.GetByIdAsync(new GetByIdRequest { Id = Guid.NewGuid().ToString() }).ResponseAsync
+        );
+
+        exception.StatusCode.Should().Be(StatusCode.Unauthenticated);
     }
 }

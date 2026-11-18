@@ -74,6 +74,15 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
     public GrpcChannel Channel =>
         GrpcChannel.ForAddress(HttpClient.BaseAddress!, new GrpcChannelOptions { HttpClient = HttpClient });
 
+    public GrpcChannel AnonymousChannel
+    {
+        get
+        {
+            var client = _factory.CreateClient();
+            return GrpcChannel.ForAddress(client.BaseAddress!, new GrpcChannelOptions { HttpClient = client });
+        }
+    }
+
     public IServiceProvider ServiceProvider => _factory?.Services;
     public IConfiguration Configuration => _factory?.Services.GetRequiredService<IConfiguration>();
     public ILogger Logger { get; set; }

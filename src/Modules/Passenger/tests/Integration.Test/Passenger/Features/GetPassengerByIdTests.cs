@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using Api;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
+using Grpc.Core;
 using Integration.Test.Fakes;
 using Passenger;
 using Passenger.Data;
@@ -52,5 +53,17 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         // Assert
         response?.Should().NotBeNull();
         response?.PassengerDto?.Id.Should().Be(command.Id.ToString());
+    }
+
+    [Fact]
+    public async Task should_reject_anonymous_get_passenger_by_id_request()
+    {
+        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(Fixture.AnonymousChannel);
+
+        var exception = await Assert.ThrowsAsync<RpcException>(
+            () => passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = Guid.NewGuid().ToString() }).ResponseAsync
+        );
+
+        exception.StatusCode.Should().Be(StatusCode.Unauthenticated);
     }
 }
