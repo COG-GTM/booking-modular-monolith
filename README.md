@@ -206,14 +206,23 @@ dotnet dev-certs https --trust
 
 > ### Token signing key
 
-Development and test environments generate a local `tempkey.jwk`; never commit it. Other environments, including Docker Compose (`ASPNETCORE_ENVIRONMENT=docker`), use Duende automatic key management unless `AuthOptions__SigningKey` (JWK JSON) or `AuthOptions__SigningKeyPath` is configured. In Compose, export the chosen variable before `docker compose up`. A `SigningKeyPath` must point inside the container, so mount the key file read-only, for example:
+Development and test environments generate a local `tempkey.jwk`; never commit it. Other environments, including Docker Compose (`ASPNETCORE_ENVIRONMENT=docker`), use Duende automatic key management unless `AuthOptions__SigningKey` (JWK JSON) or `AuthOptions__SigningKeyPath` is configured. Compose forwards only `AuthOptions__SigningKeyPath`; supply inline `AuthOptions__SigningKey` only through a secret store, not a Compose environment variable.
 
 ```yaml
-volumes:
-  - ./secrets/signing-key.jwk:/run/secrets/signing-key.jwk:ro
+services:
+  booking_modular_monolith:
+    volumes:
+      - ./secrets/signing-key.jwk:/run/secrets/signing-key.jwk:ro
 ```
 
-Then set `AuthOptions__SigningKeyPath=/run/secrets/signing-key.jwk`. Hosts that validate each other's tokens must share the configured key, or the same Duende key store and Data Protection keys. The previously committed key is compromised; the app refuses to load it, and it must never be reused.
+The source path is relative to `deployments/docker-compose/docker-compose.yaml`. Export the path inside the container before starting Compose:
+
+```bash
+export AuthOptions__SigningKeyPath=/run/secrets/signing-key.jwk
+docker compose -f deployments/docker-compose/docker-compose.yaml up
+```
+
+Non-Development installs that previously relied on an independently generated (not committed) `tempkey.jwk` should set `AuthOptions__SigningKeyPath` to that file to preserve existing tokens. Otherwise, tokens issued before the upgrade stop validating; they expire within the token lifetime. Hosts that validate each other's tokens must share the configured key, or the same Duende key store and Data Protection keys. The previously committed key is compromised; the app refuses to load it, and it must never be reused.
 
 > ### Aspire
 
