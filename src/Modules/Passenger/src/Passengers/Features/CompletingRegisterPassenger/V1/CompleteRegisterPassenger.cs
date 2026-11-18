@@ -27,7 +27,7 @@ public record CompleteRegisterPassenger
 }
 
 public record PassengerRegistrationCompletedDomainEvent(Guid Id, string Name, string PassportNumber,
-    Enums.PassengerType PassengerType, int Age, bool IsDeleted = false) : IDomainEvent;
+    Enums.PassengerType PassengerType, int Age, bool IsDeleted = false, Guid? UserId = null) : IDomainEvent;
 
 public record CompleteRegisterPassengerResult(PassengerDto PassengerDto);
 

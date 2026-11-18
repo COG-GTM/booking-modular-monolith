@@ -14,7 +14,8 @@ public class PassengerMappings : IRegister
     {
         config.NewConfig<CompleteRegisterPassengerMongoCommand, PassengerReadModel>()
         .Map(d => d.Id, s => NewId.NextGuid())
-            .Map(d => d.PassengerId, s => PassengerId.Of(s.Id));
+            .Map(d => d.PassengerId, s => PassengerId.Of(s.Id))
+            .Map(d => d.UserId, s => s.UserId);
 
         config.NewConfig<CompleteRegisterPassengerRequestDto, CompleteRegisterPassenger>()
             .ConstructUsing(x => new CompleteRegisterPassenger(x.PassportNumber, x.PassengerType, x.Age));

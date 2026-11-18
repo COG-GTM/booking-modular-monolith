@@ -18,7 +18,10 @@ public class PassengerGrpcServices : PassengerGrpcService.PassengerGrpcServiceBa
 
     public override async Task<GetPassengerByIdResult> GetById(GetByIdRequest request, ServerCallContext context)
     {
-        var result = await _mediator.Send(new GetPassengerById(new Guid(request.Id)));
+        var result = await _mediator.Send(
+            GetPassengerById.For(new Guid(request.Id), context.GetHttpContext().User),
+            context.CancellationToken
+        );
         return result?.Adapt<GetPassengerByIdResult>();
     }
 }

@@ -14,6 +14,7 @@ public class FakeCompleteRegisterPassengerMongoCommand : AutoFaker<CompleteRegis
         RuleFor(r => r.PassportNumber, _ => "123456789");
         RuleFor(r => r.Age, _ => 30);
         RuleFor(r => r.IsDeleted, _ => false);
+        RuleFor(r => r.UserId, _ => NewId.NextGuid());
         RuleFor(r => r.PassengerType, _ => PassengerType.Male);
     }
 }

@@ -16,6 +16,7 @@ public class PassengerConfiguration : IEntityTypeConfiguration<Passengers.Models
             .HasConversion<Guid>(passengerId => passengerId.Value, dbId => PassengerId.Of(dbId));
 
         builder.Property(r => r.Version).IsConcurrencyToken();
+        builder.Property(r => r.UserId).IsRequired(false);
 
         builder.OwnsOne(
             x => x.Name,
