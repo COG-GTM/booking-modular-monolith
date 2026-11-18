@@ -4,6 +4,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
@@ -36,12 +37,15 @@ public class ReserveSeatEndpoint : IMinimalEndpoint
     {
         builder.MapPost($"{EndpointConfig.BaseApiPath}/flight/reserve-seat", ReserveSeat)
             .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(policy => policy.RequireRole(IdentityConstant.Role.Admin))
             .WithName("ReserveSeat")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<ReserveSeatResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden)
             .WithSummary("Reserve Seat")
-            .WithDescription("Reserve Seat")
+            .WithDescription("Reserve Seat (admin only; passengers reserve seats through create-booking)")
             .WithOpenApi()
             .HasApiVersion(1.0);
 
