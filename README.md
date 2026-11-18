@@ -241,7 +241,7 @@ To `test` all modules, run this command in the `root` of the project:
 dotnet test
 ```
 
-The seeded `samh` (admin) and `samh2` users are created only when `IdentitySeedOptions__AdminPassword` and `IdentitySeedOptions__UserPassword` are configured through environment variables or user-secrets. Without those settings, no seeded users are created.
+The seeded `samh` (admin) and `samh2` users are created only when `IdentitySeedOptions__AdminPassword` and `IdentitySeedOptions__UserPassword` are set—as environment variables for `dotnet run` and Docker Compose (forwarded to the API container), or as AppHost user-secrets/environment variables (`IdentitySeedOptions:AdminPassword` and `IdentitySeedOptions:UserPassword`) for Aspire. Seeding only runs when the users table is empty, so set both before the first start.
 
 > ### Documentation Apis
 
