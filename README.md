@@ -241,7 +241,7 @@ To `test` all modules, run this command in the `root` of the project:
 dotnet test
 ```
 
-The seeded `samh` (admin) and `samh2` users are created only when `IdentitySeedOptions__AdminPassword` and `IdentitySeedOptions__UserPassword` are set—as environment variables for `dotnet run` and Docker Compose (forwarded to the API container), or as AppHost user-secrets/environment variables (`IdentitySeedOptions:AdminPassword` and `IdentitySeedOptions:UserPassword`) for Aspire. Seeding only runs when the users table is empty, so set both before the first start.
+Each seed password enables only its account: `IdentitySeedOptions__AdminPassword` seeds `samh` (admin), and `IdentitySeedOptions__UserPassword` seeds `samh2`. For `dotnet run` and Docker Compose, export the corresponding environment variables. For local Aspire runs, set each value as AppHost user-secrets from `src/Aspire/src/AppHost`, for example `dotnet user-secrets set "IdentitySeedOptions:AdminPassword" "<value>"` (use `IdentitySeedOptions:UserPassword` for the other account); Aspire forwards these only in run mode, not when publishing. `booking.rest` reads `IdentitySeedOptions__AdminPassword` from the REST client's process environment, so export it there too. Seeding only runs when the users table is empty, so set passwords before the first start.
 
 > ### Documentation Apis
 
