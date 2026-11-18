@@ -1,6 +1,8 @@
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Api;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.TestBase;
 using Flight.Data;
@@ -41,5 +43,54 @@ public class DeleteFlightTests : FlightIntegrationTestBase
         deletedFlight?.IsDeleted.Should().BeTrue();
 
         (await Fixture.WaitForPublishing<FlightDeleted>()).Should().Be(true);
+    }
+
+    [Fact]
+    public async Task should_forbid_user_from_deleting_flight()
+    {
+        // Arrange
+        var flightId = InitialData.Flights.First().Id.Value;
+        using var client = Fixture.CreateHttpClient(IdentityConstant.Role.User);
+
+        // Act
+        using var response = await client.DeleteAsync($"api/v1/flight/{flightId}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+        var flight = await Fixture.ExecuteDbContextAsync(db =>
+            db.Flights
+                .Where(x => x.Id == FlightId.Of(flightId))
+                .IgnoreQueryFilters()
+                .SingleAsync()
+        );
+        flight.IsDeleted.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task should_allow_admin_to_delete_flight()
+    {
+        // Arrange
+        var flightId = InitialData.Flights.First().Id.Value;
+        using var client = Fixture.CreateHttpClient(IdentityConstant.Role.Admin);
+
+        // Act
+        using var response = await client.DeleteAsync($"api/v1/flight/{flightId}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task should_allow_user_to_get_available_flights()
+    {
+        // Arrange
+        using var client = Fixture.CreateHttpClient(IdentityConstant.Role.User);
+
+        // Act
+        using var response = await client.GetAsync("api/v1/flight/get-available-flights");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }
