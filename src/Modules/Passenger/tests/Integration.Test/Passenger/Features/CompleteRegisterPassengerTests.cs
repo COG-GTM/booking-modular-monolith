@@ -21,7 +21,8 @@ public class CompleteRegisterPassengerTests : PassengerIntegrationTestBase
         var passenger = global::Passenger.Passengers.Models.Passenger.Create(
             PassengerId.Of(Guid.CreateVersion7()),
             Name.Of("Sam"),
-            PassportNumber.Of("123456789")
+            PassportNumber.Of("123456789"),
+            Guid.Empty
         );
 
         await Fixture.InsertAsync(passenger);
@@ -37,5 +38,25 @@ public class CompleteRegisterPassengerTests : PassengerIntegrationTestBase
         response?.PassengerDto?.PassportNumber.Should().Be(command.PassportNumber);
         response?.PassengerDto?.PassengerType.ToString().Should().Be(command.PassengerType.ToString());
         response?.PassengerDto?.Age.Should().Be(command.Age);
+    }
+
+    [Fact]
+    public async Task should_complete_register_passenger_with_lowercase_padded_passport_number()
+    {
+        var passenger = global::Passenger.Passengers.Models.Passenger.Create(
+            PassengerId.Of(Guid.CreateVersion7()),
+            Name.Of("Sam"),
+            PassportNumber.Of("AB1234567"),
+            Guid.Empty
+        );
+
+        await Fixture.InsertAsync(passenger);
+
+        var command = new FakeCompleteRegisterPassengerCommand(" ab1234567 ", passenger.Id).Generate();
+
+        var response = await Fixture.SendAsync(command);
+
+        response.Should().NotBeNull();
+        response?.PassengerDto?.PassportNumber.Should().Be(passenger.PassportNumber.Value);
     }
 }
