@@ -1,4 +1,5 @@
 using System.Reflection;
+using BuildingBlocks.EventStoreDB.Events;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -18,6 +19,8 @@ public static class Extensions
         services.AddValidateOptions<EventStoreOptions>();
 
         var assembliesToScan = assemblies.Length > 0 ? assemblies : new[] { Assembly.GetEntryAssembly()! };
+
+        EventTypeMapper.AddDomainEventTypes(assembliesToScan);
 
         return services
             .AddEventStoreDB(configuration)
