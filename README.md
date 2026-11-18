@@ -204,6 +204,18 @@ dotnet dev-certs https --trust
 ```
 
 
+> ### Identity Secrets
+
+The Identity module does not ship default credentials. Set these before starting the app (environment variables, `dotnet user-secrets`, or Aspire parameters `identity-client-secret` / `identity-admin-password`):
+
+| Setting | Environment variable | Purpose |
+|---|---|---|
+| `AuthOptions:ClientSecret` | `IDENTITY_CLIENT_SECRET` (docker-compose) / `AuthOptions__ClientSecret` | Secret of the `client` OAuth client. Required. |
+| `IdentitySeedOptions:AdminPassword` | `IDENTITY_ADMIN_PASSWORD` (docker-compose) / `IdentitySeedOptions__AdminPassword` | Password of the initial `samh` admin. Required on first start against an empty Identity database. |
+| `IdentitySeedOptions:UserPassword` | `IdentitySeedOptions__UserPassword` | Optional. Creates the `samh2` user when set. |
+
+[booking.rest](./booking.rest) reads `IDENTITY_CLIENT_SECRET` and `IDENTITY_ADMIN_PASSWORD` from your environment.
+
 > ### Aspire
 
 To run the application using the `Aspire App Host`, execute the following command from the solution root:
