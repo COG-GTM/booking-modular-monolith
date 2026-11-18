@@ -440,3 +440,7 @@ fabric.properties
 
 # EventStore
 **/eventstore
+
+# Duende automatic key management output (persisted signing keys)
+**/is-signing-key-*.json
+**/tempkey.jwk

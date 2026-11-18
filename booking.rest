@@ -1,6 +1,10 @@
 
 @booking-modular-monolith-api=https://localhost:3000  
 
+# These must match the values you configured (user-secrets or env vars).
+@client-secret = <your-client-secret>
+@admin-password = <your-admin-password>
+
 @contentType = application/json
 @flightid = "3c5c0000-97c6-fc34-2eb9-08db322230c9"
 @passengerId = "8c9c0000-97c6-fc34-2eb9-66db322230c9"
@@ -14,9 +18,9 @@ Content-Type: application/x-www-form-urlencoded
 
 grant_type=password
 &client_id=client
-&client_secret=secret
+&client_secret={{client-secret}}
 &username=samh
-&password=Admin@123456
+&password={{admin-password}}
 &scope=booking-modular-monolith role
 ###
 

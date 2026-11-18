@@ -352,6 +352,11 @@ services:
       - ASPNETCORE_HTTP_PORT=3001
       - ASPNETCORE_Kestrel__Certificates__Default__Password=password
       - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      - AuthOptions__ClientSecret=${IDENTITY_CLIENT_SECRET:-}
+      - AuthOptions__SigningCertificate__Path=${IDENTITY_SIGNING_CERT_PATH:-}
+      - AuthOptions__SigningCertificate__Password=${IDENTITY_SIGNING_CERT_PASSWORD:-}
+      - IdentitySeedOptions__AdminPassword=${IDENTITY_SEED_ADMIN_PASSWORD:-}
+      - IdentitySeedOptions__UserPassword=${IDENTITY_SEED_USER_PASSWORD:-}
     networks:
       - booking
 
