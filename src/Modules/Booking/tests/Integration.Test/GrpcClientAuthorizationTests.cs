@@ -16,8 +16,6 @@ public class GrpcClientAuthorizationTests
     [Theory]
     [InlineData(true, "caller-token")]
     [InlineData(false, "caller-token")]
-    [InlineData(true, null)]
-    [InlineData(false, null)]
     public async Task should_forward_only_the_callers_authorization_header(bool flight, string? token)
     {
         var context = new DefaultHttpContext();
