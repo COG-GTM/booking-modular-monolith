@@ -1,13 +1,13 @@
 using System.Net;
 using System.Security.Claims;
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Core.Model;
 using BuildingBlocks.EFCore;
 using BuildingBlocks.Mongo;
 using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Web;
-using Duende.IdentityServer.EntityFramework.Entities;
 using EasyNetQ.Management.Client;
 using Grpc.Net.Client;
 using MassTransit;
@@ -118,7 +118,7 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
                 services.AddAuthorization(options =>
                 {
                     options.AddPolicy(
-                        nameof(ApiScope),
+                        IdentityConstant.Policy.ApiScope,
                         policy =>
                         {
                             policy.AddAuthenticationSchemes(FakeJwtBearerDefaults.AuthenticationScheme);

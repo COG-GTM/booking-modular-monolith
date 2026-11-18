@@ -5,11 +5,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
 using Data;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Exceptions;
 using Flight.Aircrafts.ValueObjects;
 using FluentValidation;
@@ -23,16 +23,17 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Models;
 
-public record CreateAircraft(string Name, string Model, int ManufacturingYear) : ICommand<CreateAircraftResult>,
-    IInternalCommand
+public record CreateAircraft(string Name, string Model, int ManufacturingYear)
+    : ICommand<CreateAircraftResult>,
+        IInternalCommand
 {
     public Guid Id { get; init; } = NewId.NextGuid();
 }
 
 public record CreateAircraftResult(AircraftId Id);
 
-public record AircraftCreatedDomainEvent
-    (Guid Id, string Name, string Model, int ManufacturingYear, bool IsDeleted) : IDomainEvent;
+public record AircraftCreatedDomainEvent(Guid Id, string Name, string Model, int ManufacturingYear, bool IsDeleted)
+    : IDomainEvent;
 
 public record CreateAircraftRequestDto(string Name, string Model, int ManufacturingYear);
 
@@ -42,19 +43,26 @@ public class CreateAircraftEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapPost($"{EndpointConfig.BaseApiPath}/flight/aircraft", async (CreateAircraftRequestDto request,
-                IMediator mediator, IMapper mapper,
-                CancellationToken cancellationToken) =>
-            {
-                var command = mapper.Map<CreateAircraft>(request);
+        builder
+            .MapPost(
+                $"{EndpointConfig.BaseApiPath}/flight/aircraft",
+                async (
+                    CreateAircraftRequestDto request,
+                    IMediator mediator,
+                    IMapper mapper,
+                    CancellationToken cancellationToken
+                ) =>
+                {
+                    var command = mapper.Map<CreateAircraft>(request);
 
-                var result = await mediator.Send(command, cancellationToken);
+                    var result = await mediator.Send(command, cancellationToken);
 
-                var response = result.Adapt<CreateAircraftResponseDto>();
+                    var response = result.Adapt<CreateAircraftResponseDto>();
 
-                return Results.Ok(response);
-            })
-            .RequireAuthorization(nameof(ApiScope))
+                    return Results.Ok(response);
+                }
+            )
+            .RequireAuthorization(IdentityConstant.Policy.ApiScope)
             .WithName("CreateAircraft")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<CreateAircraftResponseDto>()
@@ -92,14 +100,21 @@ internal class CreateAircraftHandler : IRequestHandler<CreateAircraft, CreateAir
         Guard.Against.Null(request, nameof(request));
 
         var aircraft = await _flightDbContext.Aircraft.SingleOrDefaultAsync(
-            a => a.Model.Value == request.Model, cancellationToken);
+            a => a.Model.Value == request.Model,
+            cancellationToken
+        );
 
         if (aircraft is not null)
         {
             throw new AircraftAlreadyExistException();
         }
 
-        var aircraftEntity = Aircraft.Create(AircraftId.Of(request.Id), Name.Of(request.Name), Model.Of(request.Model), ManufacturingYear.Of(request.ManufacturingYear));
+        var aircraftEntity = Aircraft.Create(
+            AircraftId.Of(request.Id),
+            Name.Of(request.Name),
+            Model.Of(request.Model),
+            ManufacturingYear.Of(request.ManufacturingYear)
+        );
 
         var newAircraft = (await _flightDbContext.Aircraft.AddAsync(aircraftEntity, cancellationToken)).Entity;
 

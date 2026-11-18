@@ -8,11 +8,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Web;
 using Data;
 using Dtos;
-using Duende.IdentityServer.EntityFramework.Entities;
 using Exceptions;
 using FluentValidation;
 using Mapster;
@@ -33,8 +33,9 @@ public class GetAvailableSeatsEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapGet($"{EndpointConfig.BaseApiPath}/flight/get-available-seats/{{id}}", GetAvailableSeats)
-            .RequireAuthorization(nameof(ApiScope))
+        builder
+            .MapGet($"{EndpointConfig.BaseApiPath}/flight/get-available-seats/{{id}}", GetAvailableSeats)
+            .RequireAuthorization(IdentityConstant.Policy.ApiScope)
             .WithName("GetAvailableSeats")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<GetAvailableSeatsResponseDto>()
@@ -76,13 +77,13 @@ internal class GetAvailableSeatsQueryHandler : IRequestHandler<GetAvailableSeats
         _flightReadDbContext = flightReadDbContext;
     }
 
-
     public async Task<GetAvailableSeatsResult> Handle(GetAvailableSeats query, CancellationToken cancellationToken)
     {
         Guard.Against.Null(query, nameof(query));
 
-        var seats = (await _flightReadDbContext.Seat.AsQueryable().ToListAsync(cancellationToken))
-            .Where(x => x.FlightId == query.FlightId && !x.IsDeleted);
+        var seats = (await _flightReadDbContext.Seat.AsQueryable().ToListAsync(cancellationToken)).Where(x =>
+            x.FlightId == query.FlightId && !x.IsDeleted
+        );
 
         if (!seats.Any())
         {
