@@ -83,11 +83,11 @@ public class SeatClaimCompletionTests
     }
 
     [Fact]
-    public void no_available_seat_exception_should_report_conflict()
+    public void no_available_seat_exception_should_report_unprocessable_entity()
     {
         var exception = new NoAvailableSeatException();
 
-        exception.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        exception.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
         exception.Message.Should().Be("No available seat for this flight!");
     }
 
