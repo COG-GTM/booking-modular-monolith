@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Api;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
@@ -65,7 +66,7 @@ public class IdentityDataSeederTests : IdentityIntegrationTestBase
     }
 
     private Task DeleteAllUsers() =>
-        Fixture.ExecuteDbContextAsync(async db =>
+        Fixture.ExecuteDbContextAsync(async Task (IdentityContext db) =>
         {
             await db.UserRoles.ExecuteDeleteAsync();
             await db.UserClaims.ExecuteDeleteAsync();
