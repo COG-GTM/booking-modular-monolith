@@ -1,3 +1,5 @@
+using System.Runtime.ExceptionServices;
+using System.Text;
 using BuildingBlocks.EventStoreDB.Events;
 using BuildingBlocks.EventStoreDB.Projections;
 using BuildingBlocks.Utils;
@@ -5,6 +7,7 @@ using EventStore.Client;
 using Grpc.Core;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace BuildingBlocks.EventStoreDB.Subscriptions;
 
@@ -19,6 +22,12 @@ public class EventStoreDBSubscriptionToAllOptions
     public UserCredentials? Credentials { get; set; }
     public bool ResolveLinkTos { get; set; }
     public bool IgnoreDeserializationErrors { get; set; } = true;
+
+    // Events that still fail after MaxHandlingAttempts are moved to the parked stream and skipped,
+    // so one bad event can't block the subscription. Set to false to stop and resubscribe instead.
+    public bool ParkFailedEvents { get; set; } = true;
+    public int MaxHandlingAttempts { get; set; } = 3;
+    public TimeSpan RetryDelay { get; set; } = TimeSpan.FromMilliseconds(500);
 }
 
 public class EventStoreDBSubscriptionToAll
@@ -74,45 +83,108 @@ public class EventStoreDBSubscriptionToAll
         logger.LogInformation("Subscription to all '{SubscriptionId}' started", SubscriptionId);
     }
 
+    public const string ParkedEventType = "parked-event";
+
+    public static string GetParkedStreamName(string subscriptionId) => $"parked_{subscriptionId}";
+
     private async Task HandleEvent(StreamSubscription subscription, ResolvedEvent resolvedEvent,
         CancellationToken ct)
     {
+        if (IsEventWithEmptyData(resolvedEvent) || IsCheckpointEvent(resolvedEvent) || IsParkedEvent(resolvedEvent))
+            return;
+
+        StreamEvent? streamEvent;
+
         try
         {
-            if (IsEventWithEmptyData(resolvedEvent) || IsCheckpointEvent(resolvedEvent))
-                return;
-
-            var streamEvent = resolvedEvent.ToStreamEvent();
-
-            if (streamEvent == null)
-            {
-                // That can happen if we're sharing database between modules.
-                // If we're subscribing to all and not filtering out events from other modules,
-                // then we might get events that are from other module and we might not be able to deserialize them.
-                // In that case it's safe to ignore deserialization error.
-                // You may add more sophisticated logic checking if it should be ignored or not.
-                logger.LogWarning("Couldn't deserialize event with id: {EventId}", resolvedEvent.Event.EventId);
-
-                if (!subscriptionOptions.IgnoreDeserializationErrors)
-                    throw new InvalidOperationException($"Unable to deserialize event {resolvedEvent.Event.EventType} with id: {resolvedEvent.Event.EventId}");
-                return;
-            }
-
-            // publish event to internal event bus
-            await _mediator.Publish(streamEvent, ct);
-
-            await projectionPublisher.PublishAsync(streamEvent, ct);
-
-            await checkpointRepository.Store(SubscriptionId, resolvedEvent.Event.Position.CommitPosition, ct);
+            streamEvent = resolvedEvent.ToStreamEvent();
         }
-        catch (System.Exception e)
+        catch (System.Exception e) when (e is not OperationCanceledException)
         {
-            logger.LogError("Error consuming message: {ExceptionMessage}{ExceptionStackTrace}", e.Message,
-                e.StackTrace);
-            // if you're fine with dropping some events instead of stopping subscription
-            // then you can add some logic if error should be ignored
-            throw;
+            await ParkOrThrow(resolvedEvent, "deserialization-failed", e, ct);
+            return;
         }
+
+        if (streamEvent == null)
+        {
+            // Unknown event type: either written by another module sharing the database
+            // or not one of the registered event types of this application.
+            logger.LogWarning("Couldn't deserialize event with id: {EventId} and type: {EventType}",
+                resolvedEvent.Event.EventId, resolvedEvent.Event.EventType);
+
+            if (!subscriptionOptions.IgnoreDeserializationErrors)
+                throw new InvalidOperationException($"Unable to deserialize event {resolvedEvent.Event.EventType} with id: {resolvedEvent.Event.EventId}");
+            return;
+        }
+
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                // publish event to internal event bus
+                await _mediator.Publish(streamEvent, ct);
+
+                await projectionPublisher.PublishAsync(streamEvent, ct);
+
+                break;
+            }
+            catch (System.Exception e) when (e is not OperationCanceledException)
+            {
+                logger.LogError(e, "Error consuming event {EventId} of type {EventType} (attempt {Attempt}/{MaxAttempts})",
+                    resolvedEvent.Event.EventId, resolvedEvent.Event.EventType, attempt,
+                    subscriptionOptions.MaxHandlingAttempts);
+
+                if (attempt >= subscriptionOptions.MaxHandlingAttempts)
+                {
+                    await ParkOrThrow(resolvedEvent, "handling-failed", e, ct);
+                    return;
+                }
+
+                await Task.Delay(subscriptionOptions.RetryDelay, ct);
+            }
+        }
+
+        await checkpointRepository.Store(SubscriptionId, resolvedEvent.Event.Position.CommitPosition, ct);
+    }
+
+    private async Task ParkOrThrow(ResolvedEvent resolvedEvent, string reason, System.Exception exception,
+        CancellationToken ct)
+    {
+        if (!subscriptionOptions.ParkFailedEvents)
+            ExceptionDispatchInfo.Throw(exception);
+
+        var metadata = new
+        {
+            SubscriptionId,
+            Reason = reason,
+            Error = exception.Message,
+            OriginalEventId = resolvedEvent.Event.EventId.ToString(),
+            OriginalEventType = resolvedEvent.Event.EventType,
+            OriginalStreamId = resolvedEvent.Event.EventStreamId,
+            OriginalStreamRevision = resolvedEvent.Event.EventNumber.ToUInt64(),
+            OriginalCommitPosition = resolvedEvent.Event.Position.CommitPosition,
+            ParkedAt = DateTime.UtcNow
+        };
+
+        await eventStoreClient.AppendToStreamAsync(
+            GetParkedStreamName(SubscriptionId),
+            StreamState.Any,
+            new[]
+            {
+                new EventData(
+                    Uuid.NewUuid(),
+                    ParkedEventType,
+                    resolvedEvent.Event.Data,
+                    Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(metadata)))
+            },
+            cancellationToken: ct);
+
+        logger.LogError(exception,
+            "Parked event {EventId} of type {EventType} from stream {StreamId} to {ParkedStream} ({Reason})",
+            resolvedEvent.Event.EventId, resolvedEvent.Event.EventType, resolvedEvent.Event.EventStreamId,
+            GetParkedStreamName(SubscriptionId), reason);
+
+        await checkpointRepository.Store(SubscriptionId, resolvedEvent.Event.Position.CommitPosition, ct);
     }
 
     private void HandleDrop(StreamSubscription _, SubscriptionDroppedReason reason, System.Exception? exception)
@@ -179,6 +251,9 @@ public class EventStoreDBSubscriptionToAll
         logger.LogInformation("Event without data received");
         return true;
     }
+
+    private bool IsParkedEvent(ResolvedEvent resolvedEvent) =>
+        resolvedEvent.Event.EventType == ParkedEventType;
 
     private bool IsCheckpointEvent(ResolvedEvent resolvedEvent)
     {

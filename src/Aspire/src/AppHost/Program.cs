@@ -86,7 +86,6 @@ var eventstore = builder.AddEventStore("eventstore")
     .WithEnvironment("EVENTSTORE_RUN_PROJECTIONS", "All")
     .WithEnvironment("EVENTSTORE_START_STANDARD_PROJECTIONS", "True")
     .WithEnvironment("EVENTSTORE_INSECURE", "True")
-    .WithEnvironment("EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP", "True")
     .WithEndpoint(
         "http",
         e =>
@@ -94,7 +93,7 @@ var eventstore = builder.AddEventStore("eventstore")
             e.TargetPort = 2113;
             e.Port = 2113;
             e.IsProxied = true;
-            e.IsExternal = true;
+            e.IsExternal = false;
         })
     .WithEndpoint(
         port: 1113,

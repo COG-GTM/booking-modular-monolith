@@ -1,6 +1,8 @@
 using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using BuildingBlocks.EventStoreDB.Events;
+using BuildingBlocks.EventStoreDB.Subscriptions;
 
 namespace BuildingBlocks.EventStoreDB;
 
@@ -18,6 +20,9 @@ public static class Extensions
         services.AddValidateOptions<EventStoreOptions>();
 
         var assembliesToScan = assemblies.Length > 0 ? assemblies : new[] { Assembly.GetEntryAssembly()! };
+
+        EventTypeMapper.RegisterEventTypes(assembliesToScan);
+        EventTypeMapper.ToName<CheckpointStored>();
 
         return services
             .AddEventStoreDB(configuration)
