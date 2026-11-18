@@ -40,6 +40,7 @@ public class ReserveSeatEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<ReserveSeatResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Reserve Seat")
             .WithDescription("Reserve Seat")
             .WithOpenApi()
@@ -83,13 +84,21 @@ internal class ReserveSeatCommandHandler : IRequestHandler<ReserveSeat, ReserveS
     {
         Guard.Against.Null(command, nameof(command));
 
-        var seat = await _flightDbContext.Seats.SingleOrDefaultAsync(
-            x => x.SeatNumber.Value == command.SeatNumber &&
-                 x.FlightId == command.FlightId, cancellationToken);
+        // Reserved seats are soft-deleted, so bypass the filter to tell "taken" apart from "unknown".
+        var seat = await _flightDbContext.Seats
+            .IgnoreQueryFilters()
+            .SingleOrDefaultAsync(
+                x => x.SeatNumber.Value == command.SeatNumber &&
+                     x.FlightId == command.FlightId, cancellationToken);
 
         if (seat is null)
         {
             throw new SeatNumberIncorrectException();
+        }
+
+        if (seat.IsDeleted)
+        {
+            throw new SeatAlreadyReservedException();
         }
 
         seat.ReserveSeat();
