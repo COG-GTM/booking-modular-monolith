@@ -13,7 +13,6 @@ using Data;
 using Duende.IdentityServer.EntityFramework.Entities;
 using Exceptions;
 using Flight.Airports.ValueObjects;
-using Flight.Flights.Features.CreatingFlight.V1;
 using FluentValidation;
 using MapsterMapper;
 using MediatR;
@@ -70,10 +69,11 @@ public class UpdateFlightEndpoint : IMinimalEndpoint
     }
 }
 
-public class UpdateFlightValidator : AbstractValidator<CreateFlight>
+public class UpdateFlightValidator : AbstractValidator<UpdateFlight>
 {
     public UpdateFlightValidator()
     {
+        RuleFor(x => x.Id).NotEmpty().WithMessage("Id must be not empty");
         RuleFor(x => x.Price).GreaterThan(0).WithMessage("Price must be greater than 0");
 
         RuleFor(x => x.Status).Must(p => (p.GetType().IsEnum &&
