@@ -249,6 +249,29 @@ aspire run
 
 > ### Docker Compose
 
+The `docker` environment requires an IdentityServer signing certificate; it does not use an
+ephemeral developer key. Place a PKCS#12 (`.pfx`) certificate with an RSA private key in
+`~/.aspnet/https`, which is already mounted read-only at `/https` in the API container.
+For local development only, generate a throwaway certificate (OpenSSL prompts for the export
+password):
+
+```bash
+mkdir -p ~/.aspnet/https
+openssl req -x509 -newkey rsa:2048 -noenc -keyout ~/.aspnet/https/identity-signing.key \
+  -out ~/.aspnet/https/identity-signing.crt -days 30 -subj '/CN=identity-local-signing'
+openssl pkcs12 -export -inkey ~/.aspnet/https/identity-signing.key \
+  -in ~/.aspnet/https/identity-signing.crt -out ~/.aspnet/https/identity-signing.pfx
+export IDENTITY_SIGNING_CERT_PATH=/https/identity-signing.pfx
+read -rsp 'Signing certificate password: ' IDENTITY_SIGNING_CERT_PASSWORD; echo
+export IDENTITY_SIGNING_CERT_PASSWORD
+```
+
+Use the **container path**, not the host path, for `IDENTITY_SIGNING_CERT_PATH`. Also set
+`IDENTITY_CLIENT_SECRET`, `IDENTITY_SEED_ADMIN_PASSWORD`, and `IDENTITY_SEED_USER_PASSWORD`
+as described above. Keep certificate files and passwords out of source control; production
+deployments must supply an appropriately managed signing certificate, not this throwaway one.
+The signing certificate is separate from the existing `aspnetapp.pfx` HTTPS certificate.
+
 To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-compose/docker-compose.yaml) and execute the below command at the `root` of the application:
 
 ```bash
