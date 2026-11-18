@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Transactions;
 using BuildingBlocks.Core;
 using BuildingBlocks.PersistMessageProcessor;
@@ -40,12 +39,6 @@ where TResponse : notnull
             "{Prefix} Handled command {MediatrRequest}",
             GetType().Name,
             typeof(TRequest).FullName);
-
-        _logger.LogDebug(
-            "{Prefix} Handled command {MediatrRequest} with content {RequestContent}",
-            GetType().Name,
-            typeof(TRequest).FullName,
-            JsonSerializer.Serialize(request));
 
         var response = await next();
 
