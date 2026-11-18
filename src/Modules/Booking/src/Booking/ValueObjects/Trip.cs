@@ -1,6 +1,7 @@
 namespace Booking.Booking.ValueObjects;
 
 using Exceptions;
+using Newtonsoft.Json;
 
 public record Trip
 {
@@ -13,6 +14,7 @@ public record Trip
     public string Description { get; }
     public string SeatNumber { get; }
 
+    [JsonConstructor]
     private Trip(string flightNumber, Guid aircraftId, Guid departureAirportId, Guid arriveAirportId,
         DateTime flightDate, decimal price, string description, string seatNumber)
     {

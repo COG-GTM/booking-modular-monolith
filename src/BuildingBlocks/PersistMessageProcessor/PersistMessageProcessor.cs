@@ -137,7 +137,7 @@ public class PersistMessageProcessor : IPersistMessageProcessor
             return false;
 
         var data = JsonSerializer.Deserialize(messageEnvelope.Message.ToString() ?? string.Empty,
-            TypeProvider.GetFirstMatchingTypeFromCurrentDomainAssembly(message.DataType) ?? typeof(object));
+            TypeProvider.GetFirstMatchingTypeFromCurrentDomainAssembly<IEvent>(message.DataType) ?? typeof(object));
 
         if (data is not IEvent)
             return false;
@@ -164,7 +164,7 @@ public class PersistMessageProcessor : IPersistMessageProcessor
             return false;
 
         var data = JsonSerializer.Deserialize(messageEnvelope.Message.ToString() ?? string.Empty,
-            TypeProvider.GetFirstMatchingTypeFromCurrentDomainAssembly(message.DataType) ?? typeof(object));
+            TypeProvider.GetFirstMatchingTypeFromCurrentDomainAssembly<IInternalCommand>(message.DataType) ?? typeof(object));
 
         if (data is not IInternalCommand internalCommand)
             return false;

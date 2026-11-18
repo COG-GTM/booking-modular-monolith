@@ -73,9 +73,10 @@ public static class JsonObjectContractProvider
         };
     }
 
+    // Non-public constructors are only used when explicitly opted in with [JsonConstructor].
     private static ConstructorInfo? GetTheMostSpecificConstructor(Type objectType) =>
         objectType
-            .GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .GetConstructors(BindingFlags.Instance | BindingFlags.Public)
             .OrderByDescending(e => e.GetParameters().Length)
             .FirstOrDefault();
 }

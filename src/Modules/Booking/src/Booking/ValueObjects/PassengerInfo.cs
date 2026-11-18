@@ -1,11 +1,13 @@
 namespace Booking.Booking.ValueObjects;
 
 using Exceptions;
+using Newtonsoft.Json;
 
 public record PassengerInfo
 {
     public string Name { get; }
 
+    [JsonConstructor]
     private PassengerInfo(string name)
     {
         Name = name;

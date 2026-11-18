@@ -1,5 +1,6 @@
 using System.Reflection;
 using BuildingBlocks.EventStoreDB.BackgroundWorkers;
+using BuildingBlocks.EventStoreDB.Events;
 using BuildingBlocks.EventStoreDB.Projections;
 using BuildingBlocks.EventStoreDB.Repository;
 using BuildingBlocks.EventStoreDB.Subscriptions;
@@ -27,6 +28,7 @@ public static class EventStoreDBConfigExtensions
     public static IServiceCollection AddEventStoreDB(this IServiceCollection services, IConfiguration configuration,
         EventStoreDBOptions? options = null)
     {
+        EventTypeMapper.ToName<CheckpointStored>();
 
         services
             .AddSingleton(x =>

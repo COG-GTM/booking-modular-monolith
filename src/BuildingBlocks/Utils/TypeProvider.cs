@@ -38,6 +38,16 @@ public static class TypeProvider
         return result;
     }
 
+    public static Type? GetFirstMatchingTypeFromCurrentDomainAssembly<TBase>(string typeName)
+    {
+        return AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(a => a.GetTypes().Where(x =>
+                (x.FullName == typeName || x.Name == typeName) &&
+                x is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false } &&
+                typeof(TBase).IsAssignableFrom(x)))
+            .FirstOrDefault();
+    }
+
     public static IReadOnlyList<Assembly> GetReferencedAssemblies(Assembly? rootAssembly)
     {
         var visited = new HashSet<string>();
