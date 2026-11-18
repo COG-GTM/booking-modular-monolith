@@ -40,6 +40,9 @@ public record CompleteRegisterPassengerResponseDto(PassengerDto PassengerDto);
 
 public class CompleteRegisterPassengerEndpoint : IMinimalEndpoint
 {
+    public const string RateLimitPolicy = "complete-register-passenger";
+    public const int RateLimitPermitsPerMinute = 5;
+
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
         builder.MapPost($"{EndpointConfig.BaseApiPath}/passenger/complete-registration", async (
@@ -55,16 +58,28 @@ public class CompleteRegisterPassengerEndpoint : IMinimalEndpoint
                 return Results.Ok(response);
             })
             .RequireAuthorization(nameof(ApiScope))
+            .RequireRateLimiting(RateLimitPolicy)
             .WithName("CompleteRegisterPassenger")
             .WithApiVersionSet(builder.NewApiVersionSet("Passenger").Build())
             .Produces<CompleteRegisterPassengerResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .WithSummary("Complete Register Passenger")
             .WithDescription("Complete Register Passenger")
             .WithOpenApi()
             .HasApiVersion(1.0);
 
         return builder;
+    }
+
+    public static string GetRateLimitPartitionKey(HttpContext httpContext)
+    {
+        var userId = GetUserId(httpContext.User);
+
+        return userId != Guid.Empty
+            ? $"user:{userId}"
+            : $"ip:{httpContext.Connection.RemoteIpAddress}";
     }
 
     private static Guid GetUserId(ClaimsPrincipal user)
@@ -114,7 +129,7 @@ internal class CompleteRegisterPassengerCommandHandler : ICommandHandler<Complet
 
         if (passenger is null)
         {
-            throw new PassengerNotExist();
+            throw new PassengerNotFoundException();
         }
 
         passenger.CompleteRegistrationPassenger(passenger.Id, passenger.Name,

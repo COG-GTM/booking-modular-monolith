@@ -69,7 +69,7 @@ public class CompleteRegisterPassengerTests : PassengerIntegrationTestBase
         var act = () => Fixture.SendAsync(command);
 
         // Assert
-        await act.Should().ThrowAsync<PassengerNotExist>();
+        await act.Should().ThrowAsync<PassengerNotFoundException>();
 
         var stored = await Fixture.FindAsync<global::Passenger.Passengers.Models.Passenger, PassengerId>(victim.Id);
         stored!.PassengerType.Should().Be(PassengerType.Unknown);
@@ -91,7 +91,7 @@ public class CompleteRegisterPassengerTests : PassengerIntegrationTestBase
             .PostAsJsonAsync(CompleteRegistrationRoute, request);
 
         // Assert
-        result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        result.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
         var stored = await Fixture.FindAsync<global::Passenger.Passengers.Models.Passenger, PassengerId>(victim.Id);
         stored!.PassengerType.Should().Be(PassengerType.Unknown);
@@ -119,6 +119,27 @@ public class CompleteRegisterPassengerTests : PassengerIntegrationTestBase
         response?.PassengerDto?.PassportNumber.Should().Be(passenger.PassportNumber);
         response?.PassengerDto?.PassengerType.Should().Be(PassengerType.Male);
         response?.PassengerDto?.Age.Should().Be(30);
+    }
+
+    [Fact]
+    public async Task should_rate_limit_passport_number_guessing_per_user()
+    {
+        // Arrange
+        var client = CreateClientForUser(Guid.CreateVersion7());
+        var statusCodes = new List<HttpStatusCode>();
+
+        // Act
+        for (var i = 0; i <= CompleteRegisterPassengerEndpoint.RateLimitPermitsPerMinute; i++)
+        {
+            var request = new CompleteRegisterPassengerRequestDto($"G{i:D8}", PassengerType.Male, 30);
+            var result = await client.PostAsJsonAsync(CompleteRegistrationRoute, request);
+            statusCodes.Add(result.StatusCode);
+        }
+
+        // Assert
+        statusCodes.Take(CompleteRegisterPassengerEndpoint.RateLimitPermitsPerMinute)
+            .Should().AllBeEquivalentTo(HttpStatusCode.NotFound);
+        statusCodes.Last().Should().Be(HttpStatusCode.TooManyRequests);
     }
 
     private static global::Passenger.Passengers.Models.Passenger CreatePassenger(Guid userId, string passportNumber)

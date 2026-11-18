@@ -115,7 +115,7 @@ public class CompleteRegisterPassengerClaimsTests : PassengerIntegrationTestBase
         var result = await client.PostAsJsonAsync(CompleteRegistrationRoute, request);
 
         // Assert
-        result.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        result.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
         var stored = await Fixture.FindAsync<global::Passenger.Passengers.Models.Passenger, PassengerId>(passenger.Id);
         stored!.PassengerType.Should().Be(PassengerType.Unknown);
