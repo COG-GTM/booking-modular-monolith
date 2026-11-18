@@ -20,10 +20,12 @@ public class RegisterNewUserHandler : IConsumer<UserCreated>
     private readonly ILogger<RegisterNewUserHandler> _logger;
     private readonly AppOptions _options;
 
-    public RegisterNewUserHandler(PassengerDbContext passengerDbContext,
+    public RegisterNewUserHandler(
+        PassengerDbContext passengerDbContext,
         IEventDispatcher eventDispatcher,
         ILogger<RegisterNewUserHandler> logger,
-        IOptions<AppOptions> options)
+        IOptions<AppOptions> options
+    )
     {
         _passengerDbContext = passengerDbContext;
         _eventDispatcher = eventDispatcher;
@@ -37,23 +39,34 @@ public class RegisterNewUserHandler : IConsumer<UserCreated>
 
         _logger.LogInformation($"consumer for {nameof(UserCreated).Underscore()} in {_options.Name}");
 
-        var passengerExist =
-            await _passengerDbContext.Passengers.AnyAsync(x => x.PassportNumber.Value == context.Message.PassportNumber);
+        var passengerExist = await _passengerDbContext.Passengers.AnyAsync(x =>
+            x.PassportNumber.Value == context.Message.PassportNumber
+        );
 
         if (passengerExist)
         {
             return;
         }
 
-        var passenger = Passengers.Models.Passenger.Create(PassengerId.Of(NewId.NextGuid()), Name.Of(context.Message.Name),
-            PassportNumber.Of(context.Message.PassportNumber));
+        var passenger = Passengers.Models.Passenger.Create(
+            PassengerId.Of(NewId.NextGuid()),
+            Name.Of(context.Message.Name),
+            PassportNumber.Of(context.Message.PassportNumber),
+            context.Message.Id
+        );
 
         await _passengerDbContext.AddAsync(passenger);
 
         await _passengerDbContext.SaveChangesAsync();
 
         await _eventDispatcher.SendAsync(
-            new PassengerCreatedDomainEvent(passenger.Id, passenger.Name, passenger.PassportNumber),
-            typeof(IInternalCommand));
+            new PassengerCreatedDomainEvent(
+                passenger.Id,
+                passenger.Name,
+                passenger.PassportNumber,
+                UserId: passenger.UserId
+            ),
+            typeof(IInternalCommand)
+        );
     }
 }
