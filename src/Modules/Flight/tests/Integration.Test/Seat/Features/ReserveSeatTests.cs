@@ -2,6 +2,7 @@ using BuildingBlocks.TestBase;
 using Flight;
 using Flight.Data;
 using FluentAssertions;
+using Grpc.Core;
 using Integration.Test.Fakes;
 using Xunit;
 
@@ -38,5 +39,32 @@ public class ReserveSeatTests : FlightIntegrationTestBase
         // Assert
         response?.Should().NotBeNull();
         response?.Id.Should().Be(seatCommand?.Id.ToString());
+    }
+
+    [Fact]
+    public async Task should_return_unauthenticated_when_reserving_seat_via_grpc_without_token()
+    {
+        // Arrange
+        var flightCommand = new FakeCreateFlightCommand().Generate();
+
+        await Fixture.SendAsync(flightCommand);
+
+        var seatCommand = new FakeCreateSeatCommand(flightCommand.Id).Generate();
+
+        await Fixture.SendAsync(seatCommand);
+
+        var flightGrpcClient = new FlightGrpcService.FlightGrpcServiceClient(Fixture.AnonymousChannel);
+
+        // Act
+        var exception = await Assert.ThrowsAsync<RpcException>(() =>
+            flightGrpcClient.ReserveSeatAsync(new ReserveSeatRequest
+            {
+                FlightId = seatCommand.FlightId.ToString(),
+                SeatNumber = seatCommand.SeatNumber,
+            }).ResponseAsync
+        );
+
+        // Assert
+        exception.StatusCode.Should().Be(StatusCode.Unauthenticated);
     }
 }
