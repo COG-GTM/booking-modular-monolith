@@ -27,7 +27,7 @@ public record CompleteRegisterPassenger
 }
 
 public record PassengerRegistrationCompletedDomainEvent(Guid Id, string Name, string PassportNumber,
-    Enums.PassengerType PassengerType, int Age, bool IsDeleted = false) : IDomainEvent;
+    Enums.PassengerType PassengerType, int Age, bool IsDeleted = false, Guid? UserId = null) : IDomainEvent;
 
 public record CompleteRegisterPassengerResult(PassengerDto PassengerDto);
 
@@ -85,11 +85,14 @@ internal class CompleteRegisterPassengerCommandHandler : ICommandHandler<Complet
 {
     private readonly IMapper _mapper;
     private readonly PassengerDbContext _passengerDbContext;
+    private readonly ICurrentUserProvider _currentUserProvider;
 
-    public CompleteRegisterPassengerCommandHandler(IMapper mapper, PassengerDbContext passengerDbContext)
+    public CompleteRegisterPassengerCommandHandler(IMapper mapper, PassengerDbContext passengerDbContext,
+        ICurrentUserProvider currentUserProvider)
     {
         _mapper = mapper;
         _passengerDbContext = passengerDbContext;
+        _currentUserProvider = currentUserProvider;
     }
 
     public async Task<CompleteRegisterPassengerResult> Handle(CompleteRegisterPassenger request,
@@ -97,8 +100,13 @@ internal class CompleteRegisterPassengerCommandHandler : ICommandHandler<Complet
     {
         Guard.Against.Null(request, nameof(request));
 
-        var passenger = await _passengerDbContext.Passengers.SingleOrDefaultAsync(
-            x => x.PassportNumber.Value == request.PassportNumber, cancellationToken);
+        var currentUserId = _currentUserProvider.GetCurrentUserGuid();
+
+        // Only the passenger owned by the signed-in user can be completed; anything else looks like "not registered".
+        var passenger = currentUserId is null
+            ? null
+            : await _passengerDbContext.Passengers.SingleOrDefaultAsync(
+                x => x.PassportNumber.Value == request.PassportNumber && x.UserId == currentUserId, cancellationToken);
 
         if (passenger is null)
         {

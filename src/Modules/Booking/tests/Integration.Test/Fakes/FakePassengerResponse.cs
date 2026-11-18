@@ -1,11 +1,12 @@
 namespace Integration.Test.Fakes;
 
+using System;
 using BookingPassenger;
 using MassTransit;
 
 public static class FakePassengerResponse
 {
-    public static GetPassengerByIdResult Generate()
+    public static GetPassengerByIdResult Generate(Guid? ownerUserId = null)
     {
         var result = new GetPassengerByIdResult
         {
@@ -13,7 +14,8 @@ public static class FakePassengerResponse
             {
                 Id = NewId.NextGuid().ToString(),
                 Name = "Test",
-                PassportNumber = "121618"
+                PassportNumber = "121618",
+                UserId = (ownerUserId ?? FakeCurrentUserProvider.UserId).ToString()
             }
         };
 

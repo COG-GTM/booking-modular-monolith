@@ -28,7 +28,11 @@ public record CreateBooking(Guid PassengerId, Guid FlightId, string Description)
 
 public record CreateBookingResult(ulong Id);
 
-public record BookingCreatedDomainEvent(Guid Id, PassengerInfo PassengerInfo, Trip Trip) : Entity<Guid>, IDomainEvent;
+public record BookingCreatedDomainEvent(Guid Id, PassengerInfo PassengerInfo, Trip Trip) : Entity<Guid>, IDomainEvent
+{
+    public Guid? PassengerId { get; init; }
+    public Guid? BookedByUserId { get; init; }
+}
 
 public record CreateBookingRequestDto(Guid PassengerId, Guid FlightId, string Description);
 
@@ -55,6 +59,7 @@ public class CreateBookingEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Booking").Build())
             .Produces<CreateBookingResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .WithSummary("Create Booking")
             .WithDescription("Create Booking")
             .WithOpenApi()
@@ -68,8 +73,8 @@ public class CreateBookingValidator : AbstractValidator<CreateBooking>
 {
     public CreateBookingValidator()
     {
-        RuleFor(x => x.FlightId).NotNull().WithMessage("FlightId is required!");
-        RuleFor(x => x.PassengerId).NotNull().WithMessage("PassengerId is required!");
+        RuleFor(x => x.FlightId).NotEmpty().WithMessage("FlightId is required!");
+        RuleFor(x => x.PassengerId).NotEmpty().WithMessage("PassengerId is required!");
     }
 }
 
@@ -98,6 +103,16 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
     {
         Guard.Against.Null(command, nameof(command));
 
+        var currentUserId = _currentUserProvider.GetCurrentUserGuid() ?? throw new PassengerAccessDeniedException();
+
+        var passenger =
+            await _passengerGrpcServiceClient.GetByIdAsync(new BookingPassenger.GetByIdRequest { Id = command.PassengerId.ToString() }, cancellationToken: cancellationToken);
+
+        if (!Guid.TryParse(passenger?.PassengerDto?.UserId, out var passengerOwnerId) || passengerOwnerId != currentUserId)
+        {
+            throw new PassengerAccessDeniedException();
+        }
+
         var flight =
             await _flightGrpcServiceClient.GetByIdAsync(new BookingFlight.GetByIdRequest { Id = command.FlightId.ToString() }, cancellationToken: cancellationToken);
 
@@ -105,9 +120,6 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
         {
             throw new FlightNotFoundException();
         }
-
-        var passenger =
-            await _passengerGrpcServiceClient.GetByIdAsync(new BookingPassenger.GetByIdRequest { Id = command.PassengerId.ToString() }, cancellationToken: cancellationToken);
 
         var emptySeat = (await _flightGrpcServiceClient
                 .GetAvailableSeatsAsync(new GetAvailableSeatsRequest { FlightId = command.FlightId.ToString() }, cancellationToken: cancellationToken)
@@ -127,7 +139,7 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
                 new Guid(flight.FlightDto.ArriveAirportId), flight.FlightDto.FlightDate.ToDateTime(),
                 (decimal)flight.FlightDto.Price, command.Description,
                 emptySeat?.SeatNumber),
-            false, _currentUserProvider.GetCurrentUserId());
+            false, currentUserId, command.PassengerId);
 
         await _eventDispatcher.SendAsync(aggrigate.DomainEvents, cancellationToken: cancellationToken);
 

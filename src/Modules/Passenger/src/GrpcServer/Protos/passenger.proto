@@ -22,6 +22,7 @@ message PassengerResponse {
   PassengerType PassengerType = 4;
   int32 Age = 5;
   string Email = 6;
+  string UserId = 7;
 }
 
 

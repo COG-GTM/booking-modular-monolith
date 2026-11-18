@@ -1,5 +1,7 @@
 using Api;
 using BuildingBlocks.TestBase;
+using Integration.Test.Fakes;
+using Microsoft.Extensions.DependencyInjection;
 using Passenger.Data;
 using Xunit;
 
@@ -11,6 +13,11 @@ public class PassengerIntegrationTestBase : TestBase<Program, PassengerDbContext
     public PassengerIntegrationTestBase(TestFixture<Program, PassengerDbContext, PassengerReadDbContext> integrationTestFactory)
         : base(integrationTestFactory)
     {
+    }
+
+    protected override void RegisterTestsServices(IServiceCollection services)
+    {
+        FakeCurrentUserProvider.Register(services);
     }
 }
 

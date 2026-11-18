@@ -12,7 +12,7 @@ using MongoDB.Driver.Linq;
 using ValueObjects;
 
 public record CompleteRegisterPassengerMongoCommand(Guid Id, string PassportNumber, string Name,
-    Enums.PassengerType PassengerType, int Age, bool IsDeleted = false) : InternalCommand;
+    Enums.PassengerType PassengerType, int Age, bool IsDeleted = false, Guid? UserId = null) : InternalCommand;
 
 
 internal class CompleteRegisterPassengerMongoHandler : ICommandHandler<CompleteRegisterPassengerMongoCommand>
@@ -47,7 +47,8 @@ internal class CompleteRegisterPassengerMongoHandler : ICommandHandler<CompleteR
                     .Set(x => x.Name, passengerReadModel.Name)
                     .Set(x => x.IsDeleted, passengerReadModel.IsDeleted)
                     .Set(x => x.PassengerType, passengerReadModel.PassengerType)
-                    .Set(x => x.PassportNumber, passengerReadModel.PassportNumber),
+                    .Set(x => x.PassportNumber, passengerReadModel.PassportNumber)
+                    .Set(x => x.UserId, passengerReadModel.UserId),
                 cancellationToken: cancellationToken);
         }
         else
