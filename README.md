@@ -241,6 +241,8 @@ To `test` all modules, run this command in the `root` of the project:
 dotnet test
 ```
 
+Each seed password enables only its account: `IdentitySeedOptions__AdminPassword` seeds `samh` (admin), and `IdentitySeedOptions__UserPassword` seeds `samh2`. For `dotnet run` and Docker Compose, export the corresponding environment variables. For local Aspire runs, set each value as AppHost user-secrets from `src/Aspire/src/AppHost`, for example `dotnet user-secrets set "IdentitySeedOptions:AdminPassword" "<value>"` (use `IdentitySeedOptions:UserPassword` for the other account); Aspire forwards these only in run mode, not when publishing. `booking.rest` reads `IdentitySeedOptions__AdminPassword` from the REST client's process environment, so export it there too. Seeding only runs when the users table is empty, so set passwords before the first start.
+
 > ### Documentation Apis
 
 For checking `API documentation`, navigate to `/swagger` for `Swagger OpenAPI` or `/scalar/v1` for `Scalar OpenAPI` to visit list of endpoints.
