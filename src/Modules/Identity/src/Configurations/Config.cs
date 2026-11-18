@@ -53,7 +53,7 @@ public static class Config
             },
         };
 
-    public static IEnumerable<Client> Clients =>
+    public static IEnumerable<Client> Clients(string clientSecret) =>
         new List<Client>
         {
             new()
@@ -62,7 +62,7 @@ public static class Config
                 AllowedGrantTypes = GrantTypes.ResourceOwnerPassword,
                 ClientSecrets =
                 {
-                    new Secret("secret".Sha256())
+                    new Secret(clientSecret.Sha256())
                 },
                 AllowedScopes =
                 {
