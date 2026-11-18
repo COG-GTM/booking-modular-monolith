@@ -58,6 +58,7 @@ namespace BuildingBlocks.Jwt
                         x =>
                         {
                             x.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
+                            x.RequireAuthenticatedUser();
                             x.RequireRole(IdentityConstant.Role.Admin);
                         }
                     );
@@ -66,6 +67,7 @@ namespace BuildingBlocks.Jwt
                         x =>
                         {
                             x.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
+                            x.RequireAuthenticatedUser();
                             x.RequireRole(IdentityConstant.Role.User);
                         }
                     );
