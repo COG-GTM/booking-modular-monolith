@@ -71,7 +71,8 @@ namespace Integration.Test.Booking.Features
             var poisonWrite = await eventStoreClient.AppendToStreamAsync(poisonStream, StreamState.NoStream,
                 new[] { invalidJson, notNotification });
 
-            var command = new FakeCreateBookingCommand().Generate();
+            // Unique id so the booking stream doesn't collide with other tests sharing the event store
+            var command = new FakeCreateBookingCommand().Generate() with { Id = Guid.NewGuid() };
 
             // Act
             await Fixture.SendAsync(command);
