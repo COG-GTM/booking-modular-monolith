@@ -14,14 +14,22 @@ namespace Integration.Test;
 public class GrpcClientAuthorizationTests
 {
     [Theory]
-    [InlineData(true, "caller-token")]
-    [InlineData(false, "caller-token")]
-    public async Task should_forward_only_the_callers_authorization_header(bool flight, string? token)
+    [InlineData(true, "Bearer caller-token", "Bearer caller-token")]
+    [InlineData(false, "Bearer caller-token", "Bearer caller-token")]
+    [InlineData(true, null, null)]
+    [InlineData(false, null, null)]
+    [InlineData(true, "bearer caller-token", "Bearer caller-token")]
+    [InlineData(false, "bearer caller-token", "Bearer caller-token")]
+    public async Task should_forward_only_the_callers_authorization_header(
+        bool flight,
+        string? authorization,
+        string? expectedAuthorization
+    )
     {
         var context = new DefaultHttpContext();
-        if (token is not null)
+        if (authorization is not null)
         {
-            context.Request.Headers.Authorization = $"Bearer {token}";
+            context.Request.Headers.Authorization = authorization;
         }
 
         var handler = new RecordingHandler();
@@ -65,7 +73,7 @@ public class GrpcClientAuthorizationTests
 
         exception.StatusCode.Should().Be(StatusCode.NotFound);
         handler.RequestUri!.Host.Should().Be(flight ? "flight.test" : "passenger.test");
-        handler.Authorization.Should().Be(token is null ? null : $"Bearer {token}");
+        handler.Authorization.Should().Be(expectedAuthorization);
     }
 
     private sealed class RecordingHandler : HttpMessageHandler
