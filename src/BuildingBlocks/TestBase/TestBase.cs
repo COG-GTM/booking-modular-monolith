@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Claims;
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Core.Model;
 using BuildingBlocks.EFCore;
@@ -54,21 +55,43 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
     public PersistMessageBackgroundService PersistMessageBackgroundService =>
         ServiceProvider.GetRequiredService<PersistMessageBackgroundService>();
 
-    public HttpClient HttpClient
-    {
-        get
-        {
-            var claims = new Dictionary<string, object>
-            {
-                { ClaimTypes.Name, "test@sample.com" },
-                { ClaimTypes.Role, "admin" },
-                { "scope", "flight-api" },
-            };
+    public HttpClient HttpClient => CreateHttpClient(IdentityConstant.Role.Admin);
 
-            var httpClient = _factory.CreateClient();
-            httpClient.SetFakeBearerToken(claims); // Uses FakeJwtBearer
-            return httpClient;
+    public HttpClient CreateHttpClient(string role, Guid? subjectId = null)
+    {
+        var claims = new Dictionary<string, object>
+        {
+            { ClaimTypes.Name, "test@sample.com" },
+            { ClaimTypes.Role, role },
+            { "scope", "flight-api" },
+        };
+
+        if (subjectId is not null)
+        {
+            claims.Add("sub", subjectId.Value.ToString());
         }
+
+        var httpClient = _factory.CreateClient();
+        httpClient.SetFakeBearerToken(claims); // Uses FakeJwtBearer
+        return httpClient;
+    }
+
+    public void SetCurrentUser(string role, Guid? subjectId = null)
+    {
+        var claims = new List<Claim> { new(ClaimTypes.Name, "test@sample.com"), new(ClaimTypes.Role, role) };
+
+        if (subjectId is not null)
+        {
+            claims.Add(new Claim("sub", subjectId.Value.ToString()));
+        }
+
+        var httpContextAccessor = ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+
+        httpContextAccessor.HttpContext = new DefaultHttpContext
+        {
+            RequestServices = ServiceProvider,
+            User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Test"))
+        };
     }
 
     public GrpcChannel Channel =>
@@ -126,6 +149,18 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
                             policy.RequireClaim("scope", "flight-api"); // Test-specific scope
                         }
                     );
+
+                    foreach (var role in new[] { IdentityConstant.Role.Admin, IdentityConstant.Role.User })
+                    {
+                        options.AddPolicy(
+                            role,
+                            policy =>
+                            {
+                                policy.AddAuthenticationSchemes(FakeJwtBearerDefaults.AuthenticationScheme);
+                                policy.RequireRole(role);
+                            }
+                        );
+                    }
                 });
             });
         });

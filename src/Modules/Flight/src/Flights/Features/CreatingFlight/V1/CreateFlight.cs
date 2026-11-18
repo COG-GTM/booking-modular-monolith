@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Aircrafts.ValueObjects;
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
@@ -59,11 +60,12 @@ public class CreateFlightEndpoint : IMinimalEndpoint
 
                 return Results.CreatedAtRoute("GetFlightById", new { id = result.Id }, response);
             })
-            .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(nameof(ApiScope), IdentityConstant.Role.Admin)
             .WithName("CreateFlight")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<CreateFlightResponseDto>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .WithSummary("Create Flight")
             .WithDescription("Create Flight")
             .WithOpenApi()

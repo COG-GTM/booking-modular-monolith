@@ -27,7 +27,7 @@ public record CompleteRegisterPassenger
 }
 
 public record PassengerRegistrationCompletedDomainEvent(Guid Id, string Name, string PassportNumber,
-    Enums.PassengerType PassengerType, int Age, bool IsDeleted = false) : IDomainEvent;
+    Enums.PassengerType PassengerType, int Age, bool IsDeleted = false, Guid? UserId = null) : IDomainEvent;
 
 public record CompleteRegisterPassengerResult(PassengerDto PassengerDto);
 
@@ -56,6 +56,7 @@ public class CompleteRegisterPassengerEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Passenger").Build())
             .Produces<CompleteRegisterPassengerResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .WithSummary("Complete Register Passenger")
             .WithDescription("Complete Register Passenger")
             .WithOpenApi()
@@ -85,11 +86,14 @@ internal class CompleteRegisterPassengerCommandHandler : ICommandHandler<Complet
 {
     private readonly IMapper _mapper;
     private readonly PassengerDbContext _passengerDbContext;
+    private readonly ICurrentUserProvider _currentUserProvider;
 
-    public CompleteRegisterPassengerCommandHandler(IMapper mapper, PassengerDbContext passengerDbContext)
+    public CompleteRegisterPassengerCommandHandler(IMapper mapper, PassengerDbContext passengerDbContext,
+        ICurrentUserProvider currentUserProvider)
     {
         _mapper = mapper;
         _passengerDbContext = passengerDbContext;
+        _currentUserProvider = currentUserProvider;
     }
 
     public async Task<CompleteRegisterPassengerResult> Handle(CompleteRegisterPassenger request,
@@ -104,6 +108,8 @@ internal class CompleteRegisterPassengerCommandHandler : ICommandHandler<Complet
         {
             throw new PassengerNotExist();
         }
+
+        _currentUserProvider.EnsureOwnerOrAdmin(passenger.UserId);
 
         passenger.CompleteRegistrationPassenger(passenger.Id, passenger.Name,
             passenger.PassportNumber, request.PassengerType, Age.Of(request.Age));
