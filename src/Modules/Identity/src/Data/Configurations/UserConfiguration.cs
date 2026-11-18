@@ -12,5 +12,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         // // ref: https://learn.microsoft.com/en-us/ef/core/saving/concurrency?tabs=fluent-api
         builder.Property(r => r.Version).IsConcurrencyToken();
+
+        builder.HasIndex(u => u.PassPortNumber).IsUnique().HasDatabaseName("PassportNumberIndex");
     }
 }

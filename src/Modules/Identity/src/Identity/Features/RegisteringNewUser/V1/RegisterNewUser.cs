@@ -21,35 +21,63 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
 using Models;
+using Npgsql;
 
-public record RegisterNewUser(string FirstName, string LastName, string Username, string Email,
-    string Password, string ConfirmPassword, string PassportNumber) : ICommand<RegisterNewUserResult>;
+public record RegisterNewUser(
+    string FirstName,
+    string LastName,
+    string Username,
+    string Email,
+    string Password,
+    string ConfirmPassword,
+    string PassportNumber
+) : ICommand<RegisterNewUserResult>;
 
 public record RegisterNewUserResult(Guid Id, string FirstName, string LastName, string Username, string PassportNumber);
 
-public record RegisterNewUserRequestDto(string FirstName, string LastName, string Username, string Email,
-    string Password, string ConfirmPassword, string PassportNumber);
+public record RegisterNewUserRequestDto(
+    string FirstName,
+    string LastName,
+    string Username,
+    string Email,
+    string Password,
+    string ConfirmPassword,
+    string PassportNumber
+);
 
-public record RegisterNewUserResponseDto(Guid Id, string FirstName, string LastName, string Username,
-    string PassportNumber);
+public record RegisterNewUserResponseDto(
+    Guid Id,
+    string FirstName,
+    string LastName,
+    string Username,
+    string PassportNumber
+);
 
 public class RegisterNewUserEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapPost($"{EndpointConfig.BaseApiPath}/identity/register-user", async (
-                RegisterNewUserRequestDto request, IMediator mediator, IMapper mapper,
-                CancellationToken cancellationToken) =>
-            {
-                var command = mapper.Map<RegisterNewUser>(request);
+        builder
+            .MapPost(
+                $"{EndpointConfig.BaseApiPath}/identity/register-user",
+                async (
+                    RegisterNewUserRequestDto request,
+                    IMediator mediator,
+                    IMapper mapper,
+                    CancellationToken cancellationToken
+                ) =>
+                {
+                    var command = mapper.Map<RegisterNewUser>(request);
 
-                var result = await mediator.Send(command, cancellationToken);
+                    var result = await mediator.Send(command, cancellationToken);
 
-                var response = result.Adapt<RegisterNewUserResponseDto>();
+                    var response = result.Adapt<RegisterNewUserResponseDto>();
 
-                return Results.Ok(response);
-            })
+                    return Results.Ok(response);
+                }
+            )
             .RequireAuthorization(nameof(ApiScope))
             .WithName("RegisterUser")
             .WithApiVersionSet(builder.NewApiVersionSet("Identity").Build())
@@ -71,19 +99,30 @@ public class RegisterNewUserValidator : AbstractValidator<RegisterNewUser>
         RuleFor(x => x.Password).NotEmpty().WithMessage("Please enter the password");
         RuleFor(x => x.ConfirmPassword).NotEmpty().WithMessage("Please enter the confirmation password");
 
-        RuleFor(x => x).Custom((x, context) =>
-        {
-            if (x.Password != x.ConfirmPassword)
-            {
-                context.AddFailure(nameof(x.Password), "Passwords should match");
-            }
-        });
+        RuleFor(x => x)
+            .Custom(
+                (x, context) =>
+                {
+                    if (x.Password != x.ConfirmPassword)
+                    {
+                        context.AddFailure(nameof(x.Password), "Passwords should match");
+                    }
+                }
+            );
 
         RuleFor(x => x.Username).NotEmpty().WithMessage("Please enter the username");
         RuleFor(x => x.FirstName).NotEmpty().WithMessage("Please enter the first name");
         RuleFor(x => x.LastName).NotEmpty().WithMessage("Please enter the last name");
-        RuleFor(x => x.Email).NotEmpty().WithMessage("Please enter the last email")
-            .EmailAddress().WithMessage("A valid email is required");
+        RuleFor(x => x.Email)
+            .NotEmpty()
+            .WithMessage("Please enter the last email")
+            .EmailAddress()
+            .WithMessage("A valid email is required");
+        RuleFor(x => x.PassportNumber)
+            .NotEmpty()
+            .WithMessage("Please enter the passport number")
+            .Must(passportNumber => passportNumber is null || passportNumber.Trim().Length <= 10)
+            .WithMessage("Passport number must be at most 10 characters");
     }
 }
 
@@ -92,17 +131,22 @@ internal class RegisterNewUserHandler : ICommandHandler<RegisterNewUser, Registe
     private readonly IEventDispatcher _eventDispatcher;
     private readonly UserManager<User> _userManager;
 
-    public RegisterNewUserHandler(UserManager<User> userManager,
-        IEventDispatcher eventDispatcher)
+    public RegisterNewUserHandler(UserManager<User> userManager, IEventDispatcher eventDispatcher)
     {
         _userManager = userManager;
         _eventDispatcher = eventDispatcher;
     }
 
-    public async Task<RegisterNewUserResult> Handle(RegisterNewUser request,
-        CancellationToken cancellationToken)
+    public async Task<RegisterNewUserResult> Handle(RegisterNewUser request, CancellationToken cancellationToken)
     {
         Guard.Against.Null(request, nameof(request));
+
+        var passportNumber = request.PassportNumber.Trim().ToUpperInvariant();
+
+        if (await _userManager.Users.AnyAsync(u => u.PassPortNumber == passportNumber, cancellationToken))
+        {
+            throw new PassportNumberAlreadyRegisteredException();
+        }
 
         var applicationUser = new User()
         {
@@ -111,27 +155,53 @@ internal class RegisterNewUserHandler : ICommandHandler<RegisterNewUser, Registe
             UserName = request.Username,
             Email = request.Email,
             PasswordHash = request.Password,
-            PassPortNumber = request.PassportNumber
+            PassPortNumber = passportNumber,
         };
 
-        var identityResult = await _userManager.CreateAsync(applicationUser, request.Password);
-        var roleResult = await _userManager.AddToRoleAsync(applicationUser, IdentityConstant.Role.User);
+        IdentityResult identityResult;
+        try
+        {
+            identityResult = await _userManager.CreateAsync(applicationUser, request.Password);
+        }
+        catch (DbUpdateException ex)
+            when (ex.InnerException
+                    is PostgresException
+                    {
+                        SqlState: PostgresErrorCodes.UniqueViolation,
+                        ConstraintName: "PassportNumberIndex"
+                    }
+            )
+        {
+            throw new PassportNumberAlreadyRegisteredException();
+        }
 
         if (identityResult.Succeeded == false)
         {
             throw new RegisterIdentityUserException(string.Join(',', identityResult.Errors.Select(e => e.Description)));
         }
 
+        var roleResult = await _userManager.AddToRoleAsync(applicationUser, IdentityConstant.Role.User);
+
         if (roleResult.Succeeded == false)
         {
             throw new RegisterIdentityUserException(string.Join(',', roleResult.Errors.Select(e => e.Description)));
         }
 
-        await _eventDispatcher.SendAsync(new UserCreated(applicationUser.Id,
-            applicationUser.FirstName + " " + applicationUser.LastName,
-            applicationUser.PassPortNumber), cancellationToken: cancellationToken);
+        await _eventDispatcher.SendAsync(
+            new UserCreated(
+                applicationUser.Id,
+                applicationUser.FirstName + " " + applicationUser.LastName,
+                passportNumber
+            ),
+            cancellationToken: cancellationToken
+        );
 
-        return new RegisterNewUserResult(applicationUser.Id, applicationUser.FirstName, applicationUser.LastName,
-            applicationUser.UserName, applicationUser.PassPortNumber);
+        return new RegisterNewUserResult(
+            applicationUser.Id,
+            applicationUser.FirstName,
+            applicationUser.LastName,
+            applicationUser.UserName,
+            passportNumber
+        );
     }
 }

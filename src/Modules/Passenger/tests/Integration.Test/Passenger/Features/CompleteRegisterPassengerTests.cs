@@ -21,7 +21,8 @@ public class CompleteRegisterPassengerTests : PassengerIntegrationTestBase
         var passenger = global::Passenger.Passengers.Models.Passenger.Create(
             PassengerId.Of(Guid.CreateVersion7()),
             Name.Of("Sam"),
-            PassportNumber.Of("123456789")
+            PassportNumber.Of("123456789"),
+            Guid.Empty
         );
 
         await Fixture.InsertAsync(passenger);
