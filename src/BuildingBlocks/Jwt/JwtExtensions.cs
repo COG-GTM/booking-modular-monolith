@@ -39,7 +39,6 @@ namespace BuildingBlocks.Jwt
                 options.MapInboundClaims = false;
             });
 
-
             services.AddAuthorization(
                 options =>
                 {

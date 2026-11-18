@@ -10,12 +10,8 @@ namespace Integration.Test.Identity.Features;
 
 public class DiscoveryTests : IdentityIntegrationTestBase
 {
-    public DiscoveryTests(
-        TestWriteFixture<Program, IdentityContext> integrationTestFactory
-    )
-        : base(integrationTestFactory)
-    {
-    }
+    public DiscoveryTests(TestWriteFixture<Program, IdentityContext> integrationTestFactory)
+        : base(integrationTestFactory) { }
 
     [Fact]
     public async Task should_allow_anonymous_access_to_openid_discovery()

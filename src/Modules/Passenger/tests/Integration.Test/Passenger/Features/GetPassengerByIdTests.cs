@@ -65,5 +65,4 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         await act.Should().ThrowAsync<RpcException>()
             .Where(exception => exception.StatusCode == StatusCode.Unauthenticated);
     }
-
 }
