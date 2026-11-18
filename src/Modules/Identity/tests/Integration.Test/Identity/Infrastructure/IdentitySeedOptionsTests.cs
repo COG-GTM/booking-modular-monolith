@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using FluentAssertions;
 using Identity.Configurations;
 using Identity.Extensions.Infrastructure;
@@ -77,13 +78,27 @@ public class IdentitySeedOptionsTests
     [Fact]
     public void should_not_ship_seed_passwords_in_the_api_appsettings()
     {
-        var config = new ConfigurationBuilder()
-            .SetBasePath(System.AppContext.BaseDirectory)
-            .AddJsonFile("appsettings.json", optional: true)
-            .AddJsonFile("appsettings.docker.json", optional: true)
-            .AddJsonFile("appsettings.Development.json", optional: true)
-            .Build();
+        var repoRoot = new DirectoryInfo(System.AppContext.BaseDirectory);
+        while (repoRoot is not null && !File.Exists(Path.Combine(repoRoot.FullName, "booking-modular-monolith.sln")))
+        {
+            repoRoot = repoRoot.Parent;
+        }
+        repoRoot.Should().NotBeNull();
 
-        config.GetSection(nameof(IdentitySeedOptions)).GetChildren().Should().BeEmpty();
+        var appSettingsDirectory = Path.Combine(repoRoot!.FullName, "src", "Api", "src");
+        foreach (
+            var file in new[]
+            {
+                "appsettings.json",
+                "appsettings.docker.json",
+                "appsettings.Development.json",
+                "appsettings.test.json",
+            }
+        )
+        {
+            File.Exists(Path.Combine(appSettingsDirectory, file)).Should().BeTrue();
+            var config = new ConfigurationBuilder().SetBasePath(appSettingsDirectory).AddJsonFile(file).Build();
+            config.GetSection(nameof(IdentitySeedOptions)).GetChildren().Should().BeEmpty();
+        }
     }
 }
