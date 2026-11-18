@@ -54,21 +54,20 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
     public PersistMessageBackgroundService PersistMessageBackgroundService =>
         ServiceProvider.GetRequiredService<PersistMessageBackgroundService>();
 
-    public HttpClient HttpClient
-    {
-        get
-        {
-            var claims = new Dictionary<string, object>
-            {
-                { ClaimTypes.Name, "test@sample.com" },
-                { ClaimTypes.Role, "admin" },
-                { "scope", "flight-api" },
-            };
+    public HttpClient HttpClient => CreateHttpClient("admin");
 
-            var httpClient = _factory.CreateClient();
-            httpClient.SetFakeBearerToken(claims); // Uses FakeJwtBearer
-            return httpClient;
-        }
+    public HttpClient CreateHttpClient(string role)
+    {
+        var claims = new Dictionary<string, object>
+        {
+            { ClaimTypes.Name, "test@sample.com" },
+            { ClaimTypes.Role, role },
+            { "scope", "flight-api" },
+        };
+
+        var httpClient = _factory.CreateClient();
+        httpClient.SetFakeBearerToken(claims); // Uses FakeJwtBearer
+        return httpClient;
     }
 
     public GrpcChannel Channel =>
