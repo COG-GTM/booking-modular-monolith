@@ -33,9 +33,9 @@ public class AuditUserAttributionTests
     private static HttpContextAccessor SignedInAs(Guid userId) =>
         AccessorFor(new Claim("sub", userId.ToString()), new Claim("name", "mallory"));
 
-    private static FlightDbContext CreateDbContext(IHttpContextAccessor accessor) =>
+    private static FlightDbContext CreateDbContext(IHttpContextAccessor accessor, string? databaseName = null) =>
         new(new DbContextOptionsBuilder<FlightDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options,
+                .UseInMemoryDatabase(databaseName ?? Guid.NewGuid().ToString()).Options,
             new CurrentUserProvider(accessor), null);
 
     private static AircraftModel NewAircraft() =>
@@ -68,8 +68,9 @@ public class AuditUserAttributionTests
     {
         var creator = Guid.NewGuid();
         var aircraft = NewAircraft();
+        var databaseName = Guid.NewGuid().ToString();
 
-        await using (var context = CreateDbContext(SignedInAs(creator)))
+        await using (var context = CreateDbContext(SignedInAs(creator), databaseName))
         {
             await context.Aircraft.AddAsync(aircraft);
             await context.SaveChangesAsync();
@@ -77,7 +78,7 @@ public class AuditUserAttributionTests
 
         var modifier = Guid.NewGuid();
 
-        await using (var context = CreateDbContext(SignedInAs(modifier)))
+        await using (var context = CreateDbContext(SignedInAs(modifier), databaseName))
         {
             context.Attach(aircraft);
             context.Entry(aircraft).State = EntityState.Modified;
