@@ -32,10 +32,15 @@ public class PersistMessageBackgroundService(
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await using (var scope = serviceProvider.CreateAsyncScope())
+            try
             {
+                await using var scope = serviceProvider.CreateAsyncScope();
                 var service = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor>();
                 await service.ProcessAllAsync(stoppingToken);
+            }
+            catch (System.Exception ex) when (!stoppingToken.IsCancellationRequested)
+            {
+                logger.LogError(ex, "PersistMessage Background Service cycle failed; retrying on next interval");
             }
 
             var delay = _options.Interval is { }
