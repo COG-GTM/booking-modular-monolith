@@ -19,6 +19,9 @@ public class EventStoreDBSubscriptionToAllOptions
     public UserCredentials? Credentials { get; set; }
     public bool ResolveLinkTos { get; set; }
     public bool IgnoreDeserializationErrors { get; set; } = true;
+
+    // After this many failed attempts an event is logged and skipped so it cannot stall the subscription.
+    public int MaxEventHandlingAttempts { get; set; } = 5;
 }
 
 public class EventStoreDBSubscriptionToAll
@@ -32,6 +35,7 @@ public class EventStoreDBSubscriptionToAll
     private string SubscriptionId => subscriptionOptions.SubscriptionId;
     private readonly object resubscribeLock = new();
     private CancellationToken cancellationToken;
+    private readonly EventFailureTracker failureTracker = new();
 
     public EventStoreDBSubscriptionToAll(
         EventStoreClient eventStoreClient,
@@ -82,7 +86,7 @@ public class EventStoreDBSubscriptionToAll
             if (IsEventWithEmptyData(resolvedEvent) || IsCheckpointEvent(resolvedEvent))
                 return;
 
-            var streamEvent = resolvedEvent.ToStreamEvent();
+            var streamEvent = TryDeserialize(resolvedEvent);
 
             if (streamEvent == null)
             {
@@ -95,6 +99,8 @@ public class EventStoreDBSubscriptionToAll
 
                 if (!subscriptionOptions.IgnoreDeserializationErrors)
                     throw new InvalidOperationException($"Unable to deserialize event {resolvedEvent.Event.EventType} with id: {resolvedEvent.Event.EventId}");
+
+                await checkpointRepository.Store(SubscriptionId, resolvedEvent.Event.Position.CommitPosition, ct);
                 return;
             }
 
@@ -104,14 +110,40 @@ public class EventStoreDBSubscriptionToAll
             await projectionPublisher.PublishAsync(streamEvent, ct);
 
             await checkpointRepository.Store(SubscriptionId, resolvedEvent.Event.Position.CommitPosition, ct);
+            failureTracker.Reset();
         }
-        catch (System.Exception e)
+        catch (System.Exception e) when (e is not OperationCanceledException)
         {
             logger.LogError("Error consuming message: {ExceptionMessage}{ExceptionStackTrace}", e.Message,
                 e.StackTrace);
-            // if you're fine with dropping some events instead of stopping subscription
-            // then you can add some logic if error should be ignored
-            throw;
+
+            if (!failureTracker.RegisterFailure(resolvedEvent.Event.EventId, subscriptionOptions.MaxEventHandlingAttempts))
+                throw;
+
+            logger.LogCritical(
+                e,
+                "Skipping event {EventId} of type {EventType} in stream {StreamId} after {Attempts} failed attempts",
+                resolvedEvent.Event.EventId,
+                resolvedEvent.Event.EventType,
+                resolvedEvent.Event.EventStreamId,
+                failureTracker.Attempts);
+
+            await checkpointRepository.Store(SubscriptionId, resolvedEvent.Event.Position.CommitPosition, ct);
+            failureTracker.Reset();
+        }
+    }
+
+    private StreamEvent? TryDeserialize(ResolvedEvent resolvedEvent)
+    {
+        try
+        {
+            return resolvedEvent.ToStreamEvent();
+        }
+        catch (System.Exception e)
+        {
+            logger.LogWarning(e, "Invalid payload for event {EventId} of type {EventType}",
+                resolvedEvent.Event.EventId, resolvedEvent.Event.EventType);
+            return null;
         }
     }
 
@@ -187,5 +219,32 @@ public class EventStoreDBSubscriptionToAll
 
         logger.LogInformation("Checkpoint event - ignoring");
         return true;
+    }
+}
+
+public class EventFailureTracker
+{
+    private Uuid? failedEventId;
+
+    public int Attempts { get; private set; }
+
+    // Returns true when the event has failed maxAttempts times in a row and should be skipped.
+    public bool RegisterFailure(Uuid eventId, int maxAttempts)
+    {
+        if (failedEventId != eventId)
+        {
+            failedEventId = eventId;
+            Attempts = 0;
+        }
+
+        Attempts++;
+
+        return Attempts >= Math.Max(1, maxAttempts);
+    }
+
+    public void Reset()
+    {
+        failedEventId = null;
+        Attempts = 0;
     }
 }

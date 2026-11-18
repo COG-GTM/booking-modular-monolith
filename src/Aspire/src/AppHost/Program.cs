@@ -80,34 +80,92 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 
-var eventstore = builder.AddEventStore("eventstore")
-    .WithImage("eventstore/eventstore")
+// EventStoreDB runs in secure mode: TLS with a generated CA/node certificate and a generated admin password.
+var eventstoreAdminPassword = builder.AddParameter(
+    "eventstore-admin-password",
+    new GenerateParameterDefault { MinLength = 24, Special = false },
+    secret: true,
+    persist: true);
+var eventstoreOpsPassword = builder.AddParameter(
+    "eventstore-ops-password",
+    new GenerateParameterDefault { MinLength = 24, Special = false },
+    secret: true,
+    persist: true);
+
+const string eventstoreCertsTarget = "/certs";
+const string eventstoreCaTarget = "/eventstore-ca";
+var eventstoreCertsHostPath = Path.Combine(builder.AppHostDirectory, ".eventstore", "certs");
+
+var eventstoreCerts = builder.AddContainer("eventstore-certs", "eventstore/es-gencert-cli", "1.0.2")
+    .WithEntrypoint("bash")
+    .WithArgs(
+        "-c",
+        $$"""
+        set -e
+        if [ ! -f {{eventstoreCertsTarget}}/node/node.crt ]; then
+          rm -rf {{eventstoreCertsTarget}}/ca {{eventstoreCertsTarget}}/node
+          es-gencert-cli create-ca -out {{eventstoreCertsTarget}}/ca
+          es-gencert-cli create-node -ca-certificate {{eventstoreCertsTarget}}/ca/ca.crt -ca-key {{eventstoreCertsTarget}}/ca/ca.key -out {{eventstoreCertsTarget}}/node -ip-addresses 127.0.0.1 -dns-names localhost,eventstore
+          rm -f {{eventstoreCertsTarget}}/ca/ca.key
+        fi
+        if [ -d {{eventstoreCaTarget}} ]; then cp {{eventstoreCertsTarget}}/ca/ca.crt {{eventstoreCaTarget}}/ca.crt; fi
+        chown -R 1000:1000 {{eventstoreCertsTarget}}
+        """)
+    .WithContainerRuntimeArgs("--user", "root")
+    .PublishAsDockerComposeService((_, service) => service.User = "root");
+
+var eventstore = builder.AddContainer("eventstore", "eventstore/eventstore", "24.10")
     .WithEnvironment("EVENTSTORE_CLUSTER_SIZE", "1")
     .WithEnvironment("EVENTSTORE_RUN_PROJECTIONS", "All")
     .WithEnvironment("EVENTSTORE_START_STANDARD_PROJECTIONS", "True")
-    .WithEnvironment("EVENTSTORE_INSECURE", "True")
-    .WithEnvironment("EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP", "True")
+    .WithEnvironment("EVENTSTORE_NODE_PORT", "2113")
+    .WithEnvironment("EVENTSTORE_CERTIFICATE_FILE", $"{eventstoreCertsTarget}/node/node.crt")
+    .WithEnvironment("EVENTSTORE_CERTIFICATE_PRIVATE_KEY_FILE", $"{eventstoreCertsTarget}/node/node.key")
+    .WithEnvironment("EVENTSTORE_TRUSTED_ROOT_CERTIFICATES_PATH", $"{eventstoreCertsTarget}/ca")
+    .WithEnvironment("EVENTSTORE_DEFAULT_ADMIN_PASSWORD", eventstoreAdminPassword)
+    .WithEnvironment("EVENTSTORE_DEFAULT_OPS_PASSWORD", eventstoreOpsPassword)
     .WithEndpoint(
-        "http",
+        "https",
         e =>
         {
+            e.UriScheme = "https";
             e.TargetPort = 2113;
             e.Port = 2113;
             e.IsProxied = true;
-            e.IsExternal = true;
+            e.IsExternal = false;
         })
-    .WithEndpoint(
-        port: 1113,
-        targetPort: 1113,
-        name: "tcp",
-        isProxied: true,
-        isExternal: false);
+    .WaitForCompletion(eventstoreCerts);
+
+var eventstoreEndpoint = eventstore.GetEndpoint("https");
+string eventstoreCaFile;
 
 if (builder.ExecutionContext.IsPublishMode)
 {
-    eventstore.WithDataVolume("eventstore-data")
+    eventstoreCerts
+        .WithVolume("eventstore-certs", eventstoreCertsTarget)
+        .WithVolume("eventstore-ca", eventstoreCaTarget);
+
+    eventstore.WithVolume("eventstore-certs", eventstoreCertsTarget, isReadOnly: true)
+        .WithVolume("eventstore-data", "/var/lib/eventstore")
         .WithLifetime(ContainerLifetime.Persistent);
+
+    eventstoreCaFile = $"{eventstoreCaTarget}/ca.crt";
 }
+else
+{
+    Directory.CreateDirectory(eventstoreCertsHostPath);
+
+    eventstoreCerts.WithBindMount(eventstoreCertsHostPath, eventstoreCertsTarget);
+    eventstore.WithBindMount(eventstoreCertsHostPath, eventstoreCertsTarget, isReadOnly: true);
+
+    eventstoreCaFile = Path.Combine(eventstoreCertsHostPath, "ca", "ca.crt");
+}
+
+var eventstoreConnectionString = ReferenceExpression.Create(
+    $"esdb://admin:{eventstoreAdminPassword}@{eventstoreEndpoint.Property(EndpointProperty.HostAndPort)}?tls=true");
+
+var eventstoreConnection = builder.AddConnectionString("eventstore-connection", eventstoreConnectionString);
+
 
 // 2. Messaging Services
 var rabbitmqUsername = builder.AddParameter("rabbitmq-username", "guest", secret: true);
@@ -314,11 +372,17 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(identityDb)
     .WithReference(mongo)
     .WaitFor(mongo)
-    .WithReference(eventstore)
+    .WithReference(eventstoreConnection, connectionName: "eventstore")
+    .WithEnvironment("EventStoreOptions__TlsCaFile", eventstoreCaFile)
     .WaitFor(eventstore)
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
+
+if (builder.ExecutionContext.IsPublishMode)
+{
+    api.WithAnnotation(new ContainerMountAnnotation("eventstore-ca", eventstoreCaTarget, ContainerMountType.Volume, isReadOnly: true));
+}
 
 builder.Build().Run();

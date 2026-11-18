@@ -18,7 +18,6 @@
     <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.1.1" />
     <PackageReference Include="Aspire.Hosting.RabbitMQ" Version="13.1.1" />
     <PackageReference Include="Aspire.Hosting.Redis" Version="13.1.1" />
-    <PackageReference Include="CommunityToolkit.Aspire.Hosting.EventStore" Version="9.9.0" />
     <PackageReference Include="Elastic.Aspire.Hosting.Elasticsearch" Version="9.3.0" />
   </ItemGroup>
 

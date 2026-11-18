@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using BuildingBlocks.Utils;
+using BuildingBlocks.Core.Event;
 
 namespace BuildingBlocks.EventStoreDB.Events;
 
@@ -29,15 +29,29 @@ public class EventTypeMapper
         return eventTypeName;
     });
 
-    public static Type? ToType(string eventTypeName) => Instance.typeMap.GetOrAdd(eventTypeName, _ =>
+    public static Type? ToType(string eventTypeName)
     {
-        var type = TypeProvider.GetFirstMatchingTypeFromCurrentDomainAssembly(eventTypeName.Replace("_", ".", StringComparison.CurrentCulture));
+        if (Instance.typeMap.TryGetValue(eventTypeName, out var mappedType))
+            return mappedType;
+
+        var type = FindEventType(eventTypeName.Replace("_", ".", StringComparison.CurrentCulture));
 
         if (type == null)
             return null;
 
-        Instance.typeNameMap.AddOrUpdate(type, eventTypeName, (_, _) => eventTypeName);
+        Instance.typeMap.TryAdd(eventTypeName, type);
+        Instance.typeNameMap.TryAdd(type, eventTypeName);
 
         return type;
-    });
+    }
+
+    // Event type names come from the event store, so only concrete IEvent types are resolved.
+    private static Type? FindEventType(string fullTypeName) =>
+        AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(a => a.GetTypes())
+            .FirstOrDefault(x => x.FullName == fullTypeName && IsAllowedEventType(x));
+
+    public static bool IsAllowedEventType(Type type) =>
+        type is { IsClass: true, IsAbstract: false, ContainsGenericParameters: false } &&
+        typeof(IEvent).IsAssignableFrom(type);
 }
