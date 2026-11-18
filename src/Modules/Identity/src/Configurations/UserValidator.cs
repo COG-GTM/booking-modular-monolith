@@ -25,7 +25,9 @@ public class UserValidator : IResourceOwnerPasswordValidator
 
     public async Task ValidateAsync(ResourceOwnerPasswordValidationContext context)
     {
-        var user = await _userManager.FindByNameAsync(context.UserName);
+        var user = string.IsNullOrEmpty(context.UserName)
+            ? null
+            : await _userManager.FindByNameAsync(context.UserName);
 
         if (user is null)
         {
