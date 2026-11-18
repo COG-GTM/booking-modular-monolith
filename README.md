@@ -206,7 +206,14 @@ dotnet dev-certs https --trust
 
 > ### Token signing key
 
-Development and test environments generate a local `tempkey.jwk`; never commit it. Other environments, including Docker Compose (`ASPNETCORE_ENVIRONMENT=docker`), use Duende automatic key management unless `AuthOptions__SigningKey` (JWK JSON) or `AuthOptions__SigningKeyPath` is configured. Hosts that validate each other's tokens must share the configured key, or the same Duende key store and Data Protection keys. The previously committed key is compromised and must never be reused or loaded.
+Development and test environments generate a local `tempkey.jwk`; never commit it. Other environments, including Docker Compose (`ASPNETCORE_ENVIRONMENT=docker`), use Duende automatic key management unless `AuthOptions__SigningKey` (JWK JSON) or `AuthOptions__SigningKeyPath` is configured. In Compose, export the chosen variable before `docker compose up`. A `SigningKeyPath` must point inside the container, so mount the key file read-only, for example:
+
+```yaml
+volumes:
+  - ./secrets/signing-key.jwk:/run/secrets/signing-key.jwk:ro
+```
+
+Then set `AuthOptions__SigningKeyPath=/run/secrets/signing-key.jwk`. Hosts that validate each other's tokens must share the configured key, or the same Duende key store and Data Protection keys. The previously committed key is compromised; the app refuses to load it, and it must never be reused.
 
 > ### Aspire
 
