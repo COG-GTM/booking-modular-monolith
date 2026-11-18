@@ -107,24 +107,12 @@ public sealed class IdentityContext : IdentityDbContext<User, Role, Guid,
         {
             return await base.SaveChangesAsync(cancellationToken);
         }
-        //ref: https://learn.microsoft.com/en-us/ef/core/saving/concurrency?tabs=data-annotations#resolving-concurrency-conflicts
         catch (DbUpdateConcurrencyException ex)
         {
-            foreach (var entry in ex.Entries)
-            {
-                var databaseValues = await entry.GetDatabaseValuesAsync(cancellationToken);
-
-                if (databaseValues == null)
-                {
-                    _logger.LogError("The record no longer exists in the database, The record has been deleted by another user.");
-                    throw;
-                }
-
-                // Refresh the original values to bypass next concurrency check
-                entry.OriginalValues.SetValues(databaseValues);
-            }
-
-            return await base.SaveChangesAsync(cancellationToken);
+            // Surface optimistic concurrency conflicts to the caller instead of overwriting the newer row.
+            _logger?.LogWarning(ex, "Concurrency conflict while saving {EntityTypes}",
+                string.Join(", ", ex.Entries.Select(e => e.Metadata.ClrType.Name).Distinct()));
+            throw;
         }
     }
 
