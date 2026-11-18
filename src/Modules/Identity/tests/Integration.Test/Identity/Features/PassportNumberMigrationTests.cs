@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Api;
+using BuildingBlocks.TestBase;
 using FluentAssertions;
 using global::Identity.Data;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +14,17 @@ using Xunit;
 
 namespace Integration.Test.Identity.Features;
 
+[Collection(IntegrationTestCollection.Name)]
 public class PassportNumberMigrationTests
 {
     private const string PreviousMigration = "20230331193410_initial";
     private const string TargetMigration = "20261118145156_AddUniquePassportNumberIndex";
+
+    public PassportNumberMigrationTests(TestWriteFixture<Program, IdentityContext> fixture)
+    {
+        // Initialize the app's Npgsql timestamp switches before opening an isolated connection.
+        _ = fixture.ServiceProvider;
+    }
 
     [Theory]
     [InlineData(false)]
