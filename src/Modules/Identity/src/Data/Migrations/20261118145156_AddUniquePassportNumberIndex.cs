@@ -10,6 +10,10 @@ namespace Identity.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql(
+                "UPDATE asp_net_users SET pass_port_number = upper(btrim(pass_port_number)) WHERE pass_port_number IS NOT NULL AND pass_port_number <> upper(btrim(pass_port_number));"
+            );
+
             migrationBuilder.CreateIndex(
                 name: "PassportNumberIndex",
                 table: "asp_net_users",
