@@ -75,20 +75,20 @@ public class IdentityDataSeeder : IDataSeeder
 
     private async Task SeedUsers()
     {
-        if (await _identityContext.Users.AnyAsync())
-        {
-            return;
-        }
+        var admin = InitialData.Users.First();
 
         if (string.IsNullOrWhiteSpace(_seedOptions.AdminPassword))
         {
-            _logger.LogWarning(
-                "IdentitySeedOptions:AdminPassword is not configured. The initial admin user is skipped.");
+            if (await _userManager.FindByNameAsync(admin.UserName) == null)
+            {
+                _logger.LogWarning(
+                    "IdentitySeedOptions:AdminPassword is not configured. The initial admin user is skipped.");
+            }
         }
         else
         {
             await CreateUserAsync(
-                InitialData.Users.First(),
+                admin,
                 _seedOptions.AdminPassword,
                 IdentityConstant.Role.Admin);
         }

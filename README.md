@@ -214,12 +214,16 @@ aspire run
 
 > Note:The `Aspire dashboard` will be available at `http://localhost:18888`
 
+> In publish mode, the `identity-client-secret` parameter must be supplied.
+
 > ### Docker Compose
 
 To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-compose/docker-compose.yaml) and execute the below command at the `root` of the application:
 
+> The API requires `IDENTITY_CLIENT_SECRET` for the `client` IdentityServer client; startup fails without it. `IDENTITY_ADMIN_PASSWORD` is optional and creates the initial `samh` admin on startup.
+
 ```bash
-docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
+IDENTITY_CLIENT_SECRET=<your-secret> IDENTITY_ADMIN_PASSWORD=<your-admin-password> docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
 ```
 
 > ### Build

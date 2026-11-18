@@ -321,4 +321,9 @@ var api = builder.AddProject<Api>("api")
     .WithHttpEndpoint(port: 3001, name: "api-http")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
 
+if (builder.ExecutionContext.IsPublishMode)
+{
+    api.WithEnvironment("AuthOptions__ClientSecret", builder.AddParameter("identity-client-secret", secret: true));
+}
+
 builder.Build().Run();
