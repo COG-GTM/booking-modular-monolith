@@ -16,7 +16,7 @@ namespace Integration.Test;
 public class RegisterNewUserOwnershipTests
 {
     [Fact]
-    public async Task should_persist_and_publish_identity_user_id_as_passenger_id()
+    public async Task should_persist_user_id_and_publish_independently_generated_passenger_id()
     {
         await using var db = CreateContext();
         var dispatcher = Substitute.For<IEventDispatcher>();
@@ -27,11 +27,12 @@ public class RegisterNewUserOwnershipTests
         db.ChangeTracker.Clear();
 
         var passenger = await db.Passengers.SingleAsync();
-        Assert.Equal(message.Id, passenger.Id.Value);
+        Assert.Equal(message.Id, passenger.UserId);
+        Assert.NotEqual(message.Id, passenger.Id.Value);
         await dispatcher
             .Received(1)
             .SendAsync(
-                Arg.Is<PassengerCreatedDomainEvent>(e => e.Id == message.Id),
+                Arg.Is<PassengerCreatedDomainEvent>(e => e.Id == passenger.Id.Value),
                 typeof(IInternalCommand),
                 Arg.Any<CancellationToken>()
             );
@@ -49,7 +50,7 @@ public class RegisterNewUserOwnershipTests
 
         await consumer.Consume(CreateMessageContext(owner with { Id = Guid.NewGuid() }));
 
-        Assert.Equal(owner.Id, (await db.Passengers.SingleAsync()).Id.Value);
+        Assert.Equal(owner.Id, (await db.Passengers.SingleAsync()).UserId);
         await dispatcher
             .DidNotReceive()
             .SendAsync(Arg.Any<PassengerCreatedDomainEvent>(), Arg.Any<Type>(), Arg.Any<CancellationToken>());
