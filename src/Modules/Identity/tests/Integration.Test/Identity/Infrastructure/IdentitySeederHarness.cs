@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -30,11 +31,13 @@ internal sealed class IdentitySeederHarness : IAsyncDisposable
     private readonly SqliteConnection _connection;
     private readonly ServiceProvider _provider;
     private readonly AsyncServiceScope _scope;
+    private readonly bool _ownsConnection;
 
-    private IdentitySeederHarness(SqliteConnection connection, ServiceProvider provider)
+    private IdentitySeederHarness(SqliteConnection connection, ServiceProvider provider, bool ownsConnection)
     {
         _connection = connection;
         _provider = provider;
+        _ownsConnection = ownsConnection;
         _scope = provider.CreateAsyncScope();
 
         Services = _scope.ServiceProvider;
@@ -61,6 +64,28 @@ internal sealed class IdentitySeederHarness : IAsyncDisposable
     {
         var connection = new SqliteConnection("DataSource=:memory:");
         await connection.OpenAsync();
+        return await CreateAsync(connection, seedOptions, environmentName, pendingMigrations, ownsConnection: true);
+    }
+
+    public static Task<IdentitySeederHarness> CreateAsync(
+        SqliteConnection connection,
+        IdentitySeedOptions seedOptions,
+        string environmentName,
+        bool pendingMigrations = false
+    ) => CreateAsync(connection, seedOptions, environmentName, pendingMigrations, ownsConnection: false);
+
+    private static async Task<IdentitySeederHarness> CreateAsync(
+        SqliteConnection connection,
+        IdentitySeedOptions seedOptions,
+        string environmentName,
+        bool pendingMigrations,
+        bool ownsConnection
+    )
+    {
+        if (connection.State != ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
 
         var services = new ServiceCollection();
         services.AddLogging();
@@ -101,14 +126,17 @@ internal sealed class IdentitySeederHarness : IAsyncDisposable
             await scope.ServiceProvider.GetRequiredService<IdentityContext>().Database.EnsureCreatedAsync();
         }
 
-        return new IdentitySeederHarness(connection, provider);
+        return new IdentitySeederHarness(connection, provider, ownsConnection);
     }
 
     public async ValueTask DisposeAsync()
     {
         await _scope.DisposeAsync();
         await _provider.DisposeAsync();
-        await _connection.DisposeAsync();
+        if (_ownsConnection)
+        {
+            await _connection.DisposeAsync();
+        }
     }
 
     private sealed class StubWebHostEnvironment(string environmentName) : IWebHostEnvironment

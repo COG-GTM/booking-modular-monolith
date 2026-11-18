@@ -7,6 +7,7 @@ using FluentAssertions;
 using Identity.Configurations;
 using Identity.Data.Seed;
 using Identity.Identity.Models;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -28,41 +29,82 @@ public class IdentityDataSeederRerunTests
     [Fact]
     public async Task should_seed_the_admin_on_a_later_run_when_the_admin_password_is_configured_after_the_regular_user_was_seeded()
     {
-        var options = new IdentitySeedOptions { UserPassword = UserPassword };
-        await using var harness = await IdentitySeederHarness.CreateAsync(options, Environments.Development);
+        await using var connection = new SqliteConnection("DataSource=:memory:");
+        await connection.OpenAsync();
 
-        await harness.Seeder.SeedAllAsync();
-        (await harness.Context.Users.Select(u => u.UserName).ToListAsync()).Should().Equal(RegularUser.UserName);
+        await using (
+            var initialHarness = await IdentitySeederHarness.CreateAsync(
+                connection,
+                new IdentitySeedOptions { AdminPassword = string.Empty, UserPassword = UserPassword },
+                Environments.Development
+            )
+        )
+        {
+            await initialHarness.Seeder.SeedAllAsync();
 
-        options.AdminPassword = AdminPassword;
-        await harness.Seeder.SeedAllAsync();
+            (await initialHarness.Context.Users.Select(u => u.UserName).ToListAsync()).Should().Equal(RegularUser.UserName);
+            initialHarness.Events.OfType<UserCreated>().Select(e => e.Id).Should().Equal(RegularUser.Id);
+            LogsAt(initialHarness, LogLevel.Warning).Should().ContainSingle();
+        }
 
-        var admin = await harness.UserManager.FindByNameAsync(Admin.UserName!);
-        admin.Should().NotBeNull();
-        (await harness.UserManager.GetRolesAsync(admin!)).Should().Equal(IdentityConstant.Role.Admin);
-        (await harness.UserManager.CheckPasswordAsync(admin!, AdminPassword)).Should().BeTrue();
-        (await harness.Context.Users.CountAsync()).Should().Be(2);
-        harness.Events.OfType<UserCreated>().Select(e => e.Id).Should().Equal(RegularUser.Id, Admin.Id);
+        await using (
+            var harness = await IdentitySeederHarness.CreateAsync(
+                connection,
+                new IdentitySeedOptions { AdminPassword = AdminPassword, UserPassword = UserPassword },
+                Environments.Development
+            )
+        )
+        {
+            await harness.Seeder.SeedAllAsync();
+
+            var admin = await harness.UserManager.FindByNameAsync(Admin.UserName!);
+            admin.Should().NotBeNull();
+            (await harness.UserManager.GetRolesAsync(admin!)).Should().Equal(IdentityConstant.Role.Admin);
+            (await harness.UserManager.CheckPasswordAsync(admin!, AdminPassword)).Should().BeTrue();
+            (await harness.Context.Users.OrderBy(u => u.UserName).Select(u => u.UserName).ToListAsync())
+                .Should()
+                .Equal(Admin.UserName, RegularUser.UserName);
+            harness.Events.OfType<UserCreated>().Select(e => e.Id).Should().Equal(Admin.Id);
+            LogsAt(harness, LogLevel.Warning).Should().BeEmpty();
+        }
     }
 
     [Fact]
     public async Task should_seed_the_admin_on_a_later_run_once_an_invalid_admin_password_is_corrected()
     {
-        var options = new IdentitySeedOptions { AdminPassword = "abc", UserPassword = UserPassword };
-        await using var harness = await IdentitySeederHarness.CreateAsync(options, Environments.Development);
+        await using var connection = new SqliteConnection("DataSource=:memory:");
+        await connection.OpenAsync();
 
-        await harness.Seeder.SeedAllAsync();
-        (await harness.UserManager.FindByNameAsync(Admin.UserName!)).Should().BeNull();
-        LogsAt(harness, LogLevel.Error).Should().ContainSingle();
+        await using (
+            var initialHarness = await IdentitySeederHarness.CreateAsync(
+                connection,
+                new IdentitySeedOptions { AdminPassword = "abc", UserPassword = UserPassword },
+                Environments.Development
+            )
+        )
+        {
+            await initialHarness.Seeder.SeedAllAsync();
 
-        options.AdminPassword = AdminPassword;
-        await harness.Seeder.SeedAllAsync();
+            (await initialHarness.UserManager.FindByNameAsync(Admin.UserName!)).Should().BeNull();
+            LogsAt(initialHarness, LogLevel.Error).Should().ContainSingle();
+        }
 
-        var admin = await harness.UserManager.FindByNameAsync(Admin.UserName!);
-        admin.Should().NotBeNull();
-        (await harness.UserManager.CheckPasswordAsync(admin!, AdminPassword)).Should().BeTrue();
-        (await harness.Context.Users.CountAsync()).Should().Be(2);
-        LogsAt(harness, LogLevel.Error).Should().ContainSingle();
+        await using (
+            var harness = await IdentitySeederHarness.CreateAsync(
+                connection,
+                new IdentitySeedOptions { AdminPassword = AdminPassword, UserPassword = UserPassword },
+                Environments.Development
+            )
+        )
+        {
+            await harness.Seeder.SeedAllAsync();
+
+            var admin = await harness.UserManager.FindByNameAsync(Admin.UserName!);
+            admin.Should().NotBeNull();
+            (await harness.UserManager.CheckPasswordAsync(admin!, AdminPassword)).Should().BeTrue();
+            (await harness.Context.Users.CountAsync()).Should().Be(2);
+            LogsAt(harness, LogLevel.Error).Should().BeEmpty();
+        }
     }
 
     [Fact]
