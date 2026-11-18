@@ -7,6 +7,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Aspire.Hosting.Testing" Version="13.1.1" />
 		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
 		<PackageReference Include="xunit" Version="2.9.3" />
 		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
@@ -17,6 +18,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\..\..\Api\src\Api.csproj" />
+		<ProjectReference Include="..\..\..\..\Aspire\src\AppHost\AppHost.csproj" Aliases="apphost" />
 	</ItemGroup>
 
 </Project>
