@@ -11,7 +11,7 @@ namespace Identity.Data.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql(
-                "UPDATE asp_net_users SET pass_port_number = upper(btrim(pass_port_number)) WHERE pass_port_number IS NOT NULL AND pass_port_number <> upper(btrim(pass_port_number));"
+                "UPDATE asp_net_users SET pass_port_number = upper(regexp_replace(pass_port_number, '^\\s+|\\s+$', '', 'g')) WHERE pass_port_number IS NOT NULL AND pass_port_number <> upper(regexp_replace(pass_port_number, '^\\s+|\\s+$', '', 'g'));"
             );
 
             migrationBuilder.CreateIndex(
