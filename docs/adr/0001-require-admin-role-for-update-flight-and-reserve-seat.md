@@ -33,7 +33,7 @@ rules. The test fixture mirrors the admin/user policies with FakeJwtBearer and e
 
 Other HTTP endpoints are unchanged. In particular, the gRPC
 `FlightGrpcServices.ReserveSeat` operation remains unauthenticated as the internal
-Booking-to-Flight path: `CreateBookingHandler` calls the gRPC client, which dispatches the
+Booking-to-Flight path: `CreateBookingCommandHandler` calls the gRPC client, which dispatches the
 same `ReserveSeat` command through MediatR. Internal intent is not an authentication control;
 gRPC authentication and reachability are a **separate security finding**, not mitigated here.
 Endpoint authorization is deliberately not added to the shared command handler.
