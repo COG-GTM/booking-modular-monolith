@@ -139,7 +139,6 @@ authorization: bearer {{Authenticate.response.body.access_token}}
   "durationMinutes": 120,
   "flightDate": "2022-04-23T12:17:45.140Z",
   "status": 4,
-  "isDeleted": false,
   "price": 99000
 }
 ###

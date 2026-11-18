@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Aircrafts.ValueObjects;
 using Ardalis.GuardClauses;
 using BuildingBlocks.Caching;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
@@ -13,7 +14,6 @@ using Data;
 using Duende.IdentityServer.EntityFramework.Entities;
 using Exceptions;
 using Flight.Airports.ValueObjects;
-using Flight.Flights.Features.CreatingFlight.V1;
 using FluentValidation;
 using MapsterMapper;
 using MediatR;
@@ -25,7 +25,7 @@ using ValueObjects;
 
 public record UpdateFlight(Guid Id, string FlightNumber, Guid AircraftId, Guid DepartureAirportId,
     DateTime DepartureDate, DateTime ArriveDate, Guid ArriveAirportId, decimal DurationMinutes, DateTime FlightDate,
-    Enums.FlightStatus Status, bool IsDeleted, decimal Price) : ICommand<UpdateFlightResult>, IInternalCommand,
+    Enums.FlightStatus Status, decimal Price) : ICommand<UpdateFlightResult>, IInternalCommand,
     IInvalidateCacheRequest
 {
     public string CacheKey => "GetAvailableFlights";
@@ -39,8 +39,7 @@ public record FlightUpdatedDomainEvent(Guid Id, string FlightNumber, Guid Aircra
 
 public record UpdateFlightRequestDto(Guid Id, string FlightNumber, Guid AircraftId, Guid DepartureAirportId,
     DateTime DepartureDate, DateTime ArriveDate,
-    Guid ArriveAirportId, decimal DurationMinutes, DateTime FlightDate, Enums.FlightStatus Status, decimal Price,
-    bool IsDeleted);
+    Guid ArriveAirportId, decimal DurationMinutes, DateTime FlightDate, Enums.FlightStatus Status, decimal Price);
 
 public class UpdateFlightEndpoint : IMinimalEndpoint
 {
@@ -57,10 +56,13 @@ public class UpdateFlightEndpoint : IMinimalEndpoint
                 return Results.NoContent();
             })
             .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(IdentityConstant.Role.Admin)
             .WithName("UpdateFlight")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .WithSummary("Update Flight")
             .WithDescription("Update Flight")
             .WithOpenApi()
@@ -70,10 +72,12 @@ public class UpdateFlightEndpoint : IMinimalEndpoint
     }
 }
 
-public class UpdateFlightValidator : AbstractValidator<CreateFlight>
+public class UpdateFlightValidator : AbstractValidator<UpdateFlight>
 {
     public UpdateFlightValidator()
     {
+        RuleFor(x => x.Id).NotEmpty().WithMessage("Id must be not empty");
+        RuleFor(x => x.FlightNumber).NotEmpty().WithMessage("FlightNumber must be not empty");
         RuleFor(x => x.Price).GreaterThan(0).WithMessage("Price must be greater than 0");
 
         RuleFor(x => x.Status).Must(p => (p.GetType().IsEnum &&
@@ -116,7 +120,7 @@ internal class UpdateFlightHandler : ICommandHandler<UpdateFlight, UpdateFlightR
         flight.Update(FlightId.Of(request.Id), FlightNumber.Of(request.FlightNumber), AircraftId.Of(request.AircraftId), AirportId.Of(request.DepartureAirportId),
             DepartureDate.Of(request.DepartureDate),
             ArriveDate.Of(request.ArriveDate), AirportId.Of(request.ArriveAirportId), DurationMinutes.Of(request.DurationMinutes), FlightDate.Of(request.FlightDate), request.Status,
-            Price.Of(request.Price), request.IsDeleted);
+            Price.Of(request.Price), flight.IsDeleted);
 
         var updateFlight = _flightDbContext.Flights.Update(flight).Entity;
 

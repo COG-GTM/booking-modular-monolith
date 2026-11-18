@@ -41,7 +41,7 @@ public class FlightMappings : IRegister
 
         config.NewConfig<UpdateFlightRequestDto, UpdateFlight>()
             .ConstructUsing(x => new UpdateFlight(x.Id, x.FlightNumber, x.AircraftId, x.DepartureAirportId, x.DepartureDate,
-                x.ArriveDate, x.ArriveAirportId, x.DurationMinutes, x.FlightDate, x.Status, x.IsDeleted, x.Price));
+                x.ArriveDate, x.ArriveAirportId, x.DurationMinutes, x.FlightDate, x.Status, x.Price));
 
     }
 }
