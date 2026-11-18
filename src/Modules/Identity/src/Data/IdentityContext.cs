@@ -16,17 +16,14 @@ namespace Identity.Data;
 
 using System;
 using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.Extensions.Logging;
 
 public sealed class IdentityContext : IdentityDbContext<User, Role, Guid,
     UserClaim, UserRole, UserLogin, RoleClaim, UserToken>, IDbContext
 {
-    private readonly ILogger<IdentityContext>? _logger;
     private IDbContextTransaction _currentTransaction;
 
-    public IdentityContext(DbContextOptions<IdentityContext> options, ILogger<IdentityContext>? logger = null) : base(options)
+    public IdentityContext(DbContextOptions<IdentityContext> options) : base(options)
     {
-        _logger = logger;
     }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -100,32 +97,13 @@ public sealed class IdentityContext : IdentityDbContext<User, Role, Guid,
         });
     }
 
-    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    // Concurrency conflicts must reach the ASP.NET Core Identity stores, which turn them into
+    // IdentityResult.Failed(ConcurrencyFailure). Forcing a retry here would let a stale copy of
+    // the user row overwrite AccessFailedCount / LockoutEnd and weaken the account lockout.
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         OnBeforeSaving();
-        try
-        {
-            return await base.SaveChangesAsync(cancellationToken);
-        }
-        //ref: https://learn.microsoft.com/en-us/ef/core/saving/concurrency?tabs=data-annotations#resolving-concurrency-conflicts
-        catch (DbUpdateConcurrencyException ex)
-        {
-            foreach (var entry in ex.Entries)
-            {
-                var databaseValues = await entry.GetDatabaseValuesAsync(cancellationToken);
-
-                if (databaseValues == null)
-                {
-                    _logger.LogError("The record no longer exists in the database, The record has been deleted by another user.");
-                    throw;
-                }
-
-                // Refresh the original values to bypass next concurrency check
-                entry.OriginalValues.SetValues(databaseValues);
-            }
-
-            return await base.SaveChangesAsync(cancellationToken);
-        }
+        return base.SaveChangesAsync(cancellationToken);
     }
 
     public IReadOnlyList<IDomainEvent> GetDomainEvents()
