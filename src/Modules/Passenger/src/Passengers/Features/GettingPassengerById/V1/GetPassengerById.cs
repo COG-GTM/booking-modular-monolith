@@ -19,17 +19,15 @@ using Passenger.Data;
 using Passenger.Passengers.Dtos;
 using Passenger.Passengers.Exceptions;
 
-public record GetPassengerById(Guid Id, Guid? RequesterUserId, bool RequesterIsAdmin) : IQuery<GetPassengerByIdResult>
+public record GetPassengerById(Guid Id, Guid? RequesterUserId, bool RequesterIsAdmin)
+    : IQuery<GetPassengerByIdResult>
 {
     public static GetPassengerById For(Guid id, ClaimsPrincipal user)
     {
         var requesterUserId = user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        return new GetPassengerById(
-            id,
-            Guid.TryParse(requesterUserId, out var userId) ? userId : null,
-            user.IsInRole(IdentityConstant.Role.Admin)
-        );
+        return new GetPassengerById(id, Guid.TryParse(requesterUserId, out var userId) ? userId : null,
+            user.IsInRole(IdentityConstant.Role.Admin));
     }
 }
 
@@ -41,9 +39,7 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder
-            .MapGet(
-                $"{EndpointConfig.BaseApiPath}/passenger/{{id}}",
+        builder.MapGet($"{EndpointConfig.BaseApiPath}/passenger/{{id}}",
                 async (Guid id, ClaimsPrincipal user, IMediator mediator, CancellationToken cancellationToken) =>
                 {
                     var result = await mediator.Send(GetPassengerById.For(id, user), cancellationToken);
@@ -51,8 +47,7 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
                     var response = result.Adapt<GetPassengerByIdResponseDto>();
 
                     return Results.Ok(response);
-                }
-            )
+                })
             .RequireAuthorization(nameof(ApiScope))
             .WithName("GetPassengerById")
             .WithApiVersionSet(builder.NewApiVersionSet("Passenger").Build())
@@ -91,16 +86,13 @@ internal class GetPassengerByIdHandler : IQueryHandler<GetPassengerById, GetPass
     {
         Guard.Against.Null(query, nameof(query));
 
-        var passenger = await _passengerReadDbContext
-            .Passenger.AsQueryable()
-            .SingleOrDefaultAsync(x => x.PassengerId == query.Id && x.IsDeleted == false, cancellationToken);
+        var passenger =
+            await _passengerReadDbContext.Passenger.AsQueryable()
+                .SingleOrDefaultAsync(x => x.PassengerId == query.Id && x.IsDeleted == false, cancellationToken);
 
-        if (
-            passenger is null
-            || !(
-                query.RequesterIsAdmin || (query.RequesterUserId.HasValue && passenger.UserId == query.RequesterUserId)
-            )
-        )
+        if (passenger is null ||
+            !(query.RequesterIsAdmin ||
+              (query.RequesterUserId.HasValue && passenger.UserId == query.RequesterUserId)))
         {
             throw new PassengerNotFoundException();
         }

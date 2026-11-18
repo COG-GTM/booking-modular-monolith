@@ -16,48 +16,64 @@ public static class GrpcClientExtensions
         services.AddHttpContextAccessor();
         services.AddTransient<ForwardAuthorizationHeaderHandler>();
 
-        services
-            .AddGrpcClient<FlightGrpcService.FlightGrpcServiceClient>(o =>
+        services.AddGrpcClient<FlightGrpcService.FlightGrpcServiceClient>(o =>
+        {
+            o.Address = new Uri(grpcOptions.FlightAddress);
+        })
+        .AddResilienceHandler(
+            "grpc-flight-resilience",
+            options =>
             {
-                o.Address = new Uri(grpcOptions.FlightAddress);
-            })
-            .AddResilienceHandler(
-                "grpc-flight-resilience",
-                options =>
-                {
-                    var timeSpan = TimeSpan.FromMinutes(1);
+                var timeSpan = TimeSpan.FromMinutes(1);
 
-                    options.AddRetry(new HttpRetryStrategyOptions { MaxRetryAttempts = 3 });
+                options.AddRetry(
+                    new HttpRetryStrategyOptions
+                    {
+                        MaxRetryAttempts = 3,
+                    });
 
-                    options.AddCircuitBreaker(
-                        new HttpCircuitBreakerStrategyOptions { SamplingDuration = timeSpan * 2 }
-                    );
+                options.AddCircuitBreaker(
+                    new HttpCircuitBreakerStrategyOptions
+                    {
+                        SamplingDuration = timeSpan * 2,
+                    });
 
-                    options.AddTimeout(new HttpTimeoutStrategyOptions { Timeout = timeSpan * 3 });
-                }
-            );
+                options.AddTimeout(
+                    new HttpTimeoutStrategyOptions
+                    {
+                        Timeout = timeSpan * 3,
+                    });
+            });
 
-        services
-            .AddGrpcClient<PassengerGrpcService.PassengerGrpcServiceClient>(o =>
+        services.AddGrpcClient<PassengerGrpcService.PassengerGrpcServiceClient>(o =>
+        {
+            o.Address = new Uri(grpcOptions.PassengerAddress);
+        })
+        .AddHttpMessageHandler<ForwardAuthorizationHeaderHandler>()
+        .AddResilienceHandler(
+            "grpc-passenger-resilience",
+            options =>
             {
-                o.Address = new Uri(grpcOptions.PassengerAddress);
-            })
-            .AddHttpMessageHandler<ForwardAuthorizationHeaderHandler>()
-            .AddResilienceHandler(
-                "grpc-passenger-resilience",
-                options =>
-                {
-                    var timeSpan = TimeSpan.FromMinutes(1);
+                var timeSpan = TimeSpan.FromMinutes(1);
 
-                    options.AddRetry(new HttpRetryStrategyOptions { MaxRetryAttempts = 3 });
+                options.AddRetry(
+                    new HttpRetryStrategyOptions
+                    {
+                        MaxRetryAttempts = 3,
+                    });
 
-                    options.AddCircuitBreaker(
-                        new HttpCircuitBreakerStrategyOptions { SamplingDuration = timeSpan * 2 }
-                    );
+                options.AddCircuitBreaker(
+                    new HttpCircuitBreakerStrategyOptions
+                    {
+                        SamplingDuration = timeSpan * 2,
+                    });
 
-                    options.AddTimeout(new HttpTimeoutStrategyOptions { Timeout = timeSpan * 3 });
-                }
-            );
+                options.AddTimeout(
+                    new HttpTimeoutStrategyOptions
+                    {
+                        Timeout = timeSpan * 3,
+                    });
+            });
 
         return services;
     }
