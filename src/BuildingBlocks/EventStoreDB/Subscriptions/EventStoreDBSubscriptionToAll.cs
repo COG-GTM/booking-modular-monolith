@@ -1,3 +1,4 @@
+using System.Text;
 using BuildingBlocks.EventStoreDB.Events;
 using BuildingBlocks.EventStoreDB.Projections;
 using BuildingBlocks.Utils;
@@ -5,6 +6,7 @@ using EventStore.Client;
 using Grpc.Core;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 
 namespace BuildingBlocks.EventStoreDB.Subscriptions;
 
@@ -19,6 +21,21 @@ public class EventStoreDBSubscriptionToAllOptions
     public UserCredentials? Credentials { get; set; }
     public bool ResolveLinkTos { get; set; }
     public bool IgnoreDeserializationErrors { get; set; } = true;
+
+    /// <summary>
+    /// How many times an event that deserializes but fails in a handler or projection is retried
+    /// before it is moved to the dead-letter stream and skipped.
+    /// </summary>
+    public int MaxEventProcessingAttempts { get; set; } = 5;
+
+    public TimeSpan ResubscribeBaseDelay { get; set; } = TimeSpan.FromSeconds(1);
+    public TimeSpan ResubscribeMaxDelay { get; set; } = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// Consecutive resubscribe attempts without handling an event before the subscription gives up.
+    /// Null retries until the database is reachable again.
+    /// </summary>
+    public int? MaxResubscribeAttempts { get; set; }
 }
 
 public class EventStoreDBSubscriptionToAll
@@ -32,6 +49,9 @@ public class EventStoreDBSubscriptionToAll
     private string SubscriptionId => subscriptionOptions.SubscriptionId;
     private readonly object resubscribeLock = new();
     private CancellationToken cancellationToken;
+    private ulong? failingEventPosition;
+    private int failingEventAttempts;
+    private int consecutiveResubscribeAttempts;
 
     public EventStoreDBSubscriptionToAll(
         EventStoreClient eventStoreClient,
@@ -79,10 +99,25 @@ public class EventStoreDBSubscriptionToAll
     {
         try
         {
-            if (IsEventWithEmptyData(resolvedEvent) || IsCheckpointEvent(resolvedEvent))
+            if (IsEventWithEmptyData(resolvedEvent) || IsCheckpointEvent(resolvedEvent) ||
+                IsDeadLetterEvent(resolvedEvent))
                 return;
 
-            var streamEvent = resolvedEvent.ToStreamEvent();
+            StreamEvent? streamEvent;
+            try
+            {
+                streamEvent = resolvedEvent.ToStreamEvent();
+
+                if (streamEvent is { Data: not INotification })
+                    throw new InvalidOperationException(
+                        $"Event type '{streamEvent.Data.GetType().FullName}' is not a notification");
+            }
+            catch (System.Exception e) when (e is not OperationCanceledException)
+            {
+                // A body that doesn't fit its type fails the same way on every delivery, so retrying can't help.
+                await DeadLetterAndSkip(resolvedEvent, e, ct);
+                return;
+            }
 
             if (streamEvent == null)
             {
@@ -104,15 +139,84 @@ public class EventStoreDBSubscriptionToAll
             await projectionPublisher.PublishAsync(streamEvent, ct);
 
             await checkpointRepository.Store(SubscriptionId, resolvedEvent.Event.Position.CommitPosition, ct);
+
+            MarkProgress();
         }
-        catch (System.Exception e)
+        catch (System.Exception e) when (e is not OperationCanceledException && !ct.IsCancellationRequested)
         {
             logger.LogError("Error consuming message: {ExceptionMessage}{ExceptionStackTrace}", e.Message,
                 e.StackTrace);
-            // if you're fine with dropping some events instead of stopping subscription
-            // then you can add some logic if error should be ignored
-            throw;
+
+            if (RegisterFailedAttempt(resolvedEvent) < subscriptionOptions.MaxEventProcessingAttempts)
+                throw;
+
+            await DeadLetterAndSkip(resolvedEvent, e, ct);
         }
+    }
+
+    private int RegisterFailedAttempt(ResolvedEvent resolvedEvent)
+    {
+        var position = resolvedEvent.Event.Position.CommitPosition;
+
+        if (failingEventPosition != position)
+        {
+            failingEventPosition = position;
+            failingEventAttempts = 0;
+        }
+
+        return ++failingEventAttempts;
+    }
+
+    private void MarkProgress()
+    {
+        failingEventPosition = null;
+        failingEventAttempts = 0;
+        Interlocked.Exchange(ref consecutiveResubscribeAttempts, 0);
+    }
+
+    private async Task DeadLetterAndSkip(ResolvedEvent resolvedEvent, System.Exception exception,
+        CancellationToken ct)
+    {
+        var record = resolvedEvent.Event;
+
+        logger.LogError(
+            exception,
+            "Moving event {EventId} of type '{EventType}' from stream '{StreamId}' at position {Position} to dead-letter stream '{DeadLetterStream}'",
+            record.EventId,
+            record.EventType,
+            record.EventStreamId,
+            record.Position.CommitPosition,
+            DeadLetterStreamName);
+
+        var metadata = new
+        {
+            SubscriptionId,
+            OriginalEventId = record.EventId.ToString(),
+            OriginalEventType = record.EventType,
+            OriginalStreamId = record.EventStreamId,
+            OriginalEventNumber = record.EventNumber.ToUInt64(),
+            OriginalCommitPosition = record.Position.CommitPosition,
+            Error = $"{exception.GetType().FullName}: {exception.Message}",
+            DeadLetteredAt = DateTime.UtcNow
+        };
+
+        await eventStoreClient.AppendToStreamAsync(
+            DeadLetterStreamName,
+            StreamState.Any,
+            new[]
+            {
+                new EventData(
+                    Uuid.NewUuid(),
+                    record.EventType,
+                    record.Data,
+                    Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(metadata)),
+                    record.ContentType)
+            },
+            cancellationToken: ct);
+
+        await checkpointRepository.Store(SubscriptionId, record.Position.CommitPosition, ct);
+
+        MarkProgress();
     }
 
     private void HandleDrop(StreamSubscription _, SubscriptionDroppedReason reason, System.Exception? exception)
@@ -132,10 +236,24 @@ public class EventStoreDBSubscriptionToAll
 
     private void Resubscribe()
     {
-        // You may consider adding a max resubscribe count if you want to fail process
-        // instead of retrying until database is up
-        while (true)
+        while (!cancellationToken.IsCancellationRequested)
         {
+            var attempt = Interlocked.Increment(ref consecutiveResubscribeAttempts);
+
+            if (attempt > subscriptionOptions.MaxResubscribeAttempts)
+            {
+                logger.LogCritical(
+                    "Subscription to all '{SubscriptionId}' stopped after {Attempts} resubscribe attempts without progress",
+                    SubscriptionId, attempt - 1);
+                return;
+            }
+
+            // Back off between attempts so a failing event or an unavailable database doesn't flood the
+            // database and logs or spin the CPU. Randomness reduces the chance of multiple subscriptions
+            // reconnecting at the same time.
+            if (cancellationToken.WaitHandle.WaitOne(GetResubscribeDelay(attempt)))
+                return;
+
             var resubscribed = false;
             try
             {
@@ -164,11 +282,17 @@ public class EventStoreDBSubscriptionToAll
 
             if (resubscribed)
                 break;
-
-            // Sleep between reconnections to not flood the database or not kill the CPU with infinite loop
-            // Randomness added to reduce the chance of multiple subscriptions trying to reconnect at the same time
-            Thread.Sleep(1000 + new Random((int)DateTime.UtcNow.Ticks).Next(1000));
         }
+    }
+
+    private TimeSpan GetResubscribeDelay(int attempt)
+    {
+        var baseDelay = subscriptionOptions.ResubscribeBaseDelay;
+        var maxDelay = subscriptionOptions.ResubscribeMaxDelay;
+        var exponential = baseDelay.TotalMilliseconds * Math.Pow(2, Math.Min(attempt - 1, 16));
+        var jitter = Random.Shared.NextDouble() * baseDelay.TotalMilliseconds;
+
+        return TimeSpan.FromMilliseconds(Math.Min(exponential, maxDelay.TotalMilliseconds) + jitter);
     }
 
     private bool IsEventWithEmptyData(ResolvedEvent resolvedEvent)
@@ -188,4 +312,11 @@ public class EventStoreDBSubscriptionToAll
         logger.LogInformation("Checkpoint event - ignoring");
         return true;
     }
+
+    private bool IsDeadLetterEvent(ResolvedEvent resolvedEvent) =>
+        resolvedEvent.Event.EventStreamId == DeadLetterStreamName;
+
+    private string DeadLetterStreamName => GetDeadLetterStreamName(SubscriptionId);
+
+    public static string GetDeadLetterStreamName(string subscriptionId) => $"deadletter_{subscriptionId}";
 }
