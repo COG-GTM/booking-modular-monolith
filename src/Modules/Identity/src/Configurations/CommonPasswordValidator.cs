@@ -84,7 +84,7 @@ public class CommonPasswordValidator : IPasswordValidator<User>
 
     private static string? EmailLocalPart(string? email)
     {
-        var at = email?.IndexOf('@') ?? -1;
+        var at = email?.IndexOf('@', StringComparison.Ordinal) ?? -1;
         return at > 0 ? email![..at] : null;
     }
 }
