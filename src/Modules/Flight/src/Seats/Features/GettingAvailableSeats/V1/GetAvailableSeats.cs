@@ -1,5 +1,3 @@
-using MongoDB.Driver.Linq;
-
 namespace Flight.Seats.Features.GettingAvailableSeats.V1;
 
 using System;
@@ -61,12 +59,14 @@ public class GetAvailableSeatsValidator : AbstractValidator<GetAvailableSeats>
 {
     public GetAvailableSeatsValidator()
     {
-        RuleFor(x => x.FlightId).NotNull().WithMessage("FlightId is required!");
+        RuleFor(x => x.FlightId).NotEmpty().WithMessage("FlightId is required!");
     }
 }
 
 internal class GetAvailableSeatsQueryHandler : IRequestHandler<GetAvailableSeats, GetAvailableSeatsResult>
 {
+    public const int MaxSeatsReturned = 1000;
+
     private readonly IMapper _mapper;
     private readonly FlightReadDbContext _flightReadDbContext;
 
@@ -81,10 +81,12 @@ internal class GetAvailableSeatsQueryHandler : IRequestHandler<GetAvailableSeats
     {
         Guard.Against.Null(query, nameof(query));
 
-        var seats = (await _flightReadDbContext.Seat.AsQueryable().ToListAsync(cancellationToken))
-            .Where(x => x.FlightId == query.FlightId && !x.IsDeleted);
+        var seats = await _flightReadDbContext.Seat
+            .Find(x => x.FlightId == query.FlightId && !x.IsDeleted)
+            .Limit(MaxSeatsReturned)
+            .ToListAsync(cancellationToken);
 
-        if (!seats.Any())
+        if (seats.Count == 0)
         {
             throw new AllSeatsFullException();
         }
