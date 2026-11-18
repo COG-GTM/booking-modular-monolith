@@ -29,7 +29,8 @@ namespace BuildingBlocks.Caching
             var cacheKey = invalidateCacheRequest.CacheKey;
             var response = await next();
 
-            await _cachingProvider.RemoveAsync(cacheKey);
+            // Paged queries cache one entry per page under "{CacheKey}:...", so clear them all.
+            await _cachingProvider.RemoveByPrefixAsync(cacheKey);
 
             _logger.LogDebug("Cache data with cache key: {CacheKey} removed.", cacheKey);
 
