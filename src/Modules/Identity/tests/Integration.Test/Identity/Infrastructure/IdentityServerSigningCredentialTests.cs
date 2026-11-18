@@ -109,6 +109,130 @@ public class IdentityServerSigningCredentialTests
         }
     }
 
+    [Theory]
+    [InlineData("P-384", SecurityAlgorithms.EcdsaSha384)]
+    [InlineData("P-521", SecurityAlgorithms.EcdsaSha512)]
+    public async Task production_with_ec_signing_key_without_algorithm_uses_curve_algorithm(
+        string curve,
+        string expectedAlgorithm
+    )
+    {
+        var root = CreateContentRoot();
+        using var ecdsa = ECDsa.Create(curve == "P-384" ? ECCurve.NamedCurves.nistP384 : ECCurve.NamedCurves.nistP521);
+        var jwk = JsonWebKeyConverter.ConvertFromECDsaSecurityKey(new ECDsaSecurityKey(ecdsa));
+        jwk.Alg = null;
+        var settings = CreateSettings();
+        settings["AuthOptions:SigningKey"] = JsonSerializer.Serialize(jwk);
+
+        try
+        {
+            await using var app = CreateApplication("Production", root, settings);
+            var credentialStore = Assert.Single(app.Services.GetServices<ISigningCredentialStore>());
+            var credential = await credentialStore.GetSigningCredentialsAsync();
+
+            Assert.Equal(expectedAlgorithm, credential.Algorithm);
+            var signatureProvider = CryptoProviderFactory.Default.CreateForSigning(
+                credential.Key,
+                credential.Algorithm
+            );
+            Assert.NotNull(signatureProvider);
+            CryptoProviderFactory.Default.ReleaseSignatureProvider(signatureProvider);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public async Task production_with_explicit_signing_algorithm_honors_configured_algorithm()
+    {
+        var root = CreateContentRoot();
+        var jwk = new JsonWebKey(CreateJwk()) { Alg = SecurityAlgorithms.RsaSha512 };
+        var settings = CreateSettings();
+        settings["AuthOptions:SigningKey"] = JsonSerializer.Serialize(jwk);
+
+        try
+        {
+            await using var app = CreateApplication("Production", root, settings);
+            var credentialStore = Assert.Single(app.Services.GetServices<ISigningCredentialStore>());
+            var credential = await credentialStore.GetSigningCredentialsAsync();
+
+            Assert.Equal(SecurityAlgorithms.RsaSha512, credential.Algorithm);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void signing_algorithm_with_unsupported_key_type_throws_invalid_operation_exception()
+    {
+        var jwk = new JsonWebKey { Kty = "oct", K = Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(32)) };
+        var getSigningAlgorithm = typeof(IdentityServerExtensions).GetMethod(
+            "GetSigningAlgorithm",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static
+        );
+        Assert.NotNull(getSigningAlgorithm);
+
+        var exception = Assert.Throws<System.Reflection.TargetInvocationException>(
+            () => getSigningAlgorithm.Invoke(null, new object[] { jwk })
+        );
+
+        var innerException = Assert.IsType<InvalidOperationException>(exception.InnerException);
+        Assert.Contains("supported key type and curve", innerException.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void production_with_unsupported_ec_curve_throws_invalid_operation_exception()
+    {
+        var root = CreateContentRoot();
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var jwk = JsonWebKeyConverter.ConvertFromECDsaSecurityKey(new ECDsaSecurityKey(ecdsa));
+        jwk.Crv = "unsupported-curve";
+        jwk.Alg = null;
+        var settings = CreateSettings();
+        settings["AuthOptions:SigningKey"] = JsonSerializer.Serialize(jwk);
+
+        try
+        {
+            var builder = CreateBuilder("Production", root, settings);
+
+            var exception = Assert.Throws<InvalidOperationException>(() => builder.AddCustomIdentityServer());
+
+            Assert.Contains("supported key type and curve", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public async Task production_with_compromised_public_only_jwk_path_throws_compromised_key_exception()
+    {
+        var root = CreateContentRoot();
+        var settings = CreateSettings();
+        var keyPath = Path.Combine(root, "signing-key.jwk");
+        settings["AuthOptions:SigningKeyPath"] = keyPath;
+
+        try
+        {
+            await File.WriteAllTextAsync(keyPath, CreateCompromisedPublicJwk());
+            var builder = CreateBuilder("Production", root, settings);
+
+            var exception = Assert.Throws<InvalidOperationException>(() => builder.AddCustomIdentityServer());
+
+            Assert.Contains("previously committed, compromised key", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("private key material", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     [Fact]
     public async Task development_without_signing_key_uses_developer_credential()
     {
