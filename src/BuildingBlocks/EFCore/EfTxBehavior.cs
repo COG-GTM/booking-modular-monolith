@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Transactions;
 using BuildingBlocks.Core;
 using BuildingBlocks.PersistMessageProcessor;
@@ -26,12 +25,6 @@ where TResponse : notnull
             "{Prefix} Handled command {MediatrRequest}",
             nameof(EfTxBehavior<TRequest, TResponse>),
             typeof(TRequest).FullName);
-
-        logger.LogDebug(
-            "{Prefix} Handled command {MediatrRequest} with content {RequestContent}",
-            nameof(EfTxBehavior<TRequest, TResponse>),
-            typeof(TRequest).FullName,
-            JsonSerializer.Serialize(request));
 
         logger.LogInformation(
             "{Prefix} Open the transaction for {MediatrRequest}",
