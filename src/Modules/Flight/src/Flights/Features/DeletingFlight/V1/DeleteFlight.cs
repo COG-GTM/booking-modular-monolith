@@ -50,6 +50,7 @@ public class DeleteFlightEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Delete Flight")
             .WithDescription("Delete Flight")
             .WithOpenApi()

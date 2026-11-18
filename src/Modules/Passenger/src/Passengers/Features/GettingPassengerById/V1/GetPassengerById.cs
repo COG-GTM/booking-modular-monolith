@@ -41,6 +41,7 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Passenger").Build())
             .Produces<GetPassengerByIdResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Get Passenger By Id")
             .WithDescription("Get Passenger By Id")
             .WithOpenApi()

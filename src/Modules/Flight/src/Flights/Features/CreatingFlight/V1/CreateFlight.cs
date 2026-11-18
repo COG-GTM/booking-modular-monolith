@@ -64,6 +64,7 @@ public class CreateFlightEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<CreateFlightResponseDto>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Create Flight")
             .WithDescription("Create Flight")
             .WithOpenApi()

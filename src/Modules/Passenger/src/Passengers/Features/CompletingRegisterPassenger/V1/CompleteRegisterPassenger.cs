@@ -56,6 +56,7 @@ public class CompleteRegisterPassengerEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Passenger").Build())
             .Produces<CompleteRegisterPassengerResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Complete Register Passenger")
             .WithDescription("Complete Register Passenger")
             .WithOpenApi()

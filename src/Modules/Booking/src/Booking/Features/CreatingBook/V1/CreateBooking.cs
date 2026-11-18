@@ -55,6 +55,7 @@ public class CreateBookingEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Booking").Build())
             .Produces<CreateBookingResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .WithSummary("Create Booking")
