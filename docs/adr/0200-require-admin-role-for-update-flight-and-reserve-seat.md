@@ -1,8 +1,8 @@
-# 0001. Require admin role for UpdateFlight and ReserveSeat HTTP endpoints
+# 0200. Require admin role for UpdateFlight and ReserveSeat HTTP endpoints
 
 - **Status:** Proposed
 - **Date:** 2026-11-18
-- **ARB ticket:** TO BE CREATED
+- **ARB ticket:** [AB-612](https://cog-gtm.atlassian.net/browse/AB-612)
 - **Authors:** Devin
 - **Owning team:** booking-modular-monolith maintainers (TBD — owner to confirm before ARB)
 - **Related ADRs:** None on main. Adapted and rescoped from the proposed ADR in PR #152; that PR is not modified or superseded by this proposal.
@@ -123,5 +123,5 @@ C4Container
 ## Open questions
 
 - Confirm owning team, on-call rotation and numeric NFR baselines before ARB approval.
-- Create the ARB ticket and obtain Security review before merge.
+- Obtain ARB (AB-612) Security review before merge.
 - Complete container-backed runtime checks when images are available; track gRPC authentication under its separate finding.
