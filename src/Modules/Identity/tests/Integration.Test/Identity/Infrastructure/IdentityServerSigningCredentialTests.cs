@@ -316,6 +316,29 @@ public class IdentityServerSigningCredentialTests
     }
 
     [Fact]
+    public async Task malformed_developer_key_file_is_rejected_without_parser_details()
+    {
+        const string malformedKey = "not-json-key-material";
+        var root = CreateContentRoot();
+        var path = Path.Combine(root, "tempkey.jwk");
+        await File.WriteAllTextAsync(path, malformedKey);
+
+        try
+        {
+            var exception = Assert.Throws<InvalidOperationException>(
+                () => IdentityServerExtensions.EnsureDeveloperSigningKeyIsNotCompromised(path)
+            );
+
+            Assert.Null(exception.InnerException);
+            Assert.DoesNotContain(malformedKey, exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public async Task fresh_developer_key_file_is_accepted()
     {
         var root = CreateContentRoot();

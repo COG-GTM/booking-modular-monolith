@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 using BuildingBlocks.Web;
 using Identity.Data;
 using Identity.Identity.Models;
@@ -29,7 +30,10 @@ public static class IdentityServerExtensions
 
         if (signingKeyJson is not null)
         {
-            jwk = new JsonWebKey(signingKeyJson);
+            jwk = ParseJsonWebKey(
+                signingKeyJson,
+                "The configured signing JWK could not be parsed. Check AuthOptions:SigningKey or AuthOptions:SigningKeyPath."
+            );
             if (IsPreviouslyCommittedCompromisedKey(jwk))
             {
                 throw new InvalidOperationException(
@@ -108,6 +112,30 @@ public static class IdentityServerExtensions
         return builder;
     }
 
+    private static JsonWebKey ParseJsonWebKey(string json, string errorMessage)
+    {
+        try
+        {
+            return new JsonWebKey(json);
+        }
+        catch (ArgumentException)
+        {
+            throw new InvalidOperationException(errorMessage);
+        }
+        catch (JsonException)
+        {
+            throw new InvalidOperationException(errorMessage);
+        }
+        catch (SecurityTokenException)
+        {
+            throw new InvalidOperationException(errorMessage);
+        }
+        catch (FormatException)
+        {
+            throw new InvalidOperationException(errorMessage);
+        }
+    }
+
     internal static void EnsureDeveloperSigningKeyIsNotCompromised(string path)
     {
         if (!File.Exists(path))
@@ -115,7 +143,10 @@ public static class IdentityServerExtensions
             return;
         }
 
-        var jwk = new JsonWebKey(File.ReadAllText(path));
+        var jwk = ParseJsonWebKey(
+            File.ReadAllText(path),
+            "The developer signing key file could not be parsed. Delete it so a new key is generated."
+        );
         if (IsPreviouslyCommittedCompromisedKey(jwk))
         {
             throw new InvalidOperationException(

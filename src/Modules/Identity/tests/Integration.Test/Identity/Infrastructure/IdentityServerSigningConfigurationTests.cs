@@ -109,11 +109,15 @@ public class IdentityServerSigningConfigurationTests : IDisposable
     [Fact]
     public void malformed_inline_key_throws_instead_of_using_developer_credential()
     {
-        var builder = CreateBuilder("Development", "not-json");
+        const string malformedKey = "not-json";
+        var builder = CreateBuilder("Development", malformedKey);
 
         Action configure = () => builder.AddCustomIdentityServer();
 
-        configure.Should().Throw<ArgumentException>();
+        var exception = Assert.Throws<InvalidOperationException>(configure);
+
+        Assert.Null(exception.InnerException);
+        Assert.DoesNotContain(malformedKey, exception.Message, StringComparison.Ordinal);
     }
 
     public void Dispose()
