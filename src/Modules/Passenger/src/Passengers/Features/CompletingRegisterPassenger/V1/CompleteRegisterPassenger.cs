@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Passenger.Exceptions;
 using Passenger.Passengers.ValueObjects;
 
@@ -26,7 +27,7 @@ public record CompleteRegisterPassenger(string PassportNumber, Enums.PassengerTy
         IInternalCommand
 {
     public Guid Id { get; init; } = NewId.NextGuid();
-    public Guid UserId { get; init; }
+    public Guid? UserId { get; init; }
 }
 
 public record PassengerRegistrationCompletedDomainEvent(
@@ -63,12 +64,10 @@ public class CompleteRegisterPassengerEndpoint : IMinimalEndpoint
                         httpContextAccessor.HttpContext?.User.FindFirst("sub")?.Value
                         ?? httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-                    if (!Guid.TryParse(userIdClaim, out var userId))
+                    var command = mapper.Map<CompleteRegisterPassenger>(request) with
                     {
-                        return Results.Forbid();
-                    }
-
-                    var command = mapper.Map<CompleteRegisterPassenger>(request) with { UserId = userId };
+                        UserId = Guid.TryParse(userIdClaim, out var userId) ? userId : null,
+                    };
 
                     var result = await mediator.Send(command, cancellationToken);
 
@@ -96,7 +95,6 @@ public class CompleteRegisterPassengerValidator : AbstractValidator<CompleteRegi
     public CompleteRegisterPassengerValidator()
     {
         RuleFor(x => x.PassportNumber).NotNull().WithMessage("The PassportNumber is required!");
-        RuleFor(x => x.UserId).NotEmpty().WithMessage("The UserId is required!");
         RuleFor(x => x.Age).GreaterThan(0).WithMessage("The Age must be greater than 0!");
         RuleFor(x => x.PassengerType)
             .Must(p =>
@@ -114,11 +112,17 @@ internal class CompleteRegisterPassengerCommandHandler
 {
     private readonly IMapper _mapper;
     private readonly PassengerDbContext _passengerDbContext;
+    private readonly ILogger<CompleteRegisterPassengerCommandHandler> _logger;
 
-    public CompleteRegisterPassengerCommandHandler(IMapper mapper, PassengerDbContext passengerDbContext)
+    public CompleteRegisterPassengerCommandHandler(
+        IMapper mapper,
+        PassengerDbContext passengerDbContext,
+        ILogger<CompleteRegisterPassengerCommandHandler> logger
+    )
     {
         _mapper = mapper;
         _passengerDbContext = passengerDbContext;
+        _logger = logger;
     }
 
     public async Task<CompleteRegisterPassengerResult> Handle(
@@ -127,14 +131,25 @@ internal class CompleteRegisterPassengerCommandHandler
     )
     {
         Guard.Against.Null(request, nameof(request));
-        Guard.Against.Default(request.UserId, nameof(request.UserId));
 
         var passenger = await _passengerDbContext.Passengers.SingleOrDefaultAsync(
-            x => x.PassportNumber.Value == request.PassportNumber && x.UserId == request.UserId,
+            x => x.PassportNumber.Value == request.PassportNumber,
             cancellationToken
         );
 
         if (passenger is null)
+        {
+            throw new PassengerNotExist();
+        }
+
+        if (passenger.UserId is null)
+        {
+            _logger.LogWarning(
+                "Allowing legacy passenger {PassengerId} registration without recorded ownership",
+                passenger.Id.Value
+            );
+        }
+        else if (passenger.UserId != request.UserId)
         {
             throw new PassengerNotExist();
         }

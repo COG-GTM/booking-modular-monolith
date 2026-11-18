@@ -14,7 +14,7 @@ using PassengerModule = global::Passenger;
 public class PassengerUserIdModelTests
 {
     [Fact]
-    public void Passenger_user_id_maps_to_required_indexed_column_and_migration()
+    public void Passenger_user_id_maps_to_nullable_column_and_shared_migration()
     {
         using var context = CreateContext();
         var entityType = context.Model.FindEntityType(typeof(PassengerModule.Passengers.Models.Passenger))!;
@@ -22,15 +22,16 @@ public class PassengerUserIdModelTests
         var table = StoreObjectIdentifier.Table(entityType.GetTableName()!, entityType.GetSchema());
 
         property.GetColumnName(table).Should().Be("user_id");
-        property.ClrType.Should().Be(typeof(Guid));
-        property.IsNullable.Should().BeFalse();
+        property.ClrType.Should().Be(typeof(Guid?));
+        property.IsNullable.Should().BeTrue();
         entityType
             .GetIndexes()
             .Should()
-            .ContainSingle(index =>
+            .NotContain(index =>
                 index.GetDatabaseName() == "ix_passenger_user_id" && index.Properties.Contains(property)
             );
-        context.Database.GetMigrations().Should().Contain("20261029154023_AddPassengerUserId");
+        context.Database.GetMigrations().Should().Contain("20261118144703_AddPassengerUserId");
+        context.Database.GetMigrations().Should().NotContain("20261029154023_AddPassengerUserId");
 
         var snapshot = context.GetService<IMigrationsAssembly>().ModelSnapshot!.Model;
         if (snapshot is IMutableModel mutableSnapshot)

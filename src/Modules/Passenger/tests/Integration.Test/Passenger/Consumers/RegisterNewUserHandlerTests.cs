@@ -55,7 +55,7 @@ public class RegisterNewUserHandlerTests
             PassengerModule.Passengers.ValueObjects.PassengerId.Of(Guid.NewGuid()),
             PassengerModule.Passengers.ValueObjects.Name.Of("Existing Passenger"),
             PassengerModule.Passengers.ValueObjects.PassportNumber.Of(message.PassportNumber),
-            existingUserId
+            userId: existingUserId
         );
         var eventDispatcher = Substitute.For<IEventDispatcher>();
         await using var context = CreateContext(databaseName);

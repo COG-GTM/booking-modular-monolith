@@ -52,7 +52,7 @@ public class RegisterNewUserHandler : IConsumer<UserCreated>
             PassengerId.Of(NewId.NextGuid()),
             Name.Of(context.Message.Name),
             PassportNumber.Of(context.Message.PassportNumber),
-            context.Message.Id
+            userId: context.Message.Id
         );
 
         await _passengerDbContext.AddAsync(passenger);

@@ -12,7 +12,7 @@ public record Passenger : Aggregate<PassengerId>
     public Name Name { get; private set; } = default!;
     public Enums.PassengerType PassengerType { get; private set; }
     public Age? Age { get; private set; }
-    public Guid UserId { get; private set; }
+    public Guid? UserId { get; private set; }
 
     public void CompleteRegistrationPassenger(
         PassengerId id,
@@ -46,8 +46,8 @@ public record Passenger : Aggregate<PassengerId>
         PassengerId id,
         Name name,
         PassportNumber passportNumber,
-        Guid userId,
-        bool isDeleted = false
+        bool isDeleted = false,
+        Guid? userId = null
     )
     {
         var passenger = new Passenger
@@ -55,8 +55,8 @@ public record Passenger : Aggregate<PassengerId>
             Id = id,
             Name = name,
             PassportNumber = passportNumber,
-            UserId = userId,
             IsDeleted = isDeleted,
+            UserId = userId,
         };
 
         var @event = new PassengerCreatedDomainEvent(

@@ -23,7 +23,7 @@ public class CompleteRegisterPassengerTests : PassengerIntegrationTestBase
             PassengerId.Of(Guid.CreateVersion7()),
             Name.Of("Sam"),
             PassportNumber.Of("123456789"),
-            userId
+            userId: userId
         );
 
         await Fixture.InsertAsync(passenger);
@@ -54,7 +54,7 @@ public class CompleteRegisterPassengerTests : PassengerIntegrationTestBase
             PassengerId.Of(Guid.CreateVersion7()),
             Name.Of("Sam"),
             PassportNumber.Of("123456789"),
-            userA
+            userId: userA
         );
 
         await Fixture.InsertAsync(passenger);

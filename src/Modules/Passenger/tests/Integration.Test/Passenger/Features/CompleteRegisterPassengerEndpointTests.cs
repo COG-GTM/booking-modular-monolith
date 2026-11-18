@@ -27,34 +27,24 @@ public class CompleteRegisterPassengerEndpointTests
     private const string AuthenticationScheme = "Test";
     private static readonly IMapper Mapper = CreateMapper();
 
-    [Fact]
-    public async Task Should_forbid_when_authenticated_user_has_no_id_claim()
+    [Theory]
+    [InlineData("name=test")]
+    [InlineData("sub=not-a-guid")]
+    public async Task Should_send_null_caller_id_when_claim_is_missing_or_invalid(string claims)
     {
-        var mediator = Substitute.For<IMediator>();
+        var mediator = CreateMediator();
         await using var app = await CreateAppAsync(mediator);
         using var client = app.GetTestClient();
 
-        using var response = await PostAsync(client, "name=test", CreateRequest());
+        using var response = await PostAsync(client, claims, CreateRequest());
 
-        response.StatusCode.Should().Be(System.Net.HttpStatusCode.Forbidden);
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
         await mediator
-            .DidNotReceive()
-            .Send(Arg.Any<PassengerFeature.CompleteRegisterPassenger>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Should_forbid_when_sub_claim_is_not_a_guid()
-    {
-        var mediator = Substitute.For<IMediator>();
-        await using var app = await CreateAppAsync(mediator);
-        using var client = app.GetTestClient();
-
-        using var response = await PostAsync(client, "sub=not-a-guid", CreateRequest());
-
-        response.StatusCode.Should().Be(System.Net.HttpStatusCode.Forbidden);
-        await mediator
-            .DidNotReceive()
-            .Send(Arg.Any<PassengerFeature.CompleteRegisterPassenger>(), Arg.Any<CancellationToken>());
+            .Received(1)
+            .Send(
+                Arg.Is<PassengerFeature.CompleteRegisterPassenger>(command => command.UserId == null),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]

@@ -3,6 +3,7 @@ using FluentAssertions;
 using Mapster;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Integration.Test.Passenger.Features;
@@ -24,7 +25,7 @@ public class CompleteRegisterPassengerOwnershipTests
 
         await using (var context = CreateContext(databaseName))
         {
-            var handler = new PassengerFeature.CompleteRegisterPassengerCommandHandler(_mapper, context);
+            var handler = CreateHandler(context);
             var result = await handler.Handle(
                 new PassengerFeature.CompleteRegisterPassenger(
                     passenger.PassportNumber.Value,
@@ -59,7 +60,7 @@ public class CompleteRegisterPassengerOwnershipTests
 
         await using (var context = CreateContext(databaseName))
         {
-            var handler = new PassengerFeature.CompleteRegisterPassengerCommandHandler(_mapper, context);
+            var handler = CreateHandler(context);
             var act = () =>
                 handler.Handle(
                     new PassengerFeature.CompleteRegisterPassenger(
@@ -87,7 +88,7 @@ public class CompleteRegisterPassengerOwnershipTests
     {
         var databaseName = Guid.NewGuid().ToString();
         await using var context = CreateContext(databaseName);
-        var handler = new PassengerFeature.CompleteRegisterPassengerCommandHandler(_mapper, context);
+        var handler = CreateHandler(context);
         var act = () =>
             handler.Handle(
                 new PassengerFeature.CompleteRegisterPassenger(
@@ -104,41 +105,42 @@ public class CompleteRegisterPassengerOwnershipTests
         await act.Should().ThrowAsync<PassengerModule.Exceptions.PassengerNotExist>();
     }
 
-    [Fact]
-    public async Task Empty_user_id_is_rejected_even_when_legacy_row_has_empty_user_id()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("11111111-1111-1111-1111-111111111111")]
+    public async Task Legacy_passenger_can_complete_registration(string? callerId)
     {
         var databaseName = Guid.NewGuid().ToString();
-        var passenger = CreatePassenger(Guid.Empty);
+        var passenger = CreatePassenger(null);
         await SeedAsync(databaseName, passenger);
 
         await using (var context = CreateContext(databaseName))
         {
-            var handler = new PassengerFeature.CompleteRegisterPassengerCommandHandler(_mapper, context);
-            var act = () =>
-                handler.Handle(
-                    new PassengerFeature.CompleteRegisterPassenger(
-                        passenger.PassportNumber.Value,
-                        PassengerModule.Passengers.Enums.PassengerType.Male,
-                        38
-                    )
-                    {
-                        UserId = Guid.Empty,
-                    },
-                    CancellationToken.None
-                );
+            var handler = CreateHandler(context);
+            await handler.Handle(
+                new PassengerFeature.CompleteRegisterPassenger(
+                    passenger.PassportNumber.Value,
+                    PassengerModule.Passengers.Enums.PassengerType.Male,
+                    38
+                )
+                {
+                    UserId = callerId is null ? null : Guid.Parse(callerId),
+                },
+                CancellationToken.None
+            );
 
-            await act.Should().ThrowAsync<ArgumentException>();
+            await context.SaveChangesAsync();
         }
 
         await using var freshContext = CreateContext(databaseName);
-        var unchangedPassenger = await freshContext.Passengers.SingleAsync();
-        unchangedPassenger.UserId.Should().Be(Guid.Empty);
-        unchangedPassenger.Age.Should().BeNull();
-        unchangedPassenger.PassengerType.Should().Be(PassengerModule.Passengers.Enums.PassengerType.Unknown);
+        var updatedPassenger = await freshContext.Passengers.SingleAsync();
+        updatedPassenger.UserId.Should().BeNull();
+        updatedPassenger.Age!.Value.Should().Be(38);
+        updatedPassenger.PassengerType.Should().Be(PassengerModule.Passengers.Enums.PassengerType.Male);
     }
 
     [Fact]
-    public void Validator_requires_non_empty_user_id()
+    public void Validator_allows_missing_user_id_for_legacy_passengers()
     {
         var validator = new PassengerFeature.CompleteRegisterPassengerValidator();
         var emptyUserIdResult = validator.Validate(
@@ -159,9 +161,7 @@ public class CompleteRegisterPassengerOwnershipTests
             }
         );
 
-        emptyUserIdResult
-            .Errors.Should()
-            .Contain(error => error.PropertyName == "UserId" && error.ErrorMessage == "The UserId is required!");
+        emptyUserIdResult.IsValid.Should().BeTrue();
         populatedUserIdResult.Errors.Should().NotContain(error => error.PropertyName == "UserId");
     }
 
@@ -175,12 +175,38 @@ public class CompleteRegisterPassengerOwnershipTests
         passenger.UserId.Should().Be(userId);
     }
 
-    private static PassengerModule.Passengers.Models.Passenger CreatePassenger(Guid userId) =>
+    [Fact]
+    public async Task Owned_passenger_without_caller_id_is_not_found()
+    {
+        var databaseName = Guid.NewGuid().ToString();
+        var passenger = CreatePassenger(Guid.NewGuid());
+        await SeedAsync(databaseName, passenger);
+        await using var context = CreateContext(databaseName);
+        var act = () =>
+            CreateHandler(context)
+                .Handle(
+                    new PassengerFeature.CompleteRegisterPassenger(
+                        passenger.PassportNumber.Value,
+                        PassengerModule.Passengers.Enums.PassengerType.Male,
+                        38
+                    ),
+                    CancellationToken.None
+                );
+
+        await act.Should().ThrowAsync<PassengerModule.Exceptions.PassengerNotExist>();
+        (await context.Passengers.SingleAsync()).Age.Should().BeNull();
+    }
+
+    private PassengerFeature.CompleteRegisterPassengerCommandHandler CreateHandler(
+        PassengerModule.Data.PassengerDbContext context
+    ) => new(_mapper, context, NullLogger<PassengerFeature.CompleteRegisterPassengerCommandHandler>.Instance);
+
+    private static PassengerModule.Passengers.Models.Passenger CreatePassenger(Guid? userId) =>
         PassengerModule.Passengers.Models.Passenger.Create(
             PassengerModule.Passengers.ValueObjects.PassengerId.Of(Guid.NewGuid()),
             PassengerModule.Passengers.ValueObjects.Name.Of("Taylor"),
             PassengerModule.Passengers.ValueObjects.PassportNumber.Of("P-123"),
-            userId
+            userId: userId
         );
 
     private static PassengerModule.Data.PassengerDbContext CreateContext(string databaseName)
