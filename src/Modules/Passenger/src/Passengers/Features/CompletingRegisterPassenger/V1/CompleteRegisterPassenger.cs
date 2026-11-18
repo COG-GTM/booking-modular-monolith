@@ -1,5 +1,6 @@
 namespace Passenger.Passengers.Features.CompletingRegisterPassenger.V1;
 
+using System.Security.Claims;
 using Ardalis.GuardClauses;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
@@ -19,15 +20,21 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Passenger.Passengers.ValueObjects;
 
-public record CompleteRegisterPassenger
-    (string PassportNumber, Enums.PassengerType PassengerType, int Age) : ICommand<CompleteRegisterPassengerResult>,
+public record CompleteRegisterPassenger(string PassportNumber, Enums.PassengerType PassengerType, int Age, Guid UserId)
+    : ICommand<CompleteRegisterPassengerResult>,
         IInternalCommand
 {
     public Guid Id { get; init; } = NewId.NextGuid();
 }
 
-public record PassengerRegistrationCompletedDomainEvent(Guid Id, string Name, string PassportNumber,
-    Enums.PassengerType PassengerType, int Age, bool IsDeleted = false) : IDomainEvent;
+public record PassengerRegistrationCompletedDomainEvent(
+    Guid Id,
+    string Name,
+    string PassportNumber,
+    Enums.PassengerType PassengerType,
+    int Age,
+    bool IsDeleted = false
+) : IDomainEvent;
 
 public record CompleteRegisterPassengerResult(PassengerDto PassengerDto);
 
@@ -39,23 +46,40 @@ public class CompleteRegisterPassengerEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapPost($"{EndpointConfig.BaseApiPath}/passenger/complete-registration", async (
-                CompleteRegisterPassengerRequestDto request, IMapper mapper,
-                IMediator mediator, CancellationToken cancellationToken, IHttpContextAccessor httpContextAccessor) =>
-            {
-                var command = mapper.Map<CompleteRegisterPassenger>(request);
+        builder
+            .MapPost(
+                $"{EndpointConfig.BaseApiPath}/passenger/complete-registration",
+                async (
+                    CompleteRegisterPassengerRequestDto request,
+                    IMapper mapper,
+                    IMediator mediator,
+                    CancellationToken cancellationToken,
+                    HttpContext httpContext
+                ) =>
+                {
+                    var userIdClaim =
+                        httpContext.User.FindFirstValue("sub")
+                        ?? httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    if (!Guid.TryParse(userIdClaim, out var userId))
+                    {
+                        return Results.Forbid();
+                    }
 
-                var result = await mediator.Send(command, cancellationToken);
+                    var command = mapper.Map<CompleteRegisterPassenger>(request) with { UserId = userId };
 
-                var response = result.Adapt<CompleteRegisterPassengerResponseDto>();
+                    var result = await mediator.Send(command, cancellationToken);
 
-                return Results.Ok(response);
-            })
+                    var response = result.Adapt<CompleteRegisterPassengerResponseDto>();
+
+                    return Results.Ok(response);
+                }
+            )
             .RequireAuthorization(nameof(ApiScope))
             .WithName("CompleteRegisterPassenger")
             .WithApiVersionSet(builder.NewApiVersionSet("Passenger").Build())
             .Produces<CompleteRegisterPassengerResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .WithSummary("Complete Register Passenger")
             .WithDescription("Complete Register Passenger")
             .WithOpenApi()
@@ -70,18 +94,21 @@ public class CompleteRegisterPassengerValidator : AbstractValidator<CompleteRegi
     public CompleteRegisterPassengerValidator()
     {
         RuleFor(x => x.PassportNumber).NotNull().WithMessage("The PassportNumber is required!");
+        RuleFor(x => x.UserId).NotEmpty();
         RuleFor(x => x.Age).GreaterThan(0).WithMessage("The Age must be greater than 0!");
-        RuleFor(x => x.PassengerType).Must(p => p.GetType().IsEnum &&
-                                                p == Enums.PassengerType.Baby ||
-                                                p == Enums.PassengerType.Female ||
-                                                p == Enums.PassengerType.Male ||
-                                                p == Enums.PassengerType.Unknown)
+        RuleFor(x => x.PassengerType)
+            .Must(p =>
+                p.GetType().IsEnum && p == Enums.PassengerType.Baby
+                || p == Enums.PassengerType.Female
+                || p == Enums.PassengerType.Male
+                || p == Enums.PassengerType.Unknown
+            )
             .WithMessage("PassengerType must be Male, Female, Baby or Unknown");
     }
 }
 
-internal class CompleteRegisterPassengerCommandHandler : ICommandHandler<CompleteRegisterPassenger,
-    CompleteRegisterPassengerResult>
+internal class CompleteRegisterPassengerCommandHandler
+    : ICommandHandler<CompleteRegisterPassenger, CompleteRegisterPassengerResult>
 {
     private readonly IMapper _mapper;
     private readonly PassengerDbContext _passengerDbContext;
@@ -92,21 +119,30 @@ internal class CompleteRegisterPassengerCommandHandler : ICommandHandler<Complet
         _passengerDbContext = passengerDbContext;
     }
 
-    public async Task<CompleteRegisterPassengerResult> Handle(CompleteRegisterPassenger request,
-        CancellationToken cancellationToken)
+    public async Task<CompleteRegisterPassengerResult> Handle(
+        CompleteRegisterPassenger request,
+        CancellationToken cancellationToken
+    )
     {
         Guard.Against.Null(request, nameof(request));
 
         var passenger = await _passengerDbContext.Passengers.SingleOrDefaultAsync(
-            x => x.PassportNumber.Value == request.PassportNumber, cancellationToken);
+            x => x.PassportNumber.Value == request.PassportNumber && x.UserId == request.UserId,
+            cancellationToken
+        );
 
         if (passenger is null)
         {
             throw new PassengerNotExist();
         }
 
-        passenger.CompleteRegistrationPassenger(passenger.Id, passenger.Name,
-            passenger.PassportNumber, request.PassengerType, Age.Of(request.Age));
+        passenger.CompleteRegistrationPassenger(
+            passenger.Id,
+            passenger.Name,
+            passenger.PassportNumber,
+            request.PassengerType,
+            Age.Of(request.Age)
+        );
 
         var updatePassenger = _passengerDbContext.Passengers.Update(passenger).Entity;
 
