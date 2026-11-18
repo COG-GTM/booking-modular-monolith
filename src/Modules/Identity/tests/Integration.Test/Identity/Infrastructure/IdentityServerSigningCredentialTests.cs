@@ -16,6 +16,9 @@ namespace Integration.Test.Identity.Infrastructure;
 
 public class IdentityServerSigningCredentialTests
 {
+    private const string CompromisedModulus =
+        "yaxbLH9EGCPdA0amyVrTqeSnK3_8riIYV_7z9j0SNT1DbUyjKnAvKm2XG-fyDeHc1OyGyprAhbcN8kdBPWgQRFHHnfnvL1S46qnsCy66VrV9lhntHj66wO7fl9niy3AAAhQgq8iXtc__6N3yScR5w82eNHS6eEesQDYMy8vj_5EDN-XDZDNGobANDwD5J-B9pJ84gf-pLftb4xZOSn1-lDSSRObQGn0RIaV0cfv3cyV9S_X26CNr_QjNcHtXPilgTBeMwam3sj932bZwG9nvtf_hmEI9HHUE6-PbiQHpF7-vxUPh2Sv5VzqSrDfJdP6nUvNP_2JUUGk4CebSBJy-pQ";
+
     [Fact]
     public async Task production_with_inline_signing_key_uses_configured_credential()
     {
@@ -145,6 +148,82 @@ public class IdentityServerSigningCredentialTests
         }
     }
 
+    [Fact]
+    public void production_with_compromised_public_only_jwk_throws_compromised_key_exception()
+    {
+        var root = CreateContentRoot();
+        var settings = CreateSettings();
+        settings["AuthOptions:SigningKey"] = CreateCompromisedPublicJwk();
+
+        try
+        {
+            var builder = CreateBuilder("Production", root, settings);
+
+            var exception = Assert.Throws<InvalidOperationException>(() => builder.AddCustomIdentityServer());
+
+            Assert.Contains("previously committed, compromised key", exception.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("private key material", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public async Task compromised_developer_key_file_is_rejected()
+    {
+        var root = CreateContentRoot();
+        var path = Path.Combine(root, "tempkey.jwk");
+        await File.WriteAllTextAsync(path, CreateCompromisedPublicJwk());
+
+        try
+        {
+            var exception = Assert.Throws<InvalidOperationException>(
+                () => IdentityServerExtensions.EnsureDeveloperSigningKeyIsNotCompromised(path)
+            );
+
+            Assert.Contains("Delete this file", exception.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public async Task fresh_developer_key_file_is_accepted()
+    {
+        var root = CreateContentRoot();
+        var path = Path.Combine(root, "tempkey.jwk");
+        await File.WriteAllTextAsync(path, CreateJwk());
+
+        try
+        {
+            IdentityServerExtensions.EnsureDeveloperSigningKeyIsNotCompromised(path);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void missing_developer_key_file_is_accepted()
+    {
+        var root = CreateContentRoot();
+        var path = Path.Combine(root, "missing.jwk");
+
+        try
+        {
+            IdentityServerExtensions.EnsureDeveloperSigningKeyIsNotCompromised(path);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     private static async Task AssertConfiguredCredential(WebApplication app)
     {
         var credentialStore = Assert.Single(app.Services.GetServices<ISigningCredentialStore>());
@@ -215,5 +294,18 @@ public class IdentityServerSigningCredentialTests
         }
 
         return JsonSerializer.Serialize(values);
+    }
+
+    private static string CreateCompromisedPublicJwk()
+    {
+        return JsonSerializer.Serialize(
+            new Dictionary<string, string>
+            {
+                ["kty"] = "RSA",
+                ["kid"] = "5FDEBAED6A154EEFD68A1B54BE25EDC1",
+                ["n"] = CompromisedModulus,
+                ["e"] = "AQAB",
+            }
+        );
     }
 }

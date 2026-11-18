@@ -15,6 +15,8 @@ using Configurations;
 
 public static class IdentityServerExtensions
 {
+    private const string CompromisedSigningKeyThumbprint = "oPrXK0pKCMY3OTrfOWp7cEewMLlHKSygX1jmGBdycxQ";
+
     public static WebApplicationBuilder AddCustomIdentityServer(this WebApplicationBuilder builder)
     {
         builder.Services.AddValidateOptions<AuthOptions>();
@@ -28,6 +30,13 @@ public static class IdentityServerExtensions
         if (signingKeyJson is not null)
         {
             jwk = new JsonWebKey(signingKeyJson);
+            if (IsPreviouslyCommittedCompromisedKey(jwk))
+            {
+                throw new InvalidOperationException(
+                    "The configured signing key is the previously committed, compromised key; generate a new one."
+                );
+            }
+
             if (!jwk.HasPrivateKey)
             {
                 throw new InvalidOperationException(
@@ -73,6 +82,7 @@ public static class IdentityServerExtensions
         }
         else if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("test"))
         {
+            EnsureDeveloperSigningKeyIsNotCompromised(Path.Combine(Directory.GetCurrentDirectory(), "tempkey.jwk"));
             identityServerBuilder.AddDeveloperSigningCredential();
         }
         else
@@ -96,6 +106,27 @@ public static class IdentityServerExtensions
         });
 
         return builder;
+    }
+
+    internal static void EnsureDeveloperSigningKeyIsNotCompromised(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        var jwk = new JsonWebKey(File.ReadAllText(path));
+        if (IsPreviouslyCommittedCompromisedKey(jwk))
+        {
+            throw new InvalidOperationException(
+                "The developer signing key file is the previously committed, compromised key. Delete this file so a new key is generated."
+            );
+        }
+    }
+
+    private static bool IsPreviouslyCommittedCompromisedKey(JsonWebKey jwk)
+    {
+        return Base64UrlEncoder.Encode(jwk.ComputeJwkThumbprint()) == CompromisedSigningKeyThumbprint;
     }
 
     private static string GetSigningAlgorithm(JsonWebKey jwk)
