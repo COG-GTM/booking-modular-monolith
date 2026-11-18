@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Date:** 2026-10-29
 - **Ticket:** AB-499 (epic AB-488)
-- **ARB ticket:** TO BE CREATED
+- **ARB ticket:** [AB-611](https://cog-gtm.atlassian.net/browse/AB-611)
 - **Authors:** AB-488 implementation contributors
 - **Owning team:** Booking platform; named domain/platform owners and on-call rotations TBD before ARB
 - **Related ADRs:** [0002](0002-synchronous-grpc-and-asynchronous-rabbitmq.md), [0003](0003-service-owned-data-and-background-processing.md), [0004](0004-contract-versioning-and-compatibility.md)

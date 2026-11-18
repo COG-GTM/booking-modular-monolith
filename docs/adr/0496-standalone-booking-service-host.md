@@ -2,7 +2,7 @@
 
 - **Status:** Proposed
 - **Date:** 2026-10-29
-- **ARB ticket:** TO BE CREATED
+- **ARB ticket:** [AB-611](https://cog-gtm.atlassian.net/browse/AB-611)
 - **Authors:** Devin (AB-496)
 - **Owning team:** Booking team
 - **Related ADRs:** [0001](0001-yarp-api-gateway-single-ingress.md), [0100](0100-buildingblocks-shared-libraries.md), [0103](0103-shared-grpc-contracts-and-service-addressing.md)

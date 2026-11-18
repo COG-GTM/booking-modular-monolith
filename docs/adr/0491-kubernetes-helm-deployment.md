@@ -2,7 +2,7 @@
 
 - **Status:** Proposed
 - **Date:** 2026-10-29
-- **ARB ticket:** TO BE CREATED
+- **ARB ticket:** [AB-611](https://cog-gtm.atlassian.net/browse/AB-611)
 - **Authors:** Devin (AB-491)
 - **Owning team:** Booking platform team
 - **Related ADRs:** [0001: YARP API gateway](0001-yarp-api-gateway-single-ingress.md), [0003: per-service data ownership](0003-service-owned-data-and-background-processing.md), [0495: observability and probes](0495-per-service-observability-and-trace-propagation.md), [0503: multi-service Compose topology](0503-multi-service-docker-compose-topology.md)

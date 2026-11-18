@@ -1,6 +1,6 @@
 # ADR 0105: Standalone Identity service host
 
-- Status: Proposed (ARB review required; ticket to be created)
+- Status: Proposed (ARB review required; ticket [AB-611](https://cog-gtm.atlassian.net/browse/AB-611))
 - Ticket: AB-493 (epic AB-488, Microservices Migration Scaffolding)
 - Date: 2026-10-29
 

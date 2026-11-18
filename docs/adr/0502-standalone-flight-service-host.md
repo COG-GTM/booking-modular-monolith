@@ -1,6 +1,6 @@
 # ADR 0502: Standalone Flight service host
 
-- **Status:** Proposed (ARB_REQUIRED; ARB ticket to be created before merge)
+- **Status:** Proposed (ARB_REQUIRED; ARB ticket [AB-611](https://cog-gtm.atlassian.net/browse/AB-611); approval required before merge)
 - **Date:** 2026-10-29
 - **Ticket:** AB-502
 - **Owning team:** Booking platform team

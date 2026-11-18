@@ -1,7 +1,7 @@
-# ADR 0101: RabbitMQ transport, module-owned queues and broker-keyed inbox
+# ADR 0102: RabbitMQ transport, module-owned queues and broker-keyed inbox
 
 - Status: Proposed (ARB_REQUIRED, trigger T4 async contract/transport change between bounded contexts; ARB ticket
-  TO BE CREATED; merge into the integration branch allowed, epic merge to `main` waits on ARB approval)
+  [AB-611](https://cog-gtm.atlassian.net/browse/AB-611); merge into the integration branch allowed, epic merge to `main` waits on ARB approval)
 - Ticket: AB-501 (epic AB-488, Microservices Migration Scaffolding)
 - Date: 2026-10-29
 
@@ -29,8 +29,9 @@ on every access.
    list registers nothing). `ModuleEndpointNameFormatter` names each receive endpoint
    `<module-assembly>.<consumer>`, e.g. `passenger.register-new-user-handler`. When the monolith and a
    `Passenger.Host` run side by side they bind the **same** queue (competing consumers) rather than each receiving a copy;
-   `Modules:<Module>:BackgroundProcessingEnabled` controls only the polling worker, not consumers. Consumer handover
-   requires stopping the old host or removing its consumer registration.
+   `Modules:<Module>:BackgroundProcessingEnabled=false` disables the worker/subscription, not consumers. Before the
+   standalone service consumes, unregister or stop the extracted module's monolith consumers (or remove their receive
+   endpoints) so deliveries never split between databases.
    Exchange names are unchanged (MassTransit message URNs, e.g. `BuildingBlocks.Contracts.EventBus.Messages:UserCreated`).
 4. **Outbox.** `PersistMessageProcessor` keeps publishing through `IPublishEndpoint`, so it publishes to RabbitMQ when the
    bus does. The published `MessageId` is the outbox row id, so a re-publish after a crash carries the same id.
@@ -90,6 +91,7 @@ flowchart LR
 ## Consequences
 
 - Running the monolith now requires a reachable broker (compose/Aspire provide it), or `MessagingOptions__Transport=InMemory`.
-- Queue names change from `register-new-user` to `passenger.register-new-user-handler`; old queues on an existing broker
-  can be deleted after the deploy.
+- Queue names change from `register-new-user` to `passenger.register-new-user-handler`; the old queue must first
+  be drained (or its pending messages moved to `passenger.register-new-user-handler`) and confirmed empty before it
+  can be deleted, consistent with ADR 0003's pending-message requirement.
 - Integration tests are slower (real broker) and need Docker.

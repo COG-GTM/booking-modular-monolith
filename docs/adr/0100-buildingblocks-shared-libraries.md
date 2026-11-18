@@ -1,6 +1,6 @@
 # ADR 0100: Split BuildingBlocks into independently consumable shared libraries
 
-- Status: Proposed (ARB_REQUIRED, trigger T8 new shared library; ARB ticket TO BE CREATED; merge into the
+- Status: Proposed (ARB_REQUIRED, trigger T8 new shared library; ARB ticket [AB-611](https://cog-gtm.atlassian.net/browse/AB-611); merge into the
   integration branch allowed, epic merge to `main` waits on ARB approval)
 - Ticket: AB-500 (epic AB-488, Microservices Migration Scaffolding)
 - Date: 2026-10-29

@@ -2,7 +2,7 @@
 
 - Status: Proposed
 - Date: 2026-10-29
-- Architecture review ticket: TO BE CREATED
+- Architecture review ticket: [AB-611](https://cog-gtm.atlassian.net/browse/AB-611)
 
 > **Implementation scope:** Proposed target/source-branch scaffolding only; this docs-only branch does not deliver the implementation, configuration, tests or procedures described below on main. Missing implementation paths and runbooks are future deliverables. ARB approval and implementation verification remain required.
 

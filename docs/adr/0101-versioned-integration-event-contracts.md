@@ -1,7 +1,7 @@
 # ADR 0101: Versioned integration-event contracts package
 
 - Status: Proposed (ARB_REQUIRED, triggers T4 shared async-contract schema and T8 new shared library; ARB ticket
-  TO BE CREATED; merge into the integration branch allowed, epic merge to `main` waits on ARB approval)
+  [AB-611](https://cog-gtm.atlassian.net/browse/AB-611); merge into the integration branch allowed, epic merge to `main` waits on ARB approval)
 - Ticket: AB-506 (epic AB-488, Microservices Migration Scaffolding)
 - Date: 2026-10-29
 

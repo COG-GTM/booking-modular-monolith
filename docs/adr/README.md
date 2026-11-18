@@ -37,7 +37,7 @@ ARB triage: **ARB_REQUIRED** (manual design review against the org trigger crite
 - **T8:** independently consumable BuildingBlocks and shared contracts (ADRs 0005/0004).
 - **Not triggered:** T3 (no new vendor selected), T5 (no cloud resources/regions selected), T7 (.NET 10 retained). T9 is **undetermined**, not cleared: production sizing/cost is TBD.
 
-**ARB ticket: TO BE CREATED** by the coordinating owner. Required reviewers: Architecture, Security, Data, Platform. This documentation does not grant an exception or approval to merge/deploy an architecture implementation. No infrastructure policy is present in the base repository; platform policy validation is still required when deployment resources are selected.
+**ARB ticket:** [AB-611](https://cog-gtm.atlassian.net/browse/AB-611). Required reviewers: Architecture, Security, Data, Platform. This documentation does not grant an exception or approval to merge/deploy an architecture implementation. No infrastructure policy is present in the base repository; platform policy validation is still required when deployment resources are selected.
 
 ## Approval inputs still required
 
@@ -50,7 +50,7 @@ The coordinating owner must obtain named domain/platform owners and on-call rota
 - Libraries: split `src/BuildingBlocks` into independently consumable projects, retaining thin `BuildingBlocks.csproj` and CLR namespaces. Events: `src/Contracts/Contracts.Messages`; protos: `src/Contracts`.
 - Persistence: distinct credentials/databases per service, no monolith/host shared persist-message tables; migration/reconciliation/rollback evidence belongs to AB-505.
 - Messaging: RabbitMQ outside tests; service-specific receive queues; no cross-domain direct database reads.
-- Coexistence: disable the extracted module's monolith worker/subscription/consumers with `Modules:<Module>:BackgroundProcessingEnabled=false` (default `true`). Never start a second background processor against the same service stores.
+- Coexistence: `Modules:<Module>:BackgroundProcessingEnabled=false` (default `true`) disables the extracted module's monolith worker/subscription, not consumers. Before the standalone service consumes, unregister or stop the extracted module's monolith consumers (or remove their receive endpoints) so deliveries never split between databases. Never start a second background processor against the same service stores.
 - Compatibility: test mixed old/new consumers/providers, including real gRPC calls and RabbitMQ delivery; preserve message URNs and canonical gRPC service names.
 
 To add a decision, use the next four-digit number, link related ADRs and this index, explain alternatives/consequences, and keep approval status separate from implementation status.

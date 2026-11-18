@@ -2,7 +2,7 @@
 
 - **Status:** Proposed
 - **Date:** 2026-10-29
-- **ARB ticket:** TO BE CREATED
+- **ARB ticket:** [AB-611](https://cog-gtm.atlassian.net/browse/AB-611)
 - **Authors:** Devin (AB-495)
 - **Owning team:** Platform team
 - **Related ADRs:** [0001](0001-yarp-api-gateway-single-ingress.md), [0100](0100-buildingblocks-shared-libraries.md), [0102](0102-rabbitmq-transport-and-module-queues.md), [0105](0105-standalone-identity-service-host.md), [0104](0104-passenger-service-host.md), [0496](0496-standalone-booking-service-host.md), [0502](0502-standalone-flight-service-host.md)
