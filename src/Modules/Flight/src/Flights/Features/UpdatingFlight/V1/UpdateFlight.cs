@@ -61,6 +61,7 @@ public class UpdateFlightEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Update Flight")
             .WithDescription("Update Flight")
             .WithOpenApi()

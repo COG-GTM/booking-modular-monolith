@@ -55,6 +55,9 @@ public class CreateBookingEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Booking").Build())
             .Produces<CreateBookingResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .WithSummary("Create Booking")
             .WithDescription("Create Booking")
             .WithOpenApi()
@@ -109,11 +112,6 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
         var passenger =
             await _passengerGrpcServiceClient.GetByIdAsync(new BookingPassenger.GetByIdRequest { Id = command.PassengerId.ToString() }, cancellationToken: cancellationToken);
 
-        var emptySeat = (await _flightGrpcServiceClient
-                .GetAvailableSeatsAsync(new GetAvailableSeatsRequest { FlightId = command.FlightId.ToString() }, cancellationToken: cancellationToken)
-                .ResponseAsync)
-            ?.SeatDtos?.FirstOrDefault();
-
         var reservation = await _eventStoreDbRepository.Find(command.Id, cancellationToken);
 
         if (reservation is not null && !reservation.IsDeleted)
@@ -121,21 +119,34 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
             throw new BookingAlreadyExistException();
         }
 
+        var emptySeat = (await _flightGrpcServiceClient
+                .GetAvailableSeatsAsync(new GetAvailableSeatsRequest { FlightId = command.FlightId.ToString() }, cancellationToken: cancellationToken)
+                .ResponseAsync)
+            ?.SeatDtos?.FirstOrDefault();
+
+        if (emptySeat is null)
+        {
+            throw new NoAvailableSeatException();
+        }
+
+        // The available-seats read model is eventually consistent, so the seat picked above may already be
+        // taken. Claim it first: the Flight module re-checks availability at write time and rejects a
+        // concurrent reservation of the same seat, so the booking is only created once the claim succeeded.
+        await _flightGrpcServiceClient.ReserveSeatAsync(new ReserveSeatRequest
+        {
+            FlightId = flight.FlightDto.Id,
+            SeatNumber = emptySeat.SeatNumber
+        }, cancellationToken: cancellationToken);
+
         var aggrigate = Models.Booking.Create(command.Id, PassengerInfo.Of(passenger.PassengerDto?.Name), Trip.Of(
                 flight.FlightDto.FlightNumber, new Guid(flight.FlightDto.AircraftId),
                 new Guid(flight.FlightDto.DepartureAirportId),
                 new Guid(flight.FlightDto.ArriveAirportId), flight.FlightDto.FlightDate.ToDateTime(),
                 (decimal)flight.FlightDto.Price, command.Description,
-                emptySeat?.SeatNumber),
+                emptySeat.SeatNumber),
             false, _currentUserProvider.GetCurrentUserId());
 
         await _eventDispatcher.SendAsync(aggrigate.DomainEvents, cancellationToken: cancellationToken);
-
-        await _flightGrpcServiceClient.ReserveSeatAsync(new ReserveSeatRequest
-        {
-            FlightId = flight.FlightDto.Id,
-            SeatNumber = emptySeat?.SeatNumber
-        }, cancellationToken: cancellationToken);
 
         var result = await _eventStoreDbRepository.Add(
             aggrigate,

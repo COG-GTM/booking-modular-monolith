@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace BuildingBlocks.Polly;
@@ -12,7 +13,7 @@ public static class Extensions
     public static T RetryOnFailure<T>(this object retrySource, Func<T> action, int retryCount = 3)
     {
         var retryPolicy = Policy
-            .Handle<Exception>()
+            .Handle<Exception>(ex => ex is not DbUpdateConcurrencyException)
             .Retry(retryCount, (exception, retryAttempt, context) =>
                                {
                                    Logger.LogInformation($"Retry attempt: {retryAttempt}");

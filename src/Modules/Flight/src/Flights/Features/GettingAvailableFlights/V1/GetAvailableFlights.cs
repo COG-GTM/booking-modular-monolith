@@ -51,6 +51,7 @@ public class GetAvailableFlightsEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<GetAvailableFlightsResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Get Available Flights")
             .WithDescription("Get Available Flights")
             .WithOpenApi()
