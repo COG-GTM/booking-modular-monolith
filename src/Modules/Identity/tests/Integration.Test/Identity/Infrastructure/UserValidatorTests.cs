@@ -28,7 +28,7 @@ public class UserValidatorTests
     }
 
     [Fact]
-    public async Task should_return_invalid_grant_instead_of_throwing_when_user_does_not_exist()
+    public async Task should_return_unauthorized_client_instead_of_throwing_when_user_does_not_exist()
     {
         await using var harness = await IdentityCoreHarness.CreateAsync();
         var context = new ResourceOwnerPasswordValidationContext { UserName = "samh", Password = "Admin@123456" };
@@ -37,13 +37,13 @@ public class UserValidatorTests
 
         await act.Should().NotThrowAsync();
         context.Result.IsError.Should().BeTrue();
-        context.Result.Error.Should().Be("invalid_grant");
+        context.Result.Error.Should().Be("unauthorized_client");
         context.Result.ErrorDescription.Should().Be("Invalid Credentials");
         context.Result.Subject.Should().BeNull();
     }
 
     [Fact]
-    public async Task should_return_invalid_grant_when_password_is_wrong_for_existing_user()
+    public async Task should_return_unauthorized_client_when_password_is_wrong_for_existing_user()
     {
         await using var harness = await IdentityCoreHarness.CreateAsync();
         await CreateUserAsync(harness, "known");
@@ -52,7 +52,7 @@ public class UserValidatorTests
         await harness.UserValidator.ValidateAsync(context);
 
         context.Result.IsError.Should().BeTrue();
-        context.Result.Error.Should().Be("invalid_grant");
+        context.Result.Error.Should().Be("unauthorized_client");
         context.Result.ErrorDescription.Should().Be("Invalid Credentials");
         context.Result.Subject.Should().BeNull();
     }

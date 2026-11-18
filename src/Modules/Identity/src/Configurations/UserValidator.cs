@@ -24,7 +24,7 @@ public class UserValidator : IResourceOwnerPasswordValidator
 
         if (user is null)
         {
-            context.Result = new GrantValidationResult(TokenRequestErrors.InvalidGrant, "Invalid Credentials");
+            context.Result = new GrantValidationResult(TokenRequestErrors.UnauthorizedClient, "Invalid Credentials");
             return;
         }
 
@@ -54,6 +54,6 @@ public class UserValidator : IResourceOwnerPasswordValidator
         }
 
         // context set to Failure
-        context.Result = new GrantValidationResult(TokenRequestErrors.InvalidGrant, "Invalid Credentials");
+        context.Result = new GrantValidationResult(TokenRequestErrors.UnauthorizedClient, "Invalid Credentials");
     }
 }
