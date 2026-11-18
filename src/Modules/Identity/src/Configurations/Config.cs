@@ -33,22 +33,27 @@ public static class Config
         {
             new(Constants.StandardScopes.FlightApi)
             {
+                UserClaims = { JwtClaimTypes.Role },
                 Scopes = { Constants.StandardScopes.FlightApi }
             },
             new(Constants.StandardScopes.PassengerApi)
             {
+                UserClaims = { JwtClaimTypes.Role },
                 Scopes = { Constants.StandardScopes.PassengerApi }
             },
             new(Constants.StandardScopes.BookingApi)
             {
+                UserClaims = { JwtClaimTypes.Role },
                 Scopes = { Constants.StandardScopes.BookingApi }
             },
             new(Constants.StandardScopes.IdentityApi)
             {
+                UserClaims = { JwtClaimTypes.Role },
                 Scopes = { Constants.StandardScopes.IdentityApi }
             },
             new(Constants.StandardScopes.BookingModularMonolith)
             {
+                UserClaims = { JwtClaimTypes.Role },
                 Scopes = { Constants.StandardScopes.BookingModularMonolith }
             },
         };
