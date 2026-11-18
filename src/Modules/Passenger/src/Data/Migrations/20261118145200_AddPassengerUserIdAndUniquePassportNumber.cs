@@ -19,6 +19,10 @@ namespace Passenger.Data.Migrations
                 defaultValue: new Guid("00000000-0000-0000-0000-000000000000")
             );
 
+            migrationBuilder.Sql(
+                "UPDATE passenger SET passport_number = upper(btrim(passport_number)) WHERE passport_number IS NOT NULL AND passport_number <> upper(btrim(passport_number));"
+            );
+
             migrationBuilder.CreateIndex(
                 name: "ix_passenger_passport_number",
                 table: "passenger",

@@ -46,9 +46,10 @@ public class RegisterNewUserHandler : IConsumer<UserCreated>
         );
 
         var message = context.Message;
+        var passportNumber = message.PassportNumber.Trim().ToUpperInvariant();
         var existing = await _passengerDbContext
             .Passengers.IgnoreQueryFilters()
-            .SingleOrDefaultAsync(x => x.PassportNumber.Value == message.PassportNumber, context.CancellationToken);
+            .SingleOrDefaultAsync(x => x.PassportNumber.Value == passportNumber, context.CancellationToken);
 
         if (existing is not null)
         {
@@ -74,7 +75,7 @@ public class RegisterNewUserHandler : IConsumer<UserCreated>
         var passenger = Passenger.Create(
             PassengerId.Of(NewId.NextGuid()),
             Name.Of(message.Name),
-            PassportNumber.Of(message.PassportNumber),
+            PassportNumber.Of(passportNumber),
             message.Id
         );
 

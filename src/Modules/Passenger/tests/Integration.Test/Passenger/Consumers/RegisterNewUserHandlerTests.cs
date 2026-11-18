@@ -45,6 +45,23 @@ public class RegisterNewUserHandlerTests : PassengerIntegrationTestBase
     }
 
     [Fact]
+    public async Task should_normalize_passport_number_from_user_created_message()
+    {
+        var message = new FakeUserCreated().Generate() with { PassportNumber = " ab1234567 " };
+
+        await ConsumeAsync(message);
+
+        using var scope = Fixture.ServiceProvider.CreateScope();
+        var passenger = await scope
+            .ServiceProvider.GetRequiredService<PassengerDbContext>()
+            .Passengers.IgnoreQueryFilters()
+            .SingleAsync();
+
+        passenger.UserId.Should().Be(message.Id);
+        passenger.PassportNumber.Value.Should().Be("AB1234567");
+    }
+
+    [Fact]
     public async Task should_ignore_duplicate_user_created_message()
     {
         var message = new FakeUserCreated().Generate();
