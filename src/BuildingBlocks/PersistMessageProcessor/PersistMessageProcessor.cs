@@ -125,14 +125,14 @@ public class PersistMessageProcessor : IPersistMessageProcessor
             {
                 await ProcessAsync(message.Id, message.DeliveryType, cancellationToken);
             }
-            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            catch (System.Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
                 await RecordFailedAttemptAsync(message, ex, cancellationToken);
             }
         }
     }
 
-    private async Task RecordFailedAttemptAsync(PersistMessage message, Exception exception, CancellationToken cancellationToken)
+    private async Task RecordFailedAttemptAsync(PersistMessage message, System.Exception exception, CancellationToken cancellationToken)
     {
         message.IncreaseRetry();
 
@@ -152,7 +152,7 @@ public class PersistMessageProcessor : IPersistMessageProcessor
             _persistMessageDbContext.PersistMessage.Update(message);
             await _persistMessageDbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        catch (System.Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "Could not record failed attempt for message with id: {MessageId}.", message.Id);
         }

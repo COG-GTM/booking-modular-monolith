@@ -38,7 +38,7 @@ public class PersistMessageBackgroundService(
                 var service = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor>();
                 await service.ProcessAllAsync(stoppingToken);
             }
-            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
+            catch (System.Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 logger.LogError(ex, "PersistMessage Background Service cycle failed; retrying on next interval");
             }

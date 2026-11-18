@@ -1,4 +1,4 @@
-namespace Unit.Test.PersistMessage;
+namespace Unit.Test.PersistMessageProcessing;
 
 using System;
 using System.Linq;
@@ -12,7 +12,6 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Xunit;
@@ -46,7 +45,7 @@ public class PersistMessagePoisonMessageTests : IDisposable
             _mediator,
             _dbContext,
             Substitute.For<IPublishEndpoint>(),
-            Options.Create(new PersistMessageOptions { MaxRetryCount = MaxRetryCount }));
+            Microsoft.Extensions.Options.Options.Create(new PersistMessageOptions { MaxRetryCount = MaxRetryCount }));
     }
 
     public void Dispose()
@@ -106,7 +105,7 @@ public class PersistMessagePoisonMessageTests : IDisposable
         using var service = new PersistMessageBackgroundService(
             NullLogger<PersistMessageBackgroundService>.Instance,
             provider,
-            Options.Create(new PersistMessageOptions { Interval = 1 }));
+            Microsoft.Extensions.Options.Options.Create(new PersistMessageOptions { Interval = 1 }));
 
         await service.StartAsync(CancellationToken.None);
 
