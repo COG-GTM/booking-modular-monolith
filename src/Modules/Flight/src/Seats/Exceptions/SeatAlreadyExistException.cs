@@ -1,11 +1,10 @@
-using System.Net;
 using BuildingBlocks.Exception;
 
 namespace Flight.Seats.Exceptions;
 
-public class SeatAlreadyExistException : AppException
+public class SeatAlreadyExistException : ConflictException
 {
-    public SeatAlreadyExistException(int? code = default) : base("Seat already exist!", HttpStatusCode.Conflict, code)
+    public SeatAlreadyExistException(int? code = default) : base("Seat already exist!", code)
     {
     }
 }

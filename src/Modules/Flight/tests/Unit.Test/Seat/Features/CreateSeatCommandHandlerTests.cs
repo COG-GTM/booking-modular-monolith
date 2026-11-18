@@ -5,6 +5,7 @@ using Xunit;
 
 namespace Unit.Test.Seat.Features;
 
+using global::Flight.Seats.Exceptions;
 using global::Flight.Seats.Features.CreatingSeat.V1;
 using global::Flight.Seats.ValueObjects;
 
@@ -40,6 +41,24 @@ public class CreateSeatCommandHandlerTests
 
         entity?.Should().NotBeNull();
         response?.Id.Should().Be(entity.Id);
+    }
+
+    [Fact]
+    public async Task handler_with_existing_flight_and_seat_number_should_throw_seat_already_exist_exception()
+    {
+        // Arrange
+        var existingSeat = _fixture.DbContext.Seats.First();
+        var command = new FakeCreateSeatCommand().Generate() with
+        {
+            SeatNumber = existingSeat.SeatNumber.Value,
+            FlightId = existingSeat.FlightId.Value,
+        };
+
+        // Act
+        var act = async () => await Act(command, CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<SeatAlreadyExistException>();
     }
 
     [Fact]
