@@ -1,16 +1,25 @@
+using System;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Api;
 using Booking.Data;
 using BookingFlight;
 using BookingPassenger;
 using BuildingBlocks.Contracts.EventBus.Messages;
+using BuildingBlocks.EventStoreDB.Events;
+using BuildingBlocks.EventStoreDB.Subscriptions;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
+using EventStore.Client;
+using global::Booking.Booking.Features.CreatingBook.V1;
 using Grpc.Core;
 using Grpc.Core.Testing;
 using Integration.Test.Fakes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using MongoDB.Driver;
+using Newtonsoft.Json.Linq;
 using NSubstitute;
 using Xunit;
 using GetByIdRequest = BookingFlight.GetByIdRequest;
@@ -43,6 +52,64 @@ namespace Integration.Test.Booking.Features
             response?.Id.Should().BeGreaterThanOrEqualTo(0);
 
             (await Fixture.WaitForPublishing<BookingCreated>()).Should().Be(true);
+        }
+
+        [Fact]
+        public async Task should_project_booking_after_poison_events_in_event_store()
+        {
+            // Arrange
+            var eventStoreClient = Fixture.ServiceProvider.GetRequiredService<EventStoreClient>();
+            var poisonStream = $"poison-{Guid.NewGuid():N}";
+
+            // Body that is not valid JSON for a type the subscription resolves
+            var invalidJson = new EventData(Uuid.NewUuid(), EventTypeMapper.ToName<BookingCreatedDomainEvent>(),
+                Encoding.UTF8.GetBytes("not json"));
+
+            // Resolvable type that is not an INotification, so it can't be projected
+            var notNotification = new EventData(Uuid.NewUuid(), "System_Object", Encoding.UTF8.GetBytes("{}"));
+
+            var poisonWrite = await eventStoreClient.AppendToStreamAsync(poisonStream, StreamState.NoStream,
+                new[] { invalidJson, notNotification });
+
+            var command = new FakeCreateBookingCommand().Generate();
+
+            // Act
+            await Fixture.SendAsync(command);
+
+            // Assert
+            (await WaitUntil(async () => await Fixture.ExecuteReadContextAsync(async db =>
+                await db.Booking.Find(x => x.BookId == command.Id).AnyAsync()))).Should().BeTrue();
+
+            var checkpointRepository = Fixture.ServiceProvider.GetRequiredService<ISubscriptionCheckpointRepository>();
+            var checkpoint = await checkpointRepository.Load("default", default);
+            checkpoint.Should().BeGreaterThan(poisonWrite.LogPosition.CommitPosition);
+
+            var deadLetters = await eventStoreClient
+                .ReadStreamAsync(Direction.Forwards, EventStoreDBSubscriptionToAll.GetDeadLetterStreamName("default"),
+                    StreamPosition.Start)
+                .ToListAsync();
+
+            var deadLetteredIds = deadLetters
+                .Select(e => JObject.Parse(Encoding.UTF8.GetString(e.Event.Metadata.Span))["OriginalEventId"]?.ToString())
+                .ToList();
+
+            deadLetteredIds.Should().Contain(invalidJson.EventId.ToString())
+                .And.Contain(notNotification.EventId.ToString());
+        }
+
+        private static async Task<bool> WaitUntil(Func<Task<bool>> condition, int timeoutSeconds = 90)
+        {
+            var deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
+
+            while (DateTime.UtcNow < deadline)
+            {
+                if (await condition())
+                    return true;
+
+                await Task.Delay(250);
+            }
+
+            return await condition();
         }
 
 
