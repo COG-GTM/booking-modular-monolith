@@ -44,6 +44,7 @@ public class GetFlightByIdEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<GetFlightByIdResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Get Flight By Id")
             .WithDescription("Get Flight By Id")
             .WithOpenApi()

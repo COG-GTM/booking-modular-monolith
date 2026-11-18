@@ -43,9 +43,9 @@ public class ReserveSeatConflictTests : FlightIntegrationTestBase
         var act = async () => await flightGrpcClient.ReserveSeatAsync(request);
 
         // Assert
-        (await act.Should().ThrowAsync<RpcException>())
-            .Which.Status.Detail.Should()
-            .Be(new SeatAlreadyReservedException().Message);
+        var rpcException = (await act.Should().ThrowAsync<RpcException>()).Which;
+        rpcException.StatusCode.Should().Be(StatusCode.AlreadyExists);
+        rpcException.Status.Detail.Should().Be(new SeatAlreadyReservedException().Message);
     }
 
     [Fact]

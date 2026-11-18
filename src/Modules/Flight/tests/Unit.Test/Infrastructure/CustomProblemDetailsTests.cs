@@ -56,6 +56,19 @@ public class CustomProblemDetailsTests
         problem.Title.Should().Be(nameof(DbUpdateConcurrencyException));
     }
 
+    [Theory]
+    [InlineData(Grpc.Core.StatusCode.AlreadyExists, StatusCodes.Status409Conflict)]
+    [InlineData(Grpc.Core.StatusCode.Aborted, StatusCodes.Status409Conflict)]
+    [InlineData(Grpc.Core.StatusCode.Internal, StatusCodes.Status400BadRequest)]
+    public async Task rpc_exception_should_be_mapped_by_grpc_status(Grpc.Core.StatusCode grpcStatus, int expected)
+    {
+        var (statusCode, problem) = await SendRequestThrowing(
+            new Grpc.Core.RpcException(new Grpc.Core.Status(grpcStatus, "remote")));
+
+        ((int)statusCode).Should().Be(expected);
+        problem.Status.Should().Be(expected);
+    }
+
     private static async Task<(HttpStatusCode StatusCode, ProblemDetails Problem)> SendRequestThrowing(
         System.Exception exception
     )

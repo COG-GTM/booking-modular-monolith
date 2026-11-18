@@ -40,6 +40,7 @@ public class ReserveSeatEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<ReserveSeatResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Reserve Seat")
             .WithDescription("Reserve Seat")
             .WithOpenApi()

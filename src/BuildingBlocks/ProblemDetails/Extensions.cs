@@ -86,6 +86,12 @@ public static class Extensions
                                 exceptionType.GetType().Name,
                                 context.Response.StatusCode = StatusCodes.Status409Conflict
                             ),
+                            RpcException { StatusCode: StatusCode.AlreadyExists or StatusCode.Aborted } =>
+                            (
+                                exceptionType.Message,
+                                exceptionType.GetType().Name,
+                                context.Response.StatusCode = StatusCodes.Status409Conflict
+                            ),
                             RpcException =>
                             (
                                 exceptionType.Message,
