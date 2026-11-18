@@ -49,7 +49,8 @@ public static class Config
             },
             new(Constants.StandardScopes.BookingModularMonolith)
             {
-                Scopes = { Constants.StandardScopes.BookingModularMonolith }
+                Scopes = { Constants.StandardScopes.BookingModularMonolith },
+                UserClaims = { JwtClaimTypes.Role }
             },
         };
 
