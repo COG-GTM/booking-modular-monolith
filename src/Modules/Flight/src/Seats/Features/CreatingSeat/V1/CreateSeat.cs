@@ -4,6 +4,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.Web;
@@ -44,11 +45,13 @@ public class CreateSeatEndpoint : IMinimalEndpoint
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
         builder.MapPost($"{EndpointConfig.BaseApiPath}/flight/seat", CreateSeat)
-            .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(nameof(ApiScope), IdentityConstant.Role.Admin)
             .WithName("CreateSeat")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces<CreateSeatResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Create Seat")
             .WithDescription("Create Seat")
             .WithOpenApi()
@@ -97,9 +100,11 @@ internal class CreateSeatCommandHandler : IRequestHandler<CreateSeat, CreateSeat
     {
         Guard.Against.Null(command, nameof(command));
 
-        var seat = await _flightDbContext.Seats.SingleOrDefaultAsync(x => x.Id == command.Id, cancellationToken);
+        var seatExists = await _flightDbContext.Seats.IgnoreQueryFilters().AnyAsync(
+            x => x.FlightId == FlightId.Of(command.FlightId) &&
+                 x.SeatNumber.Value == command.SeatNumber, cancellationToken);
 
-        if (seat is not null)
+        if (seatExists)
         {
             throw new SeatAlreadyExistException();
         }
