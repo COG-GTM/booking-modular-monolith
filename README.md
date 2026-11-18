@@ -234,6 +234,14 @@ To `run` all modules, run this command in the root of the `Api` folder:
 dotnet run
 ```
 
+> ### Token signing key
+
+`Development` uses a developer key generated on first start (`identityserver-dev-signing-key.jwk`, git-ignored), and `test`/`docker` use an in-memory key. Every other environment must set `AuthOptions:SigningKeyPath` (e.g. `AuthOptions__SigningKeyPath`) to a PEM-encoded RSA private key from your secret store, or the API will not start:
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out signing-key.pem
+```
+
 > ### Test
 
 To `test` all modules, run this command in the `root` of the project:

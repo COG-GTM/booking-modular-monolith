@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using BuildingBlocks.Web;
 using Identity.Data;
 using Identity.Identity.Models;
@@ -5,6 +6,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Identity.Extensions.Infrastructure;
 
@@ -34,6 +37,7 @@ public static class IdentityServerExtensions
                 options.Events.RaiseFailureEvents = true;
                 options.Events.RaiseSuccessEvents = true;
                 options.IssuerUri = authOptions.IssuerUri;
+                options.KeyManagement.Enabled = false;
             })
             .AddInMemoryIdentityResources(Config.IdentityResources)
             .AddInMemoryApiResources(Config.ApiResources)
@@ -42,8 +46,7 @@ public static class IdentityServerExtensions
             .AddAspNetIdentity<User>()
             .AddResourceOwnerValidator<UserValidator>();
 
-        //ref: https://documentation.openiddict.com/configuration/encryption-and-signing-credentials.html
-        identityServerBuilder.AddDeveloperSigningCredential();
+        identityServerBuilder.AddTokenSigningCredential(builder.Environment, authOptions);
 
         builder.Services.ConfigureApplicationCookie(options =>
                                                     {
@@ -62,4 +65,53 @@ public static class IdentityServerExtensions
 
         return builder;
     }
+
+    private static void AddTokenSigningCredential(
+        this IIdentityServerBuilder identityServerBuilder,
+        IHostEnvironment environment,
+        AuthOptions authOptions)
+    {
+        if (!string.IsNullOrWhiteSpace(authOptions.SigningKeyPath))
+        {
+            identityServerBuilder.AddSigningCredential(
+                LoadRsaSigningKey(authOptions.SigningKeyPath),
+                SecurityAlgorithms.RsaSha256);
+
+            return;
+        }
+
+        if (environment.IsDevelopment())
+        {
+            // Never named tempkey.jwk so a leaked copy of the old committed key is not picked up.
+            identityServerBuilder.AddDeveloperSigningCredential(
+                persistKey: true,
+                filename: Path.Combine(environment.ContentRootPath, DevelopmentSigningKeyFileName));
+
+            return;
+        }
+
+        if (environment.IsEnvironment("test") || environment.IsEnvironment("docker"))
+        {
+            identityServerBuilder.AddDeveloperSigningCredential(persistKey: false);
+
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"{nameof(AuthOptions)}:{nameof(AuthOptions.SigningKeyPath)} must point to a PEM-encoded RSA private key " +
+            $"in the '{environment.EnvironmentName}' environment.");
+    }
+
+    private static RsaSecurityKey LoadRsaSigningKey(string path)
+    {
+        var rsa = RSA.Create();
+        rsa.ImportFromPem(File.ReadAllText(path));
+
+        var key = new RsaSecurityKey(rsa);
+        key.KeyId = Base64UrlEncoder.Encode(key.ComputeJwkThumbprint());
+
+        return key;
+    }
+
+    private const string DevelopmentSigningKeyFileName = "identityserver-dev-signing-key.jwk";
 }
