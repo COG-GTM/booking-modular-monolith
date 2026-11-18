@@ -6,10 +6,14 @@ namespace BuildingBlocks.Web;
 public interface ICurrentUserProvider
 {
     long? GetCurrentUserId();
+
+    Guid? GetCurrentUserGuid();
 }
 
 public class CurrentUserProvider : ICurrentUserProvider
 {
+    private const string SubjectClaimType = "sub";
+
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     public CurrentUserProvider(IHttpContextAccessor httpContextAccessor)
@@ -20,10 +24,19 @@ public class CurrentUserProvider : ICurrentUserProvider
 
     public long? GetCurrentUserId()
     {
-        var nameIdentifier = _httpContextAccessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        return long.TryParse(GetSubject(), out var userId) ? userId : null;
+    }
 
-        long.TryParse(nameIdentifier, out var userId);
+    public Guid? GetCurrentUserGuid()
+    {
+        return Guid.TryParse(GetSubject(), out var userId) && userId != Guid.Empty ? userId : null;
+    }
 
-        return userId;
+    // JwtBearer is configured with MapInboundClaims = false, so the user id arrives as "sub".
+    private string? GetSubject()
+    {
+        var user = _httpContextAccessor?.HttpContext?.User;
+
+        return user?.FindFirstValue(SubjectClaimType) ?? user?.FindFirstValue(ClaimTypes.NameIdentifier);
     }
 }

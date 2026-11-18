@@ -20,9 +20,12 @@ public class PassengerMappings : IRegister
             .ConstructUsing(x => new CompleteRegisterPassenger(x.PassportNumber, x.PassengerType, x.Age));
 
         config.NewConfig<PassengerReadModel, PassengerDto>()
-            .ConstructUsing(x => new PassengerDto(x.PassengerId, x.Name, x.PassportNumber, x.PassengerType, x.Age));
+            .ConstructUsing(x => new PassengerDto(x.PassengerId, x.Name, x.PassportNumber, x.PassengerType, x.Age, x.UserId));
 
         config.NewConfig<Passenger, PassengerDto>()
-            .ConstructUsing(x => new PassengerDto(x.Id.Value, x.Name.Value, x.PassportNumber.Value, x.PassengerType, x.Age.Value));
+            .ConstructUsing(x => new PassengerDto(x.Id.Value, x.Name.Value, x.PassportNumber.Value, x.PassengerType, x.Age.Value, x.UserId));
+
+        config.NewConfig<PassengerDto, global::Passenger.PassengerResponse>()
+            .Map(d => d.UserId, s => s.UserId.HasValue ? s.UserId.Value.ToString() : string.Empty);
     }
 }

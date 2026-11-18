@@ -21,7 +21,8 @@ public class CompleteRegisterPassengerTests : PassengerIntegrationTestBase
         var passenger = global::Passenger.Passengers.Models.Passenger.Create(
             PassengerId.Of(Guid.CreateVersion7()),
             Name.Of("Sam"),
-            PassportNumber.Of("123456789")
+            PassportNumber.Of("123456789"),
+            userId: FakeCurrentUserProvider.UserId
         );
 
         await Fixture.InsertAsync(passenger);
@@ -37,5 +38,28 @@ public class CompleteRegisterPassengerTests : PassengerIntegrationTestBase
         response?.PassengerDto?.PassportNumber.Should().Be(command.PassportNumber);
         response?.PassengerDto?.PassengerType.ToString().Should().Be(command.PassengerType.ToString());
         response?.PassengerDto?.Age.Should().Be(command.Age);
+        response?.PassengerDto?.UserId.Should().Be(FakeCurrentUserProvider.UserId);
+    }
+
+    [Fact]
+    public async Task should_not_complete_register_passenger_owned_by_another_user()
+    {
+        // Arrange
+        var passenger = global::Passenger.Passengers.Models.Passenger.Create(
+            PassengerId.Of(Guid.CreateVersion7()),
+            Name.Of("Alice"),
+            PassportNumber.Of("987654321"),
+            userId: Guid.CreateVersion7()
+        );
+
+        await Fixture.InsertAsync(passenger);
+
+        var command = new FakeCompleteRegisterPassengerCommand(passenger.PassportNumber, passenger.Id).Generate();
+
+        // Act
+        var act = () => Fixture.SendAsync(command);
+
+        // Assert
+        await act.Should().ThrowAsync<global::Passenger.Passengers.Exceptions.PassengerNotExist>();
     }
 }

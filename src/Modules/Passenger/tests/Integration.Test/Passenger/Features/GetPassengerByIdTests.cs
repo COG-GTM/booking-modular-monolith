@@ -40,7 +40,7 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
     public async Task should_retrive_a_passenger_by_id_from_grpc_service()
     {
         // Arrange
-        var command = new FakeCompleteRegisterPassengerMongoCommand().Generate();
+        var command = new FakeCompleteRegisterPassengerMongoCommand().Generate() with { UserId = Guid.CreateVersion7() };
 
         await Fixture.SendAsync(command);
 
@@ -52,5 +52,6 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         // Assert
         response?.Should().NotBeNull();
         response?.PassengerDto?.Id.Should().Be(command.Id.ToString());
+        response?.PassengerDto?.UserId.Should().Be(command.UserId.ToString());
     }
 }

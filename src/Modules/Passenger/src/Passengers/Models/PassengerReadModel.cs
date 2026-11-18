@@ -8,5 +8,6 @@ public class PassengerReadModel
     public required string Name { get; init; }
     public required Enums.PassengerType PassengerType { get; init; }
     public int Age { get; init; }
+    public Guid? UserId { get; init; }
     public required bool IsDeleted { get; init; }
 }
