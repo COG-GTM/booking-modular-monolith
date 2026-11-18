@@ -1,3 +1,4 @@
+using BuildingBlocks.Core;
 using BuildingBlocks.EFCore;
 using BuildingBlocks.Mapster;
 using BuildingBlocks.Web;
@@ -10,12 +11,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Identity.Extensions.Infrastructure;
 
-
 public static class InfrastructureExtensions
 {
     public static WebApplicationBuilder AddIdentityModules(this WebApplicationBuilder builder)
     {
-        builder.Services.AddScoped<IdentityEventMapper>();
+        builder.Services.AddEventMapper<IdentityEventMapper>();
         builder.AddMinimalEndpoints(assemblies: typeof(IdentityRoot).Assembly);
         builder.Services.AddValidatorsFromAssembly(typeof(IdentityRoot).Assembly);
         builder.Services.AddCustomMapster(typeof(IdentityRoot).Assembly);
@@ -32,7 +32,6 @@ public static class InfrastructureExtensions
 
         return builder;
     }
-
 
     public static WebApplication UseIdentityModules(this WebApplication app)
     {

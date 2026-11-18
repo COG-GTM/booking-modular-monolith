@@ -1,0 +1,52 @@
+name: BuildingBlocks
+
+on:
+  push:
+    branches: ["main", "devin/ab-488-v3"]
+  pull_request:
+    branches: ["main", "devin/ab-488-v3"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  libraries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build each library independently
+        shell: bash
+        run: |
+          set -euo pipefail
+          for project in $(find src/BuildingBlocks -name 'BuildingBlocks.*.csproj' -not -path '*/tests/*' | sort); do
+            echo "::group::$project"
+            dotnet build "$project" -c Release -nologo -v quiet
+            echo "::endgroup::"
+          done
+
+      - name: Unit tests (dispatcher + dependency surface)
+        run: dotnet test src/BuildingBlocks/tests/BuildingBlocks.Tests -c Release -nologo
+
+      - name: Build Booking module (no EF Core)
+        run: dotnet build src/Modules/Booking/src/Booking.csproj -c Release -nologo -v quiet
+
+      - name: Pack to local feed
+        run: scripts/pack-building-blocks.sh 1.0.0-ci.${{ github.run_number }}
+
+      - name: Minimal consumer from local feed
+        run: scripts/verify-building-blocks-consumer.sh 1.0.0-ci.${{ github.run_number }}
+
+      - name: Build monolith solution
+        run: dotnet build booking-modular-monolith.sln -c Release -nologo -v quiet
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: buildingblocks-nuget
+          path: artifacts/nuget/*.nupkg

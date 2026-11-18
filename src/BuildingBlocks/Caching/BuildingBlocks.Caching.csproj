@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>MediatR caching / cache-invalidation pipeline behaviors (EasyCaching).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="EasyCaching.Core" Version="1.9.2" />
+    <PackageReference Include="MediatR" Version="14.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.3" />
+  </ItemGroup>
+</Project>
