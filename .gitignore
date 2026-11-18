@@ -434,6 +434,7 @@ fabric.properties
 .tye/
 
 *.jwk
+src/Api/src/keys/
 
 # Monitoring
 **/grafana-data
