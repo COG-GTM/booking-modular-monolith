@@ -14,6 +14,15 @@ public class PassengerOwnershipGuardTests
 {
     private static readonly Guid OwnerId = Guid.Parse("a39c4a51-2079-4d84-b74e-e2349d251cf0");
 
+    [Fact]
+    public async Task should_return_not_found_for_empty_passenger_id()
+    {
+        await using var db = CreateContext();
+        await Assert.ThrowsAsync<PassengerNotFoundException>(
+            () => Check(Guid.Empty, CreateUser(OwnerId.ToString()), db)
+        );
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

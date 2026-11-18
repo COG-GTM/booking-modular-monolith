@@ -71,6 +71,11 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
         CancellationToken cancellationToken
     )
     {
+        if (id == Guid.Empty)
+        {
+            throw new PassengerNotFoundException();
+        }
+
         var passenger = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleOrDefaultAsync(
             dbContext.Passengers,
             x => x.Id == PassengerId.Of(id) && !x.IsDeleted,
