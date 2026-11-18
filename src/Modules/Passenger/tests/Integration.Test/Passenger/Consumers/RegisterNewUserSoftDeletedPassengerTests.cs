@@ -27,11 +27,16 @@ public class RegisterNewUserSoftDeletedPassengerTests : PassengerIntegrationTest
         : base(integrationTestFactory) { }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task should_preserve_soft_deleted_passenger_and_enforce_passport_ownership(bool sameUser)
+    [InlineData(true, "AB1234567")]
+    [InlineData(false, "AB1234567")]
+    [InlineData(true, " ab1234567 ")]
+    [InlineData(false, " ab1234567 ")]
+    public async Task should_preserve_soft_deleted_passenger_and_enforce_passport_ownership(
+        bool sameUser,
+        string incomingPassportNumber
+    )
     {
-        var message = new FakeUserCreated().Generate();
+        var message = new FakeUserCreated().Generate() with { PassportNumber = "AB1234567" };
         var passengerId = PassengerId.Of(Guid.CreateVersion7());
         var passenger = PassengerModel.Create(
             passengerId,
@@ -47,7 +52,12 @@ public class RegisterNewUserSoftDeletedPassengerTests : PassengerIntegrationTest
             await dbContext.SaveChangesAsync();
         }
 
-        var incomingMessage = sameUser ? message : message with { Id = Guid.CreateVersion7(), Name = "Other User" };
+        var incomingMessage = message with
+        {
+            Id = sameUser ? message.Id : Guid.CreateVersion7(),
+            Name = "Other User",
+            PassportNumber = incomingPassportNumber,
+        };
         var act = () => ConsumeAsync(incomingMessage);
 
         if (sameUser)
