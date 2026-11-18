@@ -15,9 +15,9 @@ public class AuthHeaderHandler : DelegatingHandler
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
-        var token = (_httpContext?.HttpContext?.Request.Headers["Authorization"])?.ToString();
-
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token?.Replace("Bearer ", "", StringComparison.CurrentCulture));
+        var header = _httpContext?.HttpContext?.Request.Headers.Authorization.ToString();
+        if (!string.IsNullOrWhiteSpace(header) && AuthenticationHeaderValue.TryParse(header, out var value))
+            request.Headers.Authorization = value;
 
         return base.SendAsync(request, cancellationToken);
     }
