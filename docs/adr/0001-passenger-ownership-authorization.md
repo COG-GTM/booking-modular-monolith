@@ -71,7 +71,7 @@ C4Container
 - **Secrets:** None added.
 - **Audit logging:** Unchanged.
 - **Data residency / regions:** Unchanged.
-- **Policy sections satisfied:** N/A — no infrastructure changes.
+- **Policy sections satisfied:** §5 is requested as an exception (see above).
 - **Threats considered:** IDOR on passenger id; unauthenticated gRPC access; existence oracle (non-owners get 404).
 
 ## Cost
@@ -94,7 +94,7 @@ C4Container
 
 | Rule | Resource | Justification | Compensating control | Expiry |
 | --- | --- | --- | --- | --- |
-| none | | | | |
+| Security standard §5: service-to-service calls use OAuth 2.0 client credentials with a per-service scope | Booking → Passenger gRPC (`ForwardAuthorizationHeaderHandler`) | Passenger needs the end user's identity for the owner check; both modules run in one process | Forwards only the caller's own token, still validated by `ApiScope`; attached only to the Passenger gRPC client and only within an HTTP request | Until ARB decision; alternative is client credentials plus user id in gRPC metadata |
 
 ## Consequences
 
@@ -107,3 +107,4 @@ C4Container
 
 - Owning team and on-call rotation.
 - Whether to backfill existing passengers and how.
+- Client credentials vs. forwarded user token for Booking → Passenger (§5).

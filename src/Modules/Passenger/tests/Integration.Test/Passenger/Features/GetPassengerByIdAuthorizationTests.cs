@@ -155,7 +155,9 @@ public class GetPassengerByIdAuthorizationTests : PassengerIntegrationTestBase
             await GrpcClient(CreateClient(Guid.NewGuid(), "user"))
                 .GetByIdAsync(new GetByIdRequest { Id = passengerId.ToString() });
 
-        (await act.Should().ThrowAsync<RpcException>()).Which.Status.Detail.Should().Be("Passenger not found!");
+        var exception = (await act.Should().ThrowAsync<RpcException>()).Which;
+        exception.StatusCode.Should().Be(StatusCode.Internal);
+        exception.Status.Detail.Should().Be("Passenger not found!");
     }
 
     [Fact]
