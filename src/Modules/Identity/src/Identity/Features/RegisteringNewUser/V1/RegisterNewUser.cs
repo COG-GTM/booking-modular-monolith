@@ -12,6 +12,7 @@ using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.Core;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Web;
+using Configurations;
 using Exceptions;
 using FluentValidation;
 using Mapster;
@@ -68,7 +69,9 @@ public class RegisterNewUserValidator : AbstractValidator<RegisterNewUser>
 {
     public RegisterNewUserValidator()
     {
-        RuleFor(x => x.Password).NotEmpty().WithMessage("Please enter the password");
+        RuleFor(x => x.Password).NotEmpty().WithMessage("Please enter the password")
+            .MinimumLength(CommonPasswordValidator.MinimumLength)
+            .WithMessage($"Password must be at least {CommonPasswordValidator.MinimumLength} characters");
         RuleFor(x => x.ConfirmPassword).NotEmpty().WithMessage("Please enter the confirmation password");
 
         RuleFor(x => x).Custom((x, context) =>
@@ -115,12 +118,13 @@ internal class RegisterNewUserHandler : ICommandHandler<RegisterNewUser, Registe
         };
 
         var identityResult = await _userManager.CreateAsync(applicationUser, request.Password);
-        var roleResult = await _userManager.AddToRoleAsync(applicationUser, IdentityConstant.Role.User);
 
         if (identityResult.Succeeded == false)
         {
             throw new RegisterIdentityUserException(string.Join(',', identityResult.Errors.Select(e => e.Description)));
         }
+
+        var roleResult = await _userManager.AddToRoleAsync(applicationUser, IdentityConstant.Role.User);
 
         if (roleResult.Succeeded == false)
         {

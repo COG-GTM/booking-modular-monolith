@@ -16,7 +16,7 @@ grant_type=password
 &client_id=client
 &client_secret=secret
 &username=samh
-&password=Admin@123456
+&password=Admin@Booking2026!
 &scope=booking-modular-monolith role
 ###
 
@@ -35,8 +35,8 @@ authorization: bearer {{Authenticate.response.body.access_token}}
   "username": "admin",
   "passportNumber": "41290000",
   "email": "admin@admin.com",
-  "password": "Admin@12345",
-  "confirmPassword": "Admin@12345"
+  "password": "Flight#Deck2026",
+  "confirmPassword": "Flight#Deck2026"
 }
 ###
 
