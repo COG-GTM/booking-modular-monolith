@@ -54,9 +54,12 @@ public class UserLockoutConcurrencyTests : IdentityIntegrationTestBase
         var userManagerB = scopeB.ServiceProvider.GetRequiredService<UserManager<User>>();
 
         var userA = await userManagerA.FindByNameAsync(UserName);
+        (await userManagerA.AccessFailedAsync(userA!)).Succeeded.Should().BeTrue();
+
+        // Loaded with a non-zero failed count so the stale reset below really writes the row.
         var staleUserB = await userManagerB.FindByNameAsync(UserName);
 
-        for (var attempt = 0; attempt < userManagerA.Options.Lockout.MaxFailedAccessAttempts; attempt++)
+        for (var attempt = 1; attempt < userManagerA.Options.Lockout.MaxFailedAccessAttempts; attempt++)
         {
             (await userManagerA.AccessFailedAsync(userA!)).Succeeded.Should().BeTrue();
         }
@@ -66,6 +69,7 @@ public class UserLockoutConcurrencyTests : IdentityIntegrationTestBase
         var staleResult = await userManagerB.ResetAccessFailedCountAsync(staleUserB!);
 
         staleResult.Succeeded.Should().BeFalse();
+        staleResult.Errors.Select(e => e.Code).Should().Contain(nameof(IdentityErrorDescriber.ConcurrencyFailure));
 
         using var verifyScope = Fixture.ServiceProvider.CreateScope();
         var verifyUserManager = verifyScope.ServiceProvider.GetRequiredService<UserManager<User>>();
