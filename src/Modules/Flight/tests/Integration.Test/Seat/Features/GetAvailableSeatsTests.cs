@@ -2,6 +2,7 @@ using BuildingBlocks.TestBase;
 using Flight;
 using Flight.Data;
 using FluentAssertions;
+using Grpc.Core;
 using Integration.Test.Fakes;
 using Xunit;
 
@@ -35,5 +36,22 @@ public class GetAvailableSeatsTests : FlightIntegrationTestBase
         // Assert
         response?.Should().NotBeNull();
         response?.SeatDtos?.Count.Should().BeGreaterThanOrEqualTo(1);
+    }
+
+    [Fact]
+    public async Task should_reject_anonymous_get_available_seats_from_grpc_service()
+    {
+        // Arrange
+        var flightCommand = new FakeCreateFlightMongoCommand().Generate();
+
+        await Fixture.SendAsync(flightCommand);
+
+        var flightGrpcClient = new FlightGrpcService.FlightGrpcServiceClient(Fixture.AnonymousChannel);
+
+        // Act
+        var act = async () => await flightGrpcClient.GetAvailableSeatsAsync(new GetAvailableSeatsRequest { FlightId = flightCommand.Id.ToString() });
+
+        // Assert
+        (await act.Should().ThrowAsync<RpcException>()).Which.StatusCode.Should().Be(StatusCode.Unauthenticated);
     }
 }
