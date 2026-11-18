@@ -5,7 +5,7 @@ namespace BuildingBlocks.Web;
 
 public interface ICurrentUserProvider
 {
-    long? GetCurrentUserId();
+    Guid? GetCurrentUserId();
 }
 
 public class CurrentUserProvider : ICurrentUserProvider
@@ -18,12 +18,23 @@ public class CurrentUserProvider : ICurrentUserProvider
     }
 
 
-    public long? GetCurrentUserId()
+    public Guid? GetCurrentUserId()
     {
-        var nameIdentifier = _httpContextAccessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        var subject = _httpContextAccessor?.HttpContext?.User?.GetUserIdClaim();
 
-        long.TryParse(nameIdentifier, out var userId);
-
-        return userId;
+        return Guid.TryParse(subject, out var userId) ? userId : null;
     }
+}
+
+public static class UserClaimsExtensions
+{
+    // JwtBearer runs with MapInboundClaims = false, so tokens keep their short JWT claim names.
+    public const string SubjectClaimType = "sub";
+    public const string NameClaimType = "name";
+
+    public static string? GetUserIdClaim(this ClaimsPrincipal? user) =>
+        user?.FindFirstValue(SubjectClaimType) ?? user?.FindFirstValue(ClaimTypes.NameIdentifier);
+
+    public static string? GetUserNameClaim(this ClaimsPrincipal? user) =>
+        user?.FindFirstValue(NameClaimType) ?? user?.FindFirstValue(ClaimTypes.Name);
 }

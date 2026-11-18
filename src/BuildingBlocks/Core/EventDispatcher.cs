@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Web;
@@ -147,8 +146,8 @@ public sealed class EventDispatcher(
     {
         var headers = new Dictionary<string, object>();
         headers.Add("CorrelationId", httpContextAccessor?.HttpContext?.GetCorrelationId());
-        headers.Add("UserId", httpContextAccessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier));
-        headers.Add("UserName", httpContextAccessor?.HttpContext?.User?.FindFirstValue(ClaimTypes.Name));
+        headers.Add("UserId", httpContextAccessor?.HttpContext?.User?.GetUserIdClaim());
+        headers.Add("UserName", httpContextAccessor?.HttpContext?.User?.GetUserNameClaim());
 
         return headers;
     }

@@ -10,7 +10,7 @@ public record Booking : AggregateEventSourcing<Guid>
     public Trip Trip { get; private set; }
     public PassengerInfo PassengerInfo { get; private set; }
 
-    public static Booking Create(Guid id, PassengerInfo passengerInfo, Trip trip, bool isDeleted = false, long? userId = null)
+    public static Booking Create(Guid id, PassengerInfo passengerInfo, Trip trip, bool isDeleted = false, Guid? userId = null)
     {
         var booking = new Booking { Id = id, Trip = trip, PassengerInfo = passengerInfo, IsDeleted = isDeleted };
 
