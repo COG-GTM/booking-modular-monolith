@@ -12,7 +12,7 @@ using Passenger.Data;
 namespace Passenger.Data.Migrations
 {
     [DbContext(typeof(PassengerDbContext))]
-    [Migration("20261118170000_audit_user_id_guid")]
+    [Migration("20261118170100_audit_user_id_guid")]
     partial class audit_user_id_guid
     {
         /// <inheritdoc />
