@@ -31,6 +31,7 @@
     - [Upgrade Nuget Packages](#upgrade-nuget-packages)
 - [How to Run](#how-to-run)
   - [Config Certificate](#config-certificate)
+  - [Token signing key](#token-signing-key)
   - [Aspire](#aspire)
   - [Docker Compose](#docker-compose)
   - [Build](#build)
@@ -203,6 +204,9 @@ dotnet dev-certs https -ep ${HOME}/.aspnet/https/aspnetapp.pfx -p $CREDENTIAL_PL
 dotnet dev-certs https --trust
 ```
 
+> ### Token signing key
+
+Development and test environments generate a local `tempkey.jwk`; never commit it. Other environments, including Docker Compose (`ASPNETCORE_ENVIRONMENT=docker`), use Duende automatic key management unless `AuthOptions__SigningKey` (JWK JSON) or `AuthOptions__SigningKeyPath` is configured. Hosts that validate each other's tokens must share the configured key, or the same Duende key store and Data Protection keys. The previously committed key is compromised and must never be reused or loaded.
 
 > ### Aspire
 

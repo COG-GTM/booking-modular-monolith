@@ -1,3 +1,4 @@
+using System.IO;
 using BuildingBlocks.Web;
 using Identity.Data;
 using Identity.Identity.Models;
@@ -5,6 +6,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Identity.Extensions.Infrastructure;
 
@@ -16,8 +19,25 @@ public static class IdentityServerExtensions
     {
         builder.Services.AddValidateOptions<AuthOptions>();
         var authOptions = builder.Services.GetOptions<AuthOptions>(nameof(AuthOptions));
+        var signingKeyJson =
+            !string.IsNullOrWhiteSpace(authOptions.SigningKey) ? authOptions.SigningKey
+            : !string.IsNullOrWhiteSpace(authOptions.SigningKeyPath) ? File.ReadAllText(authOptions.SigningKeyPath)
+            : null;
+        JsonWebKey jwk = null;
 
-        builder.Services.AddIdentity<User, Role>(config =>
+        if (signingKeyJson is not null)
+        {
+            jwk = new JsonWebKey(signingKeyJson);
+            if (!jwk.HasPrivateKey)
+            {
+                throw new InvalidOperationException(
+                    "The configured signing JWK must include private key material. Set AuthOptions:SigningKey or AuthOptions:SigningKeyPath to a private JWK."
+                );
+            }
+        }
+
+        builder
+            .Services.AddIdentity<User, Role>(config =>
             {
                 config.Password.RequiredLength = 6;
                 config.Password.RequireDigit = false;
@@ -27,13 +47,18 @@ public static class IdentityServerExtensions
             .AddEntityFrameworkStores<IdentityContext>()
             .AddDefaultTokenProviders();
 
-        var identityServerBuilder = builder.Services.AddIdentityServer(options =>
+        var identityServerBuilder = builder
+            .Services.AddIdentityServer(options =>
             {
                 options.Events.RaiseErrorEvents = true;
                 options.Events.RaiseInformationEvents = true;
                 options.Events.RaiseFailureEvents = true;
                 options.Events.RaiseSuccessEvents = true;
                 options.IssuerUri = authOptions.IssuerUri;
+                if (jwk is not null)
+                {
+                    options.KeyManagement.Enabled = false;
+                }
             })
             .AddInMemoryIdentityResources(Config.IdentityResources)
             .AddInMemoryApiResources(Config.ApiResources)
@@ -42,23 +67,36 @@ public static class IdentityServerExtensions
             .AddAspNetIdentity<User>()
             .AddResourceOwnerValidator<UserValidator>();
 
-        //ref: https://documentation.openiddict.com/configuration/encryption-and-signing-credentials.html
-        identityServerBuilder.AddDeveloperSigningCredential();
+        if (jwk is not null)
+        {
+            identityServerBuilder.AddSigningCredential(
+                jwk,
+                string.IsNullOrEmpty(jwk.Alg) ? SecurityAlgorithms.RsaSha256 : jwk.Alg
+            );
+        }
+        else if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("test"))
+        {
+            identityServerBuilder.AddDeveloperSigningCredential();
+        }
+        else
+        {
+            // Duende automatic key management handles non-development environments.
+        }
 
         builder.Services.ConfigureApplicationCookie(options =>
-                                                    {
-                                                        options.Events.OnRedirectToLogin = context =>
-                                                        {
-                                                            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                                                            return Task.CompletedTask;
-                                                        };
+        {
+            options.Events.OnRedirectToLogin = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return Task.CompletedTask;
+            };
 
-                                                        options.Events.OnRedirectToAccessDenied = context =>
-                                                        {
-                                                            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                                                            return Task.CompletedTask;
-                                                        };
-                                                    });
+            options.Events.OnRedirectToAccessDenied = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return Task.CompletedTask;
+            };
+        });
 
         return builder;
     }
