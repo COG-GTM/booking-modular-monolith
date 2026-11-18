@@ -1,7 +1,9 @@
+using System.Net;
 using System.Threading.Tasks;
 using Api;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
+using Grpc.Core;
 using Integration.Test.Fakes;
 using Passenger;
 using Passenger.Data;
@@ -52,5 +54,28 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         // Assert
         response?.Should().NotBeNull();
         response?.PassengerDto?.Id.Should().Be(command.Id.ToString());
+    }
+
+    [Fact]
+    public async Task should_reject_unauthenticated_grpc_call()
+    {
+        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(Fixture.AnonymousChannel);
+
+        var act = async () => await passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = "1" }).ResponseAsync;
+
+        await act.Should().ThrowAsync<RpcException>()
+            .Where(exception => exception.StatusCode == StatusCode.Unauthenticated);
+    }
+
+    [Fact]
+    public async Task should_allow_anonymous_access_to_public_endpoints()
+    {
+        using var anonymousHttpClient = Fixture.AnonymousHttpClient;
+        var rootResponse = await anonymousHttpClient.GetAsync("/");
+        rootResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var developmentAnonymousHttpClient = Fixture.DevelopmentAnonymousHttpClient;
+        var healthResponse = await developmentAnonymousHttpClient.GetAsync("/health");
+        healthResponse.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }

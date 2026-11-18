@@ -1,6 +1,7 @@
 using BuildingBlocks.Constants;
 using BuildingBlocks.Web;
 using Duende.IdentityServer.EntityFramework.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -43,6 +44,8 @@ namespace BuildingBlocks.Jwt
             services.AddAuthorization(
                 options =>
                 {
+                    options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
+
                     options.AddPolicy(
                         nameof(ApiScope),
                         policy =>

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Scalar.AspNetCore;
@@ -26,7 +27,7 @@ namespace BuildingBlocks.OpenApi
 
         public static IApplicationBuilder UseAspnetOpenApi(this WebApplication app)
         {
-            app.MapOpenApi();
+            app.MapOpenApi().AllowAnonymous();
 
             app.UseSwaggerUI(
                 options =>
@@ -47,7 +48,7 @@ namespace BuildingBlocks.OpenApi
                 redocOptions =>
                 {
                     redocOptions.WithOpenApiRoutePattern("/openapi/{documentName}.json");
-                });
+                }).AllowAnonymous();
 
             return app;
         }

@@ -2,7 +2,9 @@ using Booking.Configuration;
 using BookingFlight;
 using BookingPassenger;
 using BuildingBlocks.Web;
+using BuildingBlocks.Jwt;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Polly;
 
@@ -12,12 +14,15 @@ public static class GrpcClientExtensions
 {
     public static IServiceCollection AddGrpcClients(this IServiceCollection services)
     {
+        services.TryAddTransient<AuthHeaderHandler>();
+
         var grpcOptions = services.GetOptions<GrpcOptions>("Grpc");
 
         services.AddGrpcClient<FlightGrpcService.FlightGrpcServiceClient>(o =>
         {
             o.Address = new Uri(grpcOptions.FlightAddress);
         })
+        .AddHttpMessageHandler<AuthHeaderHandler>()
         .AddResilienceHandler(
             "grpc-flight-resilience",
             options =>
@@ -47,6 +52,7 @@ public static class GrpcClientExtensions
         {
             o.Address = new Uri(grpcOptions.PassengerAddress);
         })
+        .AddHttpMessageHandler<AuthHeaderHandler>()
         .AddResilienceHandler(
             "grpc-passenger-resilience",
             options =>

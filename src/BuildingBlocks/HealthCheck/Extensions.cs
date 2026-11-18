@@ -3,6 +3,7 @@ using BuildingBlocks.EventStoreDB;
 using BuildingBlocks.MassTransit;
 using BuildingBlocks.Mongo;
 using BuildingBlocks.Web;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
@@ -75,15 +76,15 @@ public static class Extensions
 
         if (app.Environment.IsDevelopment())
         {
-            app.MapHealthChecks(HealthEndpointPath);
+            app.MapHealthChecks(HealthEndpointPath).AllowAnonymous();
             app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
             {
                 Predicate = r => r.Tags.Contains("live"),
-            });
+            }).AllowAnonymous();
         }
 
         if (healthOptions.Enabled)
-            app.MapHealthChecksUI(options => options.UIPath = "/health-ui");
+            app.MapHealthChecksUI(options => options.UIPath = "/health-ui").AllowAnonymous();
 
         return app;
     }
