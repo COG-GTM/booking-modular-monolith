@@ -5,19 +5,47 @@ services:
   #######################################################
   #  EventStoreDB
   #######################################################
+  eventstore-certs:
+      container_name: eventstore-certs
+      image: eventstore/es-gencert-cli:1.0.2
+      user: "0:0"
+      entrypoint: bash
+      command: >
+        -c "set -e;
+        if [ ! -f /certs/node/node.key ]; then
+          es-gencert-cli create-ca -out /certs/ca;
+          es-gencert-cli create-node -ca-certificate /certs/ca/ca.crt -ca-key /certs/ca/ca.key -out /certs/node -dns-names eventstore,localhost -ip-addresses 127.0.0.1;
+        fi;
+        cp /certs/ca/ca.crt /ca/ca.crt;
+        chown -R 1000:1000 /certs;
+        chmod 600 /certs/ca/ca.key /certs/node/node.key;
+        chmod 644 /ca/ca.crt"
+      volumes:
+          - eventstore-certs:/certs
+          - eventstore-ca:/ca
+
   eventstore:
       container_name: eventstore
       image: eventstore/eventstore:latest
       restart: unless-stopped
+      depends_on:
+          eventstore-certs:
+              condition: service_completed_successfully
       environment:
          - EVENTSTORE_CLUSTER_SIZE=1
          - EVENTSTORE_RUN_PROJECTIONS=All
          - EVENTSTORE_START_STANDARD_PROJECTIONS=True
          - EVENTSTORE_HTTP_PORT=2113
-         - EVENTSTORE_INSECURE=True
-         - EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP=True
+         - EVENTSTORE_CERTIFICATE_FILE=/certs/node/node.crt
+         - EVENTSTORE_CERTIFICATE_PRIVATE_KEY_FILE=/certs/node/node.key
+         - EVENTSTORE_TRUSTED_ROOT_CERTIFICATES_PATH=/certs/ca
+         - EVENTSTORE_DEFAULT_ADMIN_PASSWORD=${EVENTSTORE_ADMIN_PASSWORD:?Set EVENTSTORE_ADMIN_PASSWORD}
+         - EVENTSTORE_DEFAULT_OPS_PASSWORD=${EVENTSTORE_OPS_PASSWORD:?Set EVENTSTORE_OPS_PASSWORD}
       ports:
-          - "2113:2113"
+          # The API reaches EventStoreDB over the compose network; only expose the admin UI on this host.
+          - "127.0.0.1:2113:2113"
+      volumes:
+          - eventstore-certs:/certs:ro
       networks:
           - booking   
 
@@ -345,6 +373,7 @@ services:
       - 3000:443
     volumes:
       - ~/.aspnet/https:/https:ro
+      - eventstore-ca:/eventstore-ca:ro
     environment:
       - ASPNETCORE_ENVIRONMENT=docker
       - ASPNETCORE_URLS=https://+;http://+
@@ -352,6 +381,9 @@ services:
       - ASPNETCORE_HTTP_PORT=3001
       - ASPNETCORE_Kestrel__Certificates__Default__Password=password
       - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      - EventStoreOptions__ConnectionString=esdb://admin:${EVENTSTORE_ADMIN_PASSWORD:?Set EVENTSTORE_ADMIN_PASSWORD}@eventstore:2113?tls=true&tlsCAFile=/eventstore-ca/ca.crt
+    depends_on:
+      - eventstore
     networks:
       - booking
 
@@ -362,4 +394,6 @@ networks:
 
 volumes:
   elastic-data:
+  eventstore-certs:
+  eventstore-ca:
   postgres-data:

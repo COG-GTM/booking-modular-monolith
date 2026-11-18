@@ -59,10 +59,11 @@ services:
          - EVENTSTORE_RUN_PROJECTIONS=All
          - EVENTSTORE_START_STANDARD_PROJECTIONS=True
          - EVENTSTORE_HTTP_PORT=2113
+         # Insecure mode is for local development only: the port is bound to loopback so other hosts can't reach it.
+         # Use docker-compose.yaml for a deployment with TLS and credentials.
          - EVENTSTORE_INSECURE=True
-         - EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP=True
       ports:
-          - "2113:2113"
+          - "127.0.0.1:2113:2113"
       networks:
           - infrastructure      
 
