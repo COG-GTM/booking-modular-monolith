@@ -214,6 +214,8 @@ aspire run
 
 > Note:The `Aspire dashboard` will be available at `http://localhost:18888`
 
+> Note: Grafana, RabbitMQ management, Kibana, Prometheus and the other monitoring endpoints are internal (not published to the host by `aspire publish`). Their admin passwords (`grafana-admin-password`, `rabbitmq-password`, `kibana-system-password`, plus the Elasticsearch `elastic` password) are generated on first run and stored in the AppHost user secrets; find them under `Parameters` in the Aspire dashboard.
+
 > ### Docker Compose
 
 To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-compose/docker-compose.yaml) and execute the below command at the `root` of the application:
