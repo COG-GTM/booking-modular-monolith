@@ -4,10 +4,12 @@ using BuildingBlocks.Constants;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.Core;
 using BuildingBlocks.EFCore;
+using Identity.Configurations;
 using Identity.Identity.Constants;
 using Identity.Identity.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Identity.Data.Seed;
 
@@ -19,18 +21,21 @@ public class IdentityDataSeeder : IDataSeeder
     private readonly RoleManager<Role> _roleManager;
     private readonly IEventDispatcher _eventDispatcher;
     private readonly IdentityContext _identityContext;
+    private readonly IdentitySeedOptions _seedOptions;
 
     public IdentityDataSeeder(
         UserManager<User> userManager,
         RoleManager<Role> roleManager,
         IEventDispatcher eventDispatcher,
-        IdentityContext identityContext
+        IdentityContext identityContext,
+        IOptions<IdentitySeedOptions> seedOptions
     )
     {
         _userManager = userManager;
         _roleManager = roleManager;
         _eventDispatcher = eventDispatcher;
         _identityContext = identityContext;
+        _seedOptions = seedOptions.Value;
     }
 
     public async Task SeedAllAsync()
@@ -62,43 +67,45 @@ public class IdentityDataSeeder : IDataSeeder
 
     private async Task SeedUsers()
     {
-        if (!await _identityContext.Users.AnyAsync())
+        if (await _identityContext.Users.AnyAsync())
         {
-            if (await _userManager.FindByNameAsync("samh") == null)
-            {
-                var result = await _userManager.CreateAsync(InitialData.Users.First(), "Admin@123456");
-
-                if (result.Succeeded)
-                {
-                    await _userManager.AddToRoleAsync(InitialData.Users.First(), IdentityConstant.Role.Admin);
-
-                    await _eventDispatcher.SendAsync(
-                        new UserCreated(
-                            InitialData.Users.First().Id,
-                            InitialData.Users.First().FirstName +
-                            " " +
-                            InitialData.Users.First().LastName,
-                            InitialData.Users.First().PassPortNumber));
-                }
-            }
-
-            if (await _userManager.FindByNameAsync("meysamh2") == null)
-            {
-                var result = await _userManager.CreateAsync(InitialData.Users.Last(), "User@123456");
-
-                if (result.Succeeded)
-                {
-                    await _userManager.AddToRoleAsync(InitialData.Users.Last(), IdentityConstant.Role.User);
-
-                    await _eventDispatcher.SendAsync(
-                        new UserCreated(
-                            InitialData.Users.Last().Id,
-                            InitialData.Users.Last().FirstName +
-                            " " +
-                            InitialData.Users.Last().LastName,
-                            InitialData.Users.Last().PassPortNumber));
-                }
-            }
+            return;
         }
+
+        if (string.IsNullOrWhiteSpace(_seedOptions.AdminPassword))
+        {
+            throw new InvalidOperationException(
+                $"{nameof(IdentitySeedOptions)}:{nameof(IdentitySeedOptions.AdminPassword)} must be configured " +
+                $"(e.g. environment variable {nameof(IdentitySeedOptions)}__{nameof(IdentitySeedOptions.AdminPassword)}) " +
+                "to create the initial admin user.");
+        }
+
+        await SeedUser(InitialData.Users.First(), _seedOptions.AdminPassword, IdentityConstant.Role.Admin);
+
+        if (!string.IsNullOrWhiteSpace(_seedOptions.UserPassword))
+        {
+            await SeedUser(InitialData.Users.Last(), _seedOptions.UserPassword, IdentityConstant.Role.User);
+        }
+    }
+
+    private async Task SeedUser(User user, string password, string role)
+    {
+        if (await _userManager.FindByNameAsync(user.UserName) != null)
+        {
+            return;
+        }
+
+        var result = await _userManager.CreateAsync(user, password);
+
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                $"Seeding user '{user.UserName}' failed: {string.Join("; ", result.Errors.Select(e => e.Description))}");
+        }
+
+        await _userManager.AddToRoleAsync(user, role);
+
+        await _eventDispatcher.SendAsync(
+            new UserCreated(user.Id, user.FirstName + " " + user.LastName, user.PassPortNumber));
     }
 }

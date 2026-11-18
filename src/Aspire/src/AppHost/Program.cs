@@ -303,7 +303,12 @@ if (builder.ExecutionContext.IsPublishMode)
     kibana.WithLifetime(ContainerLifetime.Persistent);
 }
 
+var identityClientSecret = builder.AddParameter("identity-client-secret", secret: true);
+var identityAdminPassword = builder.AddParameter("identity-admin-password", secret: true);
+
 var api = builder.AddProject<Api>("api")
+    .WithEnvironment("AuthOptions__ClientSecret", identityClientSecret)
+    .WithEnvironment("IdentitySeedOptions__AdminPassword", identityAdminPassword)
     .WithReference(persistMessageDb)
     .WaitFor(persistMessageDb)
     .WithReference(flightDb)
