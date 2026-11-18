@@ -60,7 +60,7 @@ public class FlightDataSeeder(
 
     private async Task SeedSeatAsync()
     {
-        if (!await EntityFrameworkQueryableExtensions.AnyAsync(flightDbContext.Seats))
+        if (!await EntityFrameworkQueryableExtensions.AnyAsync(flightDbContext.Seats.IgnoreQueryFilters()))
         {
             await flightDbContext.Seats.AddRangeAsync(InitialData.Seats);
             await flightDbContext.SaveChangesAsync();
