@@ -92,7 +92,7 @@ authorization: bearer {{Authenticate.response.body.access_token}}
 
 ###
 # @name Get_Available_Flights
-GET {{booking-modular-monolith-api}}/api/v1/flight/get-available-flights
+GET {{booking-modular-monolith-api}}/api/v1/flight/get-available-flights?pageNumber=1&pageSize=20
 accept: application/json
 Content-Type: application/json
 authorization: bearer {{Authenticate.response.body.access_token}}
