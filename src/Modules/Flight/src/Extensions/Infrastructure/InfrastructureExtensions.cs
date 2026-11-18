@@ -33,8 +33,15 @@ public static class InfrastructureExtensions
     public static WebApplication UseFlightModules(this WebApplication app)
     {
         app.UseMigration<FlightDbContext>();
+        EnsureReadIndexesAsync(app.Services).GetAwaiter().GetResult();
         app.MapGrpcService<FlightGrpcServices>();
 
         return app;
+    }
+
+    private static async Task EnsureReadIndexesAsync(IServiceProvider serviceProvider)
+    {
+        await using var scope = serviceProvider.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<FlightReadDbContext>().EnsureIndexesAsync();
     }
 }

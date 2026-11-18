@@ -24,4 +24,15 @@ public class FlightReadDbContext : MongoDbContext
     public IMongoCollection<AircraftReadModel> Aircraft { get; }
     public IMongoCollection<AirportReadModel> Airport { get; }
     public IMongoCollection<SeatReadModel> Seat { get; }
+
+    public Task EnsureIndexesAsync(CancellationToken cancellationToken = default)
+    {
+        var seatsByFlight = new CreateIndexModel<SeatReadModel>(
+            Builders<SeatReadModel>.IndexKeys
+                .Ascending(x => x.FlightId)
+                .Ascending(x => x.IsDeleted),
+            new CreateIndexOptions { Name = "flightId_isDeleted" });
+
+        return Seat.Indexes.CreateOneAsync(seatsByFlight, cancellationToken: cancellationToken);
+    }
 }
