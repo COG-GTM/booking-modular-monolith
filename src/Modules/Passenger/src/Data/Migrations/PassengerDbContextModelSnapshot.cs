@@ -32,8 +32,8 @@ namespace Passenger.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<long?>("CreatedBy")
-                        .HasColumnType("bigint")
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
                     b.Property<bool>("IsDeleted")
@@ -44,8 +44,8 @@ namespace Passenger.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("last_modified");
 
-                    b.Property<long?>("LastModifiedBy")
-                        .HasColumnType("bigint")
+                    b.Property<Guid?>("LastModifiedBy")
+                        .HasColumnType("uuid")
                         .HasColumnName("last_modified_by");
 
                     b.Property<string>("PassengerType")

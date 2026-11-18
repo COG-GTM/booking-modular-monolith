@@ -8,7 +8,10 @@ namespace BuildingBlocks.EventStoreDB.Serialization;
 public static class EventStoreDBSerializer
 {
     private static readonly JsonSerializerSettings SerializerSettings =
-        new JsonSerializerSettings().WithNonDefaultConstructorContractResolver();
+        new JsonSerializerSettings
+        {
+            Converters = { new LegacyAuditUserIdConverter() }
+        }.WithNonDefaultConstructorContractResolver();
 
     public static T? Deserialize<T>(this ResolvedEvent resolvedEvent) where T : class =>
         Deserialize(resolvedEvent) as T;
