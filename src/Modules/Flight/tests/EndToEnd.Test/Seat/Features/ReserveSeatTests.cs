@@ -36,16 +36,13 @@ public class ReserveSeatTests : FlightEndToEndTestBase
 
         result.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-        var seatIsAvailable = await Fixture.ExecuteDbContextAsync(db =>
-            db.Seats.AnyAsync(
-                seat =>
-                    seat.FlightId.Value == flightCommand.Id
-                    && seat.SeatNumber.Value == seatCommand.SeatNumber
-                    && !seat.IsDeleted
-            )
+        var seat = await Fixture.ExecuteDbContextAsync(db =>
+            db.Seats.SingleOrDefaultAsync(x =>
+                x.SeatNumber.Value == seatCommand.SeatNumber && x.FlightId == flightCommand.Id)
         );
 
-        seatIsAvailable.Should().BeTrue();
+        seat.Should().NotBeNull();
+        seat!.IsDeleted.Should().BeFalse();
     }
 
     [Fact]
