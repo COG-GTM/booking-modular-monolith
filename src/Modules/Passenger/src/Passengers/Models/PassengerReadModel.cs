@@ -9,4 +9,5 @@ public class PassengerReadModel
     public required Enums.PassengerType PassengerType { get; init; }
     public int Age { get; init; }
     public required bool IsDeleted { get; init; }
+    public Guid? UserId { get; init; }
 }
