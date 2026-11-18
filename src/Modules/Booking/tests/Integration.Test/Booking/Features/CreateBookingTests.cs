@@ -3,7 +3,9 @@ using Api;
 using Booking.Data;
 using BookingFlight;
 using BookingPassenger;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Contracts.EventBus.Messages;
+using BuildingBlocks.Exception;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
 using Grpc.Core;
@@ -35,6 +37,7 @@ namespace Integration.Test.Booking.Features
         {
             // Arrange
             var command = new FakeCreateBookingCommand().Generate();
+            Fixture.SetCurrentUser(IdentityConstant.Role.User, FakePassengerResponse.OwnerUserId);
 
             // Act
             var response = await Fixture.SendAsync(command);
@@ -43,6 +46,20 @@ namespace Integration.Test.Booking.Features
             response?.Id.Should().BeGreaterThanOrEqualTo(0);
 
             (await Fixture.WaitForPublishing<BookingCreated>()).Should().Be(true);
+        }
+
+        [Fact]
+        public async Task should_forbid_booking_for_another_users_passenger()
+        {
+            // Arrange
+            var command = new FakeCreateBookingCommand().Generate();
+            Fixture.SetCurrentUser(IdentityConstant.Role.User, Guid.NewGuid());
+
+            // Act
+            var act = () => Fixture.SendAsync(command);
+
+            // Assert
+            await act.Should().ThrowAsync<ForbiddenException>();
         }
 
 

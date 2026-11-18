@@ -55,6 +55,7 @@ public class CreateBookingEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Booking").Build())
             .Produces<CreateBookingResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .WithSummary("Create Booking")
             .WithDescription("Create Booking")
             .WithOpenApi()
@@ -108,6 +109,9 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
 
         var passenger =
             await _passengerGrpcServiceClient.GetByIdAsync(new BookingPassenger.GetByIdRequest { Id = command.PassengerId.ToString() }, cancellationToken: cancellationToken);
+
+        _currentUserProvider.EnsureOwnerOrAdmin(
+            Guid.TryParse(passenger?.PassengerDto?.UserId, out var passengerUserId) ? passengerUserId : null);
 
         var emptySeat = (await _flightGrpcServiceClient
                 .GetAvailableSeatsAsync(new GetAvailableSeatsRequest { FlightId = command.FlightId.ToString() }, cancellationToken: cancellationToken)

@@ -68,6 +68,12 @@ public static class Extensions
                                 exceptionType.GetType().Name,
                                 context.Response.StatusCode = StatusCodes.Status400BadRequest
                             ),
+                            ForbiddenException =>
+                            (
+                                exceptionType.Message,
+                                exceptionType.GetType().Name,
+                                context.Response.StatusCode = StatusCodes.Status403Forbidden
+                            ),
                             NotFoundException =>
                             (
                                 exceptionType.Message,

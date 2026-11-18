@@ -55,6 +55,10 @@ namespace Passenger.Data.Migrations
                         .HasDefaultValue("Unknown")
                         .HasColumnName("passenger_type");
 
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
                     b.Property<long>("Version")
                         .IsConcurrencyToken()
                         .HasColumnType("bigint")

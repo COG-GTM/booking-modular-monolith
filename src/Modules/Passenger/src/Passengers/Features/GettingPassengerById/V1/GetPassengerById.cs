@@ -28,9 +28,12 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
         builder.MapGet($"{EndpointConfig.BaseApiPath}/passenger/{{id}}",
-                async (Guid id, IMediator mediator, CancellationToken cancellationToken) =>
+                async (Guid id, IMediator mediator, ICurrentUserProvider currentUserProvider,
+                    CancellationToken cancellationToken) =>
                 {
                     var result = await mediator.Send(new GetPassengerById(id), cancellationToken);
+
+                    currentUserProvider.EnsureOwnerOrAdmin(result.PassengerDto.UserId);
 
                     var response = result.Adapt<GetPassengerByIdResponseDto>();
 
@@ -41,6 +44,7 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
             .WithApiVersionSet(builder.NewApiVersionSet("Passenger").Build())
             .Produces<GetPassengerByIdResponseDto>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .WithSummary("Get Passenger By Id")
             .WithDescription("Get Passenger By Id")
             .WithOpenApi()

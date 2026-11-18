@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Aircrafts.ValueObjects;
 using Ardalis.GuardClauses;
+using BuildingBlocks.Constants;
 using BuildingBlocks.Caching;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Core.Event;
@@ -56,11 +57,12 @@ public class UpdateFlightEndpoint : IMinimalEndpoint
 
                 return Results.NoContent();
             })
-            .RequireAuthorization(nameof(ApiScope))
+            .RequireAuthorization(nameof(ApiScope), IdentityConstant.Role.Admin)
             .WithName("UpdateFlight")
             .WithApiVersionSet(builder.NewApiVersionSet("Flight").Build())
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .WithSummary("Update Flight")
             .WithDescription("Update Flight")
             .WithOpenApi()
