@@ -14,6 +14,7 @@ using Xunit;
 
 namespace Integration.Test.Identity.Infrastructure;
 
+[Collection("IdentitySigning")]
 public class IdentityServerSigningCredentialTests
 {
     private const string CompromisedModulus =

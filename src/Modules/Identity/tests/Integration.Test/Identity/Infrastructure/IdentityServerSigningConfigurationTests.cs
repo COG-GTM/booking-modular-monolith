@@ -14,6 +14,7 @@ using Xunit;
 
 namespace Integration.Test.Identity.Infrastructure;
 
+[Collection("IdentitySigning")]
 public class IdentityServerSigningConfigurationTests : IDisposable
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), $"identity-configuration-tests-{Guid.NewGuid():N}");
