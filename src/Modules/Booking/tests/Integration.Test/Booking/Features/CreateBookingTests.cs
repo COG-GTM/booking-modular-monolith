@@ -90,7 +90,8 @@ namespace Integration.Test.Booking.Features
 
             var checkpointRepository = Fixture.ServiceProvider.GetRequiredService<ISubscriptionCheckpointRepository>();
             var checkpoint = await checkpointRepository.Load("default", default);
-            checkpoint.Should().BeGreaterThan(poisonWrite.LogPosition.CommitPosition);
+            // LogPosition is the position of the last appended event, i.e. the valid booking after the poison events
+            checkpoint.Should().BeGreaterThanOrEqualTo(poisonWrite.LogPosition.CommitPosition);
 
             var deadLetters = await eventStoreClient
                 .ReadStreamAsync(Direction.Forwards, EventStoreDBSubscriptionToAll.GetDeadLetterStreamName("default"),

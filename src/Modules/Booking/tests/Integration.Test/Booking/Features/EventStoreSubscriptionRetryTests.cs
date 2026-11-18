@@ -14,6 +14,7 @@ using MediatR;
 using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json.Linq;
 using NSubstitute;
+using Testcontainers.EventStoreDb;
 using Xunit;
 
 namespace Integration.Test.Booking.Features;
@@ -25,7 +26,11 @@ public class EventStoreSubscriptionRetryTests
     [InlineData(true)]
     public async Task should_retry_projection_failures_and_only_dead_letter_after_the_attempt_limit(bool keepsFailing)
     {
-        await using var container = TestContainers.EventStoreTestContainer();
+        // Unique name: the shared fixture already runs a container named from EventStoreContainerConfiguration.Name
+        await using var container = new EventStoreDbBuilder()
+            .WithImage(TestContainers.EventStoreContainerConfiguration.ImageName)
+            .WithName($"event_store_retry_{Guid.NewGuid():N}")
+            .Build();
         await container.StartAsync();
         using var client = new EventStoreClient(EventStoreClientSettings.Create(container.GetConnectionString()));
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
