@@ -52,17 +52,23 @@ services:
   #######################################################
   eventstore:
       container_name: eventstore
-      image: eventstore/eventstore:latest
+      image: eventstore/eventstore:24.10
       restart: unless-stopped
       environment:
          - EVENTSTORE_CLUSTER_SIZE=1
          - EVENTSTORE_RUN_PROJECTIONS=All
          - EVENTSTORE_START_STANDARD_PROJECTIONS=True
          - EVENTSTORE_HTTP_PORT=2113
-         - EVENTSTORE_INSECURE=True
          - EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP=True
+         - EVENTSTORE_CERTIFICATE_FILE=/etc/eventstore/certs/node/node.crt
+         - EVENTSTORE_CERTIFICATE_PRIVATE_KEY_FILE=/etc/eventstore/certs/node/node.key
+         - EVENTSTORE_TRUSTED_ROOT_CERTIFICATES_PATH=/etc/eventstore/certs/ca
+         - EVENTSTORE_DEFAULT_ADMIN_PASSWORD=${EVENTSTORE_ADMIN_PASSWORD:?Set EVENTSTORE_ADMIN_PASSWORD (see README)}
+         - EVENTSTORE_DEFAULT_OPS_PASSWORD=${EVENTSTORE_OPS_PASSWORD:?Set EVENTSTORE_OPS_PASSWORD (see README)}
       ports:
-          - "2113:2113"
+          - "127.0.0.1:2113:2113"
+      volumes:
+          - ../configs/eventstore/certs:/etc/eventstore/certs:ro
       networks:
           - infrastructure      
 
@@ -359,3 +365,4 @@ networks:
     
 volumes:
   postgres-data:
+  elastic-data:

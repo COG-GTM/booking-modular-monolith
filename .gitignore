@@ -61,6 +61,10 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 
+/deployments/configs/eventstore/certs/
+/deployments/configs/eventstore/ca-private/
+/deployments/docker-compose/.env
+
 # StyleCop
 StyleCopReport.xml
 
@@ -440,3 +444,5 @@ fabric.properties
 
 # EventStore
 **/eventstore
+!/deployments/configs/eventstore/
+!/deployments/configs/eventstore/generate-certs.sh

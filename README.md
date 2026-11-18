@@ -206,7 +206,15 @@ dotnet dev-certs https --trust
 
 > ### Aspire
 
-To run the application using the `Aspire App Host`, execute the following command from the solution root:
+Generate the local EventStoreDB certificates first:
+
+```bash
+./deployments/configs/eventstore/generate-certs.sh
+```
+
+Aspire generates and persists the EventStoreDB admin and ops passwords in AppHost user secrets. List them with `dotnet user-secrets list --project src/Aspire/src/AppHost`. Passwords are URI-safe.
+
+Run the application using the `Aspire App Host` from the solution root:
 
 ```bash
 aspire run
@@ -216,10 +224,16 @@ aspire run
 
 > ### Docker Compose
 
-To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-compose/docker-compose.yaml) and execute the below command at the `root` of the application:
+Run `./deployments/configs/eventstore/generate-certs.sh`, then set `EVENTSTORE_ADMIN_PASSWORD` and `EVENTSTORE_OPS_PASSWORD` in the gitignored `deployments/docker-compose/.env` file. Use URI-safe passwords. These passwords only take effect when the EventStoreDB data directory is first initialized.
 
 ```bash
-docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
+docker compose --env-file deployments/docker-compose/.env -f deployments/docker-compose/docker-compose.yaml up -d
+```
+
+The EventStoreDB admin UI is at `https://localhost:2113` (sign in as `admin`). To run the API on the host, provide the admin password in the connection string:
+
+```bash
+EventStoreOptions__ConnectionString='esdb://admin:<EVENTSTORE_ADMIN_PASSWORD>@localhost:2113?tls=true&tlsCaFile=../../../deployments/configs/eventstore/certs/ca/ca.crt' dotnet run --project src/Api/src
 ```
 
 > ### Build
