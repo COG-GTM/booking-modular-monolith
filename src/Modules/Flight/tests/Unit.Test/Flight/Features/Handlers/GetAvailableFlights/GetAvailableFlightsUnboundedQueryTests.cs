@@ -22,8 +22,8 @@ public class GetAvailableFlightsUnboundedQueryTests
 
         var mql = GetAvailableFlightsHandler.BuildQuery(Collection().AsQueryable(), request).ToString();
 
-        mql.Should().Contain("{ \"$match\" : { \"IsDeleted\" : false } }");
-        mql.Should().Contain("{ \"$skip\" : NumberLong(50) }").And.Subject.Should().Contain("{ \"$limit\" : NumberLong(25) }");
+        mql.Should().Contain("{ \"$match\" : { \"IsDeleted\" : { \"$ne\" : true } } }");
+        mql.Should().Contain("{ \"$skip\" : 50 }").And.Subject.Should().Contain("{ \"$limit\" : 25 }");
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public class GetAvailableFlightsUnboundedQueryTests
 
         request.PageNumber.Should().Be(1);
         request.PageSize.Should().Be(GetAvailableFlightsQuery.DefaultPageSize);
-        mql.Should().Contain($"{{ \"$limit\" : NumberLong({GetAvailableFlightsQuery.DefaultPageSize}) }}");
+        mql.Should().Contain($"{{ \"$limit\" : {GetAvailableFlightsQuery.DefaultPageSize} }}");
     }
 
     [Theory]
