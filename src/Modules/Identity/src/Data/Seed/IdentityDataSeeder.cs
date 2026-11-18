@@ -72,6 +72,11 @@ public class IdentityDataSeeder : IDataSeeder
 
     private async Task SeedUsers()
     {
+        if (await _identityContext.Users.AnyAsync())
+        {
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(_identitySeedOptions.AdminPassword))
         {
             _logger.LogWarning(

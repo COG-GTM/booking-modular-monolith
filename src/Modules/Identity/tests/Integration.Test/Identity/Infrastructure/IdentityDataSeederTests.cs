@@ -170,7 +170,7 @@ public class IdentityDataSeederTests
     }
 
     [Fact]
-    public async Task should_seed_admin_on_rerun_when_admin_password_is_added_after_user_was_seeded()
+    public async Task should_not_seed_admin_on_rerun_when_other_users_exist()
     {
         await using var harness = await SeederHarness.CreateAsync(
             new IdentitySeedOptions { UserPassword = UserPassword }
@@ -183,15 +183,13 @@ public class IdentityDataSeederTests
             .SeedAllAsync();
 
         var admin = await harness.UserManager.FindByNameAsync("samh");
-        admin.Should().NotBeNull();
-        (await harness.UserManager.CheckPasswordAsync(admin!, AdminPassword)).Should().BeTrue();
-        (await harness.UserManager.GetRolesAsync(admin!)).Should().BeEquivalentTo(IdentityConstant.Role.Admin);
-        (await harness.Context.Users.CountAsync()).Should().Be(2);
-        harness.Events.OfType<UserCreated>().Select(userCreated => userCreated.Name).Should().Equal("Sam2 H2", "Sam H");
+        admin.Should().BeNull();
+        (await harness.Context.Users.CountAsync()).Should().Be(1);
+        harness.Events.OfType<UserCreated>().Should().ContainSingle().Which.Name.Should().Be("Sam2 H2");
     }
 
     [Fact]
-    public async Task should_seed_user_on_rerun_when_user_password_is_added_after_admin_was_seeded()
+    public async Task should_not_seed_user_on_rerun_when_other_users_exist()
     {
         await using var harness = await SeederHarness.CreateAsync(
             new IdentitySeedOptions { AdminPassword = AdminPassword }
@@ -204,11 +202,28 @@ public class IdentityDataSeederTests
             .SeedAllAsync();
 
         var user = await harness.UserManager.FindByNameAsync("samh2");
-        user.Should().NotBeNull();
-        (await harness.UserManager.CheckPasswordAsync(user!, UserPassword)).Should().BeTrue();
-        (await harness.UserManager.GetRolesAsync(user!)).Should().BeEquivalentTo(IdentityConstant.Role.User);
-        (await harness.Context.Users.CountAsync()).Should().Be(2);
-        harness.Events.OfType<UserCreated>().Select(userCreated => userCreated.Name).Should().Equal("Sam H", "Sam2 H2");
+        user.Should().BeNull();
+        (await harness.Context.Users.CountAsync()).Should().Be(1);
+        harness.Events.OfType<UserCreated>().Should().ContainSingle().Which.Name.Should().Be("Sam H");
+    }
+
+    [Fact]
+    public async Task should_not_recreate_deleted_admin_when_other_users_remain()
+    {
+        await using var harness = await SeederHarness.CreateAsync(
+            new IdentitySeedOptions { AdminPassword = AdminPassword, UserPassword = UserPassword }
+        );
+        await harness.Seeder.SeedAllAsync();
+        var admin = await harness.UserManager.FindByNameAsync("samh");
+        (await harness.UserManager.DeleteAsync(admin!)).Succeeded.Should().BeTrue();
+        harness.Events.Clear();
+
+        await harness.Seeder.SeedAllAsync();
+
+        (await harness.UserManager.FindByNameAsync("samh")).Should().BeNull();
+        (await harness.UserManager.FindByNameAsync("samh2")).Should().NotBeNull();
+        (await harness.Context.Users.CountAsync()).Should().Be(1);
+        harness.Events.Should().BeEmpty();
     }
 
     [Fact]
