@@ -20,7 +20,7 @@ namespace Passenger.Data.Migrations
             );
 
             migrationBuilder.Sql(
-                "UPDATE passenger SET passport_number = upper(btrim(passport_number)) WHERE passport_number IS NOT NULL AND passport_number <> upper(btrim(passport_number));"
+                "UPDATE passenger SET passport_number = upper(regexp_replace(passport_number, '^\\s+|\\s+$', '', 'g')) WHERE passport_number IS NOT NULL AND passport_number <> upper(regexp_replace(passport_number, '^\\s+|\\s+$', '', 'g'));"
             );
 
             migrationBuilder.CreateIndex(
