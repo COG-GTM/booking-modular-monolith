@@ -1,3 +1,4 @@
+using System;
 using BuildingBlocks.Web;
 using Identity.Data;
 using Identity.Identity.Models;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Identity.Extensions.Infrastructure;
 
@@ -16,6 +18,20 @@ public static class IdentityServerExtensions
     {
         builder.Services.AddValidateOptions<AuthOptions>();
         var authOptions = builder.Services.GetOptions<AuthOptions>(nameof(AuthOptions));
+        var clientSecret = authOptions?.ClientSecret;
+
+        if (string.IsNullOrWhiteSpace(clientSecret))
+        {
+            if (builder.Environment.IsEnvironment("test"))
+            {
+                clientSecret = Guid.NewGuid().ToString("N");
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    "AuthOptions:ClientSecret is not configured. Set it via configuration or the AuthOptions__ClientSecret environment variable.");
+            }
+        }
 
         builder.Services.AddIdentity<User, Role>(config =>
             {
@@ -38,7 +54,7 @@ public static class IdentityServerExtensions
             .AddInMemoryIdentityResources(Config.IdentityResources)
             .AddInMemoryApiResources(Config.ApiResources)
             .AddInMemoryApiScopes(Config.ApiScopes)
-            .AddInMemoryClients(Config.Clients)
+            .AddInMemoryClients(Config.Clients(clientSecret))
             .AddAspNetIdentity<User>()
             .AddResourceOwnerValidator<UserValidator>();
 
