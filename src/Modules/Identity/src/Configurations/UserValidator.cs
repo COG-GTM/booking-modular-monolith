@@ -10,8 +10,15 @@ using Microsoft.AspNetCore.Identity;
 
 public class UserValidator : IResourceOwnerPasswordValidator
 {
+    private static readonly User DummyUser = new()
+    {
+        FirstName = string.Empty,
+        LastName = string.Empty,
+        PassPortNumber = string.Empty
+    };
+
     private static readonly Lazy<string> DummyPasswordHash = new(() =>
-        new PasswordHasher<User>().HashPassword(new User(), Guid.NewGuid().ToString()));
+        new PasswordHasher<User>().HashPassword(DummyUser, Guid.NewGuid().ToString()));
 
     private readonly SignInManager<User> _signInManager;
     private readonly UserManager<User> _userManager;
@@ -32,7 +39,7 @@ public class UserValidator : IResourceOwnerPasswordValidator
         if (user is null)
         {
             // Spend comparable hashing time so unknown usernames are not distinguishable by latency.
-            _userManager.PasswordHasher.VerifyHashedPassword(new User(), DummyPasswordHash.Value, context.Password ?? string.Empty);
+            _userManager.PasswordHasher.VerifyHashedPassword(DummyUser, DummyPasswordHash.Value, context.Password ?? string.Empty);
 
             SetInvalidCredentials(context);
             return;
