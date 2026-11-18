@@ -8,11 +8,14 @@ using BookingFlight;
 using BookingPassenger;
 using BuildingBlocks.Contracts.EventBus.Messages;
 using BuildingBlocks.EventStoreDB.Events;
+using BuildingBlocks.EventStoreDB.Serialization;
 using BuildingBlocks.EventStoreDB.Subscriptions;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
 using EventStore.Client;
 using global::Booking.Booking.Features.CreatingBook.V1;
+using global::Booking.Booking.Models;
+using global::Booking.Booking.ValueObjects;
 using Grpc.Core;
 using Grpc.Core.Testing;
 using Integration.Test.Fakes;
@@ -68,18 +71,22 @@ namespace Integration.Test.Booking.Features
             // Resolvable type that is not an INotification, so it can't be projected
             var notNotification = new EventData(Uuid.NewUuid(), "System_Object", Encoding.UTF8.GetBytes("{}"));
 
-            var poisonWrite = await eventStoreClient.AppendToStreamAsync(poisonStream, StreamState.NoStream,
-                new[] { invalidJson, notNotification });
+            // A valid booking event appended after the poison events, in the same stream so ordering is guaranteed
+            var validBooking = new BookingCreatedDomainEvent(Guid.NewGuid(), PassengerInfo.Of("Alice"),
+                Trip.Of("FL-1", Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow.AddDays(1), 100,
+                    $"poison-regression-{Guid.NewGuid():N}", "12A"));
 
-            // Unique id so the booking stream doesn't collide with other tests sharing the event store
-            var command = new FakeCreateBookingCommand().Generate() with { Id = Guid.NewGuid() };
+            var bookingsBefore = await Fixture.ExecuteReadContextAsync(db =>
+                db.Booking.CountDocumentsAsync(FilterDefinition<BookingReadModel>.Empty));
 
             // Act
-            await Fixture.SendAsync(command);
+            var poisonWrite = await eventStoreClient.AppendToStreamAsync(poisonStream, StreamState.NoStream,
+                new[] { invalidJson, notNotification, validBooking.ToJsonEventData() });
 
             // Assert
             (await WaitUntil(async () => await Fixture.ExecuteReadContextAsync(async db =>
-                await db.Booking.Find(x => x.BookId == command.Id).AnyAsync()))).Should().BeTrue();
+                await db.Booking.CountDocumentsAsync(FilterDefinition<BookingReadModel>.Empty) > bookingsBefore)))
+                .Should().BeTrue();
 
             var checkpointRepository = Fixture.ServiceProvider.GetRequiredService<ISubscriptionCheckpointRepository>();
             var checkpoint = await checkpointRepository.Load("default", default);
