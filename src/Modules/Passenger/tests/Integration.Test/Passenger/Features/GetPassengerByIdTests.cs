@@ -2,6 +2,8 @@ using System.Threading.Tasks;
 using Api;
 using BuildingBlocks.TestBase;
 using FluentAssertions;
+using Grpc.Core;
+using Grpc.Net.Client;
 using Integration.Test.Fakes;
 using Passenger;
 using Passenger.Data;
@@ -52,5 +54,22 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
         // Assert
         response?.Should().NotBeNull();
         response?.PassengerDto?.Id.Should().Be(command.Id.ToString());
+    }
+
+    [Fact]
+    public async Task should_return_unauthenticated_when_grpc_call_has_no_token()
+    {
+        using var httpClient = Fixture.CreateAnonymousHttpClient();
+        using var channel = GrpcChannel.ForAddress(
+            httpClient.BaseAddress!,
+            new GrpcChannelOptions { HttpClient = httpClient }
+        );
+        var passengerGrpcClient = new PassengerGrpcService.PassengerGrpcServiceClient(channel);
+
+        var exception = await Assert.ThrowsAsync<RpcException>(
+            async () => await passengerGrpcClient.GetByIdAsync(new GetByIdRequest { Id = Guid.NewGuid().ToString() })
+        );
+
+        exception.StatusCode.Should().Be(StatusCode.Unauthenticated);
     }
 }
