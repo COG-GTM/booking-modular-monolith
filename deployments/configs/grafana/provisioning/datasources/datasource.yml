@@ -78,6 +78,10 @@ datasources:
     access: proxy
     isDefault: false
     uid: kibana-uid
+    basicAuth: true
+    basicAuthUser: elastic
+    secureJsonData:
+      basicAuthPassword: ${ELASTICSEARCH_PASSWORD}
     jsonData:
       esVersion: 7
       timeField: "@timestamp"

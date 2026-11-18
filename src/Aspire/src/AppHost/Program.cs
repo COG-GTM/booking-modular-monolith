@@ -110,8 +110,8 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 // 2. Messaging Services
-var rabbitmqUsername = builder.AddParameter("rabbitmq-username", "guest", secret: true);
-var rabbitmqPassword = builder.AddParameter("rabbitmq-password", "guest", secret: true);
+var rabbitmqUsername = builder.AddParameter("rabbitmq-username", "booking");
+var rabbitmqPassword = builder.AddParameter("rabbitmq-password", GeneratedPassword(), secret: true, persist: true);
 
 var rabbitmq = builder.AddRabbitMQ("rabbitmq", rabbitmqUsername, rabbitmqPassword)
     .WithManagementPlugin()
@@ -131,7 +131,7 @@ var rabbitmq = builder.AddRabbitMQ("rabbitmq", rabbitmqUsername, rabbitmqPasswor
             e.TargetPort = 15672;
             e.Port = 15672;
             e.IsProxied = true;
-            e.IsExternal = true;
+            e.IsExternal = false;
         });
 
 if (builder.ExecutionContext.IsPublishMode)
@@ -148,7 +148,7 @@ var jaeger = builder.AddContainer("jaeger-all-in-one", "jaegertracing/all-in-one
         protocol: ProtocolType.Udp,
         isProxied: true,
         isExternal: false)
-    .WithEndpoint(port: 16686, targetPort: 16686, name: "http", isProxied: true, isExternal: true)
+    .WithEndpoint(port: 16686, targetPort: 16686, name: "http", isProxied: true, isExternal: false)
     .WithEndpoint(port: 14268, targetPort: 14268, name: "collector", isProxied: true, isExternal: false)
     .WithEndpoint(port: 14317, targetPort: 4317, name: "otlp-grpc", isProxied: true, isExternal: false)
     .WithEndpoint(port: 14318, targetPort: 4318, name: "otlp-http", isProxied: true, isExternal: false);
@@ -159,7 +159,7 @@ if (builder.ExecutionContext.IsPublishMode)
 }
 
 var zipkin = builder.AddContainer("zipkin-all-in-one", "openzipkin/zipkin")
-    .WithEndpoint(port: 9411, targetPort: 9411, name: "http", isProxied: true, isExternal: true);
+    .WithEndpoint(port: 9411, targetPort: 9411, name: "http", isProxied: true, isExternal: false);
 
 if (builder.ExecutionContext.IsPublishMode)
 {
@@ -172,13 +172,13 @@ var otelCollector = builder.AddContainer("otel-collector", "otel/opentelemetry-c
         "/etc/otelcol-contrib/config.yaml",
         isReadOnly: true)
     .WithArgs("--config=/etc/otelcol-contrib/config.yaml")
-    .WithEndpoint(port: 11888, targetPort: 1888, name: "otel-pprof", isProxied: true, isExternal: true)
-    .WithEndpoint(port: 8888, targetPort: 8888, name: "otel-metrics", isProxied: true, isExternal: true)
-    .WithEndpoint(port: 8889, targetPort: 8889, name: "otel-exporter-metrics", isProxied: true, isExternal: true)
-    .WithEndpoint(port: 13133, targetPort: 13133, name: "otel-health", isProxied: true, isExternal: true)
-    .WithEndpoint(port: 4317, targetPort: 4317, name: "otel-grpc", isProxied: true, isExternal: true)
-    .WithEndpoint(port: 4318, targetPort: 4318, name: "otel-http", isProxied: true, isExternal: true)
-    .WithEndpoint(port: 55679, targetPort: 55679, name: "otel-zpages", isProxied: true, isExternal: true);
+    .WithEndpoint(port: 11888, targetPort: 1888, name: "otel-pprof", isProxied: true, isExternal: false)
+    .WithEndpoint(port: 8888, targetPort: 8888, name: "otel-metrics", isProxied: true, isExternal: false)
+    .WithEndpoint(port: 8889, targetPort: 8889, name: "otel-exporter-metrics", isProxied: true, isExternal: false)
+    .WithEndpoint(port: 13133, targetPort: 13133, name: "otel-health", isProxied: true, isExternal: false)
+    .WithEndpoint(port: 4317, targetPort: 4317, name: "otel-grpc", isProxied: true, isExternal: false)
+    .WithEndpoint(port: 4318, targetPort: 4318, name: "otel-http", isProxied: true, isExternal: false)
+    .WithEndpoint(port: 55679, targetPort: 55679, name: "otel-zpages", isProxied: true, isExternal: false);
 
 if (builder.ExecutionContext.IsPublishMode)
 {
@@ -193,21 +193,27 @@ var prometheus = builder.AddContainer("prometheus", "prom/prometheus")
         "--web.console.libraries=/usr/share/prometheus/console_libraries",
         "--web.console.templates=/usr/share/prometheus/consoles",
         "--web.enable-remote-write-receiver")
-    .WithEndpoint(port: 9090, targetPort: 9090, name: "http", isProxied: true, isExternal: true);
+    .WithEndpoint(port: 9090, targetPort: 9090, name: "http", isProxied: true, isExternal: false);
 
 if (builder.ExecutionContext.IsPublishMode)
 {
     prometheus.WithLifetime(ContainerLifetime.Persistent);
 }
 
+var grafanaAdminPassword = builder.AddParameter(
+    "grafana-admin-password",
+    GeneratedPassword(),
+    secret: true,
+    persist: true);
+
 var grafana = builder.AddContainer("grafana", "grafana/grafana")
     .WithEnvironment("GF_INSTALL_PLUGINS", "grafana-clock-panel,grafana-simple-json-datasource")
     .WithEnvironment("GF_SECURITY_ADMIN_USER", "admin")
-    .WithEnvironment("GF_SECURITY_ADMIN_PASSWORD", "admin")
+    .WithEnvironment("GF_SECURITY_ADMIN_PASSWORD", grafanaAdminPassword)
     .WithEnvironment("GF_FEATURE_TOGGLES_ENABLE", "traceqlEditor")
     .WithBindMount("../../../../deployments/configs/grafana/provisioning", "/etc/grafana/provisioning")
     .WithBindMount("../../../../deployments/configs/grafana/dashboards", "/var/lib/grafana/dashboards")
-    .WithEndpoint(port: 3000, targetPort: 3000, name: "http", isProxied: true, isExternal: true);
+    .WithEndpoint(port: 3000, targetPort: 3000, name: "http", isProxied: true, isExternal: false);
 
 if (builder.ExecutionContext.IsPublishMode)
 {
@@ -222,7 +228,7 @@ var nodeExporter = builder.AddContainer("node-exporter", "prom/node-exporter")
         "--path.procfs=/host/proc",
         "--path.rootfs=/rootfs",
         "--path.sysfs=/host/sys")
-    .WithEndpoint(port: 9101, targetPort: 9100, name: "http", isProxied: true, isExternal: true);
+    .WithEndpoint(port: 9101, targetPort: 9100, name: "http", isProxied: true, isExternal: false);
 
 if (builder.ExecutionContext.IsPublishMode)
 {
@@ -259,7 +265,7 @@ var elasticsearch = builder.AddElasticsearch("elasticsearch")
     .WithEnvironment("cluster.name", "docker-cluster")
     .WithEnvironment("node.name", "docker-node")
     .WithEnvironment("ES_JAVA_OPTS", "-Xms512m -Xmx512m")
-    .WithEnvironment("xpack.security.enabled", "false")
+    .WithEnvironment("xpack.security.enabled", "true")
     .WithEnvironment("xpack.security.http.ssl.enabled", "false")
     .WithEnvironment("xpack.security.transport.ssl.enabled", "false")
     .WithEnvironment("network.host", "0.0.0.0")
@@ -292,11 +298,37 @@ if (builder.ExecutionContext.IsPublishMode)
     elasticsearch.WithLifetime(ContainerLifetime.Persistent);
 }
 
+var elasticPassword = elasticsearch.Resource.PasswordParameter;
+
+otelCollector.WithEnvironment("ELASTICSEARCH_PASSWORD", elasticPassword);
+grafana.WithEnvironment("ELASTICSEARCH_PASSWORD", elasticPassword);
+
+// Kibana 8 cannot authenticate as the `elastic` superuser, so set the built-in `kibana_system` user's password first.
+var kibanaSystemPassword = builder.AddParameter(
+    "kibana-system-password",
+    GeneratedPassword(),
+    secret: true,
+    persist: true);
+
+var kibanaSetup = builder.AddContainer("kibana-setup", "docker.elastic.co/elasticsearch/elasticsearch:8.17.0")
+    .WithBindMount(
+        "../../../../deployments/configs/elasticsearch/setup-kibana-system-password.sh",
+        "/usr/local/bin/setup-kibana-system-password.sh",
+        isReadOnly: true)
+    .WithEntrypoint("/bin/sh")
+    .WithArgs("/usr/local/bin/setup-kibana-system-password.sh")
+    .WithEnvironment("ELASTIC_PASSWORD", elasticPassword)
+    .WithEnvironment("KIBANA_SYSTEM_PASSWORD", kibanaSystemPassword)
+    .WaitFor(elasticsearch);
+
 var kibana = builder.AddContainer("kibana", "docker.elastic.co/kibana/kibana:8.17.0")
     .WithEnvironment("ELASTICSEARCH_HOSTS", "http://elasticsearch:9200")
-    .WithEndpoint(port: 5601, targetPort: 5601, name: "http", isProxied: true, isExternal: true)
+    .WithEnvironment("ELASTICSEARCH_USERNAME", "kibana_system")
+    .WithEnvironment("ELASTICSEARCH_PASSWORD", kibanaSystemPassword)
+    .WithEndpoint(port: 5601, targetPort: 5601, name: "http", isProxied: true, isExternal: false)
     .WithReference(elasticsearch)
-    .WaitFor(elasticsearch);
+    .WaitFor(elasticsearch)
+    .WaitForCompletion(kibanaSetup);
 
 if (builder.ExecutionContext.IsPublishMode)
 {
@@ -322,3 +354,5 @@ var api = builder.AddProject<Api>("api")
     .WithHttpsEndpoint(port: 3000, name: "api-https");
 
 builder.Build().Run();
+
+static GenerateParameterDefault GeneratedPassword() => new() { MinLength = 22, Special = false };

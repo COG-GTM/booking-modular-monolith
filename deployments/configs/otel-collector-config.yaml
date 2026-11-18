@@ -74,6 +74,8 @@ exporters:
   # using `elasticsearch` from `opentelemetry-collector-contrib` components because it doesn't exist in `opentelemetry-collector`
   elasticsearch:
     endpoint: "http://elasticsearch:9200"
+    user: elastic
+    password: ${env:ELASTICSEARCH_PASSWORD}
   
   zipkin:
     endpoint: "http://zipkin-all-in-one:9411/api/v2/spans"
