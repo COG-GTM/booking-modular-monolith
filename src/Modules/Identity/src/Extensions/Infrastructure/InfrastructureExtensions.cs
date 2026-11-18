@@ -20,6 +20,7 @@ public static class InfrastructureExtensions
         builder.Services.AddValidatorsFromAssembly(typeof(IdentityRoot).Assembly);
         builder.Services.AddCustomMapster(typeof(IdentityRoot).Assembly);
         builder.AddCustomDbContext<IdentityContext>(nameof(Identity));
+        builder.Services.Configure<IdentitySeedOptions>(builder.Configuration.GetSection(nameof(IdentitySeedOptions)));
         builder.Services.AddScoped<IDataSeeder, IdentityDataSeeder>();
         builder.AddCustomIdentityServer();
 

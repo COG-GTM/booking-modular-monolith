@@ -2,6 +2,8 @@
 @booking-modular-monolith-api=https://localhost:3000  
 
 @contentType = application/json
+# Set to the value of IdentitySeedOptions__AdminPassword used to seed the 'samh' admin user
+@adminPassword = 
 @flightid = "3c5c0000-97c6-fc34-2eb9-08db322230c9"
 @passengerId = "8c9c0000-97c6-fc34-2eb9-66db322230c9"
 
@@ -16,7 +18,7 @@ grant_type=password
 &client_id=client
 &client_secret=secret
 &username=samh
-&password=Admin@123456
+&password={{adminPassword}}
 &scope=booking-modular-monolith role
 ###
 
