@@ -1,3 +1,4 @@
+using System;
 using BuildingBlocks.Web;
 using Identity.Data;
 using Identity.Identity.Models;
@@ -23,6 +24,10 @@ public static class IdentityServerExtensions
                 config.Password.RequireDigit = false;
                 config.Password.RequireNonAlphanumeric = false;
                 config.Password.RequireUppercase = false;
+
+                config.Lockout.AllowedForNewUsers = true;
+                config.Lockout.MaxFailedAccessAttempts = 5;
+                config.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
             })
             .AddEntityFrameworkStores<IdentityContext>()
             .AddDefaultTokenProviders();

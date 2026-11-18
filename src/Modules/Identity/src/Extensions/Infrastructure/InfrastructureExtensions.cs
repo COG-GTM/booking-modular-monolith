@@ -22,6 +22,7 @@ public static class InfrastructureExtensions
         builder.AddCustomDbContext<IdentityContext>(nameof(Identity));
         builder.Services.AddScoped<IDataSeeder, IdentityDataSeeder>();
         builder.AddCustomIdentityServer();
+        builder.AddTokenEndpointRateLimiting();
 
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
@@ -37,6 +38,7 @@ public static class InfrastructureExtensions
     public static WebApplication UseIdentityModules(this WebApplication app)
     {
         app.UseForwardedHeaders();
+        app.UseRateLimiter();
         app.UseIdentityServer();
         app.UseMigration<IdentityContext>();
 
