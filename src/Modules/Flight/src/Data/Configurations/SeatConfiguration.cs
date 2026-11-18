@@ -19,6 +19,7 @@ public class SeatConfiguration : IEntityTypeConfiguration<Seat>
 
         builder.Property(r => r.Version).IsConcurrencyToken();
 
+        // The unique (flight_id, seat_number) index is applied by a hand-written migration.
         builder.OwnsOne(
             x => x.SeatNumber,
             a =>
