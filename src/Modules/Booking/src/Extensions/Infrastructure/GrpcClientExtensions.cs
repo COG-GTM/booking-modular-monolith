@@ -1,6 +1,7 @@
 using Booking.Configuration;
 using BookingFlight;
 using BookingPassenger;
+using BuildingBlocks.Jwt;
 using BuildingBlocks.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
@@ -18,6 +19,7 @@ public static class GrpcClientExtensions
         {
             o.Address = new Uri(grpcOptions.FlightAddress);
         })
+        .AddHttpMessageHandler<AuthHeaderHandler>()
         .AddResilienceHandler(
             "grpc-flight-resilience",
             options =>
