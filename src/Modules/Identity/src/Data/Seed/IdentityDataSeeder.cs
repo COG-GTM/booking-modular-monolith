@@ -95,6 +95,14 @@ public class IdentityDataSeeder : IDataSeeder
                             new UserCreated(admin.Id, admin.FirstName + " " + admin.LastName, admin.PassPortNumber)
                         );
                     }
+                    else
+                    {
+                        _logger.LogError(
+                            "Failed to seed user {UserName}: {Errors}",
+                            admin.UserName,
+                            string.Join("; ", result.Errors.Select(e => e.Description))
+                        );
+                    }
                 }
             }
 
@@ -118,6 +126,14 @@ public class IdentityDataSeeder : IDataSeeder
 
                         await _eventDispatcher.SendAsync(
                             new UserCreated(user.Id, user.FirstName + " " + user.LastName, user.PassPortNumber)
+                        );
+                    }
+                    else
+                    {
+                        _logger.LogError(
+                            "Failed to seed user {UserName}: {Errors}",
+                            user.UserName,
+                            string.Join("; ", result.Errors.Select(e => e.Description))
                         );
                     }
                 }

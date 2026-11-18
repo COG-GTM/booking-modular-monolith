@@ -25,6 +25,9 @@ public class IdentityDataSeederTests
     private static string[] Warnings(IdentityCoreHarness harness) =>
         harness.SeederLogger.Entries.Where(e => e.Level == LogLevel.Warning).Select(e => e.Message).ToArray();
 
+    private static string[] Errors(IdentityCoreHarness harness) =>
+        harness.SeederLogger.Entries.Where(e => e.Level == LogLevel.Error).Select(e => e.Message).ToArray();
+
     [Fact]
     public async Task should_seed_no_users_and_warn_for_each_when_no_passwords_are_configured()
     {
@@ -175,7 +178,26 @@ public class IdentityDataSeederTests
     }
 
     [Fact]
-    public async Task should_let_the_seeded_admin_sign_in_only_with_the_configured_password()
+    public async Task should_log_error_and_not_create_user_when_configured_password_violates_policy()
+    {
+        await using var harness = await IdentityCoreHarness.CreateAsync(
+            new IdentitySeedOptions { AdminPassword = "abc" }
+        );
+
+        await harness.Seeder.SeedAllAsync();
+
+        (await harness.Context.Users.CountAsync()).Should().Be(0);
+        harness.Events.Should().BeEmpty();
+        Errors(harness)
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Contain($"Failed to seed user {Admin.UserName}: ")
+            .And.Contain("6 characters");
+    }
+
+    [Fact]
+    public async Task should_reject_the_legacy_admin_password_with_unauthorized_client_and_accept_the_configured_password()
     {
         await using var harness = await IdentityCoreHarness.CreateAsync(
             new IdentitySeedOptions { AdminPassword = AdminPassword }
@@ -196,13 +218,13 @@ public class IdentityDataSeederTests
         };
         await harness.UserValidator.ValidateAsync(configured);
 
-        legacy.Result.Error.Should().Be("invalid_grant");
+        legacy.Result.Error.Should().Be("unauthorized_client");
         configured.Result.IsError.Should().BeFalse();
         configured.Result.Subject!.FindFirst("sub")!.Value.Should().Be(Admin.Id.ToString());
     }
 
     [Fact]
-    public async Task should_reject_the_unseeded_regular_user_with_invalid_grant()
+    public async Task should_reject_the_unseeded_regular_user_with_unauthorized_client()
     {
         await using var harness = await IdentityCoreHarness.CreateAsync(
             new IdentitySeedOptions { AdminPassword = AdminPassword }
@@ -216,6 +238,6 @@ public class IdentityDataSeederTests
         };
         await harness.UserValidator.ValidateAsync(context);
 
-        context.Result.Error.Should().Be("invalid_grant");
+        context.Result.Error.Should().Be("unauthorized_client");
     }
 }
