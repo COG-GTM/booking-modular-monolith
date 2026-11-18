@@ -73,15 +73,6 @@ public class TestFixture<TEntryPoint> : IAsyncLifetime
 
     public HttpClient AnonymousHttpClient => _factory.CreateClient();
 
-    public HttpClient DevelopmentAnonymousHttpClient =>
-        _factory
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseEnvironment("Development");
-                builder.UseDefaultServiceProvider(options => options.ValidateOnBuild = false);
-            })
-            .CreateClient();
-
     public GrpcChannel AnonymousChannel =>
         GrpcChannel.ForAddress(_factory.Server.BaseAddress, new GrpcChannelOptions { HttpClient = _factory.CreateClient() });
 

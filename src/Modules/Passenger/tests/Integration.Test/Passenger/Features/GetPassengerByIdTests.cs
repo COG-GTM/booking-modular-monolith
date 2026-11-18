@@ -1,4 +1,3 @@
-using System.Net;
 using System.Threading.Tasks;
 using Api;
 using BuildingBlocks.TestBase;
@@ -67,15 +66,4 @@ public class GetPassengerByIdTests : PassengerIntegrationTestBase
             .Where(exception => exception.StatusCode == StatusCode.Unauthenticated);
     }
 
-    [Fact]
-    public async Task should_allow_anonymous_access_to_public_endpoints()
-    {
-        using var anonymousHttpClient = Fixture.AnonymousHttpClient;
-        var rootResponse = await anonymousHttpClient.GetAsync("/");
-        rootResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        using var developmentAnonymousHttpClient = Fixture.DevelopmentAnonymousHttpClient;
-        var healthResponse = await developmentAnonymousHttpClient.GetAsync("/health");
-        healthResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
 }

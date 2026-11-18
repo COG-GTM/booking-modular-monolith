@@ -81,7 +81,7 @@ public static class SharedInfrastructureExtensions
 
         app.UseCorrelationId();
 
-        app.MapGet("/", x => x.Response.WriteAsync(appOptions.Name)).AllowAnonymous();
+        app.MapGet("/", x => x.Response.WriteAsync(appOptions.Name));
 
         if (app.Environment.IsDevelopment())
         {
