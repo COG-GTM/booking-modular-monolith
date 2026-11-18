@@ -152,6 +152,29 @@ public class IdentityDataSeederConfiguredCredentialsTests
     }
 
     [Fact]
+    public async Task should_seed_admin_on_a_later_startup_when_admin_password_is_configured()
+    {
+        var seedOptions = new IdentitySeedOptions { UserPassword = UserPassword };
+        await using var harness = await IdentitySeederHarness.CreateAsync(seedOptions, Environments.Development);
+
+        await harness.Seeder.SeedAllAsync();
+
+        (await harness.Context.Users.Select(u => u.UserName).ToListAsync()).Should().Equal(RegularUser.UserName);
+
+        seedOptions.AdminPassword = AdminPassword;
+        await harness.Seeder.SeedAllAsync();
+
+        (await harness.Context.Users.OrderBy(u => u.UserName).Select(u => u.UserName).ToListAsync())
+            .Should()
+            .Equal(Admin.UserName, RegularUser.UserName);
+        var admin = await harness.UserManager.FindByNameAsync(Admin.UserName!);
+        admin.Should().NotBeNull();
+        (await harness.UserManager.CheckPasswordAsync(admin!, AdminPassword)).Should().BeTrue();
+        harness.Events.OfType<UserCreated>().Select(e => e.Id).Should().Equal(RegularUser.Id, Admin.Id);
+        LogsAt(harness, LogLevel.Warning).Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task should_skip_the_regular_user_in_development_when_user_password_is_not_configured()
     {
         await using var harness = await IdentitySeederHarness.CreateAsync(

@@ -323,7 +323,11 @@ var api = builder.AddProject<Api>("api")
 
 if (builder.ExecutionContext.IsPublishMode)
 {
-    api.WithEnvironment("AuthOptions__ClientSecret", builder.AddParameter("identity-client-secret", secret: true));
+    var identityClientSecret = builder.AddParameter("identity-client-secret", secret: true);
+    var identityAdminPassword = builder.AddParameter("identity-admin-password", secret: true);
+
+    api.WithEnvironment("AuthOptions__ClientSecret", identityClientSecret);
+    api.WithEnvironment("IdentitySeedOptions__AdminPassword", identityAdminPassword);
 }
 
 builder.Build().Run();
