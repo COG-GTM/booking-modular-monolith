@@ -17,11 +17,13 @@ public class GrpcClientExtensionsTests
 {
     private const string Token = "inbound-access-token";
 
-    [Fact]
-    public async Task flight_grpc_client_should_forward_the_inbound_bearer_token()
+    [Theory]
+    [InlineData("Bearer")]
+    [InlineData("bearer")]
+    public async Task flight_grpc_client_should_forward_the_inbound_bearer_token(string scheme)
     {
         var handler = new RecordingGrpcHandler();
-        await using var provider = BuildProvider(handler, $"Bearer {Token}");
+        await using var provider = BuildProvider(handler, $"{scheme} {Token}");
 
         var client = provider.GetRequiredService<FlightGrpcService.FlightGrpcServiceClient>();
         await client.ReserveSeatAsync(
@@ -65,11 +67,16 @@ public class GrpcClientExtensionsTests
             .Equal("first-token", "second-token");
     }
 
-    [Fact]
-    public async Task grpc_clients_should_not_send_a_token_when_there_is_no_inbound_authorization()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("Bearer")]
+    [InlineData("Basic credentials")]
+    [InlineData("invalid header value")]
+    public async Task grpc_clients_should_not_send_a_token_when_there_is_no_inbound_authorization(string? authorization)
     {
         var handler = new RecordingGrpcHandler();
-        await using var provider = BuildProvider(handler, authorization: null);
+        await using var provider = BuildProvider(handler, authorization);
 
         await provider
             .GetRequiredService<FlightGrpcService.FlightGrpcServiceClient>()
@@ -80,9 +87,9 @@ public class GrpcClientExtensionsTests
 
         handler.Requests.Should().HaveCount(2);
         handler
-            .Requests.Select(request => request.Authorization?.Parameter)
+            .Requests.Select(request => request.Authorization)
             .Should()
-            .AllSatisfy(token => token.Should().BeNullOrEmpty());
+            .AllSatisfy(header => header.Should().BeNull());
     }
 
     private static ServiceProvider BuildProvider(RecordingGrpcHandler handler, string? authorization)
