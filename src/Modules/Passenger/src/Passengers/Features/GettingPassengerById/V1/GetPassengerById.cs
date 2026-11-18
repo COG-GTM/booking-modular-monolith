@@ -1,5 +1,6 @@
 namespace Passenger.Passengers.Features.GettingPassengerById.V1;
 
+using System.Security.Claims;
 using Ardalis.GuardClauses;
 using BuildingBlocks.Core.CQRS;
 using BuildingBlocks.Web;
@@ -11,11 +12,13 @@ using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using Passenger.Data;
 using Passenger.Passengers.Dtos;
 using Passenger.Passengers.Exceptions;
+using Passenger.Passengers.ValueObjects;
 
 public record GetPassengerById(Guid Id) : IQuery<GetPassengerByIdResult>;
 
@@ -27,15 +30,26 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
 {
     public IEndpointRouteBuilder MapEndpoint(IEndpointRouteBuilder builder)
     {
-        builder.MapGet($"{EndpointConfig.BaseApiPath}/passenger/{{id}}",
-                async (Guid id, IMediator mediator, CancellationToken cancellationToken) =>
+        builder
+            .MapGet(
+                $"{EndpointConfig.BaseApiPath}/passenger/{{id}}",
+                async (
+                    Guid id,
+                    IMediator mediator,
+                    HttpContext httpContext,
+                    PassengerDbContext dbContext,
+                    ILogger<GetPassengerByIdEndpoint> logger,
+                    CancellationToken cancellationToken
+                ) =>
                 {
+                    await EnsureOwnershipAsync(id, httpContext.User, dbContext, logger, cancellationToken);
                     var result = await mediator.Send(new GetPassengerById(id), cancellationToken);
 
                     var response = result.Adapt<GetPassengerByIdResponseDto>();
 
                     return Results.Ok(response);
-                })
+                }
+            )
             .RequireAuthorization(nameof(ApiScope))
             .WithName("GetPassengerById")
             .WithApiVersionSet(builder.NewApiVersionSet("Passenger").Build())
@@ -47,6 +61,42 @@ public class GetPassengerByIdEndpoint : IMinimalEndpoint
             .HasApiVersion(1.0);
 
         return builder;
+    }
+
+    internal static async Task EnsureOwnershipAsync(
+        Guid id,
+        ClaimsPrincipal user,
+        PassengerDbContext dbContext,
+        ILogger logger,
+        CancellationToken cancellationToken
+    )
+    {
+        if (id == Guid.Empty)
+        {
+            throw new PassengerNotFoundException();
+        }
+
+        var passenger = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleOrDefaultAsync(
+            dbContext.Passengers,
+            x => x.Id == PassengerId.Of(id) && !x.IsDeleted,
+            cancellationToken
+        );
+        if (passenger is null)
+        {
+            throw new PassengerNotFoundException();
+        }
+
+        if (passenger.UserId is null)
+        {
+            logger.LogWarning("Allowing legacy passenger {PassengerId} lookup without recorded ownership", id);
+            return;
+        }
+
+        var subject = user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(subject, out var userId) || userId != passenger.UserId)
+        {
+            throw new PassengerNotFoundException();
+        }
     }
 }
 
@@ -73,9 +123,9 @@ internal class GetPassengerByIdHandler : IQueryHandler<GetPassengerById, GetPass
     {
         Guard.Against.Null(query, nameof(query));
 
-        var passenger =
-            await _passengerReadDbContext.Passenger.AsQueryable()
-                .SingleOrDefaultAsync(x => x.PassengerId == query.Id && x.IsDeleted == false, cancellationToken);
+        var passenger = await _passengerReadDbContext
+            .Passenger.AsQueryable()
+            .SingleOrDefaultAsync(x => x.PassengerId == query.Id && x.IsDeleted == false, cancellationToken);
 
         if (passenger is null)
         {
