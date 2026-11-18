@@ -39,7 +39,7 @@ public class IdentityTestDataSeeder(
     {
         if (await userManager.FindByNameAsync("samh") == null)
         {
-            var result = await userManager.CreateAsync(InitialData.Users.First(), "Admin@123456");
+            var result = await userManager.CreateAsync(InitialData.Users.First(), "Admin@Booking2026!");
 
             if (result.Succeeded)
             {
@@ -51,7 +51,7 @@ public class IdentityTestDataSeeder(
 
         if (await userManager.FindByNameAsync("meysamh2") == null)
         {
-            var result = await userManager.CreateAsync(InitialData.Users.Last(), "User@123456");
+            var result = await userManager.CreateAsync(InitialData.Users.Last(), "User@Booking2026!");
 
             if (result.Succeeded)
             {

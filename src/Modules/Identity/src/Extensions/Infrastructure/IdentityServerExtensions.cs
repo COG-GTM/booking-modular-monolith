@@ -19,11 +19,14 @@ public static class IdentityServerExtensions
 
         builder.Services.AddIdentity<User, Role>(config =>
             {
-                config.Password.RequiredLength = 6;
-                config.Password.RequireDigit = false;
-                config.Password.RequireNonAlphanumeric = false;
-                config.Password.RequireUppercase = false;
+                config.Password.RequiredLength = CommonPasswordValidator.MinimumLength;
+                config.Password.RequiredUniqueChars = CommonPasswordValidator.MinimumUniqueChars;
+                config.Password.RequireDigit = true;
+                config.Password.RequireLowercase = true;
+                config.Password.RequireNonAlphanumeric = true;
+                config.Password.RequireUppercase = true;
             })
+            .AddPasswordValidator<CommonPasswordValidator>()
             .AddEntityFrameworkStores<IdentityContext>()
             .AddDefaultTokenProviders();
 

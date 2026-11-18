@@ -66,7 +66,7 @@ public class IdentityDataSeeder : IDataSeeder
         {
             if (await _userManager.FindByNameAsync("samh") == null)
             {
-                var result = await _userManager.CreateAsync(InitialData.Users.First(), "Admin@123456");
+                var result = await _userManager.CreateAsync(InitialData.Users.First(), "Admin@Booking2026!");
 
                 if (result.Succeeded)
                 {
@@ -84,7 +84,7 @@ public class IdentityDataSeeder : IDataSeeder
 
             if (await _userManager.FindByNameAsync("meysamh2") == null)
             {
-                var result = await _userManager.CreateAsync(InitialData.Users.Last(), "User@123456");
+                var result = await _userManager.CreateAsync(InitialData.Users.Last(), "User@Booking2026!");
 
                 if (result.Succeeded)
                 {
