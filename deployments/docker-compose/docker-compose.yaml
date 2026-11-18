@@ -29,10 +29,10 @@ services:
     container_name: postgres
     restart: unless-stopped
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5432:5432'
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deployments/docker-compose/.env}
     command:
       - "postgres"
       - "-c"
@@ -51,11 +51,11 @@ services:
     image: mongo:latest
     container_name: mongo
     restart: unless-stopped
-    # environment:
-    #   - MONGO_INITDB_ROOT_USERNAME=root
-    #   - MONGO_INITDB_ROOT_PASSWORD=secret
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME:-root}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in deployments/docker-compose/.env}
     ports:
-      - 27017:27017
+      - '127.0.0.1:27017:27017'
     networks:
       - booking
 
@@ -129,6 +129,8 @@ services:
     container_name: otel-collector
     restart: unless-stopped
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:?set ELASTIC_PASSWORD in deployments/docker-compose/.env}
     volumes:
       - ./../configs/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml
     ports:
@@ -164,8 +166,11 @@ services:
     image: redis
     container_name: redis
     restart: unless-stopped
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?set REDIS_PASSWORD in deployments/docker-compose/.env}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
     ports:
-      - 6379:6379    
+      - '127.0.0.1:6379:6379'
     networks:
       - booking
 
@@ -204,8 +209,9 @@ services:
     restart: unless-stopped
     environment:
       - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in deployments/docker-compose/.env}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:?set ELASTIC_PASSWORD in deployments/docker-compose/.env}
       - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
       #      - GF_AUTH_ANONYMOUS_ENABLED=true
       #      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
@@ -213,7 +219,7 @@ services:
     depends_on:
       - prometheus
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - ./../configs/grafana/provisioning:/etc/grafana/provisioning
       - ./../configs/grafana/dashboards:/var/lib/grafana/dashboards
@@ -272,7 +278,8 @@ services:
       - cluster.name=docker-cluster
       - node.name=docker-node
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - xpack.security.enabled=false
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:?set ELASTIC_PASSWORD in deployments/docker-compose/.env}
       - xpack.security.http.ssl.enabled=false
       - xpack.security.transport.ssl.enabled=false
       - network.host=0.0.0.0
@@ -287,8 +294,30 @@ services:
     volumes:
       - elastic-data:/usr/share/elasticsearch/data
     ports:
-      - ${ELASTIC_HOST_PORT:-9200}:${ELASTIC_PORT:-9200}
-      - 9300:9300
+      - 127.0.0.1:${ELASTIC_HOST_PORT:-9200}:${ELASTIC_PORT:-9200}
+    networks:
+      - booking
+
+  #######################################################
+  # elasticsearch-setup
+  # one-shot job that sets the built-in `kibana_system` password so Kibana can authenticate
+  #######################################################
+  elasticsearch-setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    container_name: elasticsearch-setup
+    restart: "no"
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:?set ELASTIC_PASSWORD in deployments/docker-compose/.env}
+      - KIBANA_SYSTEM_PASSWORD=${KIBANA_SYSTEM_PASSWORD:?set KIBANA_SYSTEM_PASSWORD in deployments/docker-compose/.env}
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        until curl -s -o /dev/null -u "elastic:$$ELASTIC_PASSWORD" http://elasticsearch:9200/_cluster/health; do sleep 5; done
+        curl -sf -u "elastic:$$ELASTIC_PASSWORD" -H 'Content-Type: application/json' \
+          -X POST http://elasticsearch:9200/_security/user/kibana_system/_password \
+          -d "{\"password\":\"$$KIBANA_SYSTEM_PASSWORD\"}"
+    depends_on:
+      - elasticsearch
     networks:
       - booking
 
@@ -302,10 +331,13 @@ services:
     restart: unless-stopped
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_SYSTEM_PASSWORD:?set KIBANA_SYSTEM_PASSWORD in deployments/docker-compose/.env}
     ports:
-      - ${KIBANA_HOST_PORT:-5601}:${KIBANA_PORT:-5601}
+      - 127.0.0.1:${KIBANA_HOST_PORT:-5601}:${KIBANA_PORT:-5601}
     depends_on:
-      - elasticsearch
+      elasticsearch-setup:
+        condition: service_completed_successfully
     networks:
       - booking
       
@@ -352,6 +384,11 @@ services:
       - ASPNETCORE_HTTP_PORT=3001
       - ASPNETCORE_Kestrel__Certificates__Default__Password=password
       - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      - PostgresOptions__ConnectionString__Flight=Server=postgres;Port=5432;Database=flight_modular_monolith;User Id=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deployments/docker-compose/.env}
+      - PostgresOptions__ConnectionString__Identity=Server=postgres;Port=5432;Database=identity_modular_monolith;User Id=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deployments/docker-compose/.env}
+      - PostgresOptions__ConnectionString__Passenger=Server=postgres;Port=5432;Database=passenger_modular_monolith;User Id=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deployments/docker-compose/.env}
+      - PersistMessageOptions__ConnectionString=Server=postgres;Port=5432;Database=persist_message;User Id=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deployments/docker-compose/.env}
+      - MongoOptions__ConnectionString=mongodb://${MONGO_ROOT_USERNAME:-root}:${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in deployments/docker-compose/.env}@mongo:27017/?authSource=admin
     networks:
       - booking
 

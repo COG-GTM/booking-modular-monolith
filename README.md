@@ -216,11 +216,14 @@ aspire run
 
 > ### Docker Compose
 
-To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-compose/docker-compose.yaml) and execute the below command at the `root` of the application:
+To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-compose/docker-compose.yaml). First copy [.env.example](./deployments/docker-compose/.env.example) to `deployments/docker-compose/.env` (git-ignored) and set a strong value for every password, then execute the below command at the `root` of the application:
 
 ```bash
+cp ./deployments/docker-compose/.env.example ./deployments/docker-compose/.env
 docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
 ```
+
+> Note: Postgres, MongoDB, Redis, Elasticsearch, Kibana and Grafana require credentials and are published on `127.0.0.1` only; the API container reaches them over the `booking` compose network.
 
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
