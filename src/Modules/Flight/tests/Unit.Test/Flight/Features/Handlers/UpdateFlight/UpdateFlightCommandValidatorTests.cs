@@ -4,7 +4,6 @@ using System;
 using FluentAssertions;
 using FluentValidation;
 using FluentValidation.TestHelper;
-using global::Flight;
 using global::Flight.Flights.Enums;
 using global::Flight.Flights.Features.UpdatingFlight.V1;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,7 +21,7 @@ public class UpdateFlightCommandValidatorTests
     {
         // Arrange
         var services = new ServiceCollection();
-        services.AddValidatorsFromAssembly(typeof(FlightRoot).Assembly);
+        services.AddValidatorsFromAssembly(typeof(global::Flight.FlightRoot).Assembly);
         using var provider = services.BuildServiceProvider();
 
         // Act
