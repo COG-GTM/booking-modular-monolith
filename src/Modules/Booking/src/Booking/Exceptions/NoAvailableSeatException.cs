@@ -6,5 +6,5 @@ namespace Booking.Booking.Exceptions;
 public class NoAvailableSeatException : AppException
 {
     public NoAvailableSeatException()
-        : base("No available seat for this flight!", HttpStatusCode.Conflict) { }
+        : base("No available seat for this flight!", HttpStatusCode.UnprocessableEntity) { }
 }
