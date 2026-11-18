@@ -241,6 +241,8 @@ To `test` all modules, run this command in the `root` of the project:
 dotnet test
 ```
 
+The seeded `samh` (admin) and `samh2` users are created only when `IdentitySeedOptions__AdminPassword` and `IdentitySeedOptions__UserPassword` are configured through environment variables or user-secrets. Without those settings, no seeded users are created.
+
 > ### Documentation Apis
 
 For checking `API documentation`, navigate to `/swagger` for `Swagger OpenAPI` or `/scalar/v1` for `Scalar OpenAPI` to visit list of endpoints.
