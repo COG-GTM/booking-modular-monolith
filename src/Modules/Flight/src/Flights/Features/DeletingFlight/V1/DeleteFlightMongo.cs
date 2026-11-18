@@ -38,11 +38,16 @@ internal class DeleteFlightMongoCommandHandler : ICommandHandler<DeleteFlightMon
         var flightReadModel = _mapper.Map<FlightReadModel>(request);
 
         var flight = await _flightReadDbContext.Flight.AsQueryable()
-            .FirstOrDefaultAsync(x => x.FlightId == flightReadModel.FlightId && !x.IsDeleted, cancellationToken);
+            .FirstOrDefaultAsync(x => x.FlightId == flightReadModel.FlightId, cancellationToken);
 
         if (flight is null)
         {
             throw new FlightNotFountException();
+        }
+
+        if (flight.IsDeleted)
+        {
+            return Unit.Value;
         }
 
         await _flightReadDbContext.Flight.UpdateOneAsync(

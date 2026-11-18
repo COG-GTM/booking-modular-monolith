@@ -6,6 +6,7 @@ using BuildingBlocks.Utils;
 using MassTransit;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace BuildingBlocks.PersistMessageProcessor;
 
@@ -17,16 +18,20 @@ public class PersistMessageProcessor : IPersistMessageProcessor
     private readonly IMediator _mediator;
     private readonly IPersistMessageDbContext _persistMessageDbContext;
     private readonly IPublishEndpoint _publishEndpoint;
+    private readonly PersistMessageOptions _options;
+
     public PersistMessageProcessor(
         ILogger<PersistMessageProcessor> logger,
         IMediator mediator,
         IPersistMessageDbContext persistMessageDbContext,
-        IPublishEndpoint publishEndpoint)
+        IPublishEndpoint publishEndpoint,
+        IOptions<PersistMessageOptions> options)
     {
         _logger = logger;
         _mediator = mediator;
         _persistMessageDbContext = persistMessageDbContext;
         _publishEndpoint = publishEndpoint;
+        _options = options.Value;
     }
 
     public async Task PublishMessageAsync<TMessageEnvelope>(
@@ -109,12 +114,47 @@ public class PersistMessageProcessor : IPersistMessageProcessor
     public async Task ProcessAllAsync(CancellationToken cancellationToken = default)
     {
         var messages = await _persistMessageDbContext.PersistMessage
-            .Where(x => x.MessageStatus != MessageStatus.Processed)
+            .Where(x => x.MessageStatus != MessageStatus.Processed && x.MessageStatus != MessageStatus.Failed)
+            .OrderBy(x => x.Created)
+            .Take(Math.Max(1, _options.BatchSize))
             .ToListAsync(cancellationToken);
 
         foreach (var message in messages)
         {
-            await ProcessAsync(message.Id, message.DeliveryType, cancellationToken);
+            try
+            {
+                await ProcessAsync(message.Id, message.DeliveryType, cancellationToken);
+            }
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                await RecordFailedAttemptAsync(message, ex, cancellationToken);
+            }
+        }
+    }
+
+    private async Task RecordFailedAttemptAsync(PersistMessage message, Exception exception, CancellationToken cancellationToken)
+    {
+        message.IncreaseRetry();
+
+        var failed = message.RetryCount >= Math.Max(1, _options.MaxRetryCount);
+        message.ChangeState(failed ? MessageStatus.Failed : MessageStatus.InProgress);
+
+        _logger.LogError(
+            exception,
+            "Message with id: {MessageId} and delivery type: {DeliveryType} failed on attempt {RetryCount}; status: {MessageStatus}.",
+            message.Id,
+            message.DeliveryType,
+            message.RetryCount,
+            message.MessageStatus);
+
+        try
+        {
+            _persistMessageDbContext.PersistMessage.Update(message);
+            await _persistMessageDbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogError(ex, "Could not record failed attempt for message with id: {MessageId}.", message.Id);
         }
     }
 
