@@ -57,6 +57,38 @@ public class IdentityServerSigningCredentialTests
     }
 
     [Fact]
+    public async Task production_with_p256_ec_signing_key_without_algorithm_uses_es256()
+    {
+        var root = CreateContentRoot();
+        using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var jwk = JsonWebKeyConverter.ConvertFromECDsaSecurityKey(new ECDsaSecurityKey(ecdsa));
+        jwk.Kid = "ec-test-kid";
+        jwk.Alg = null;
+        var settings = CreateSettings();
+        settings["AuthOptions:SigningKey"] = JsonSerializer.Serialize(jwk);
+
+        try
+        {
+            await using var app = CreateApplication("Production", root, settings);
+
+            var credentialStore = Assert.Single(app.Services.GetServices<ISigningCredentialStore>());
+            var credential = await credentialStore.GetSigningCredentialsAsync();
+
+            Assert.Equal(SecurityAlgorithms.EcdsaSha256, credential.Algorithm);
+            var signatureProvider = CryptoProviderFactory.Default.CreateForSigning(
+                credential.Key,
+                credential.Algorithm
+            );
+            Assert.NotNull(signatureProvider);
+            CryptoProviderFactory.Default.ReleaseSignatureProvider(signatureProvider);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public async Task production_without_signing_key_uses_automatic_key_management()
     {
         var root = CreateContentRoot();

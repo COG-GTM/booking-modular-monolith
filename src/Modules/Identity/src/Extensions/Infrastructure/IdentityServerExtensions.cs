@@ -69,10 +69,7 @@ public static class IdentityServerExtensions
 
         if (jwk is not null)
         {
-            identityServerBuilder.AddSigningCredential(
-                jwk,
-                string.IsNullOrEmpty(jwk.Alg) ? SecurityAlgorithms.RsaSha256 : jwk.Alg
-            );
+            identityServerBuilder.AddSigningCredential(jwk, GetSigningAlgorithm(jwk));
         }
         else if (builder.Environment.IsDevelopment() || builder.Environment.IsEnvironment("test"))
         {
@@ -99,5 +96,33 @@ public static class IdentityServerExtensions
         });
 
         return builder;
+    }
+
+    private static string GetSigningAlgorithm(JsonWebKey jwk)
+    {
+        if (!string.IsNullOrWhiteSpace(jwk.Alg))
+        {
+            return jwk.Alg;
+        }
+
+        return jwk.Kty switch
+        {
+            "RSA" => SecurityAlgorithms.RsaSha256,
+            "EC" => jwk.Crv switch
+            {
+                "P-256" => SecurityAlgorithms.EcdsaSha256,
+                "P-384" => SecurityAlgorithms.EcdsaSha384,
+                "P-521" => SecurityAlgorithms.EcdsaSha512,
+                _ => throw UnsupportedSigningAlgorithm(),
+            },
+            _ => throw UnsupportedSigningAlgorithm(),
+        };
+    }
+
+    private static InvalidOperationException UnsupportedSigningAlgorithm()
+    {
+        return new InvalidOperationException(
+            "The configured signing JWK must specify a supported key type and curve or an algorithm. Set AuthOptions:SigningKey or AuthOptions:SigningKeyPath."
+        );
     }
 }
