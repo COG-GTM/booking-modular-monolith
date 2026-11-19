@@ -33,6 +33,19 @@ jobs:
       - name: Consumers against the packaged contract
         run: scripts/verify-contracts-consumer.sh
 
+      - name: Reject a missing local contract package
+        run: |
+          feed="$(mktemp -d)"
+          log="$(mktemp)"
+          trap 'rmdir "$feed"; rm -f "$log"' EXIT
+          if scripts/verify-contracts-consumer.sh "" "$feed" > "$log" 2>&1; then
+            echo "The consumer restored a contract package without a local artifact."
+            exit 1
+          fi
+          cat "$log"
+          grep -F 'error NU1101: Unable to find package BookingModularMonolith.Contracts.Messages.' "$log" |
+            grep -F 'source(s) were not considered: nuget.org.'
+
       - uses: actions/upload-artifact@v4
         with:
           name: contracts-nuget
