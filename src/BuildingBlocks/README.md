@@ -4,10 +4,10 @@
 CLR namespaces are unchanged (`BuildingBlocks.<Area>`), so moving from the aggregate to focused references
 needs no code changes. Decision record: [ADR 0100](../../docs/adr/0100-buildingblocks-shared-libraries.md).
 
-| Project / package (`BookingModularMonolith.` prefix) | Depends on (BuildingBlocks) | Main third-party surface |
+| Project / package (`BookingModularMonolith.` prefix) | Shared dependencies | Main third-party surface |
 |---|---|---|
-| `BuildingBlocks.Core` | - (`Contracts.Messages`) | MediatR, MassTransit.Abstractions, Google.Protobuf, Sieve |
-| `BuildingBlocks.Contracts` (compatibility only) | - (`Contracts.Messages`) | - |
+| `BuildingBlocks.Core` | `Contracts.Messages` | MediatR, MassTransit.Abstractions, Google.Protobuf, Sieve |
+| `BuildingBlocks.Contracts` (compatibility only) | Core, `Contracts.Messages` | - |
 | `BuildingBlocks.Constants` | - | - |
 | `BuildingBlocks.Utils` | - | ASP.NET Core |
 | `BuildingBlocks.Exception` | - | Grpc.Core.Api |
