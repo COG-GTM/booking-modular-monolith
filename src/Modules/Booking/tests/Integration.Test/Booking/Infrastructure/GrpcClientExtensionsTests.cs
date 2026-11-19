@@ -31,22 +31,25 @@ public class GrpcClientExtensionsTests
         );
 
         handler.Requests.Should().ContainSingle();
-        handler.Requests[0].Uri.Should().Be("https://flight.test/bookingFlight.FlightGrpcService/ReserveSeat");
+        handler.Requests[0].Uri.Should().Be("https://flight.test/flight.FlightGrpcService/ReserveSeat");
         handler.Requests[0].Authorization.Should().Be(new AuthenticationHeaderValue("Bearer", Token));
     }
 
-    [Fact]
-    public async Task passenger_grpc_client_should_forward_the_inbound_bearer_token()
+    [Theory]
+    [InlineData("Bearer")]
+    [InlineData("FakeBearer")]
+    [InlineData("Basic")]
+    public async Task passenger_grpc_client_should_forward_the_inbound_credential(string scheme)
     {
         var handler = new RecordingGrpcHandler();
-        await using var provider = BuildProvider(handler, $"Bearer {Token}");
+        await using var provider = BuildProvider(handler, $"{scheme} {Token}");
 
         var client = provider.GetRequiredService<PassengerGrpcService.PassengerGrpcServiceClient>();
         await client.GetByIdAsync(new BookingPassenger.GetByIdRequest { Id = Guid.NewGuid().ToString() });
 
         handler.Requests.Should().ContainSingle();
-        handler.Requests[0].Uri.Should().StartWith("https://passenger.test/");
-        handler.Requests[0].Authorization.Should().Be(new AuthenticationHeaderValue("Bearer", Token));
+        handler.Requests[0].Uri.Should().Be("https://passenger.test/passenger.PassengerGrpcService/GetById");
+        handler.Requests[0].Authorization.Should().Be(new AuthenticationHeaderValue(scheme, Token));
     }
 
     [Fact]
@@ -71,8 +74,7 @@ public class GrpcClientExtensionsTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("Bearer")]
-    [InlineData("Basic credentials")]
-    [InlineData("invalid header value")]
+    [InlineData("invalid")]
     public async Task grpc_clients_should_not_send_a_token_when_there_is_no_inbound_authorization(string? authorization)
     {
         var handler = new RecordingGrpcHandler();

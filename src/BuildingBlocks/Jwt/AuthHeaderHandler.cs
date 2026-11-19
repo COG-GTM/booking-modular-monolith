@@ -18,14 +18,18 @@ public class AuthHeaderHandler : DelegatingHandler
     )
     {
         var authorization = _httpContext.HttpContext?.Request.Headers.Authorization.ToString();
+        var separator = authorization?.IndexOf(' ', StringComparison.Ordinal) ?? -1;
 
         if (
-            AuthenticationHeaderValue.TryParse(authorization, out var header)
-            && string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase)
-            && !string.IsNullOrWhiteSpace(header.Parameter)
+            separator > 0
+            && AuthenticationHeaderValue.TryParse(authorization![..separator], out var header)
+            && !string.IsNullOrWhiteSpace(authorization[(separator + 1)..])
         )
         {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", header.Parameter);
+            var parameter = authorization[(separator + 1)..].Trim();
+            request.Headers.Authorization = string.Equals(header.Scheme, "Bearer", StringComparison.OrdinalIgnoreCase)
+                ? new AuthenticationHeaderValue("Bearer", parameter)
+                : new AuthenticationHeaderValue(header.Scheme, parameter);
         }
 
         return base.SendAsync(request, cancellationToken);
