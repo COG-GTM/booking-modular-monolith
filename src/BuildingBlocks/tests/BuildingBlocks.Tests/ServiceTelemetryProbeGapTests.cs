@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using BuildingBlocks.Core.Event;
 using BuildingBlocks.HealthCheck;
@@ -87,6 +88,48 @@ public class ServiceTelemetryProbeGapTests
             .Select(r => r.Name)
             .Should()
             .BeEquivalentTo(["Postgres-Flight", "eventstore", "MongoDB-Health"]);
+    }
+
+    [Fact]
+    public async Task grpc_eventstore_check_resolves_and_reports_unhealthy_when_server_is_unreachable()
+    {
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+        var port = ((IPEndPoint)socket.LocalEndPoint!).Port;
+        using var provider = CreateHealthProvider(
+            new Dictionary<string, string?>
+            {
+                ["EventStoreOptions:ConnectionString"] = $"esdb://127.0.0.1:{port}?tls=false",
+            }
+        );
+        var registration = Registrations(provider).Single(r => r.Name == "eventstore");
+        registration.Timeout = TimeSpan.FromSeconds(3);
+        var check = registration.Factory(provider);
+        using var cancellation = new CancellationTokenSource(registration.Timeout);
+
+        var result = await check
+            .CheckHealthAsync(new HealthCheckContext { Registration = registration }, cancellation.Token)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+
+        result.Status.Should().Be(HealthStatus.Unhealthy);
+        for (var exception = result.Exception; exception is not null; exception = exception.InnerException)
+        {
+            exception.Should().NotBeOfType<FormatException>().And.NotBeAssignableTo<ArgumentException>();
+        }
+    }
+
+    [Fact]
+    public void empty_rabbitmq_hostname_omits_the_broker_from_readiness_checks()
+    {
+        using var provider = CreateHealthProvider(
+            new Dictionary<string, string?> { ["RabbitMqOptions:HostName"] = "" }
+        );
+
+        Registrations(provider)
+            .Where(HealthExtensions.IsReadinessCheck)
+            .Select(r => r.Name)
+            .Should()
+            .NotContain("rabbitmq");
     }
 
     [Theory]
