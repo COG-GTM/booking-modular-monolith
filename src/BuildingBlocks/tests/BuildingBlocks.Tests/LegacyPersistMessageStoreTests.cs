@@ -31,7 +31,7 @@ public class LegacyPersistMessageStoreTests
             Timezone = "America/New_York",
         }.ConnectionString;
         var expected = new List<PersistMessage>();
-        double createdEpoch;
+        DateTime created;
         await using (
             var legacy = new LegacyContext(
                 new DbContextOptionsBuilder<LegacyContext>()
@@ -65,12 +65,9 @@ public class LegacyPersistMessageStoreTests
                 legacy.PersistMessage.Add(row);
             }
             await legacy.SaveChangesAsync();
-            createdEpoch = await legacy
-                .Database.SqlQueryRaw<double>(
-                    """
-                    SELECT extract(epoch FROM created AT TIME ZONE current_setting('TimeZone'))::double precision AS "Value"
-                    FROM persist_message LIMIT 1
-                    """
+            created = await legacy
+                .Database.SqlQuery<DateTime>(
+                    $"""SELECT created AS "Value" FROM persist_message WHERE id = {expected[0].Id}"""
                 )
                 .SingleAsync();
         }
@@ -90,12 +87,12 @@ public class LegacyPersistMessageStoreTests
         >();
         var upgraded = await store.PersistMessage.OrderBy(x => x.Id).ToListAsync();
         upgraded.Should().BeEquivalentTo(expected, options => options.Excluding(x => x.Created));
-        var epoch = await context
-            .Database.SqlQueryRaw<double>(
-                """SELECT extract(epoch FROM created)::double precision AS "Value" FROM persist_message LIMIT 1"""
+        var storedCreated = await context
+            .Database.SqlQuery<DateTime>(
+                $"""SELECT created AS "Value" FROM persist_message WHERE id = {expected[0].Id}"""
             )
             .SingleAsync();
-        epoch.Should().Be(createdEpoch);
+        storedCreated.Should().Be(created);
         var columns = await context
             .Database.SqlQueryRaw<string>(
                 """
@@ -104,7 +101,7 @@ public class LegacyPersistMessageStoreTests
                 """
             )
             .ToListAsync();
-        columns.Should().BeEquivalentTo(["text", "text", "timestamp with time zone"]);
+        columns.Should().BeEquivalentTo(["text", "text", "timestamp without time zone"]);
         var defaults = await context
             .Database.SqlQueryRaw<string>(
                 """

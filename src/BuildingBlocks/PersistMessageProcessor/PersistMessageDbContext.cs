@@ -23,7 +23,6 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
         base.OnModelCreating(builder);
         builder.Entity<PersistMessage>().Property(x => x.MessageStatus).HasConversion<string>();
         builder.Entity<PersistMessage>().Property(x => x.DeliveryType).HasConversion<string>();
-        builder.Entity<PersistMessage>().Property(x => x.Created).HasColumnType("timestamp with time zone");
         builder.ToSnakeCaseTables();
     }
 
@@ -110,14 +109,6 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
             BEGIN
                 {statusUpgrade}
                 {deliveryUpgrade}
-                IF EXISTS (
-                    SELECT 1 FROM pg_attribute
-                    WHERE attrelid = 'persist_message'::regclass AND attname = 'created'
-                        AND atttypid = 'timestamp without time zone'::regtype
-                ) THEN
-                    ALTER TABLE persist_message ALTER COLUMN created TYPE timestamp with time zone
-                        USING created AT TIME ZONE current_setting('TimeZone');
-                END IF;
             END $$;
             """
         );
