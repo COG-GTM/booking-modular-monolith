@@ -58,6 +58,21 @@ public class HealthCheckOptionsBindingTests
     }
 
     [Fact]
+    public void aspire_rabbitmq_connection_string_registers_broker_check()
+    {
+        using var provider = CreateProvider(
+            new Dictionary<string, string?>
+            {
+                ["HealthOptions:Enabled"] = "true",
+                ["AppOptions:Name"] = "test-app",
+                ["ConnectionStrings:rabbitmq"] = "amqp://guest:guest@rabbitmq:5672",
+            }
+        );
+
+        RegistrationNames(provider).Should().BeEquivalentTo(["self", "rabbitmq"]);
+    }
+
+    [Fact]
     public void rabbitmq_is_registered_without_unconfigured_database_checks()
     {
         using var provider = CreateProvider(

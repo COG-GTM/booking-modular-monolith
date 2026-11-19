@@ -37,15 +37,18 @@ public static class Extensions
 
             var healthChecksBuilder = services.AddHealthChecks();
 
-            // The monolith runs MassTransit in memory; only hosts with a broker configure RabbitMqOptions.
-            if (!string.IsNullOrEmpty(rabbitMqOptions.HostName))
+            // The monolith runs MassTransit in memory; only hosts with a broker configure RabbitMqOptions
+            // or (Aspire) ConnectionStrings:rabbitmq, which MassTransit prefers.
+            var rabbitMqConnection = configuration.GetConnectionString("rabbitmq");
+            if (!string.IsNullOrEmpty(rabbitMqConnection) || !string.IsNullOrEmpty(rabbitMqOptions.HostName))
             {
                 healthChecksBuilder.AddRabbitMQ(serviceProvider =>
                 {
                     var factory = new ConnectionFactory
                     {
                         Uri = new Uri(
-                            $"amqp://{rabbitMqOptions.UserName}:{rabbitMqOptions.Password}@{rabbitMqOptions.HostName}"
+                            rabbitMqConnection
+                                ?? $"amqp://{rabbitMqOptions.UserName}:{rabbitMqOptions.Password}@{rabbitMqOptions.HostName}"
                         ),
                     };
                     return factory.CreateConnectionAsync();
