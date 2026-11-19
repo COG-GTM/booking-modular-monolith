@@ -264,6 +264,13 @@ If you like my work, feel free to:
 
 Thanks a bunch for supporting me!
 
+### Observability (per service)
+
+Every deployable reports its own `service.name` (`OTEL_SERVICE_NAME` > `ObservabilityOptions:ServiceName` > app name; the monolith is
+`booking-modular-monolith`), exposes `/health/live` and `/health/ready` in every environment, and carries W3C trace context across
+the outbox hop so a request and the events it publishes are one trace. See the
+[observability runbook](./docs/runbooks/observability.md).
+
 ## Contribution
 
 Thanks to all [contributors](https://github.com/meysamhadeli/booking-modular-monolith/graphs/contributors), you're awesome and this wouldn't be possible without you! The goal is to build a categorized, community-driven collection of very well-known resources.
