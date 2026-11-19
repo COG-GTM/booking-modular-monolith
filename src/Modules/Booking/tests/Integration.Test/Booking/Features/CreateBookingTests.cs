@@ -17,7 +17,7 @@ using GetByIdRequest = BookingFlight.GetByIdRequest;
 
 namespace Integration.Test.Booking.Features
 {
-    public class CreateBookingTests : BookingIntegrationTestBase
+    public partial class CreateBookingTests : BookingIntegrationTestBase
     {
         public CreateBookingTests(TestReadFixture<Program, BookingReadDbContext> integrationTestFixture) : base(
             integrationTestFixture)
