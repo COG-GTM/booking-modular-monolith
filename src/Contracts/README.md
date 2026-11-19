@@ -24,9 +24,11 @@ Producers and consumers import `Contracts.Messages.Reference.props` instead of r
 ```
 
 - Default (in-repo development, CI, Docker): a `ProjectReference` to `Contracts.Messages.csproj`.
-- `-p:UseContractsPackage=true`: a pinned `PackageReference` to `BookingModularMonolith.Contracts.Messages`
-  exactly `[$(ContractsMessagesPackageVersion)]` (defaults to the current `ContractsMessagesVersion`; restore fails rather than floating to another version). A split-out service sets
-  `ContractsMessagesPackageVersion` to the version it was built and tested against.
+- `-p:UseContractsPackage=true`: an exact `PackageReference` to `BookingModularMonolith.Contracts.Messages`
+  at the version declared in `Versions.props`. To override it, pass `-p:ContractsMessagesPackageVersion=<version>`
+  on the build or restore command so the same pin reaches the module and its BuildingBlocks project references.
+  Setting the property only in a module's project file does not propagate to those references.
+- An independent service can declare a direct `PackageReference` with an exact version, for example `Version="[1.0.0]"`.
 
 ```bash
 scripts/pack-contracts.sh [semver]              # -> artifacts/nuget (git-ignored local feed)
