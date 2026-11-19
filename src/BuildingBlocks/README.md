@@ -46,15 +46,17 @@ Namespaces did not change, but two types moved assembly to break cycles:
 host-composed mapper list:
 
 ```csharp
-services.AddEventDispatcher();                    // Core: IEventDispatcher
-services.AddEventMapper<BookingEventMapper>();    // each module registers only its own mapper(s)
-services.AddHttpContextEventHeaders();            // Web: CorrelationId / UserId / UserName headers
-builder.AddPersistMessageProcessor();             // PersistMessageProcessor: IIntegrationEventPublisher -> outbox
+services.AddEventDispatcher();                                  // Core: IEventDispatcher<TModule>
+services.AddEventMapper<BookingEventMapper>();                  // each module registers only its own mapper(s)
+services.AddHttpContextEventHeaders();                          // Web: CorrelationId / UserId / UserName headers
+builder.AddPersistMessageProcessor<BookingRoot>("Booking");      // IIntegrationEventPublisher<BookingRoot> -> outbox
 ```
 
 - `IEventMapper` registrations are enumerated and composed (`CompositeEventMapper`); first non-null mapping wins.
-- `IIntegrationEventPublisher` is the sink for integration events and internal commands. `AddPersistMessageProcessor`
-  registers the outbox-backed implementation; a host without an outbox can register its own.
+- Resolve `IEventDispatcher<BookingRoot>` for Booking events, using the owning module's marker type for other modules.
+- `IIntegrationEventPublisher<TModule>` is the module's sink for integration events and internal commands.
+  `AddPersistMessageProcessor<TModule>("Module")` registers its outbox-backed implementation; a host without an outbox
+  can register its own.
 - `IEventHeadersProvider` instances contribute envelope headers.
 
 ## Packaging (local NuGet feed, SemVer)
