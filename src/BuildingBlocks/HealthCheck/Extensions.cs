@@ -47,8 +47,9 @@ public static class Extensions
                     var factory = new ConnectionFactory
                     {
                         Uri = new Uri(
-                            rabbitMqConnection
-                                ?? $"amqp://{rabbitMqOptions.UserName}:{rabbitMqOptions.Password}@{rabbitMqOptions.HostName}"
+                            !string.IsNullOrEmpty(rabbitMqConnection)
+                                ? rabbitMqConnection
+                                : $"amqp://{rabbitMqOptions.UserName}:{rabbitMqOptions.Password}@{rabbitMqOptions.HostName}"
                         ),
                     };
                     return factory.CreateConnectionAsync();
