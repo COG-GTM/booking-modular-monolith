@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using BuildingBlocks.EFCore;
 using Flight.Aircrafts.Models;
 using Flight.Airports.Models;
@@ -6,14 +5,18 @@ using Flight.Flights.Models;
 using Flight.Seats.Models;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 
 namespace Flight.Data.Seed;
 
-public class FlightDataSeeder(FlightDbContext flightDbContext, FlightReadDbContext flightReadDbContext, IMapper mapper)
-    : IDataSeeder
+public class FlightDataSeeder(
+    FlightDbContext flightDbContext,
+    FlightReadDbContext flightReadDbContext,
+    IMapper mapper
+) : IDataSeeder
 {
     public async Task SeedAllAsync()
     {
@@ -37,9 +40,7 @@ public class FlightDataSeeder(FlightDbContext flightDbContext, FlightReadDbConte
 
             if (!await MongoQueryable.AnyAsync(flightReadDbContext.Airport.AsQueryable()))
             {
-                await flightReadDbContext.Airport.InsertManyAsync(
-                    mapper.Map<List<AirportReadModel>>(InitialData.Airports)
-                );
+                await flightReadDbContext.Airport.InsertManyAsync(mapper.Map<List<AirportReadModel>>(InitialData.Airports));
             }
         }
     }
@@ -53,12 +54,11 @@ public class FlightDataSeeder(FlightDbContext flightDbContext, FlightReadDbConte
 
             if (!await MongoQueryable.AnyAsync(flightReadDbContext.Aircraft.AsQueryable()))
             {
-                await flightReadDbContext.Aircraft.InsertManyAsync(
-                    mapper.Map<List<AircraftReadModel>>(InitialData.Aircrafts)
-                );
+                await flightReadDbContext.Aircraft.InsertManyAsync(mapper.Map<List<AircraftReadModel>>(InitialData.Aircrafts));
             }
         }
     }
+
 
     private async Task SeedSeatAsync()
     {
@@ -82,13 +82,8 @@ public class FlightDataSeeder(FlightDbContext flightDbContext, FlightReadDbConte
     // which GetAvailableSeats returns and ReserveSeat then rejects.
     private async Task RepairLegacySeatNumbersAsync()
     {
-        var legacy = await flightReadDbContext
-            .Seat.Find(
-                Builders<SeatReadModel>.Filter.Regex(
-                    s => s.SeatNumber,
-                    new BsonRegularExpression($"^{Regex.Escape(LegacySeatNumberPrefix)}")
-                )
-            )
+        var legacy = await flightReadDbContext.Seat
+            .Find(Builders<SeatReadModel>.Filter.Regex(s => s.SeatNumber, new BsonRegularExpression($"^{Regex.Escape(LegacySeatNumberPrefix)}")))
             .ToListAsync();
 
         foreach (var seat in legacy)
@@ -97,8 +92,7 @@ public class FlightDataSeeder(FlightDbContext flightDbContext, FlightReadDbConte
             {
                 await flightReadDbContext.Seat.UpdateOneAsync(
                     s => s.Id == seat.Id,
-                    Builders<SeatReadModel>.Update.Set(s => s.SeatNumber, seatNumber)
-                );
+                    Builders<SeatReadModel>.Update.Set(s => s.SeatNumber, seatNumber));
             }
         }
     }
@@ -109,10 +103,7 @@ public class FlightDataSeeder(FlightDbContext flightDbContext, FlightReadDbConte
     {
         seatNumber = value;
 
-        if (
-            !value.StartsWith(LegacySeatNumberPrefix, StringComparison.Ordinal)
-            || !value.EndsWith(" }", StringComparison.Ordinal)
-        )
+        if (!value.StartsWith(LegacySeatNumberPrefix, StringComparison.Ordinal) || !value.EndsWith(" }", StringComparison.Ordinal))
             return false;
 
         var raw = value[LegacySeatNumberPrefix.Length..^2];
@@ -132,9 +123,7 @@ public class FlightDataSeeder(FlightDbContext flightDbContext, FlightReadDbConte
 
             if (!await MongoQueryable.AnyAsync(flightReadDbContext.Flight.AsQueryable()))
             {
-                await flightReadDbContext.Flight.InsertManyAsync(
-                    mapper.Map<List<FlightReadModel>>(InitialData.Flights)
-                );
+                await flightReadDbContext.Flight.InsertManyAsync(mapper.Map<List<FlightReadModel>>(InitialData.Flights));
             }
         }
     }

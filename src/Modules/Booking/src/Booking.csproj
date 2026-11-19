@@ -25,7 +25,5 @@
     <ProjectReference Include="..\..\..\BuildingBlocks\Web\BuildingBlocks.Web.csproj" />
   </ItemGroup>
 
-
   <Import Project="..\..\..\Contracts\Contracts.Grpc.Reference.props" />
-
 </Project>

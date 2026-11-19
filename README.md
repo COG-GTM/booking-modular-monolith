@@ -238,7 +238,7 @@ Booking calls Flight and Passenger over gRPC using the single shared contract in
 Endpoints come from configuration/service discovery (`Grpc:Flight:Address=http://_grpc.flight` resolved from
 `Services:flight:grpc:0`), idempotent reads retry on `Unavailable`, every call gets a default deadline, and
 `/health/ready` includes the downstream gRPC health. The monolith serves h2c gRPC on `3002` (`81` in docker). See the
-[runbook](./docs/runbooks/grpc-service-addressing.md) and [ADR 0101](./docs/adr/0101-shared-grpc-contracts-and-service-addressing.md).
+[runbook](./docs/runbooks/grpc-service-addressing.md) and [ADR 0103](./docs/adr/0103-shared-grpc-contracts-and-service-addressing.md).
 
 
 > ### Build

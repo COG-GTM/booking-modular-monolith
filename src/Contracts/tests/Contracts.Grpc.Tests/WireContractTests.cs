@@ -7,7 +7,7 @@ namespace Contracts.Grpc.Tests;
 
 /// <summary>
 /// Guards the wire contract: packages, service/method paths, field numbers/types and enum values must not change
-/// (ADR 0101). Additive changes update contract.snapshot.txt in the same PR; anything else is a breaking change.
+/// (ADR 0103). Additive changes update contract.snapshot.txt in the same PR; anything else is a breaking change.
 /// </summary>
 public class WireContractTests
 {
@@ -56,7 +56,7 @@ public class WireContractTests
             .Should()
             .Be(
                 expected,
-                "breaking proto changes need a new package (see ADR 0101); additive ones update the snapshot"
+                "breaking proto changes need a new package (see ADR 0103); additive ones update the snapshot"
             );
     }
 
