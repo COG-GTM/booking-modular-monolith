@@ -2,7 +2,7 @@
 
 - **Status:** Proposed
 - **Date:** 2026-10-29
-- **ARB ticket:** TO BE CREATED
+- **ARB ticket:** [AB-631](https://cog-gtm.atlassian.net/browse/AB-631)
 - **Authors:** Devin (AB-494)
 - **Owning team:** Booking platform team
 - **Related ADRs:** [0100](0100-buildingblocks-shared-libraries.md)
