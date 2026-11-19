@@ -73,6 +73,30 @@ public class HealthCheckOptionsBindingTests
     }
 
     [Fact]
+    public async Task empty_aspire_rabbitmq_connection_string_falls_back_to_rabbitmq_options()
+    {
+        await using var provider = CreateProvider(
+            new Dictionary<string, string?>
+            {
+                ["HealthOptions:Enabled"] = "true",
+                ["AppOptions:Name"] = "test-app",
+                ["ConnectionStrings:rabbitmq"] = "",
+                ["RabbitMqOptions:HostName"] = "127.0.0.1",
+                ["RabbitMqOptions:UserName"] = "guest",
+                ["RabbitMqOptions:Password"] = "guest",
+            }
+        );
+
+        RegistrationNames(provider).Should().BeEquivalentTo(["self", "rabbitmq"]);
+
+        var report = await provider
+            .GetRequiredService<HealthCheckService>()
+            .CheckHealthAsync(registration => registration.Name == "rabbitmq");
+
+        report.Entries["rabbitmq"].Exception.Should().NotBeOfType<UriFormatException>();
+    }
+
+    [Fact]
     public void rabbitmq_is_registered_without_unconfigured_database_checks()
     {
         using var provider = CreateProvider(
