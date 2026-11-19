@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -8,6 +10,11 @@ namespace BuildingBlocks.HealthCheck;
 // Check names and statuses only; failure descriptions can leak dependency details, so they are Development-only.
 public static class HealthResponseWriter
 {
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
     public static Task WriteAsync(HttpContext context, HealthReport report)
     {
         var includeDescriptions = context.RequestServices.GetService<IHostEnvironment>()?.IsDevelopment() ?? false;
@@ -24,7 +31,8 @@ public static class HealthResponseWriter
                         description = includeDescriptions ? entry.Value.Description : null,
                     }
                 ),
-            }
+            },
+            SerializerOptions
         );
     }
 }

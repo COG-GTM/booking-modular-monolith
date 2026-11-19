@@ -136,9 +136,15 @@ public class HealthTelemetryTests
         else
         {
             var check = checks.GetProperty("database");
-            check.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo("status", "description");
+            var isDevelopment = environmentName == "Development";
+            check
+                .EnumerateObject()
+                .Select(p => p.Name)
+                .Should()
+                .BeEquivalentTo(isDevelopment ? ["status", "description"] : new[] { "status" });
             check.GetProperty("status").GetString().Should().Be("Degraded");
-            check.GetProperty("description").GetString().Should().Be(environmentName == "Development" ? "slow" : null);
+            if (isDevelopment)
+                check.GetProperty("description").GetString().Should().Be("slow");
         }
     }
 }

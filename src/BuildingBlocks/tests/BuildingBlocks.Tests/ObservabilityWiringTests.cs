@@ -155,7 +155,7 @@ public class ObservabilityWiringTests
         var checks = body.RootElement.GetProperty("checks");
         checks.TryGetProperty("dependency", out _).Should().BeTrue();
         checks.TryGetProperty("self", out _).Should().BeFalse();
-        checks.GetProperty("dependency").GetProperty("description").ValueKind.Should().Be(JsonValueKind.Null);
+        checks.GetProperty("dependency").TryGetProperty("description", out _).Should().BeFalse();
     }
 
     [Fact]
