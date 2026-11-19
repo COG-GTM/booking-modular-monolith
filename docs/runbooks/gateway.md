@@ -47,6 +47,9 @@ Defined in `src/Gateway/src/appsettings.json` under `ReverseProxy`.
 
 `/health` and `/alive` are answered by the gateway itself. Backends still enforce their own
 authorization; the gateway forwards the `Authorization` header untouched (defence in depth).
+Requests with Content-Type `application/grpc*` are rejected with `404` before routing: internal gRPC
+services are not public gateway endpoints. The monolith's direct unauthenticated gRPC exposure is
+pre-existing and tracked separately; this gateway guard does not secure direct access to the monolith.
 
 ## Moving a route to an extracted service (config only)
 

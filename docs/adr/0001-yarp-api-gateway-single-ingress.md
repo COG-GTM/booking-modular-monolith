@@ -91,6 +91,9 @@ C4Container
 - **AuthN / AuthZ:** JWT bearer via `BuildingBlocks.Jwt`, issuer = existing monolith URL, audience `booking-modular-monolith`,
   `ApiScope` policy on `/api/**`; IdentityServer endpoints anonymous by design; backends re-validate.
 - **Secrets:** None in the gateway; signing keys stay in IdentityServer.
+- **Internal gRPC:** Gateway ingress rejects `application/grpc*` requests with `404` before proxying.
+  Direct unauthenticated monolith gRPC exposure is pre-existing and tracked separately; securing it is not
+  delivered by this ingress guard.
 - **Audit logging:** Per-request log line (no headers/bodies logged, so tokens and PII are not logged).
 - **Data residency / regions:** Unchanged.
 - **Policy sections satisfied:** Single ingress, central authentication, rate limiting.

@@ -6,6 +6,26 @@ namespace Gateway.Test;
 public class GatewayIngressBoundaryTests
 {
     [Theory]
+    [InlineData("/passenger.PassengerGrpcService/GetById", "application/grpc")]
+    [InlineData("/passenger.PassengerGrpcService/GetById", "application/grpc+proto")]
+    [InlineData("/passenger.PassengerGrpcService/GetById", "application/grpc-web+proto")]
+    [InlineData("/flight.FlightGrpcService/ReserveSeat", "Application/Grpc+json")]
+    public async Task anonymous_grpc_requests_are_not_exposed_by_the_public_gateway(string path, string contentType)
+    {
+        await using var backend = await EchoBackend.StartAsync("monolith");
+        await using var factory = GatewayFactory.AllClustersTo(backend);
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, path);
+        request.Content = new ByteArrayContent([]);
+        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Empty(backend.Requests);
+    }
+
+    [Theory]
     [InlineData("/api/v1/flight", 401)]
     [InlineData("/", 200)]
     [InlineData("/health", 200)]

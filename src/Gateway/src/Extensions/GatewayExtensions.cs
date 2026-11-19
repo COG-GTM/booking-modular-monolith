@@ -52,6 +52,22 @@ public static class GatewayExtensions
         app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseMiddleware<GatewayRequestLoggingMiddleware>();
 
+        app.Use(
+            async (context, next) =>
+            {
+                if (
+                    context.Request.ContentType?.StartsWith("application/grpc", StringComparison.OrdinalIgnoreCase)
+                    == true
+                )
+                {
+                    context.Response.StatusCode = StatusCodes.Status404NotFound;
+                    return;
+                }
+
+                await next(context);
+            }
+        );
+
         app.UseRouting();
         // Applied to every request so preflights are answered here, before authentication.
         app.UseCors(GatewayCorsOptions.PolicyName);
