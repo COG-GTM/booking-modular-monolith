@@ -1,0 +1,19 @@
+<Project>
+  <!-- Import this from every producer/consumer of integration events instead of referencing the project directly.
+       Default: project reference (in-repo development). With -p:UseContractsPackage=true the consumer restores the
+       pinned BookingModularMonolith.Contracts.Messages package instead (e.g. from the local feed in artifacts/nuget);
+       override the pin per consumer with ContractsMessagesPackageVersion. -->
+  <Import Project="Versions.props" Condition="'$(ContractsVersionsImported)' != 'true'" />
+
+  <PropertyGroup>
+    <ContractsMessagesPackageVersion Condition="'$(ContractsMessagesPackageVersion)' == ''">$(ContractsMessagesVersion)</ContractsMessagesPackageVersion>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(UseContractsPackage)' != 'true'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)Contracts.Messages/Contracts.Messages.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseContractsPackage)' == 'true'">
+    <PackageReference Include="BookingModularMonolith.Contracts.Messages" Version="[$(ContractsMessagesPackageVersion)]" />
+  </ItemGroup>
+</Project>

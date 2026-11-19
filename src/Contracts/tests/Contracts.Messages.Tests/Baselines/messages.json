@@ -1,0 +1,120 @@
+[
+  {
+    "type": "BuildingBlocks.Contracts.EventBus.Messages.AircraftCreated",
+    "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:AircraftCreated",
+    "members": [
+      {
+        "name": "Id",
+        "type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "type": "BuildingBlocks.Contracts.EventBus.Messages.AirportCreated",
+    "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:AirportCreated",
+    "members": [
+      {
+        "name": "Id",
+        "type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "type": "BuildingBlocks.Contracts.EventBus.Messages.BookingCreated",
+    "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:BookingCreated",
+    "members": [
+      {
+        "name": "Id",
+        "type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "type": "BuildingBlocks.Contracts.EventBus.Messages.FlightCreated",
+    "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:FlightCreated",
+    "members": [
+      {
+        "name": "Id",
+        "type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "type": "BuildingBlocks.Contracts.EventBus.Messages.FlightDeleted",
+    "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:FlightDeleted",
+    "members": [
+      {
+        "name": "Id",
+        "type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "type": "BuildingBlocks.Contracts.EventBus.Messages.FlightUpdated",
+    "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:FlightUpdated",
+    "members": [
+      {
+        "name": "Id",
+        "type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "type": "BuildingBlocks.Contracts.EventBus.Messages.PassengerCreated",
+    "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:PassengerCreated",
+    "members": [
+      {
+        "name": "Id",
+        "type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "type": "BuildingBlocks.Contracts.EventBus.Messages.PassengerRegistrationCompleted",
+    "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:PassengerRegistrationCompleted",
+    "members": [
+      {
+        "name": "Id",
+        "type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "type": "BuildingBlocks.Contracts.EventBus.Messages.SeatCreated",
+    "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:SeatCreated",
+    "members": [
+      {
+        "name": "Id",
+        "type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "type": "BuildingBlocks.Contracts.EventBus.Messages.SeatReserved",
+    "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:SeatReserved",
+    "members": [
+      {
+        "name": "Id",
+        "type": "System.Guid"
+      }
+    ]
+  },
+  {
+    "type": "BuildingBlocks.Contracts.EventBus.Messages.UserCreated",
+    "urn": "urn:message:BuildingBlocks.Contracts.EventBus.Messages:UserCreated",
+    "members": [
+      {
+        "name": "Id",
+        "type": "System.Guid"
+      },
+      {
+        "name": "Name",
+        "type": "System.String"
+      },
+      {
+        "name": "PassportNumber",
+        "type": "System.String"
+      }
+    ]
+  }
+]

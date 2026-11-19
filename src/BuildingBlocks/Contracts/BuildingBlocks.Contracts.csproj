@@ -1,8 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Description>Integration-event message contracts shared between modules.</Description>
+    <Description>Compatibility assembly forwarding integration-event message types to Contracts.Messages.</Description>
   </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Core\BuildingBlocks.Core.csproj" />
-  </ItemGroup>
+  <Import Project="..\..\Contracts\Contracts.Messages.Reference.props" />
 </Project>

@@ -1,0 +1,9 @@
+<Project>
+  <!-- Single source of truth for the integration-event contract package version (SemVer 2.0).
+       Bump MINOR for additive changes, MAJOR only when a breaking message change is unavoidable
+       (normally ship a new message version instead, see src/Contracts/README.md). -->
+  <PropertyGroup>
+    <ContractsVersionsImported>true</ContractsVersionsImported>
+    <ContractsMessagesVersion Condition="'$(ContractsMessagesVersion)' == ''">1.0.0</ContractsMessagesVersion>
+  </PropertyGroup>
+</Project>
