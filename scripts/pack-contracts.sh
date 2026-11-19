@@ -16,9 +16,7 @@ if [[ -n "$version" && ! "$version" =~ $semver ]]; then
 fi
 
 mkdir -p "$feed"
-version_args=()
-[[ -n "$version" ]] && version_args=("-p:ContractsMessagesVersion=$version")
 
 echo "==> packing Contracts.Messages"
-dotnet pack "$repo_root/src/Contracts/Contracts.Messages/Contracts.Messages.csproj" -c Release -o "$feed" -nologo -v quiet "${version_args[@]}"
+dotnet pack "$repo_root/src/Contracts/Contracts.Messages/Contracts.Messages.csproj" -c Release -o "$feed" -nologo -v quiet ${version:+"-p:ContractsMessagesVersion=$version"}
 echo "Packed BookingModularMonolith.Contracts.Messages into $feed"

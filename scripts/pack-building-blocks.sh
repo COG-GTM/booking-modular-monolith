@@ -17,16 +17,15 @@ if [[ -n "$version" && ! "$version" =~ $semver ]]; then
 fi
 
 mkdir -p "$feed"
-version_args=()
-# BuildingBlocksVersion (not Version) so the global property does not re-version the Contracts.Messages dependency.
-[[ -n "$version" ]] && version_args=("-p:BuildingBlocksVersion=$version")
 
 "$repo_root/scripts/pack-contracts.sh" "" "$feed"
 
-mapfile -t projects < <(find "$repo_root/src/BuildingBlocks" -name 'BuildingBlocks*.csproj' -not -path '*/tests/*' | sort)
-for project in "${projects[@]}"; do
+count=0
+while IFS= read -r project; do
   echo "==> packing $(basename "$project" .csproj)"
-  dotnet pack "$project" -c Release -o "$feed" -nologo -v quiet "${version_args[@]}"
-done
+  # BuildingBlocksVersion (not Version) so the global property does not re-version the Contracts.Messages dependency.
+  dotnet pack "$project" -c Release -o "$feed" -nologo -v quiet ${version:+"-p:BuildingBlocksVersion=$version"}
+  ((count += 1))
+done < <(find "$repo_root/src/BuildingBlocks" -name 'BuildingBlocks*.csproj' -not -path '*/tests/*' | sort)
 
-echo "Packed ${#projects[@]} packages into $feed"
+echo "Packed $count packages into $feed"
