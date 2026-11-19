@@ -15,7 +15,7 @@ public class EventDispatcherTests
         await using var provider = BuildProvider(services => services.AddEventMapper<OrderEventMapper>());
         await using var scope = provider.CreateAsyncScope();
 
-        var dispatcher = scope.ServiceProvider.GetRequiredService<IEventDispatcher>();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IEventDispatcher<EventDispatcherTests>>();
         var publisher = scope.ServiceProvider.GetRequiredService<RecordingPublisher>();
 
         await dispatcher.SendAsync(new OrderPlaced(Guid.NewGuid()));
@@ -35,7 +35,7 @@ public class EventDispatcherTests
         });
         await using var scope = provider.CreateAsyncScope();
 
-        var dispatcher = scope.ServiceProvider.GetRequiredService<IEventDispatcher>();
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IEventDispatcher<EventDispatcherTests>>();
         var publisher = scope.ServiceProvider.GetRequiredService<RecordingPublisher>();
 
         await dispatcher.SendAsync(
@@ -55,7 +55,9 @@ public class EventDispatcherTests
         await using var provider = BuildProvider(services => services.AddEventMapper<OrderEventMapper>());
         await using var scope = provider.CreateAsyncScope();
 
-        await scope.ServiceProvider.GetRequiredService<IEventDispatcher>().SendAsync(new PaymentTaken(Guid.NewGuid()));
+        await scope
+            .ServiceProvider.GetRequiredService<IEventDispatcher<EventDispatcherTests>>()
+            .SendAsync(new PaymentTaken(Guid.NewGuid()));
 
         scope.ServiceProvider.GetRequiredService<RecordingPublisher>().Published.Should().BeEmpty();
     }
@@ -67,7 +69,9 @@ public class EventDispatcherTests
         await using var scope = provider.CreateAsyncScope();
 
         var act = () =>
-            scope.ServiceProvider.GetRequiredService<IEventDispatcher>().SendAsync(new OrderPlaced(Guid.NewGuid()));
+            scope
+                .ServiceProvider.GetRequiredService<IEventDispatcher<EventDispatcherTests>>()
+                .SendAsync(new OrderPlaced(Guid.NewGuid()));
 
         await act.Should().NotThrowAsync();
         scope.ServiceProvider.GetRequiredService<RecordingPublisher>().Published.Should().BeEmpty();
@@ -80,7 +84,7 @@ public class EventDispatcherTests
         await using var scope = provider.CreateAsyncScope();
 
         await scope
-            .ServiceProvider.GetRequiredService<IEventDispatcher>()
+            .ServiceProvider.GetRequiredService<IEventDispatcher<EventDispatcherTests>>()
             .SendAsync(new OrderPlaced(Guid.NewGuid()), typeof(IInternalCommand));
 
         scope
@@ -102,7 +106,9 @@ public class EventDispatcherTests
         });
         await using var scope = provider.CreateAsyncScope();
 
-        await scope.ServiceProvider.GetRequiredService<IEventDispatcher>().SendAsync(new OrderPlaced(Guid.NewGuid()));
+        await scope
+            .ServiceProvider.GetRequiredService<IEventDispatcher<EventDispatcherTests>>()
+            .SendAsync(new OrderPlaced(Guid.NewGuid()));
 
         var headers = scope.ServiceProvider.GetRequiredService<RecordingPublisher>().Published.Single().Headers;
         headers.Should().Contain("CorrelationId", "abc").And.Contain("Tenant", "t1");
@@ -112,11 +118,11 @@ public class EventDispatcherTests
     public void add_event_dispatcher_does_not_override_a_custom_dispatcher()
     {
         var services = new ServiceCollection();
-        services.AddScoped<IEventDispatcher, NoopDispatcher>();
+        services.AddScoped<IEventDispatcher<EventDispatcherTests>, NoopDispatcher>();
         services.AddEventDispatcher();
 
         services
-            .Where(x => x.ServiceType == typeof(IEventDispatcher))
+            .Where(x => x.ServiceType == typeof(IEventDispatcher<EventDispatcherTests>))
             .Should()
             .ContainSingle()
             .Which.ImplementationType.Should()
@@ -128,7 +134,9 @@ public class EventDispatcherTests
         var services = new ServiceCollection();
         services.AddSingleton(typeof(Microsoft.Extensions.Logging.ILogger<>), typeof(NullLogger<>));
         services.AddScoped<RecordingPublisher>();
-        services.AddScoped<IIntegrationEventPublisher>(sp => sp.GetRequiredService<RecordingPublisher>());
+        services.AddScoped<IIntegrationEventPublisher<EventDispatcherTests>>(sp =>
+            sp.GetRequiredService<RecordingPublisher>()
+        );
         services.AddEventDispatcher();
         configure(services);
         return services.BuildServiceProvider(
@@ -163,7 +171,7 @@ public class EventDispatcherTests
         public IInternalCommand? MapToInternalCommand(IDomainEvent @event) => null;
     }
 
-    private sealed class RecordingPublisher : IIntegrationEventPublisher
+    private sealed class RecordingPublisher : IIntegrationEventPublisher<EventDispatcherTests>
     {
         public List<MessageEnvelope> Published { get; } = new();
 
@@ -191,7 +199,7 @@ public class EventDispatcherTests
         public IReadOnlyDictionary<string, object?> GetHeaders() => new Dictionary<string, object?> { [key] = value };
     }
 
-    private sealed class NoopDispatcher : IEventDispatcher
+    private sealed class NoopDispatcher : IEventDispatcher<EventDispatcherTests>
     {
         public Task SendAsync<T>(
             IReadOnlyList<T> events,

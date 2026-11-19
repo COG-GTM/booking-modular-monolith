@@ -16,6 +16,42 @@ namespace BuildingBlocks.Tests;
 public class HealthCheckOptionsBindingTests
 {
     [Fact]
+    public void module_mongo_overrides_register_one_check_per_distinct_connection()
+    {
+        using var provider = CreateProvider(
+            new Dictionary<string, string?>
+            {
+                ["HealthOptions:Enabled"] = "true",
+                ["MongoOptions:ConnectionString"] = "mongodb://shared:27017",
+                ["MongoOptions:Booking:ConnectionString"] = "mongodb://shared:27017",
+                ["MongoOptions:Flight:ConnectionString"] = "mongodb://flight:27017",
+                ["MongoOptions:Passenger:ConnectionString"] = "mongodb://flight:27017",
+                ["MongoOptions:Identity:ConnectionString"] = "mongodb://identity:27017",
+                ["MongoOptions:ReadOnly:DatabaseName"] = "read-only",
+                ["MongoOptions:Empty:ConnectionString"] = " ",
+            }
+        );
+
+        RegistrationNames(provider)
+            .Should()
+            .BeEquivalentTo(["self", "rabbitmq", "MongoDB-Health", "MongoDB-Flight-Health", "MongoDB-Identity-Health"]);
+    }
+
+    [Fact]
+    public void module_mongo_overrides_are_checked_without_a_shared_connection()
+    {
+        using var provider = CreateProvider(
+            new Dictionary<string, string?>
+            {
+                ["HealthOptions:Enabled"] = "true",
+                ["MongoOptions:Passenger:ConnectionString"] = "mongodb://passenger:27017",
+            }
+        );
+
+        RegistrationNames(provider).Should().BeEquivalentTo(["self", "rabbitmq", "MongoDB-Passenger-Health"]);
+    }
+
+    [Fact]
     public void enabled_health_checks_register_all_configured_dependencies()
     {
         using var provider = CreateProvider(
@@ -57,7 +93,13 @@ public class HealthCheckOptionsBindingTests
     [Fact]
     public void disabled_health_checks_register_only_self()
     {
-        using var provider = CreateProvider(new Dictionary<string, string?> { ["HealthOptions:Enabled"] = "false" });
+        using var provider = CreateProvider(
+            new Dictionary<string, string?>
+            {
+                ["HealthOptions:Enabled"] = "false",
+                ["MongoOptions:Flight:ConnectionString"] = "mongodb://flight:27017",
+            }
+        );
 
         RegistrationNames(provider).Should().BeEquivalentTo(["self"]);
     }

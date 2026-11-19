@@ -4,8 +4,9 @@ using BuildingBlocks.Core.Event;
 namespace BuildingBlocks.PersistMessageProcessor;
 
 // Routes EventDispatcher output through the persist-message outbox / internal-command store.
-public sealed class PersistMessageIntegrationEventPublisher(IPersistMessageProcessor persistMessageProcessor)
-    : IIntegrationEventPublisher
+public sealed class PersistMessageIntegrationEventPublisher<TModule>(
+    IPersistMessageProcessor<TModule> persistMessageProcessor
+) : IIntegrationEventPublisher<TModule>
 {
     public Task PublishAsync(MessageEnvelope messageEnvelope, CancellationToken cancellationToken = default) =>
         persistMessageProcessor.PublishMessageAsync(messageEnvelope, cancellationToken);

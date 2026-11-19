@@ -1,6 +1,7 @@
 using BuildingBlocks.Core;
 using BuildingBlocks.EFCore;
 using BuildingBlocks.Mapster;
+using BuildingBlocks.PersistMessageProcessor;
 using BuildingBlocks.Web;
 using FluentValidation;
 using Identity.Data;
@@ -15,6 +16,7 @@ public static class InfrastructureExtensions
 {
     public static WebApplicationBuilder AddIdentityModules(this WebApplicationBuilder builder)
     {
+        builder.AddPersistMessageProcessor<IdentityRoot>("Identity");
         builder.Services.AddEventMapper<IdentityEventMapper>();
         builder.AddMinimalEndpoints(assemblies: typeof(IdentityRoot).Assembly);
         builder.Services.AddValidatorsFromAssembly(typeof(IdentityRoot).Assembly);

@@ -1,0 +1,4 @@
+services:
+  postgres:
+    volumes:
+      - ./init/postgres:/docker-entrypoint-initdb.d:ro

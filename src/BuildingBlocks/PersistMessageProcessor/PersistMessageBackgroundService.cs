@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -5,12 +6,12 @@ using Microsoft.Extensions.Options;
 
 namespace BuildingBlocks.PersistMessageProcessor;
 
-public class PersistMessageBackgroundService(
-    ILogger<PersistMessageBackgroundService> logger,
+public class PersistMessageBackgroundService<TModule>(
+    ILogger<PersistMessageBackgroundService<TModule>> logger,
     IServiceProvider serviceProvider,
-    IOptions<PersistMessageOptions> options
-)
-    : BackgroundService
+    IOptions<PersistMessageOptions> options,
+    PersistMessageWorkerStores stores
+) : BackgroundService
 {
     private PersistMessageOptions _options = options.Value;
 
@@ -18,7 +19,19 @@ public class PersistMessageBackgroundService(
     {
         logger.LogInformation("PersistMessage Background Service Start");
 
-        await ProcessAsync(stoppingToken);
+        await using var scope = serviceProvider.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<PersistMessageDbContext<TModule>>();
+        var connectionString = context.Database.GetConnectionString()!;
+        if (!stores.TryClaim(connectionString))
+            return;
+        try
+        {
+            await ProcessAsync(stoppingToken);
+        }
+        finally
+        {
+            stores.Release(connectionString);
+        }
     }
 
     public override Task StopAsync(CancellationToken cancellationToken)
@@ -32,15 +45,25 @@ public class PersistMessageBackgroundService(
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await using (var scope = serviceProvider.CreateAsyncScope())
+            try
             {
-                var service = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor>();
+                await using var scope = serviceProvider.CreateAsyncScope();
+                var service = scope.ServiceProvider.GetRequiredService<IPersistMessageProcessor<TModule>>();
                 await service.ProcessAllAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                // e.g. broker or database unavailable: rows stay pending and are retried on the next poll.
+                logger.LogError(ex, "PersistMessage processing failed; retrying on the next poll");
             }
 
             var delay = _options.Interval is { }
-                            ? TimeSpan.FromSeconds((int)_options.Interval)
-                            : TimeSpan.FromSeconds(30);
+                ? TimeSpan.FromSeconds((int)_options.Interval)
+                : TimeSpan.FromSeconds(30);
 
             await Task.Delay(delay, stoppingToken);
         }

@@ -1,6 +1,7 @@
 using BuildingBlocks.Web;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
@@ -43,11 +44,29 @@ public static class Extensions
                     return factory.CreateConnectionAsync();
                 });
 
+            var mongoConnections = new HashSet<string>(StringComparer.Ordinal);
             if (!string.IsNullOrEmpty(mongoOptions.ConnectionString))
             {
+                mongoConnections.Add(mongoOptions.ConnectionString);
                 healthChecksBuilder.AddMongoDb(
                     clientFactory: _ => new MongoClient(mongoOptions.ConnectionString),
                     name: "MongoDB-Health",
+                    failureStatus: HealthStatus.Unhealthy,
+                    timeout: TimeSpan.FromSeconds(10)
+                );
+            }
+
+            using var provider = services.BuildServiceProvider();
+            var configuration = provider.GetRequiredService<IConfiguration>();
+            foreach (var module in configuration.GetSection("MongoOptions").GetChildren())
+            {
+                var connectionString = module["ConnectionString"];
+                if (string.IsNullOrWhiteSpace(connectionString) || !mongoConnections.Add(connectionString))
+                    continue;
+
+                healthChecksBuilder.AddMongoDb(
+                    clientFactory: _ => new MongoClient(connectionString),
+                    name: $"MongoDB-{module.Key}-Health",
                     failureStatus: HealthStatus.Unhealthy,
                     timeout: TimeSpan.FromSeconds(10)
                 );

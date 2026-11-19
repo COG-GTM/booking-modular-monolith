@@ -4,7 +4,7 @@ using MessageEnvelope = BuildingBlocks.Core.Event.MessageEnvelope;
 
 namespace BuildingBlocks.Core;
 
-public sealed class EventDispatcher(
+public class EventDispatcher(
     IEnumerable<IEventMapper> eventMappers,
     ILogger<EventDispatcher> logger,
     IIntegrationEventPublisher integrationEventPublisher,
@@ -149,3 +149,10 @@ public sealed class EventDispatcher(
         return headers;
     }
 }
+
+public sealed class EventDispatcher<TModule>(
+    IEnumerable<IEventMapper> eventMappers,
+    ILogger<EventDispatcher> logger,
+    IIntegrationEventPublisher<TModule> integrationEventPublisher,
+    IEnumerable<IEventHeadersProvider> eventHeadersProviders
+) : EventDispatcher(eventMappers, logger, integrationEventPublisher, eventHeadersProviders), IEventDispatcher<TModule>;
