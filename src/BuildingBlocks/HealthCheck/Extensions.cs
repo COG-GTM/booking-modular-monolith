@@ -35,9 +35,12 @@ public static class Extensions
 
             var configuration = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
 
-            var healthChecksBuilder = services
-                .AddHealthChecks()
-                .AddRabbitMQ(serviceProvider =>
+            var healthChecksBuilder = services.AddHealthChecks();
+
+            // The monolith runs MassTransit in memory; only hosts with a broker configure RabbitMqOptions.
+            if (!string.IsNullOrEmpty(rabbitMqOptions.HostName))
+            {
+                healthChecksBuilder.AddRabbitMQ(serviceProvider =>
                 {
                     var factory = new ConnectionFactory
                     {
@@ -47,6 +50,7 @@ public static class Extensions
                     };
                     return factory.CreateConnectionAsync();
                 });
+            }
 
             if (!string.IsNullOrEmpty(mongoOptions.ConnectionString))
             {

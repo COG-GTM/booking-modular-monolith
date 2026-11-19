@@ -43,10 +43,7 @@ public class ServiceTelemetryProbeGapTests
 
         var registrations = Registrations(provider);
 
-        registrations
-            .Select(r => r.Name)
-            .Should()
-            .BeEquivalentTo(["self", "rabbitmq", "Postgres-Flight", "Postgres-Passenger"]);
+        registrations.Select(r => r.Name).Should().BeEquivalentTo(["self", "Postgres-Flight", "Postgres-Passenger"]);
         registrations
             .Where(r => r.Name.StartsWith("Postgres-", StringComparison.Ordinal))
             .Should()
@@ -89,7 +86,7 @@ public class ServiceTelemetryProbeGapTests
             .Where(HealthExtensions.IsReadinessCheck)
             .Select(r => r.Name)
             .Should()
-            .BeEquivalentTo(["rabbitmq", "Postgres-Flight", "eventstore", "MongoDB-Health"]);
+            .BeEquivalentTo(["Postgres-Flight", "eventstore", "MongoDB-Health"]);
     }
 
     [Theory]
@@ -118,7 +115,7 @@ public class ServiceTelemetryProbeGapTests
             .Should()
             .Be(uiEnabled);
         using var provider = services.BuildServiceProvider();
-        Registrations(provider).Select(r => r.Name).Should().Contain(["self", "rabbitmq"]);
+        Registrations(provider).Select(r => r.Name).Should().Contain(["self"]);
     }
 
     [Fact]
