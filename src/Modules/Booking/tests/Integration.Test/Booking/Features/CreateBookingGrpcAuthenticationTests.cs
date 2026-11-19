@@ -1,10 +1,7 @@
-using Api;
-using Booking.Data;
 using Booking.Extensions.Infrastructure;
 using BookingFlight;
 using BookingPassenger;
 using BuildingBlocks.Jwt;
-using BuildingBlocks.TestBase;
 using Flight.Data;
 using Flight.Flights.Models;
 using FluentAssertions;
@@ -18,13 +15,10 @@ using Passenger.Data;
 using Passenger.Passengers.Models;
 using Xunit;
 
-namespace Integration.Test.Booking.Infrastructure;
+namespace Integration.Test.Booking.Features;
 
-public class GrpcAuthenticationFlowTests : BookingIntegrationTestBase
+public partial class CreateBookingTests
 {
-    public GrpcAuthenticationFlowTests(TestReadFixture<Program, BookingReadDbContext> fixture)
-        : base(fixture) { }
-
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
