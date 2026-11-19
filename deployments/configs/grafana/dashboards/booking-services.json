@@ -105,7 +105,7 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "min by (service_name, check) ({__name__=~\"booking_health_status.*\", service_name=~\"$service\"})",
+          "expr": "min by (service_name, check) ({__name__=~\"booking_health_status.*\", job=\"otel-collector\", service_name=~\"$service\"})",
           "legendFormat": "{{service_name}} / {{check}}"
         }
       ]
@@ -146,7 +146,7 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\"}[$__rate_interval]))",
+          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{job=\"otel-collector\", service_name=~\"$service\"}[$__rate_interval]))",
           "legendFormat": "{{service_name}}"
         }
       ]
@@ -187,7 +187,7 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\", http_response_status_code=~\"5..\"}[$__rate_interval])) / sum by (service_name) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\"}[$__rate_interval]))",
+          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{job=\"otel-collector\", service_name=~\"$service\", http_response_status_code=~\"5..\"}[$__rate_interval])) / sum by (service_name) (rate(http_server_request_duration_seconds_count{job=\"otel-collector\", service_name=~\"$service\"}[$__rate_interval]))",
           "legendFormat": "{{service_name}}"
         }
       ]
@@ -228,7 +228,7 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "histogram_quantile(0.95, sum by (le, service_name, http_route) (rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, service_name, http_route) (rate(http_server_request_duration_seconds_bucket{job=\"otel-collector\", service_name=~\"$service\"}[$__rate_interval])))",
           "legendFormat": "{{service_name}} {{http_route}}"
         }
       ]
@@ -269,7 +269,7 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "histogram_quantile(0.95, sum by (le, service_name, server_address) (rate(http_client_request_duration_seconds_bucket{service_name=~\"$service\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, service_name, server_address) (rate(http_client_request_duration_seconds_bucket{job=\"otel-collector\", service_name=~\"$service\"}[$__rate_interval])))",
           "legendFormat": "{{service_name}} -> {{server_address}}"
         }
       ]
@@ -310,7 +310,7 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "max by (service_name) ({__name__=~\"dotnet_process_memory_working_set_bytes|process_memory_usage_bytes\", service_name=~\"$service\"})",
+          "expr": "max by (service_name) ({__name__=~\"dotnet_process_memory_working_set_bytes|process_memory_usage_bytes\", job=\"otel-collector\", service_name=~\"$service\"})",
           "legendFormat": "{{service_name}}"
         }
       ]
@@ -351,7 +351,7 @@
             "type": "prometheus",
             "uid": "prometheus-uid"
           },
-          "expr": "max by (service_name) ({__name__=~\"dotnet_gc_last_collection_heap_size_bytes\", service_name=~\"$service\"})",
+          "expr": "max by (service_name) ({__name__=~\"dotnet_gc_last_collection_heap_size_bytes\", job=\"otel-collector\", service_name=~\"$service\"})",
           "legendFormat": "{{service_name}}"
         }
       ]
