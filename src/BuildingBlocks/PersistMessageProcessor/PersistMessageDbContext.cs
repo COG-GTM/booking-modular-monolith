@@ -107,6 +107,7 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
             $"""
             DO $$
             BEGIN
+                PERFORM pg_advisory_xact_lock(hashtextextended('persist_message_schema_upgrade', 0));
                 {statusUpgrade}
                 {deliveryUpgrade}
             END $$;

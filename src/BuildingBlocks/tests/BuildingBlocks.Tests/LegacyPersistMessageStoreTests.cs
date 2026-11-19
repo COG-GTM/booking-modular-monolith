@@ -18,6 +18,49 @@ namespace BuildingBlocks.Tests;
 
 public class LegacyPersistMessageStoreTests
 {
+    [Fact]
+    public async Task concurrent_replicas_upgrade_the_same_legacy_store()
+    {
+        AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+        await using var postgres = new PostgreSqlBuilder().WithImage("postgres:16").Build();
+        await postgres.StartAsync();
+        await using (
+            var legacy = new LegacyContext(
+                new DbContextOptionsBuilder<LegacyContext>()
+                    .UseNpgsql(postgres.GetConnectionString())
+                    .UseSnakeCaseNamingConvention()
+                    .Options
+            )
+        )
+        {
+            await legacy.Database.EnsureCreatedAsync();
+            legacy.PersistMessage.Add(new PersistMessage(Guid.NewGuid(), "test", "{}", MessageDeliveryType.Inbox));
+            await legacy.SaveChangesAsync();
+        }
+
+        var options = new DbContextOptionsBuilder<PersistMessageDbContext<LegacyPersistMessageStoreTests>>()
+            .UseNpgsql(postgres.GetConnectionString())
+            .UseSnakeCaseNamingConvention()
+            .Options;
+        var replicas = Enumerable
+            .Range(0, 8)
+            .Select(_ => new PersistMessageDbContext<LegacyPersistMessageStoreTests>(options))
+            .ToArray();
+        try
+        {
+            await Task.WhenAll(replicas.Select(replica => replica.Database.OpenConnectionAsync()));
+            await Task.WhenAll(replicas.Select(replica => Task.Run(replica.UpgradeLegacyPersistMessageTable)));
+            var row = await replicas[0].PersistMessage.SingleAsync();
+            row.MessageStatus.Should().Be(MessageStatus.InProgress);
+            row.DeliveryType.Should().Be(MessageDeliveryType.Inbox);
+        }
+        finally
+        {
+            foreach (var replica in replicas)
+                await replica.DisposeAsync();
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
