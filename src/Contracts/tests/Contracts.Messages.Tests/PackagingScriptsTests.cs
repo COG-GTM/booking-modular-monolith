@@ -8,6 +8,12 @@ namespace Contracts.Messages.Tests;
 // Exercises packaging scripts with a fake dotnet executable and isolated temporary feeds.
 public class PackagingScriptsTests
 {
+    private static readonly string VerificationConfig = Path.Combine(
+        ContractTypes.RepoRoot,
+        "scripts",
+        "verification.nuget.config"
+    );
+
     [UnixFact]
     public void pack_contracts_rejects_a_non_semver_version()
     {
@@ -106,6 +112,7 @@ public class PackagingScriptsTests
         var buildCalls = calls.Where(call => call.StartsWith("build ", StringComparison.Ordinal)).ToList();
 
         result.ExitCode.Should().Be(0, result.StandardOutput + result.StandardError);
+        AssertVerificationRestore(environment);
         restoredProject
             .Descendants("PackageReference")
             .Where(reference => reference.Attribute("Include")?.Value == "BookingModularMonolith.Contracts.Messages")
@@ -118,7 +125,7 @@ public class PackagingScriptsTests
             .OnlyContain(call =>
                 call.Contains("-p:UseContractsPackage=true", StringComparison.Ordinal)
                 && call.Contains($"-p:ContractsMessagesPackageVersion={version}", StringComparison.Ordinal)
-                && call.Contains($"-p:RestoreAdditionalProjectSources={environment.Feed}", StringComparison.Ordinal)
+                && call.Contains($"-p:RestoreConfigFile={VerificationConfig}", StringComparison.Ordinal)
             );
         buildCalls.Should().Contain(call => call.Contains("Identity.csproj", StringComparison.Ordinal));
         buildCalls.Should().Contain(call => call.Contains("Passenger.csproj", StringComparison.Ordinal));
@@ -148,6 +155,7 @@ public class PackagingScriptsTests
         var restoredProject = XDocument.Load(environment.RestoredProjectPath);
 
         result.ExitCode.Should().Be(0, result.StandardOutput + result.StandardError);
+        AssertVerificationRestore(environment);
         var packageReferences = restoredProject.Descendants("PackageReference");
         packageReferences
             .Where(reference => reference.Attribute("Include")?.Value == "BookingModularMonolith.BuildingBlocks.Core")
@@ -159,6 +167,19 @@ public class PackagingScriptsTests
             .Select(reference => reference.Attribute("Version")?.Value)
             .Should()
             .Contain(version);
+    }
+
+    private static void AssertVerificationRestore(FakeDotnetEnvironment environment)
+    {
+        environment
+            .Calls.Should()
+            .Contain(call =>
+                call.StartsWith("restore ", StringComparison.Ordinal)
+                && call.Contains($"--configfile {VerificationConfig}", StringComparison.Ordinal)
+            );
+        var restoreEnvironment = File.ReadAllLines(environment.RestoreEnvironmentPath);
+        restoreEnvironment[0].Should().Be(environment.Feed);
+        restoreEnvironment[1].Should().Be(Path.Combine(restoreEnvironment[2], "packages"));
     }
 
     private static string ReadProperty(string path, string property)
@@ -191,6 +212,8 @@ public class PackagingScriptsTests
                 project="$2"
                 project_dir="$(dirname "$project")"
                 cp "$project" "$FAKE_DOTNET_DIR/restored.csproj"
+                printf '%s\n' "${BOOKING_VERIFICATION_FEED:-}" "${NUGET_PACKAGES:-}" "$project_dir" \
+                  > "$FAKE_DOTNET_DIR/restore-environment"
                 mkdir -p "$project_dir/obj"
                 if [[ -n "${FAKE_ASSETS:-}" ]]; then
                   printf '%s' "$FAKE_ASSETS" > "$project_dir/obj/project.assets.json"
@@ -255,6 +278,7 @@ public class PackagingScriptsTests
         public string Path { get; }
         public string? Assets { get; }
         public string RestoredProjectPath => System.IO.Path.Combine(_directory, "restored.csproj");
+        public string RestoreEnvironmentPath => System.IO.Path.Combine(_directory, "restore-environment");
         public IReadOnlyList<string> Calls =>
             File.Exists(System.IO.Path.Combine(_directory, "calls.log"))
                 ? File.ReadAllLines(System.IO.Path.Combine(_directory, "calls.log"))
