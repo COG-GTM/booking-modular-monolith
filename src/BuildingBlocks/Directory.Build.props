@@ -3,7 +3,7 @@
 
   <!-- Shared packaging metadata for the BuildingBlocks.* libraries (local NuGet feed, SemVer). -->
   <PropertyGroup>
-    <BuildingBlocksVersion>1.0.0</BuildingBlocksVersion>
+    <BuildingBlocksVersion>1.1.0</BuildingBlocksVersion>
     <VersionPrefix>$(BuildingBlocksVersion)</VersionPrefix>
     <RootNamespace>BuildingBlocks</RootNamespace>
     <PackageId>BookingModularMonolith.$(MSBuildProjectName)</PackageId>

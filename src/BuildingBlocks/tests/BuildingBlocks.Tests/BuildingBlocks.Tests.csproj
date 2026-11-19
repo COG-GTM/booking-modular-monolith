@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Contracts\BuildingBlocks.Contracts.csproj" />
     <ProjectReference Include="..\..\Core\BuildingBlocks.Core.csproj" />
     <ProjectReference Include="..\..\Web\BuildingBlocks.Web.csproj" />
     <ProjectReference Include="..\..\PersistMessageProcessor\BuildingBlocks.PersistMessageProcessor.csproj" />

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Packs every BuildingBlocks.* library (and the transition aggregate) into a local NuGet feed.
+# Packs every BuildingBlocks.* library (and the transition aggregate) into a local NuGet feed, after the
+# Contracts.Messages package they depend on (packed with its own version, see scripts/pack-contracts.sh).
 # Usage: scripts/pack-building-blocks.sh [version] [feed-dir]
 #   version  SemVer 2.0 package version (default: BuildingBlocksVersion from src/BuildingBlocks/Directory.Build.props)
 #   feed-dir output folder used as the local feed (default: artifacts/nuget)
@@ -16,13 +17,15 @@ if [[ -n "$version" && ! "$version" =~ $semver ]]; then
 fi
 
 mkdir -p "$feed"
-version_args=()
-[[ -n "$version" ]] && version_args=("-p:Version=$version")
 
-mapfile -t projects < <(find "$repo_root/src/BuildingBlocks" -name 'BuildingBlocks*.csproj' -not -path '*/tests/*' | sort)
-for project in "${projects[@]}"; do
+"$repo_root/scripts/pack-contracts.sh" "" "$feed"
+
+count=0
+while IFS= read -r project; do
   echo "==> packing $(basename "$project" .csproj)"
-  dotnet pack "$project" -c Release -o "$feed" -nologo -v quiet "${version_args[@]}"
-done
+  # BuildingBlocksVersion (not Version) so the global property does not re-version the Contracts.Messages dependency.
+  dotnet pack "$project" -c Release -o "$feed" -nologo -v quiet ${version:+"-p:BuildingBlocksVersion=$version"}
+  ((count += 1))
+done < <(find "$repo_root/src/BuildingBlocks" -name 'BuildingBlocks*.csproj' -not -path '*/tests/*' | sort)
 
-echo "Packed ${#projects[@]} packages into $feed"
+echo "Packed $count packages into $feed"
