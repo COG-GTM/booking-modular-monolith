@@ -65,6 +65,20 @@ public class PackageSurfaceTests
         typeof(IIntegrationEvent).Assembly.Should().BeSameAs(ContractTypes.Assembly);
     }
 
+    [Fact]
+    public void legacy_contracts_package_keeps_its_core_dependency()
+    {
+        var project = XDocument.Load(
+            Path.Combine(ContractTypes.RepoRoot, "src/BuildingBlocks/Contracts/BuildingBlocks.Contracts.csproj")
+        );
+
+        project
+            .Descendants("ProjectReference")
+            .Select(x => x.Attribute("Include")!.Value.Replace('\\', '/'))
+            .Should()
+            .Contain("../Core/BuildingBlocks.Core.csproj");
+    }
+
     [Theory]
     [InlineData("src/BuildingBlocks/Core/BuildingBlocks.Core.csproj")]
     [InlineData("src/BuildingBlocks/Contracts/BuildingBlocks.Contracts.csproj")]
