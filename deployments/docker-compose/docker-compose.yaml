@@ -355,6 +355,29 @@ services:
     networks:
       - booking
 
+  #######################################################
+  #  Gateway (YARP) - single ingress
+  #######################################################
+  booking_gateway:
+    profiles: ["gateway"]
+    image: booking-gateway
+    build:
+      args:
+        Version: "1"
+      context: ../../
+      dockerfile: src/Gateway/Dockerfile
+    container_name: booking_gateway
+    ports:
+      - 5000:80
+    environment:
+      - ASPNETCORE_ENVIRONMENT=docker
+      # Repoint a route by overriding its cluster, e.g.
+      # - ReverseProxy__Clusters__flight__Destinations__primary__Address=http://flight_service:80/
+    depends_on:
+      - booking_modular_monolith
+    networks:
+      - booking
+
 networks:
   booking:
     name: booking
