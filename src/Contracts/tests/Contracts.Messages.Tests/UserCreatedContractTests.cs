@@ -40,15 +40,19 @@ public class UserCreatedContractTests
         const string v1Payload =
             """{"id":"6f1a2c3d-0000-4000-8000-000000000001","name":"Sam Hamed","passportNumber":"1234567890"}""";
 
-        var message = JsonSerializer.Deserialize<UserCreated>(
-            v1Payload,
-            new JsonSerializerOptions(JsonSerializerDefaults.Web)
-        );
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var message = JsonSerializer.Deserialize<UserCreated>(v1Payload, options);
 
         message
             .Should()
             .Be(new UserCreated(Guid.Parse("6f1a2c3d-0000-4000-8000-000000000001"), "Sam Hamed", "1234567890"));
-        JsonSerializer.Serialize(message, new JsonSerializerOptions(JsonSerializerDefaults.Web)).Should().Be(v1Payload);
+        using var legacy = JsonDocument.Parse(v1Payload);
+        using var serialized = JsonSerializer.SerializeToDocument(message, options);
+        foreach (var field in legacy.RootElement.EnumerateObject())
+        {
+            serialized.RootElement.TryGetProperty(field.Name, out var value).Should().BeTrue();
+            JsonElement.DeepEquals(value, field.Value).Should().BeTrue($"V1 field {field.Name} must retain its value");
+        }
     }
 
     public sealed class PassengerUserCreatedConsumer : IConsumer<UserCreated>
