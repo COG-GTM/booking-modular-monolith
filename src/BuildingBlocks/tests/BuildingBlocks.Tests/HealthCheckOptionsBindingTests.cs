@@ -38,6 +38,26 @@ public class HealthCheckOptionsBindingTests
     }
 
     [Fact]
+    public void module_postgres_checks_use_connection_string_overrides()
+    {
+        using var provider = CreateProvider(
+            new Dictionary<string, string?>
+            {
+                ["HealthOptions:Enabled"] = "true",
+                ["AppOptions:Name"] = "test-app",
+                ["RabbitMqOptions:HostName"] = "localhost",
+                ["PostgresOptions:ConnectionString:Flight"] = "",
+                ["PostgresOptions:ConnectionString:Passenger"] = "Host=localhost;Database=passenger",
+                ["ConnectionStrings:flight"] = "Host=flight-db;Database=flight",
+            }
+        );
+
+        RegistrationNames(provider)
+            .Should()
+            .BeEquivalentTo(["self", "rabbitmq", "Postgres-Flight", "Postgres-Passenger"]);
+    }
+
+    [Fact]
     public void rabbitmq_is_registered_without_unconfigured_database_checks()
     {
         using var provider = CreateProvider(

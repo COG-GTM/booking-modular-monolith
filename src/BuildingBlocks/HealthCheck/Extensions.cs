@@ -1,4 +1,5 @@
 using BuildingBlocks.Web;
+using Humanizer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Routing;
@@ -57,11 +58,13 @@ public static class Extensions
                 );
             }
 
-            // PostgresOptions:ConnectionString is either one string or one entry per module.
+            // PostgresOptions:ConnectionString is either one string or one entry per module;
+            // like AddCustomDbContext, a ConnectionStrings:<module> override (Aspire) wins.
             foreach (var module in configuration.GetSection("PostgresOptions:ConnectionString").GetChildren())
             {
-                if (!string.IsNullOrEmpty(module.Value))
-                    healthChecksBuilder.AddNpgSql(module.Value, name: $"Postgres-{module.Key}");
+                var connectionString = configuration.GetConnectionString(module.Key.Kebaberize()) ?? module.Value;
+                if (!string.IsNullOrEmpty(connectionString))
+                    healthChecksBuilder.AddNpgSql(connectionString, name: $"Postgres-{module.Key}");
             }
 
             var postgresConnection = configuration["PostgresOptions:ConnectionString"];
