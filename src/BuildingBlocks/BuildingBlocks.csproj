@@ -8,6 +8,8 @@
     <Description>Transition aggregate of all BookingModularMonolith.BuildingBlocks.* libraries.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="Contracts.Grpc\BuildingBlocks.Contracts.Grpc.csproj" />
+    <ProjectReference Include="Grpc\BuildingBlocks.Grpc.csproj" />
     <ProjectReference Include="Constants\BuildingBlocks.Constants.csproj" />
     <ProjectReference Include="Utils\BuildingBlocks.Utils.csproj" />
     <ProjectReference Include="Exception\BuildingBlocks.Exception.csproj" />

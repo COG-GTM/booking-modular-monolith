@@ -1,6 +1,6 @@
 namespace Integration.Test.Fakes;
 
-using BookingPassenger;
+using Contracts.Grpc.Passenger;
 using MassTransit;
 
 public static class FakePassengerResponse
@@ -13,8 +13,8 @@ public static class FakePassengerResponse
             {
                 Id = NewId.NextGuid().ToString(),
                 Name = "Test",
-                PassportNumber = "121618"
-            }
+                PassportNumber = "121618",
+            },
         };
 
         return result;

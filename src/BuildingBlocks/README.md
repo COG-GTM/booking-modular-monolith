@@ -11,6 +11,8 @@ needs no code changes. Decision record: [ADR 0100](../../docs/adr/0100-buildingb
 | `BuildingBlocks.Utils` | - | ASP.NET Core |
 | `BuildingBlocks.Exception` | - | Grpc.Core.Api |
 | `BuildingBlocks.Contracts` | Core | - |
+| `BuildingBlocks.Contracts.Grpc` | - | Google.Protobuf, Grpc.Core.Api (shared Flight/Passenger wire contracts) |
+| `BuildingBlocks.Grpc` | - | Grpc.Net.ClientFactory, Microsoft.Extensions.Http.Resilience |
 | `BuildingBlocks.Logging` / `Caching` / `Polly` / `Mapster` | - | MediatR, EasyCaching, Polly, Mapster |
 | `BuildingBlocks.Web` | Core, Utils | Asp.Versioning, Scrutor, Mapster |
 | `BuildingBlocks.Validation` | Exception | FluentValidation |
@@ -72,3 +74,19 @@ dotnet nuget add source "$PWD/artifacts/nuget" --name local-buildingblocks   # c
 
 CI (`.github/workflows/building-blocks.yml`) builds every library on its own, runs the tests above, packs with
 `1.0.0-ci.<run>` and runs the consumer check.
+
+## gRPC clients
+
+Flight and Passenger wire contracts live only in `Contracts.Grpc/Protos`. Keep field numbers stable;
+use additive changes, and version the proto package (for example `flight.v2`) for breaking changes.
+
+Register clients with `services.AddGrpcServiceClient<TClient>(configuration, "Flight")`.
+`Grpc:Clients:Flight:Address` and `Grpc:Clients:Passenger:Address` are required absolute HTTP(S) URIs
+(environment variables: `Grpc__Clients__Flight__Address`, `Grpc__Clients__Passenger__Address`).
+Missing or invalid addresses fail startup with the configuration key in the error.
+
+Resilience settings bind from `Grpc:Resilience`, then `Grpc:Clients:<Name>:Resilience` overrides individual values.
+Built-in defaults are `MaxRetryAttempts: 3`, `AttemptTimeout: "00:03:00"`, `TotalTimeout: "00:03:00"`,
+and `CircuitBreaker: { SamplingDuration: "00:02:00", FailureRatio: 0.1, BreakDuration: "00:00:05" }`.
+The total timeout wraps retries, with the attempt timeout inside the circuit breaker. HttpClient's
+own timeout is disabled so the configured pipeline owns timeout enforcement.

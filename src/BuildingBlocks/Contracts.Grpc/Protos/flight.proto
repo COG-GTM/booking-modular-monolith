@@ -1,6 +1,9 @@
+// Field numbers are the wire contract: additive changes only.
+// Breaking changes require a new package version (e.g. flight.v2).
 syntax = "proto3";
 
-package bookingFlight;
+package flight;
+option csharp_namespace = "Contracts.Grpc.Flight";
 import "google/protobuf/timestamp.proto";
 
 service FlightGrpcService {

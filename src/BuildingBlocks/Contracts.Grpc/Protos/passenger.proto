@@ -1,6 +1,9 @@
+// Field numbers are the wire contract: additive changes only.
+// Breaking changes require a new package version (e.g. passenger.v2).
 syntax = "proto3";
 
-package bookingPassenger;
+package passenger;
+option csharp_namespace = "Contracts.Grpc.Passenger";
 
 service PassengerGrpcService {
 
