@@ -101,6 +101,21 @@ public class PackagingScriptsTests
     }
 
     [UnixFact]
+    public void pack_building_blocks_uses_default_versions_when_mapfile_is_unavailable()
+    {
+        using var environment = new FakeDotnetEnvironment();
+
+        var result = environment.RunScript("scripts/pack-building-blocks.sh", "", disableMapfile: true);
+        var calls = environment.Calls;
+
+        result.ExitCode.Should().Be(0, result.StandardOutput + result.StandardError);
+        calls.Should().NotBeEmpty();
+        calls[0].Should().Contain("Contracts.Messages/Contracts.Messages.csproj");
+        calls.Should().Contain(call => call.Contains("BuildingBlocks.Core.csproj", StringComparison.Ordinal));
+        calls.Should().OnlyContain(call => call.EndsWith("-nologo -v quiet", StringComparison.Ordinal));
+    }
+
+    [UnixFact]
     public void verify_contracts_consumer_defaults_to_the_declared_contracts_version()
     {
         using var environment = new FakeDotnetEnvironment();
@@ -284,7 +299,7 @@ public class PackagingScriptsTests
                 ? File.ReadAllLines(System.IO.Path.Combine(_directory, "calls.log"))
                 : [];
 
-        public ProcessResult RunScript(string script, string version)
+        public ProcessResult RunScript(string script, string version, bool disableMapfile = false)
         {
             var startInfo = new ProcessStartInfo
             {
@@ -299,6 +314,12 @@ public class PackagingScriptsTests
             startInfo.ArgumentList.Add(Feed);
             startInfo.Environment["PATH"] = Path;
             startInfo.Environment["FAKE_DOTNET_DIR"] = _directory;
+            if (disableMapfile)
+            {
+                var bashEnv = System.IO.Path.Combine(_directory, "bash-env");
+                File.WriteAllText(bashEnv, "if (( BASH_VERSINFO[0] >= 4 )); then enable -n mapfile; fi\n");
+                startInfo.Environment["BASH_ENV"] = bashEnv;
+            }
             if (Assets is not null)
                 startInfo.Environment["FAKE_ASSETS"] = Assets;
 
