@@ -49,6 +49,7 @@ public static class Extensions
             {
                 context.Database.EnsureCreated();
                 context.CreatePersistMessageTableIfNotExists();
+                context.UpgradeLegacyPersistMessageTable();
             }
             return context;
         });

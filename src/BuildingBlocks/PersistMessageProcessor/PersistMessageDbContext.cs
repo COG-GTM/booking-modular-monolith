@@ -100,6 +100,50 @@ public class PersistMessageDbContext : DbContext, IPersistMessageDbContext
         Database.ExecuteSqlRaw(createTableSql);
     }
 
+    public void UpgradeLegacyPersistMessageTable()
+    {
+        var statusUpgrade = EnumColumnUpgrade("message_status", MessageStatus.InProgress);
+        var deliveryUpgrade = EnumColumnUpgrade("delivery_type", MessageDeliveryType.Outbox);
+        Database.ExecuteSqlRaw(
+            $"""
+            DO $$
+            BEGIN
+                {statusUpgrade}
+                {deliveryUpgrade}
+                IF EXISTS (
+                    SELECT 1 FROM pg_attribute
+                    WHERE attrelid = 'persist_message'::regclass AND attname = 'created'
+                        AND atttypid = 'timestamp without time zone'::regtype
+                ) THEN
+                    ALTER TABLE persist_message ALTER COLUMN created TYPE timestamp with time zone
+                        USING created AT TIME ZONE current_setting('TimeZone');
+                END IF;
+            END $$;
+            """
+        );
+    }
+
+    private static string EnumColumnUpgrade<TEnum>(string column, TEnum defaultValue)
+        where TEnum : struct, Enum
+    {
+        var cases = string.Join(
+            " ",
+            Enum.GetValues<TEnum>().Select(value => $"WHEN {Convert.ToInt64(value)} THEN '{value}'")
+        );
+        return $"""
+            IF EXISTS (
+                SELECT 1 FROM pg_attribute
+                WHERE attrelid = 'persist_message'::regclass AND attname = '{column}'
+                    AND atttypid = 'integer'::regtype
+            ) THEN
+                ALTER TABLE persist_message ALTER COLUMN {column} DROP DEFAULT;
+                ALTER TABLE persist_message ALTER COLUMN {column} TYPE text
+                    USING CASE {column} {cases} ELSE {column}::text END;
+                ALTER TABLE persist_message ALTER COLUMN {column} SET DEFAULT '{defaultValue}'::text;
+            END IF;
+            """;
+    }
+
     private void OnBeforeSaving()
     {
         try
