@@ -43,12 +43,21 @@ public class GatewayRouteIsolationTests
     [Theory]
     [InlineData("/connect/token")]
     [InlineData("/.well-known/openid-configuration")]
-    public async Task identity_routes_remove_client_supplied_forwarding_headers(string path)
+    [InlineData("/api/v1/identity/register-user")]
+    [InlineData("/api/v1/flight/seat")]
+    [InlineData("/api/v1/passenger/123")]
+    [InlineData("/api/v1/booking/123")]
+    [InlineData("/api/v1/flight")]
+    [InlineData("/api/v1/booking")]
+    [InlineData("/api/v1/unknown-module/anything")]
+    [InlineData("/scalar/v1")]
+    public async Task all_routes_use_destination_host_and_remove_client_supplied_forwarding_headers(string path)
     {
         await using var backend = await EchoBackend.StartAsync("identity");
         await using var factory = GatewayFactory.AllClustersTo(backend);
         using var client = factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", GatewayFactory.CreateToken());
         request.Headers.Host = "public.example.test";
         foreach (
             var header in new[] { "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "X-Forwarded-Prefix" }

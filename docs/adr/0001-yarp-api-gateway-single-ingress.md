@@ -35,6 +35,8 @@ This retains the target decision and ADR number reserved by PR #233; ARB approva
   is `https://localhost:3000`, matching the unchanged monolith validator. IdentityServer derives
   that issuer from the destination Host. Backends keep authorization (defence in depth).
   The issuer flip to the gateway URL is explicitly deferred to route-flip PRs.
+  All routes remove forwarded headers and use the destination Host, preserving the backend's native
+  HTTPS scheme for discovery and generated absolute URLs.
   The optional Compose service retains internal HTTP destinations: its service DNS/certificate and
   dynamically derived issuer cannot match the existing `https://localhost:3000` issuer without topology
   or issuer changes. Compose authenticated forwarding is therefore deferred, not solved with a TLS bypass.

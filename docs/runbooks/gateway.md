@@ -73,7 +73,8 @@ setting it here has no effect and is not sufficient for a safe cutover.
 * The monolith configuration is unchanged. Local gateway authority and discovery use
   `https://localhost:3000`. Identity routes do not preserve the original Host: YARP sends the destination
   Host so IdentityServer derives its existing monolith issuer. One token validates at both gateway and API.
-  Identity routes remove forwarded headers so an HTTP gateway caller cannot replace the backend's HTTPS scheme.
+  All routes remove forwarded headers so an HTTP gateway caller cannot replace the backend's HTTPS scheme
+  or cause backend-generated absolute URLs (such as CreateFlight's Location) to use HTTP on the HTTPS port.
 * `Jwt:MetadataAddress` optionally fetches discovery/JWKS from a different address; unset/empty retains
   authority-based discovery. It does not change the issuer. The issuer flip to the gateway URL belongs
   in the later route-flip PRs, not this slice.
