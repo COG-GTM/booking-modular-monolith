@@ -26,16 +26,7 @@ public static class Extensions
             (sp, options) =>
             {
                 var configuration = sp.GetRequiredService<IConfiguration>();
-                var name = moduleName.Kebaberize();
-                var connectionString =
-                    configuration.GetConnectionString($"{name}-persist-message")
-                    ?? configuration[$"PersistMessageOptions:ConnectionString:{moduleName}"]
-                    ?? configuration.GetConnectionString("persist-message")
-                    ?? configuration["PersistMessageOptions:ConnectionString"];
-                if (string.IsNullOrWhiteSpace(connectionString))
-                    throw new InvalidOperationException(
-                        $"No persist-message or Postgres connection string configured for module '{moduleName}'."
-                    );
+                var connectionString = ResolveConnectionString(configuration, moduleName);
 
                 options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention();
                 options.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
@@ -58,7 +49,13 @@ public static class Extensions
             IIntegrationEventPublisher<TModule>,
             PersistMessageIntegrationEventPublisher<TModule>
         >();
-        builder.Services.TryAddSingleton<PersistMessageWorkerStores>();
+        builder.Services.AddSingleton(sp => new PersistMessageModuleStore(
+            typeof(TModule),
+            ResolveConnectionString(sp.GetRequiredService<IConfiguration>(), moduleName)
+        ));
+        builder.Services.TryAddSingleton(sp => new PersistMessageWorkerStores(
+            sp.GetServices<PersistMessageModuleStore>()
+        ));
         if (
             builder.Configuration.GetValue<bool?>($"Modules:{moduleName}:BackgroundProcessingEnabled") != false
             && builder.Configuration.GetValue<bool?>("PersistMessageOptions:Enabled") != false
@@ -68,5 +65,20 @@ public static class Extensions
         }
 
         return builder.Services;
+    }
+
+    private static string ResolveConnectionString(IConfiguration configuration, string moduleName)
+    {
+        var name = moduleName.Kebaberize();
+        var connectionString =
+            configuration.GetConnectionString($"{name}-persist-message")
+            ?? configuration[$"PersistMessageOptions:ConnectionString:{moduleName}"]
+            ?? configuration.GetConnectionString("persist-message")
+            ?? configuration["PersistMessageOptions:ConnectionString"];
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new InvalidOperationException(
+                $"No persist-message or Postgres connection string configured for module '{moduleName}'."
+            );
+        return connectionString;
     }
 }

@@ -17,18 +17,21 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
     private readonly IMediator _mediator;
     private readonly IPersistMessageDbContext<TModule> _persistMessageDbContext;
     private readonly IPublishEndpoint _publishEndpoint;
+    private readonly PersistMessageWorkerStores _stores;
 
     public PersistMessageProcessor(
         ILogger<PersistMessageProcessor<TModule>> logger,
         IMediator mediator,
         IPersistMessageDbContext<TModule> persistMessageDbContext,
-        IPublishEndpoint publishEndpoint
+        IPublishEndpoint publishEndpoint,
+        PersistMessageWorkerStores? stores = null
     )
     {
         _logger = logger;
         _mediator = mediator;
         _persistMessageDbContext = persistMessageDbContext;
         _publishEndpoint = publishEndpoint;
+        _stores = stores ?? new PersistMessageWorkerStores();
     }
 
     public async Task PublishMessageAsync<TMessageEnvelope>(
@@ -227,15 +230,25 @@ public class PersistMessageProcessor<TModule> : IPersistMessageProcessor<TModule
 
     private async Task<bool> ProcessInternalAsync(PersistMessage message, CancellationToken cancellationToken)
     {
+        var commandType = TypeProvider.GetFirstMatchingTypeFromCurrentDomainAssembly(message.DataType);
+        if (commandType is null || !typeof(IInternalCommand).IsAssignableFrom(commandType))
+            return false;
+        if (!_stores.CanProcessInternalCommand<TModule>(commandType))
+        {
+            _logger.LogWarning(
+                "Internal command {DataType} is not owned by a module sharing the persist store for {Module}; leaving it pending.",
+                message.DataType,
+                typeof(TModule).Name
+            );
+            return false;
+        }
+
         var messageEnvelope = JsonSerializer.Deserialize<MessageEnvelope>(message.Data);
 
         if (messageEnvelope is null || messageEnvelope.Message is null)
             return false;
 
-        var data = JsonSerializer.Deserialize(
-            messageEnvelope.Message.ToString() ?? string.Empty,
-            TypeProvider.GetFirstMatchingTypeFromCurrentDomainAssembly(message.DataType) ?? typeof(object)
-        );
+        var data = JsonSerializer.Deserialize(messageEnvelope.Message.ToString() ?? string.Empty, commandType);
 
         if (data is not IInternalCommand internalCommand)
             return false;
