@@ -112,7 +112,8 @@ C4Container
 - **Dashboards / alarms:** ASP.NET Core / HttpClient OTel metrics; alert on 5xx and 429 rate per cluster.
 - **Rollback plan:** Remove a cluster override to send traffic back to the monolith; clients can call the monolith directly as a last resort.
 - **Migration / cut-over plan:** Clients switch to the gateway URL first (no behaviour change), then clusters are repointed
-  one module at a time (AB-505); the module's background processing is turned off in the monolith at the same time.
+  one module at a time (AB-505). Route-flip PRs must first implement a per-module background-processing
+  switch and disable the monolith's processor during cutover; this branch does not implement that switch.
 
 ## Policy exceptions requested
 

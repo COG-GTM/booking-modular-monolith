@@ -58,9 +58,11 @@ ReverseProxy__Clusters__flight__Destinations__primary__Address=http://flight-ser
 ```
 
 YARP reloads `appsettings*.json` changes at runtime; environment variables apply on restart.
-Rollback = remove the override (cluster falls back to the monolith address). When a service takes over a
-module, also turn off that module's background processing in the monolith
-(`Modules__<Module>__BackgroundProcessingEnabled=false`) - only one replica may process the outbox.
+Rollback = remove the override (cluster falls back to the monolith address). Before a service takes over a
+module, the route-flip PRs must add a switch to disable that module's background processing in the monolith:
+only one owner may process the outbox. The proposed
+`Modules__<Module>__BackgroundProcessingEnabled=false` setting is not implemented on this branch;
+setting it here has no effect and is not sufficient for a safe cutover.
 
 ## Authentication
 
