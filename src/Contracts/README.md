@@ -44,12 +44,15 @@ The CLR full name of a message is its wire identity: MassTransit derives the mes
 (`urn:message:BuildingBlocks.Contracts.EventBus.Messages:UserCreated`) and the outbox/inbox store it as `DataType`.
 Producers and consumers will be deployed independently, so for every published message:
 
-1. **Additive changes only** (MINOR bump): new messages, or new members appended to an existing record, which
-   older consumers ignore and newer consumers must treat as optional.
+1. **Additive changes only** (MINOR bump): new messages, or new optional, non-positional properties on existing
+   records. Keep existing constructors and deconstructors intact. Older consumers ignore the new fields;
+   newer consumers must accept messages without them.
 2. **Never** rename, remove or retype a member, rename/move a message, or change its namespace.
 3. **Breaking change = new message version.** Add a new record (e.g. `UserCreatedV2`) next to the old one, as the
    feature folders already do with `V1`; producers publish both until every consumer has moved to the new one, then
-   the old one is deprecated (`[Obsolete]`) and removed only in a MAJOR release.
+   the old one is deprecated (`[Obsolete]`) and removed only in a MAJOR release. After confirming no
+   producers, consumers, or persisted messages need the old type, remove its baseline entry explicitly in
+   the same reviewed change. The regeneration command intentionally does not authorize removals.
 4. PATCH bumps are for docs/metadata only.
 
 Bump `ContractsMessagesVersion` in [`Versions.props`](Versions.props) with every published change.
@@ -67,4 +70,6 @@ UPDATE_CONTRACT_BASELINES=true dotnet test src/Contracts/tests/Contracts.Message
 
 `BuildingBlocks.Core` forwards its former event interfaces and `BuildingBlocks.Contracts` forwards its
 former message types. Code compiled against those assemblies can still resolve them; new consumers
-reference `Contracts.Messages` directly.
+reference `Contracts.Messages` directly. Existing package consumers must upgrade their BuildingBlocks
+packages together to the same release (1.1.0 or newer): combining the old 1.0.0 Contracts assembly with
+the newer Core assembly can expose two definitions of the same event type.
