@@ -231,6 +231,24 @@ To run this app in `Docker`, use the [docker-compose.yaml](./deployments/docker-
 docker-compose -f ./deployments/docker-compose/docker-compose.yaml up -d
 ```
 
+> ### Optional API Gateway (future single ingress)
+
+The monolith remains the default entry point, with unchanged authentication settings. Opt in to the
+[YARP](https://microsoft.github.io/reverse-proxy/) gateway in [src/Gateway](./src/Gateway) at `http://localhost:5000`
+by running `dotnet run --project src/Gateway/src` alongside the API (trust the .NET development certificate first).
+The gateway validates JWTs (`ApiScope` policy for `/api/**`), applies CORS and rate limiting,
+propagates `correlationId`/W3C trace context and forwards to the `identity`, `flight`, `passenger`, `booking` and `monolith`
+clusters, which all point at `https://localhost:3000/` today. Identity requests use the destination Host,
+so tokens retain the monolith issuer and work at both hosts. An issuer flip to the gateway URL is deferred
+to the route-flip PRs. Aspire requires `Gateway__Enabled=true`; Compose requires `--profile gateway`
+and has a documented issuer/TLS limitation (see runbook). Moving a route to an extracted service is a configuration change only:
+
+```bash
+ReverseProxy__Clusters__flight__Destinations__primary__Address=http://flight-service:80/
+```
+
+See the [gateway runbook](./docs/runbooks/gateway.md) and [ADR 0001](./docs/adr/0001-yarp-api-gateway-single-ingress.md).
+
 > ### Build
 To `build` all modules, run this command in the `root` of the project:
 ```bash
