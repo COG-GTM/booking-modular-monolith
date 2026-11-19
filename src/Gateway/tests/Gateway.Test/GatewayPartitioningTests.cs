@@ -6,6 +6,38 @@ namespace Gateway.Test;
 
 public class GatewayPartitioningTests
 {
+    [Theory]
+    [InlineData(null, HttpStatusCode.Unauthorized)]
+    [InlineData("other", HttpStatusCode.Forbidden)]
+    public async Task rejected_api_requests_are_rate_limited(string? scope, HttpStatusCode initialStatus)
+    {
+        await using var backend = await EchoBackend.StartAsync("monolith");
+        await using var factory = GatewayFactory.AllClustersTo(
+            backend,
+            new Dictionary<string, string?>
+            {
+                ["RateLimiting:PermitLimit"] = "2",
+                ["RateLimiting:WindowSeconds"] = "600",
+            }
+        );
+        using var client = factory.CreateClient();
+        if (scope is not null)
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+                "Bearer",
+                GatewayFactory.CreateToken(scope: scope)
+            );
+
+        for (var i = 0; i < 2; i++)
+        {
+            using var response = await client.GetAsync("/api/v1/flight/get-available-flights");
+            Assert.Equal(initialStatus, response.StatusCode);
+        }
+
+        using var limited = await client.GetAsync("/api/v1/flight/get-available-flights");
+        Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
+        Assert.Empty(backend.Requests);
+    }
+
     [Fact]
     public async Task authenticated_subjects_have_separate_windows_even_on_the_same_connection()
     {

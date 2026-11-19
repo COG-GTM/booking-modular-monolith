@@ -56,8 +56,8 @@ public static class GatewayExtensions
         // Applied to every request so preflights are answered here, before authentication.
         app.UseCors(GatewayCorsOptions.PolicyName);
         app.UseAuthentication();
-        app.UseAuthorization();
         app.UseRateLimiter();
+        app.UseAuthorization();
 
         // ServiceDefaults only maps health endpoints in Development; the gateway needs them everywhere.
         if (!app.Environment.IsDevelopment())
