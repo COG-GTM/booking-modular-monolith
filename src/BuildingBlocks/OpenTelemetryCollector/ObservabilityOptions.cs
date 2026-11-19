@@ -4,6 +4,7 @@ public class ObservabilityOptions
 {
     public string InstrumentationName { get; set; } = default!;
     public string? ServiceName { get; set; }
+    public string ServiceNamespace { get; set; } = "booking";
     public bool MetricsEnabled { get; set; } = true;
     public bool TracingEnabled { get; set; } = true;
     public bool LoggingEnabled { get; set; } = true;
@@ -38,10 +39,32 @@ public class JaegerOptions
 public class OTLPOptions
 {
     public string OTLPGrpcExporterEndpoint { get; set; } = "http://localhost:4317";
+
+    // Older appsettings used this misspelt key; keep binding it so their endpoint isn't silently ignored.
+    public string? OTLPGrpExporterEndpoint
+    {
+        get => null;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                OTLPGrpcExporterEndpoint = value;
+        }
+    }
+
     public string OTLPHttpExporterEndpoint { get; set; } = "http://localhost:4318";
 }
 
 public class AspireDashboardOTLPOptions
 {
     public string OTLPGrpcExporterEndpoint { get; set; } = "http://localhost:4319";
+
+    public string? OTLPGrpExporterEndpoint
+    {
+        get => null;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                OTLPGrpcExporterEndpoint = value;
+        }
+    }
 }

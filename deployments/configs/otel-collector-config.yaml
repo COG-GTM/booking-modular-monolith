@@ -51,9 +51,14 @@ exporters:
   # Prometheus exporter metrics
   prometheus:
     endpoint: "0.0.0.0:8889"
+    resource_to_telemetry_conversion:
+      enabled: true
 
   prometheusremotewrite:
     endpoint: "http://prometheus:9090/api/v1/write"
+    # service.name/service.namespace/... become labels (service_name) so dashboards can filter per service
+    resource_to_telemetry_conversion:
+      enabled: true
 
   # https://grafana.com/docs/loki/latest/send-data/otel/
   # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/lokiexporter/README.md

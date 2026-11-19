@@ -1,6 +1,8 @@
 using BuildingBlocks.Web;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
@@ -11,8 +13,11 @@ namespace BuildingBlocks.HealthCheck;
 
 public static class Extensions
 {
-    private const string HealthEndpointPath = "/health";
-    private const string AlivenessEndpointPath = "/alive";
+    public const string HealthEndpointPath = "/health";
+    public const string AlivenessEndpointPath = "/alive";
+    public const string LivenessEndpointPath = "/health/live";
+    public const string ReadinessEndpointPath = "/health/ready";
+    public const string LiveTag = "live";
 
     public static IServiceCollection AddCustomHealthCheck(this IServiceCollection services)
     {
@@ -23,15 +28,14 @@ public static class Extensions
             var appOptions = services.GetOptions<AppOptions>(nameof(AppOptions));
             // Bound from the same sections as BuildingBlocks.EFCore/MassTransit/EventStoreDB/Mongo options,
             // so health checks don't need a reference to those libraries.
-            var postgresOptions = services.GetOptions<ConnectionStringOptions>("PostgresOptions");
             var rabbitMqOptions = services.GetOptions<RabbitMqHealthOptions>("RabbitMqOptions");
             var eventStoreOptions = services.GetOptions<ConnectionStringOptions>("EventStoreOptions");
             var mongoOptions = services.GetOptions<ConnectionStringOptions>("MongoOptions");
 
+            var configuration = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
+
             var healthChecksBuilder = services
                 .AddHealthChecks()
-                // Add a default liveness check to ensure app is responsive
-                .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"])
                 .AddRabbitMQ(serviceProvider =>
                 {
                     var factory = new ConnectionFactory
@@ -53,22 +57,37 @@ public static class Extensions
                 );
             }
 
-            if (!string.IsNullOrEmpty(postgresOptions.ConnectionString))
-                healthChecksBuilder.AddNpgSql(postgresOptions.ConnectionString);
+            // PostgresOptions:ConnectionString is either one string or one entry per module.
+            foreach (var module in configuration.GetSection("PostgresOptions:ConnectionString").GetChildren())
+            {
+                if (!string.IsNullOrEmpty(module.Value))
+                    healthChecksBuilder.AddNpgSql(module.Value, name: $"Postgres-{module.Key}");
+            }
+
+            var postgresConnection = configuration["PostgresOptions:ConnectionString"];
+            if (!string.IsNullOrEmpty(postgresConnection))
+                healthChecksBuilder.AddNpgSql(postgresConnection);
 
             if (!string.IsNullOrEmpty(eventStoreOptions.ConnectionString))
                 healthChecksBuilder.AddEventStore(eventStoreOptions.ConnectionString);
 
-            services
-                .AddHealthChecksUI(setup =>
-                {
-                    setup.SetEvaluationTimeInSeconds(60); // time in seconds between check
-                    setup.AddHealthCheckEndpoint($"Self Check - {appOptions.Name}", HealthEndpointPath);
-                })
-                .AddInMemoryStorage();
+            if (healthOptions.UIEnabled)
+            {
+                services
+                    .AddHealthChecksUI(setup =>
+                    {
+                        setup.SetEvaluationTimeInSeconds(60); // time in seconds between check
+                        setup.AddHealthCheckEndpoint($"Self Check - {appOptions.Name}", HealthEndpointPath);
+                    })
+                    .AddInMemoryStorage();
+            }
         }
 
-        services.AddHealthChecks().AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
+        services.AddHealthChecks().AddCheck("self", () => HealthCheckResult.Healthy(), [LiveTag]);
+
+        if (healthOptions.MetricsEnabled)
+            services.AddHealthCheckMetrics();
+
         return services;
     }
 
@@ -76,18 +95,39 @@ public static class Extensions
     {
         var healthOptions = app.Configuration.GetOptions<HealthOptions>(nameof(HealthOptions));
 
-        if (app.Environment.IsDevelopment())
-        {
-            app.MapHealthChecks(HealthEndpointPath);
-            app.MapHealthChecks(
-                AlivenessEndpointPath,
-                new HealthCheckOptions { Predicate = r => r.Tags.Contains("live") }
-            );
-        }
+        app.MapCustomHealthEndpoints();
 
-        if (healthOptions.Enabled)
+        if (healthOptions.Enabled && healthOptions.UIEnabled)
             app.MapHealthChecksUI(options => options.UIPath = "/health-ui");
 
         return app;
     }
+
+    // Probe contract shared by every host (all environments), consumed by compose healthchecks and K8s probes:
+    // /health/live and /alive = "live" checks only; /health/ready = everything else; /health = all checks.
+    public static IEndpointRouteBuilder MapCustomHealthEndpoints(this IEndpointRouteBuilder endpoints)
+    {
+        endpoints.MapHealthChecks(
+            HealthEndpointPath,
+            new HealthCheckOptions { ResponseWriter = HealthResponseWriter.WriteAsync }
+        );
+        endpoints.MapHealthChecks(
+            AlivenessEndpointPath,
+            new HealthCheckOptions { Predicate = IsLivenessCheck, ResponseWriter = HealthResponseWriter.WriteAsync }
+        );
+        endpoints.MapHealthChecks(
+            LivenessEndpointPath,
+            new HealthCheckOptions { Predicate = IsLivenessCheck, ResponseWriter = HealthResponseWriter.WriteAsync }
+        );
+        endpoints.MapHealthChecks(
+            ReadinessEndpointPath,
+            new HealthCheckOptions { Predicate = IsReadinessCheck, ResponseWriter = HealthResponseWriter.WriteAsync }
+        );
+
+        return endpoints;
+    }
+
+    public static bool IsLivenessCheck(HealthCheckRegistration registration) => registration.Tags.Contains(LiveTag);
+
+    public static bool IsReadinessCheck(HealthCheckRegistration registration) => !registration.Tags.Contains(LiveTag);
 }

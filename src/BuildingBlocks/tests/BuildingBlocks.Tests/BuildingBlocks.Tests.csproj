@@ -22,6 +22,7 @@
     <ProjectReference Include="..\..\Web\BuildingBlocks.Web.csproj" />
     <ProjectReference Include="..\..\PersistMessageProcessor\BuildingBlocks.PersistMessageProcessor.csproj" />
     <ProjectReference Include="..\..\HealthCheck\BuildingBlocks.HealthCheck.csproj" />
+    <ProjectReference Include="..\..\OpenTelemetryCollector\BuildingBlocks.OpenTelemetryCollector.csproj" />
     <ProjectReference Include="..\..\Jwt\BuildingBlocks.Jwt.csproj" />
     <ProjectReference Include="..\..\TestBase\BuildingBlocks.TestBase.csproj" />
     <ProjectReference Include="..\..\Constants\BuildingBlocks.Constants.csproj" />
