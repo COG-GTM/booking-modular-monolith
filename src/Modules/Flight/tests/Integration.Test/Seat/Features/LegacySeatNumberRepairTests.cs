@@ -37,7 +37,7 @@ public class LegacySeatNumberRepairTests : FlightIntegrationTestBase
     }
 
     [Fact]
-    public async Task repaired_seats_are_returned_by_grpc_and_can_be_reserved()
+    public async Task repaired_seats_are_returned_by_grpc_after_repeated_seeding()
     {
         var flightId = NewId.NextGuid();
         var legacy = ReadModel(flightId, "SeatNumber { Value = 23A }");
