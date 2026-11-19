@@ -21,6 +21,25 @@ namespace BuildingBlocks.Tests;
 public class ModuleDataOwnershipTests
 {
     [Fact]
+    public void persist_options_are_bound_validated_and_available_as_a_concrete_service()
+    {
+        var builder = CreateBuilder();
+        builder.Configuration["PersistMessageOptions:Interval"] = "7";
+        builder.Configuration["PersistMessageOptions:Enabled"] = "false";
+        builder.AddPersistMessageProcessor<First>("First");
+        using var provider = builder.Services.BuildServiceProvider();
+
+        var options = provider.GetRequiredService<PersistMessageOptions>();
+        options.Interval.Should().Be(7);
+        options.Enabled.Should().BeFalse();
+        options.Should().BeSameAs(provider.GetRequiredService<IOptions<PersistMessageOptions>>().Value);
+        provider
+            .GetServices<IValidateOptions<PersistMessageOptions>>()
+            .Should()
+            .Contain(x => x is DataAnnotationValidateOptions<PersistMessageOptions>);
+    }
+
+    [Fact]
     public async Task concurrent_shared_store_claims_have_one_owner_and_distinct_stores_can_poll()
     {
         var stores = new PersistMessageWorkerStores();

@@ -1,4 +1,5 @@
 using BuildingBlocks.Core;
+using BuildingBlocks.Web;
 using Humanizer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
@@ -11,15 +12,15 @@ namespace BuildingBlocks.PersistMessageProcessor;
 
 public static class Extensions
 {
+    private static readonly object StoreInitializationLock = new();
+
     public static IServiceCollection AddPersistMessageProcessor<TModule>(
         this WebApplicationBuilder builder,
         string moduleName
     )
     {
         AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
-        builder
-            .Services.AddOptions<PersistMessageOptions>()
-            .Bind(builder.Configuration.GetSection(nameof(PersistMessageOptions)));
+        builder.Services.AddValidateOptions<PersistMessageOptions>();
 
         builder.Services.AddDbContext<PersistMessageDbContext<TModule>>(
             (sp, options) =>
@@ -44,7 +45,11 @@ public static class Extensions
         builder.Services.AddScoped<IPersistMessageDbContext<TModule>>(sp =>
         {
             var context = sp.GetRequiredService<PersistMessageDbContext<TModule>>();
-            context.CreatePersistMessageTableIfNotExists();
+            lock (StoreInitializationLock)
+            {
+                context.Database.EnsureCreated();
+                context.CreatePersistMessageTableIfNotExists();
+            }
             return context;
         });
         builder.Services.AddScoped<IPersistMessageProcessor<TModule>, PersistMessageProcessor<TModule>>();
