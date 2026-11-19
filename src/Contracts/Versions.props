@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <ContractsVersionsImported>true</ContractsVersionsImported>
+    <!-- MINOR = additive fields/RPCs, MAJOR = new proto package. -->
+    <ContractsGrpcVersion Condition="'$(ContractsGrpcVersion)' == ''">1.0.0</ContractsGrpcVersion>
+  </PropertyGroup>
+</Project>

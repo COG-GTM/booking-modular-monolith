@@ -5,6 +5,8 @@ using Flight.Flights.Models;
 using Flight.Seats.Models;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 
@@ -70,6 +72,46 @@ public class FlightDataSeeder(
                 await flightReadDbContext.Seat.InsertManyAsync(mapper.Map<List<SeatReadModel>>(InitialData.Seats));
             }
         }
+        else
+        {
+            await RepairLegacySeatNumbersAsync();
+        }
+    }
+
+    // Seat read models seeded before SeatNumber was mapped to its raw value hold "SeatNumber { Value = 12A }",
+    // which GetAvailableSeats returns and ReserveSeat then rejects.
+    private async Task RepairLegacySeatNumbersAsync()
+    {
+        var legacy = await flightReadDbContext.Seat
+            .Find(Builders<SeatReadModel>.Filter.Regex(s => s.SeatNumber, new BsonRegularExpression($"^{Regex.Escape(LegacySeatNumberPrefix)}")))
+            .ToListAsync();
+
+        foreach (var seat in legacy)
+        {
+            if (TryParseLegacySeatNumber(seat.SeatNumber, out var seatNumber))
+            {
+                await flightReadDbContext.Seat.UpdateOneAsync(
+                    s => s.Id == seat.Id,
+                    Builders<SeatReadModel>.Update.Set(s => s.SeatNumber, seatNumber));
+            }
+        }
+    }
+
+    private const string LegacySeatNumberPrefix = "SeatNumber { Value = ";
+
+    public static bool TryParseLegacySeatNumber(string value, out string seatNumber)
+    {
+        seatNumber = value;
+
+        if (!value.StartsWith(LegacySeatNumberPrefix, StringComparison.Ordinal) || !value.EndsWith(" }", StringComparison.Ordinal))
+            return false;
+
+        var raw = value[LegacySeatNumberPrefix.Length..^2];
+        if (raw.Length == 0)
+            return false;
+
+        seatNumber = raw;
+        return true;
     }
 
     private async Task SeedFlightAsync()

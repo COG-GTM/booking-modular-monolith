@@ -1,0 +1,13 @@
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+  <Import Project="Versions.props" Condition="'$(ContractsVersionsImported)' != 'true'" />
+  <PropertyGroup>
+    <PackageId>BookingModularMonolith.$(MSBuildProjectName)</PackageId>
+    <Authors>booking-modular-monolith</Authors>
+    <Company>booking-modular-monolith</Company>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/COG-GTM/booking-modular-monolith</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+</Project>

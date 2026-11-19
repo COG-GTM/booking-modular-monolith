@@ -318,7 +318,11 @@ var api = builder.AddProject<Api>("api")
     .WaitFor(eventstore)
     .WithReference(rabbitmq)
     .WaitFor(rabbitmq)
-    .WithHttpEndpoint(port: 3001, name: "api-http")
-    .WithHttpsEndpoint(port: 3000, name: "api-https");
+    .WithHttpEndpoint(port: 3001, name: "api-http", isProxied: false)
+    .WithHttpsEndpoint(port: 3000, name: "api-https", isProxied: false)
+    .WithEndpoint(port: 3002, scheme: "http", name: "grpc", isProxied: false);
+
+api.WithEnvironment("services__flight__grpc__0", api.GetEndpoint("grpc"))
+    .WithEnvironment("services__passenger__grpc__0", api.GetEndpoint("grpc"));
 
 builder.Build().Run();

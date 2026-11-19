@@ -72,3 +72,6 @@ dotnet nuget add source "$PWD/artifacts/nuget" --name local-buildingblocks   # c
 
 CI (`.github/workflows/building-blocks.yml`) builds every library on its own, runs the tests above, packs with
 `1.0.0-ci.<run>` and runs the consumer check.
+
+The canonical gRPC contract package lives separately in [`src/Contracts/Contracts.Grpc`](../Contracts/Contracts.Grpc/README.md).
+Flight, Passenger and Booking import `src/Contracts/Contracts.Grpc.Reference.props`; it has no dependency on BuildingBlocks or EF Core.
