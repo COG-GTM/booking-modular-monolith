@@ -45,12 +45,13 @@ services.AddLogging();
 services.AddEventDispatcher();
 services.AddHttpContextEventHeaders();
 services.AddEventMapper<SampleMapper>();
-services.AddScoped<IIntegrationEventPublisher, ConsolePublisher>();
+services.AddScoped<IIntegrationEventPublisher<SampleModule>, ConsolePublisher>();
 
 await using var provider = services.BuildServiceProvider();
 await using var scope = provider.CreateAsyncScope();
-await scope.ServiceProvider.GetRequiredService<IEventDispatcher>().SendAsync(new Sampled(Guid.NewGuid()));
+await scope.ServiceProvider.GetRequiredService<IEventDispatcher<SampleModule>>().SendAsync(new Sampled(Guid.NewGuid()));
 
+public sealed class SampleModule;
 public sealed record Sampled(Guid Id) : IDomainEvent;
 public sealed record SampledIntegration(Guid Id) : IIntegrationEvent;
 
@@ -60,7 +61,7 @@ public sealed class SampleMapper : IEventMapper
     public IInternalCommand? MapToInternalCommand(IDomainEvent @event) => null;
 }
 
-public sealed class ConsolePublisher : IIntegrationEventPublisher
+public sealed class ConsolePublisher : IIntegrationEventPublisher<SampleModule>
 {
     public Task PublishAsync(MessageEnvelope envelope, CancellationToken cancellationToken = default)
     {

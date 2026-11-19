@@ -12,7 +12,8 @@ using Seats.Models;
 
 public class FlightReadDbContext : MongoDbContext
 {
-    public FlightReadDbContext(IOptions<MongoOptions> options) : base(options)
+    public FlightReadDbContext(IOptionsSnapshot<MongoOptions> options)
+        : base(Options.Create(options.Get("Flight")))
     {
         Flight = GetCollection<FlightReadModel>(nameof(Flight).Underscore());
         Aircraft = GetCollection<AircraftReadModel>(nameof(Aircraft).Underscore());

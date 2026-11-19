@@ -18,14 +18,16 @@ public class OutboxDispatchCompositionTests
     [Fact]
     public async Task dispatcher_publishes_mapped_events_with_request_headers_through_the_outbox()
     {
-        var processor = Substitute.For<IPersistMessageProcessor>();
+        var processor = Substitute.For<IPersistMessageProcessor<OutboxDispatchCompositionTests>>();
         var domainEvent = new TestDomainEvent(Guid.NewGuid());
         var correlationId = Guid.NewGuid();
         var httpContext = CreateHttpContext(correlationId);
         await using var provider = CreateProvider(processor, httpContext);
         await using var scope = provider.CreateAsyncScope();
 
-        await scope.ServiceProvider.GetRequiredService<IEventDispatcher>().SendAsync(domainEvent);
+        await scope
+            .ServiceProvider.GetRequiredService<IEventDispatcher<OutboxDispatchCompositionTests>>()
+            .SendAsync(domainEvent);
 
         processor.Received(1).PublishMessageAsync(Arg.Any<MessageEnvelope>(), Arg.Any<CancellationToken>());
         var envelope = processor
@@ -46,13 +48,13 @@ public class OutboxDispatchCompositionTests
     [Fact]
     public async Task dispatcher_sends_mapped_internal_commands_to_the_outbox()
     {
-        var processor = Substitute.For<IPersistMessageProcessor>();
+        var processor = Substitute.For<IPersistMessageProcessor<OutboxDispatchCompositionTests>>();
         var domainEvent = new TestDomainEvent(Guid.NewGuid());
         await using var provider = CreateProvider(processor, CreateHttpContext(Guid.NewGuid()));
         await using var scope = provider.CreateAsyncScope();
 
         await scope
-            .ServiceProvider.GetRequiredService<IEventDispatcher>()
+            .ServiceProvider.GetRequiredService<IEventDispatcher<OutboxDispatchCompositionTests>>()
             .SendAsync(domainEvent, typeof(IInternalCommand));
 
         processor
@@ -63,16 +65,22 @@ public class OutboxDispatchCompositionTests
             );
     }
 
-    private static ServiceProvider CreateProvider(IPersistMessageProcessor processor, HttpContext httpContext)
+    private static ServiceProvider CreateProvider(
+        IPersistMessageProcessor<OutboxDispatchCompositionTests> processor,
+        HttpContext httpContext
+    )
     {
         var services = new ServiceCollection();
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
-        services.AddSingleton<IPersistMessageProcessor>(processor);
+        services.AddSingleton<IPersistMessageProcessor<OutboxDispatchCompositionTests>>(processor);
         services.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor { HttpContext = httpContext });
         services.AddEventDispatcher();
         services.AddEventMapper<TestMapper>();
         services.AddHttpContextEventHeaders();
-        services.AddScoped<IIntegrationEventPublisher, PersistMessageIntegrationEventPublisher>();
+        services.AddScoped<
+            IIntegrationEventPublisher<OutboxDispatchCompositionTests>,
+            PersistMessageIntegrationEventPublisher<OutboxDispatchCompositionTests>
+        >();
         return services.BuildServiceProvider(
             new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true }
         );

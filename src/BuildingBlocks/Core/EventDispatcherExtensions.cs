@@ -9,7 +9,7 @@ public static class EventDispatcherExtensions
     // so each module/service registers only its own mappers.
     public static IServiceCollection AddEventDispatcher(this IServiceCollection services)
     {
-        services.TryAddScoped<IEventDispatcher, EventDispatcher>();
+        services.TryAddScoped(typeof(IEventDispatcher<>), typeof(EventDispatcher<>));
         return services;
     }
 

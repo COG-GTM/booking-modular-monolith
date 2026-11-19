@@ -17,13 +17,13 @@ public class IdentityDataSeeder : IDataSeeder
 {
     private readonly UserManager<User> _userManager;
     private readonly RoleManager<Role> _roleManager;
-    private readonly IEventDispatcher _eventDispatcher;
+    private readonly IEventDispatcher<global::Identity.IdentityRoot> _eventDispatcher;
     private readonly IdentityContext _identityContext;
 
     public IdentityDataSeeder(
         UserManager<User> userManager,
         RoleManager<Role> roleManager,
-        IEventDispatcher eventDispatcher,
+        IEventDispatcher<global::Identity.IdentityRoot> eventDispatcher,
         IdentityContext identityContext
     )
     {
@@ -75,10 +75,10 @@ public class IdentityDataSeeder : IDataSeeder
                     await _eventDispatcher.SendAsync(
                         new UserCreated(
                             InitialData.Users.First().Id,
-                            InitialData.Users.First().FirstName +
-                            " " +
-                            InitialData.Users.First().LastName,
-                            InitialData.Users.First().PassPortNumber));
+                            InitialData.Users.First().FirstName + " " + InitialData.Users.First().LastName,
+                            InitialData.Users.First().PassPortNumber
+                        )
+                    );
                 }
             }
 
@@ -93,10 +93,10 @@ public class IdentityDataSeeder : IDataSeeder
                     await _eventDispatcher.SendAsync(
                         new UserCreated(
                             InitialData.Users.Last().Id,
-                            InitialData.Users.Last().FirstName +
-                            " " +
-                            InitialData.Users.Last().LastName,
-                            InitialData.Users.Last().PassPortNumber));
+                            InitialData.Users.Last().FirstName + " " + InitialData.Users.Last().LastName,
+                            InitialData.Users.Last().PassPortNumber
+                        )
+                    );
                 }
             }
         }

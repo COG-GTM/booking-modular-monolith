@@ -8,11 +8,11 @@ using Microsoft.Extensions.Logging;
 
 namespace BuildingBlocks.EFCore;
 
-public class EfTxBehavior<TRequest, TResponse>(
-    ILogger<EfTxBehavior<TRequest, TResponse>> logger,
+public class EfTxBehavior<TModule, TRequest, TResponse>(
+    ILogger<EfTxBehavior<TModule, TRequest, TResponse>> logger,
     IDbContext dbContextBase,
-    IPersistMessageDbContext persistMessageDbContext,
-    IEventDispatcher eventDispatcher
+    IPersistMessageDbContext<TModule> persistMessageDbContext,
+    IEventDispatcher<TModule> eventDispatcher
 ) : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull, IRequest<TResponse>
     where TResponse : notnull
@@ -25,20 +25,20 @@ public class EfTxBehavior<TRequest, TResponse>(
     {
         logger.LogInformation(
             "{Prefix} Handled command {MediatrRequest}",
-            nameof(EfTxBehavior<TRequest, TResponse>),
+            nameof(EfTxBehavior<TModule, TRequest, TResponse>),
             typeof(TRequest).FullName
         );
 
         logger.LogDebug(
             "{Prefix} Handled command {MediatrRequest} with content {RequestContent}",
-            nameof(EfTxBehavior<TRequest, TResponse>),
+            nameof(EfTxBehavior<TModule, TRequest, TResponse>),
             typeof(TRequest).FullName,
             JsonSerializer.Serialize(request)
         );
 
         logger.LogInformation(
             "{Prefix} Open the transaction for {MediatrRequest}",
-            nameof(EfTxBehavior<TRequest, TResponse>),
+            nameof(EfTxBehavior<TModule, TRequest, TResponse>),
             typeof(TRequest).FullName
         );
 
@@ -53,7 +53,7 @@ public class EfTxBehavior<TRequest, TResponse>(
 
         logger.LogInformation(
             "{Prefix} Executed the {MediatrRequest} request",
-            nameof(EfTxBehavior<TRequest, TResponse>),
+            nameof(EfTxBehavior<TModule, TRequest, TResponse>),
             typeof(TRequest).FullName
         );
 
