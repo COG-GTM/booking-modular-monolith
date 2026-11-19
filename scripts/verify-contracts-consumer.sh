@@ -12,16 +12,8 @@ feed="$(cd "${2:-$repo_root/artifacts/nuget}" && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-cat > "$work/nuget.config" <<XML
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <packageSources>
-    <clear />
-    <add key="local-contracts" value="$feed" />
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-  </packageSources>
-</configuration>
-XML
+config="$repo_root/scripts/verification.nuget.config"
+export BOOKING_VERIFICATION_FEED="$feed" NUGET_PACKAGES="$work/packages"
 
 cat > "$work/Consumer.csproj" <<XML
 <Project Sdk="Microsoft.NET.Sdk">
@@ -80,7 +72,7 @@ public sealed class PassengerConsumer(TaskCompletionSource<UserCreated> received
 }
 CS
 
-dotnet restore "$work/Consumer.csproj" --configfile "$work/nuget.config" -nologo -v quiet
+dotnet restore "$work/Consumer.csproj" --configfile "$config" -nologo -v quiet
 if grep -qiE '"(Microsoft\.EntityFrameworkCore|Npgsql|MongoDB|EventStore|BookingModularMonolith\.BuildingBlocks)' "$work/obj/project.assets.json"; then
   echo "error: contracts consumer restore graph pulls in BuildingBlocks or data-store packages" >&2
   exit 1
@@ -94,7 +86,7 @@ mkdir -p "$work/repo"
 for module in Identity Passenger Flight Booking; do
   echo "==> building $module against BookingModularMonolith.Contracts.Messages $version (package mode)"
   dotnet build "$work/repo/src/Modules/$module/src/$module.csproj" -c Release -nologo -v quiet \
-    -p:UseContractsPackage=true -p:ContractsMessagesPackageVersion="$version" -p:RestoreAdditionalProjectSources="$feed"
+    -p:UseContractsPackage=true -p:ContractsMessagesPackageVersion="$version" -p:RestoreConfigFile="$config"
   grep -qF '"BookingModularMonolith.Contracts.Messages/'"${version%%+*}"'"' "$work/repo/src/Modules/$module/src/obj/project.assets.json"
   if [[ -e "$work/repo/src/Contracts/Contracts.Messages/obj" ]]; then
     echo "error: $module still built the in-repo Contracts.Messages project" >&2

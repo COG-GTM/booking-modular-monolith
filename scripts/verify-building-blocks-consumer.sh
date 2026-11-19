@@ -10,16 +10,8 @@ feed="$(cd "${2:-$repo_root/artifacts/nuget}" && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-cat > "$work/nuget.config" <<XML
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <packageSources>
-    <clear />
-    <add key="local-buildingblocks" value="$feed" />
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-  </packageSources>
-</configuration>
-XML
+config="$repo_root/scripts/verification.nuget.config"
+export BOOKING_VERIFICATION_FEED="$feed" NUGET_PACKAGES="$work/packages"
 
 cat > "$work/Consumer.csproj" <<XML
 <Project Sdk="Microsoft.NET.Sdk.Web">
@@ -73,7 +65,7 @@ public sealed class ConsolePublisher : IIntegrationEventPublisher
 }
 CS
 
-dotnet restore "$work/Consumer.csproj" --configfile "$work/nuget.config" -nologo -v quiet
+dotnet restore "$work/Consumer.csproj" --configfile "$config" -nologo -v quiet
 if grep -qi '"Microsoft.EntityFrameworkCore' "$work/obj/project.assets.json"; then
   echo "error: consumer restore graph contains EF Core" >&2
   exit 1
