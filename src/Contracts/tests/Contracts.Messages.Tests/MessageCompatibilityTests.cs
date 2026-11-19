@@ -33,6 +33,15 @@ public class MessageCompatibilityTests
             BaselineFile
         );
 
+        var baseline = JsonSerializer.Deserialize<List<MessageShape>>(File.ReadAllText(sourceBaseline), JsonOptions)!;
+
+        BreakingChanges(baseline, current)
+            .Should()
+            .BeEmpty(
+                "published messages must stay backward compatible; "
+                    + "add a new message version (e.g. a V2 type) for breaking changes"
+            );
+
         if (
             string.Equals(
                 Environment.GetEnvironmentVariable("UPDATE_CONTRACT_BASELINES"),
@@ -45,14 +54,6 @@ public class MessageCompatibilityTests
             return;
         }
 
-        var baseline = JsonSerializer.Deserialize<List<MessageShape>>(File.ReadAllText(sourceBaseline), JsonOptions)!;
-
-        BreakingChanges(baseline, current)
-            .Should()
-            .BeEmpty(
-                "published messages must stay backward compatible; "
-                    + "add a new message version (e.g. a V2 type) for breaking changes"
-            );
         current
             .Select(m => m.Type)
             .Should()
