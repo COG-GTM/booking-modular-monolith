@@ -1,9 +1,12 @@
-// Field numbers are the wire contract: additive changes only.
-// Breaking changes require a new package version (e.g. passenger.v2).
 syntax = "proto3";
 
+// Canonical passenger gRPC contract (single source of truth, owned by the Passenger service).
+// Wire identity: the proto package `passenger` and the service/method names form the gRPC path
+// (`/passenger.PassengerGrpcService/<Method>`); never rename them, change field numbers/types or reuse
+// removed tags. See docs/adr/0101-shared-grpc-contracts-and-service-addressing.md.
 package passenger;
-option csharp_namespace = "Contracts.Grpc.Passenger";
+
+option csharp_namespace = "Passenger";
 
 service PassengerGrpcService {
 
@@ -34,4 +37,3 @@ message PassengerResponse {
         PASSENGER_TYPE_FEMALE = 2;
         PASSENGER_TYPE_BABY = 3;
     }
-

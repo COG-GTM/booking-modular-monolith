@@ -8,9 +8,8 @@ using BuildingBlocks.Core.Event;
 using BuildingBlocks.Core.Model;
 using BuildingBlocks.EventStoreDB.Repository;
 using BuildingBlocks.Web;
-using Contracts.Grpc.Flight;
-using Contracts.Grpc.Passenger;
 using Exceptions;
+using Flight;
 using FluentValidation;
 using Mapster;
 using MapsterMapper;
@@ -19,6 +18,7 @@ using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Passenger;
 using ValueObjects;
 
 public record CreateBooking(Guid PassengerId, Guid FlightId, string Description) : ICommand<CreateBookingResult>
@@ -108,7 +108,7 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
         Guard.Against.Null(command, nameof(command));
 
         var flight = await _flightGrpcServiceClient.GetByIdAsync(
-            new Contracts.Grpc.Flight.GetByIdRequest { Id = command.FlightId.ToString() },
+            new Flight.GetByIdRequest { Id = command.FlightId.ToString() },
             cancellationToken: cancellationToken
         );
 
@@ -118,7 +118,7 @@ internal class CreateBookingCommandHandler : ICommandHandler<CreateBooking, Crea
         }
 
         var passenger = await _passengerGrpcServiceClient.GetByIdAsync(
-            new Contracts.Grpc.Passenger.GetByIdRequest { Id = command.PassengerId.ToString() },
+            new Passenger.GetByIdRequest { Id = command.PassengerId.ToString() },
             cancellationToken: cancellationToken
         );
 

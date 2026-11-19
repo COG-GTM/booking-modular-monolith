@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using Contracts.Grpc.Flight;
 using Grpc.Core;
 using Mapster;
 using MediatR;
@@ -10,9 +9,9 @@ using System;
 using Flights.Features.GettingFlightById.V1;
 using Seats.Features.GettingAvailableSeats.V1;
 using Seats.Features.ReservingSeat.V1;
-using GetAvailableSeatsResult = Contracts.Grpc.Flight.GetAvailableSeatsResult;
-using GetFlightByIdResult = Contracts.Grpc.Flight.GetFlightByIdResult;
-using ReserveSeatResult = Contracts.Grpc.Flight.ReserveSeatResult;
+using GetAvailableSeatsResult = GetAvailableSeatsResult;
+using GetFlightByIdResult = GetFlightByIdResult;
+using ReserveSeatResult = ReserveSeatResult;
 
 public class FlightGrpcServices : FlightGrpcService.FlightGrpcServiceBase
 {
@@ -29,10 +28,7 @@ public class FlightGrpcServices : FlightGrpcService.FlightGrpcServiceBase
         return result.Adapt<GetFlightByIdResult>();
     }
 
-    public override async Task<GetAvailableSeatsResult> GetAvailableSeats(
-        GetAvailableSeatsRequest request,
-        ServerCallContext context
-    )
+    public override async Task<GetAvailableSeatsResult> GetAvailableSeats(GetAvailableSeatsRequest request, ServerCallContext context)
     {
         var result = new GetAvailableSeatsResult();
 

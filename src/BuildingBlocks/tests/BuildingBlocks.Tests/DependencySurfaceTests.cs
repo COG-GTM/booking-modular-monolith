@@ -31,8 +31,6 @@ public class DependencySurfaceTests
         var expected = new[]
         {
             "Core",
-            "Grpc",
-            "Contracts.Grpc",
             "EFCore",
             "Mongo",
             "EventStoreDB",
@@ -88,8 +86,6 @@ public class DependencySurfaceTests
     [InlineData("BuildingBlocks.HealthCheck", "BuildingBlocks.EFCore")]
     [InlineData("BuildingBlocks.HealthCheck", "BuildingBlocks.MassTransit")]
     [InlineData("BuildingBlocks.ProblemDetails", "BuildingBlocks.EFCore")]
-    [InlineData("BuildingBlocks.Grpc", "BuildingBlocks.EFCore")]
-    [InlineData("BuildingBlocks.Contracts.Grpc", "BuildingBlocks.EFCore")]
     [InlineData("BuildingBlocks.Mongo", "BuildingBlocks.EFCore")]
     [InlineData("BuildingBlocks.EventStoreDB", "BuildingBlocks.EFCore")]
     public void library_does_not_pull_in(string library, string forbidden)

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using BuildingBlocks.EFCore;
 using Flight.Aircrafts.Models;
 using Flight.Airports.Models;
@@ -5,16 +6,14 @@ using Flight.Flights.Models;
 using Flight.Seats.Models;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 
 namespace Flight.Data.Seed;
 
-public class FlightDataSeeder(
-    FlightDbContext flightDbContext,
-    FlightReadDbContext flightReadDbContext,
-    IMapper mapper
-) : IDataSeeder
+public class FlightDataSeeder(FlightDbContext flightDbContext, FlightReadDbContext flightReadDbContext, IMapper mapper)
+    : IDataSeeder
 {
     public async Task SeedAllAsync()
     {
@@ -38,7 +37,9 @@ public class FlightDataSeeder(
 
             if (!await MongoQueryable.AnyAsync(flightReadDbContext.Airport.AsQueryable()))
             {
-                await flightReadDbContext.Airport.InsertManyAsync(mapper.Map<List<AirportReadModel>>(InitialData.Airports));
+                await flightReadDbContext.Airport.InsertManyAsync(
+                    mapper.Map<List<AirportReadModel>>(InitialData.Airports)
+                );
             }
         }
     }
@@ -52,11 +53,12 @@ public class FlightDataSeeder(
 
             if (!await MongoQueryable.AnyAsync(flightReadDbContext.Aircraft.AsQueryable()))
             {
-                await flightReadDbContext.Aircraft.InsertManyAsync(mapper.Map<List<AircraftReadModel>>(InitialData.Aircrafts));
+                await flightReadDbContext.Aircraft.InsertManyAsync(
+                    mapper.Map<List<AircraftReadModel>>(InitialData.Aircrafts)
+                );
             }
         }
     }
-
 
     private async Task SeedSeatAsync()
     {
@@ -70,6 +72,55 @@ public class FlightDataSeeder(
                 await flightReadDbContext.Seat.InsertManyAsync(mapper.Map<List<SeatReadModel>>(InitialData.Seats));
             }
         }
+        else
+        {
+            await RepairLegacySeatNumbersAsync();
+        }
+    }
+
+    // Seat read models seeded before SeatNumber was mapped to its raw value hold "SeatNumber { Value = 12A }",
+    // which GetAvailableSeats returns and ReserveSeat then rejects.
+    private async Task RepairLegacySeatNumbersAsync()
+    {
+        var legacy = await flightReadDbContext
+            .Seat.Find(
+                Builders<SeatReadModel>.Filter.Regex(
+                    s => s.SeatNumber,
+                    new BsonRegularExpression($"^{Regex.Escape(LegacySeatNumberPrefix)}")
+                )
+            )
+            .ToListAsync();
+
+        foreach (var seat in legacy)
+        {
+            if (TryParseLegacySeatNumber(seat.SeatNumber, out var seatNumber))
+            {
+                await flightReadDbContext.Seat.UpdateOneAsync(
+                    s => s.Id == seat.Id,
+                    Builders<SeatReadModel>.Update.Set(s => s.SeatNumber, seatNumber)
+                );
+            }
+        }
+    }
+
+    private const string LegacySeatNumberPrefix = "SeatNumber { Value = ";
+
+    public static bool TryParseLegacySeatNumber(string value, out string seatNumber)
+    {
+        seatNumber = value;
+
+        if (
+            !value.StartsWith(LegacySeatNumberPrefix, StringComparison.Ordinal)
+            || !value.EndsWith(" }", StringComparison.Ordinal)
+        )
+            return false;
+
+        var raw = value[LegacySeatNumberPrefix.Length..^2];
+        if (raw.Length == 0)
+            return false;
+
+        seatNumber = raw;
+        return true;
     }
 
     private async Task SeedFlightAsync()
@@ -81,7 +132,9 @@ public class FlightDataSeeder(
 
             if (!await MongoQueryable.AnyAsync(flightReadDbContext.Flight.AsQueryable()))
             {
-                await flightReadDbContext.Flight.InsertManyAsync(mapper.Map<List<FlightReadModel>>(InitialData.Flights));
+                await flightReadDbContext.Flight.InsertManyAsync(
+                    mapper.Map<List<FlightReadModel>>(InitialData.Flights)
+                );
             }
         }
     }

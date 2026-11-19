@@ -1,7 +1,7 @@
 namespace Integration.Test.Fakes;
 
-using Contracts.Grpc.Passenger;
 using MassTransit;
+using Passenger;
 
 public static class FakePassengerResponse
 {

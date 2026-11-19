@@ -18,8 +18,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Grpc\BuildingBlocks.Grpc.csproj" />
-    <ProjectReference Include="..\..\Contracts.Grpc\BuildingBlocks.Contracts.Grpc.csproj" />
     <ProjectReference Include="..\..\Core\BuildingBlocks.Core.csproj" />
     <ProjectReference Include="..\..\Web\BuildingBlocks.Web.csproj" />
     <ProjectReference Include="..\..\PersistMessageProcessor\BuildingBlocks.PersistMessageProcessor.csproj" />

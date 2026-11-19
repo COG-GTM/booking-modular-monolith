@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Contracts.Grpc.Flight;
+using Flight;
 
 namespace Integration.Test.Fakes;
 
