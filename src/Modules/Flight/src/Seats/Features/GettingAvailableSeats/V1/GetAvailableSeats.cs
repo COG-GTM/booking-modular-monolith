@@ -81,8 +81,9 @@ internal class GetAvailableSeatsQueryHandler : IRequestHandler<GetAvailableSeats
     {
         Guard.Against.Null(query, nameof(query));
 
-        var seats = (await _flightReadDbContext.Seat.AsQueryable().ToListAsync(cancellationToken))
-            .Where(x => x.FlightId == query.FlightId && !x.IsDeleted);
+        var seats = await _flightReadDbContext
+            .Seat.Find(x => x.FlightId == query.FlightId && !x.IsDeleted)
+            .ToListAsync(cancellationToken);
 
         if (!seats.Any())
         {
