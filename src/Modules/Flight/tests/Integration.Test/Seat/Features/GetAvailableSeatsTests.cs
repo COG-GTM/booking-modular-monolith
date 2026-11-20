@@ -36,4 +36,33 @@ public class GetAvailableSeatsTests : FlightIntegrationTestBase
         response?.Should().NotBeNull();
         response?.SeatDtos?.Count.Should().BeGreaterThanOrEqualTo(1);
     }
+
+    [Fact]
+    public async Task should_return_only_non_deleted_seats_of_requested_flight()
+    {
+        // Arrange
+        var flightCommand = new FakeCreateFlightMongoCommand().Generate();
+        var otherFlightCommand = new FakeCreateFlightMongoCommand().Generate();
+
+        await Fixture.SendAsync(flightCommand);
+        await Fixture.SendAsync(otherFlightCommand);
+
+        var availableSeat = new FakeCreateSeatMongoCommand(flightCommand.Id).Generate();
+        var deletedSeat = new FakeCreateSeatMongoCommand(flightCommand.Id).Generate() with { IsDeleted = true };
+        var otherFlightSeat = new FakeCreateSeatMongoCommand(otherFlightCommand.Id).Generate();
+
+        await Fixture.SendAsync(availableSeat);
+        await Fixture.SendAsync(deletedSeat);
+        await Fixture.SendAsync(otherFlightSeat);
+
+        var flightGrpcClient = new FlightGrpcService.FlightGrpcServiceClient(Fixture.Channel);
+
+        // Act
+        var response = await flightGrpcClient.GetAvailableSeatsAsync(new GetAvailableSeatsRequest { FlightId = flightCommand.Id.ToString() });
+
+        // Assert
+        response.SeatDtos.Should().ContainSingle();
+        response.SeatDtos[0].FlightId.Should().Be(flightCommand.Id.ToString());
+        response.SeatDtos[0].SeatNumber.Should().Be(availableSeat.SeatNumber);
+    }
 }
