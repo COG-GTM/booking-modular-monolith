@@ -24,10 +24,7 @@ namespace BuildingBlocks.Mongo
             services.AddOptions<MongoOptions>()
                 .Bind(configuration.GetSection(nameof(MongoOptions)))
                 .PostConfigure(options =>
-                               {
-                                   var aspireConnectionString = configuration.GetConnectionString("mongo");
-                                   options.ConnectionString = aspireConnectionString ?? options.ConnectionString;
-                               });
+                    options.ConnectionString = configuration.ResolveMongoConnectionString(options.ConnectionString));
 
             if (configurator is { })
             {
@@ -47,6 +44,11 @@ namespace BuildingBlocks.Mongo
             services.AddTransient(typeof(IMongoUnitOfWork<>), typeof(MongoUnitOfWork<>));
 
             return services;
+        }
+
+        internal static string ResolveMongoConnectionString(this IConfiguration configuration, string fallback)
+        {
+            return configuration.GetConnectionString("mongo") ?? fallback;
         }
     }
 }
