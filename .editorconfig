@@ -430,9 +430,9 @@ dotnet_diagnostic.CA2007.severity = none
 # CA2225: Operator overloads have named alternates
 dotnet_diagnostic.CA2225.severity = none
 # CA3075: Insecure DTD Processing
-dotnet_diagnostic.CA3075.severity = none
+dotnet_diagnostic.CA3075.severity = warning
 # CA5369: Use XmlReader for Deserialize
-dotnet_diagnostic.CA5369.severity = none
+dotnet_diagnostic.CA5369.severity = warning
 # CA1305: Specify IFormatProvider
 dotnet_diagnostic.CA1305.severity = None
 # CA1063: Implement IDisposable correctly

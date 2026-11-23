@@ -14,6 +14,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dependency-audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Audit direct and transitive NuGet dependencies
+        run: dotnet restore booking-modular-monolith.sln -warnaserror:NU1900
+
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: github/codeql-action/init@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+        with:
+          languages: csharp
+          build-mode: manual
+      - name: Build solution for CodeQL
+        run: dotnet build booking-modular-monolith.sln -c Release --no-incremental -p:UseSharedCompilation=false
+      - uses: github/codeql-action/analyze@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+
   ci:
     runs-on: ubuntu-latest
 
@@ -80,8 +112,13 @@ jobs:
           service-name: 'Booking'
           token: ${{ secrets.GITHUB_TOKEN }}
 
+  release-draft:
+    if: ${{ github.ref == 'refs/heads/main' && success() }}
+    needs: [ci, dependency-audit, codeql]
+    runs-on: ubuntu-latest
+
+    steps:
       - name: Update Release Drafter
-        if: ${{ github.ref == 'refs/heads/main' && success() }}
         id: last_release
         uses: release-drafter/release-drafter@v5
         env:

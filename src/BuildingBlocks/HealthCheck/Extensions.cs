@@ -5,6 +5,7 @@ using BuildingBlocks.Mongo;
 using BuildingBlocks.Web;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
@@ -18,7 +19,7 @@ public static class Extensions
     private const string HealthEndpointPath = "/health";
     private const string AlivenessEndpointPath = "/alive";
 
-    public static IServiceCollection AddCustomHealthCheck(this IServiceCollection services)
+    public static IServiceCollection AddCustomHealthCheck(this IServiceCollection services, IConfiguration configuration)
     {
         var healthOptions = services.GetOptions<HealthOptions>(nameof(HealthOptions));
 
@@ -28,7 +29,8 @@ public static class Extensions
             var postgresOptions = services.GetOptions<PostgresOptions>(nameof(PostgresOptions));
             var rabbitMqOptions = services.GetOptions<RabbitMqOptions>(nameof(RabbitMqOptions));
             var eventStoreOptions = services.GetOptions<EventStoreOptions>(nameof(EventStoreOptions));
-            var mongoOptions = services.GetOptions<MongoOptions>(nameof(MongoOptions));
+            var mongoOptions = configuration.GetOptions<MongoOptions>(nameof(MongoOptions));
+            var mongoConnectionString = configuration.ResolveMongoConnectionString(mongoOptions.ConnectionString);
 
             var healthChecksBuilder = services.AddHealthChecks()
                 // Add a default liveness check to ensure app is responsive
@@ -43,10 +45,10 @@ public static class Extensions
                         return factory.CreateConnectionAsync();
                     });
 
-            if (!string.IsNullOrEmpty(mongoOptions.ConnectionString))
+            if (!string.IsNullOrEmpty(mongoConnectionString))
             {
                 healthChecksBuilder.AddMongoDb(
-                    clientFactory: _ => new MongoClient(mongoOptions.ConnectionString),
+                    clientFactory: _ => new MongoClient(mongoConnectionString),
                     name: "MongoDB-Health",
                     failureStatus: HealthStatus.Unhealthy,
                     timeout: TimeSpan.FromSeconds(10));

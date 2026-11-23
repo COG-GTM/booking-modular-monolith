@@ -4,6 +4,10 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
@@ -39,6 +43,7 @@
     <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
     <AnalysisLevel>latest-Recommended</AnalysisLevel>
     <AnalysisMode>Recommended</AnalysisMode>
+    <AnalysisLevelSecurity>latest-all</AnalysisLevelSecurity>
   </PropertyGroup>
 
 </Project>
