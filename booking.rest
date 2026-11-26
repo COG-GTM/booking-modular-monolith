@@ -2,9 +2,9 @@
 @booking-modular-monolith-api=https://localhost:3000  
 
 @contentType = application/json
-# Read from the IdentitySeedOptions__AdminPassword environment variable used to seed the 'samh' admin user.
-# Do not write the password into this file. The value must be URL-encoded (e.g. & -> %26, + -> %2B).
-@adminPassword = {{$processEnv IdentitySeedOptions__AdminPassword}}
+# Read from the BOOKING_API_ADMIN_PASSWORD environment variable: the URL-encoded password of the 'samh' admin user.
+# Do not write the password into this file.
+@adminPassword = {{$processEnv BOOKING_API_ADMIN_PASSWORD}}
 @flightid = "3c5c0000-97c6-fc34-2eb9-08db322230c9"
 @passengerId = "8c9c0000-97c6-fc34-2eb9-66db322230c9"
 
