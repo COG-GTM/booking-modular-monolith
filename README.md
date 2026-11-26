@@ -204,6 +204,20 @@ dotnet dev-certs https --trust
 ```
 
 
+> ### Seed Users
+The Identity module no longer seeds users with built-in passwords. To seed the sample `samh` (admin) and `samh2` (user) accounts on an empty database, provide their passwords through configuration, e.g. environment variables:
+
+```bash
+export IdentitySeedOptions__AdminPassword="$(openssl rand -hex 16)"
+export IdentitySeedOptions__UserPassword="$(openssl rand -hex 16)"
+```
+
+For Docker Compose, set `IDENTITY_SEED_ADMIN_PASSWORD` and `IDENTITY_SEED_USER_PASSWORD`. If a password is not set, that user is not seeded. Store the generated values somewhere safe.
+
+Seeding only runs when the Identity user table is empty. An account that was not seeded on the first start is not created later, and existing accounts are never modified, so changing these values does not rotate an existing password.
+
+Registering new users requires an authenticated token, so on a fresh deployment set at least `AdminPassword` to bootstrap the first account. Once the database is seeded, remove the seed passwords from the configuration.
+
 > ### Aspire
 
 To run the application using the `Aspire App Host`, execute the following command from the solution root:
