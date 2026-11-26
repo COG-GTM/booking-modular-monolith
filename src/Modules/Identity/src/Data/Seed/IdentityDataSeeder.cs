@@ -70,11 +70,14 @@ public class IdentityDataSeeder : IDataSeeder
 
     private async Task SeedUsers()
     {
-        await SeedUser(InitialData.Users.First(), _seedOptions.AdminPassword, IdentityConstant.Role.Admin,
-            nameof(IdentitySeedOptions.AdminPassword));
+        if (!await _identityContext.Users.AnyAsync())
+        {
+            await SeedUser(InitialData.Users.First(), _seedOptions.AdminPassword, IdentityConstant.Role.Admin,
+                nameof(IdentitySeedOptions.AdminPassword));
 
-        await SeedUser(InitialData.Users.Last(), _seedOptions.UserPassword, IdentityConstant.Role.User,
-            nameof(IdentitySeedOptions.UserPassword));
+            await SeedUser(InitialData.Users.Last(), _seedOptions.UserPassword, IdentityConstant.Role.User,
+                nameof(IdentitySeedOptions.UserPassword));
+        }
     }
 
     private async Task SeedUser(User user, string? password, string role, string passwordOptionName)
