@@ -54,6 +54,7 @@ public class IdentityDataSeederHardcodedCredentialsTests : IdentityIntegrationTe
 
         var user = await userManager.FindByNameAsync("samh2");
         user.Should().NotBeNull();
+        (await userManager.CheckPasswordAsync(user!, options.UserPassword)).Should().BeTrue();
         (await userManager.CheckPasswordAsync(user!, "User@123456")).Should().BeFalse();
     }
 
